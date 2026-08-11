@@ -1,0 +1,240 @@
+<title>라서 — 행성 맵 3안</title>
+<style>
+  :root{--ground:#0A0A0E;--panel:#13131A;--edge:#26262F;--ink:#EDEDF2;--dim:#9494A2;--faint:#5A5A68;
+    --gold:#FFD27A;--amber:#FF8A3D}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);
+    font-family:"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.6}
+  .wrap{max-width:1600px;margin:0 auto;padding:44px 20px 90px}
+  nav.toc{position:sticky;top:0;z-index:20;background:rgba(10,10,14,.94);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--edge);
+    margin:0 0 28px;padding:10px 0;display:flex;gap:6px;flex-wrap:wrap}
+  nav.toc a{font-size:11.5px;letter-spacing:.02em;color:var(--dim);text-decoration:none;
+    padding:5px 10px;border:1px solid transparent;border-radius:99px;white-space:nowrap}
+  nav.toc a:hover{color:var(--ink);border-color:var(--edge);background:#16161E}
+  h2{scroll-margin-top:64px}
+  header{border-bottom:1px solid var(--edge);padding-bottom:34px;margin-bottom:56px}
+  .kicker{font-size:11px;letter-spacing:.36em;text-transform:uppercase;color:var(--amber);margin:0 0 14px}
+  h1{font-size:clamp(31px,5vw,50px);line-height:1.05;margin:0 0 16px;font-weight:600;letter-spacing:-.025em;text-wrap:balance}
+  .lede{color:var(--dim);max-width:66ch;margin:0;font-size:15px}
+  .lede b{color:var(--ink);font-weight:600}
+  h2{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--amber);margin:44px 0 5px;font-weight:600}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 14px;max-width:78ch}
+  .sub b{color:var(--ink);font-weight:600}
+  body.bare .sub,body.bare .note,body.bare .warn,body.bare header .lede,body.bare table{display:none}
+  /* ⚠️ grid-template-columns 가 아티팩트 호스트에서 안 먹어 한 열로 떨어졌다.
+     flex + 고정폭이면 어디서든 줄바꿈이 확정된다(mockup.html 과 같은 이유). */
+  .grid{display:flex;flex-wrap:wrap;gap:9px;align-items:flex-start;margin-top:6px}
+  .tile{background:var(--panel);border:1px solid var(--edge);border-radius:4px;overflow:hidden;display:flex;flex-direction:column}
+  .tile canvas{width:100%;height:auto;display:block;background:#0C0C12}
+  .cap{padding:7px 9px 8px;border-top:1px solid var(--edge)}
+  body.bare .cap .ds{display:none}
+  .note{border-left:2px solid var(--amber);padding:2px 0 2px 16px;color:var(--dim);font-size:13.5px;margin:26px 0 0;max-width:78ch}
+  .note b{color:var(--ink);font-weight:600}
+  .warn{background:#17111A;border:1px solid #3A2233;border-radius:4px;padding:18px 20px;margin-top:18px;max-width:78ch}
+  .warn h3{margin:0 0 8px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
+  .warn p{margin:0 0 8px;font-size:13px;color:var(--dim);line-height:1.6}
+  .warn p:last-child{margin:0}
+  .warn b{color:var(--ink);font-weight:600}
+  table{border-collapse:collapse;margin:16px 0 0;font-size:12.5px;width:100%;max-width:1000px}
+  th,td{border:1px solid var(--edge);padding:7px 10px;text-align:left;vertical-align:top;color:var(--dim)}
+  th{color:var(--ink);font-weight:600;background:#13131A;font-size:11.5px;letter-spacing:.04em}
+  td b{color:var(--ink);font-weight:600}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
+
+<div class="wrap">
+<nav class="toc">
+  <span style="color:#9494A2;margin-right:6px">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본 공격</a><a href="mockup-mani.html">발현</a><a href="mockup-manic.html">발현 전용기</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html">저주</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-etc.html">그 외</a><a href="mockup-map2.html" style="color:var(--gold);font-weight:700">행성 맵</a>
+  <span style="color:#26262F;margin:0 8px">|</span><a href="#s-why">왜 바닥인가</a><a href="#s-a">A 흑암반</a><a href="#s-b">B 재의 바다</a><a href="#s-c">C 이끼 평원</a><a href="#s-proof">먹혔나</a><a href="#s-mini">미니맵</a><a href="#s-num">수치</a>
+  <a href="#" id="bare" style="margin-left:auto;color:var(--amber)">설명 접기</a>
+</nav>
+<header>
+  <p class="kicker">Light Survival · 행성 맵 시안</p>
+  <h1>바닥이 있는 맵</h1>
+  <p class="lede">지금은 <b>검은 배경</b> 위에서 싸웁니다. 판이 5분이고 플레이어가 쉬지 않고 움직이는데
+  배경이 아무것도 안 하니, 내가 움직이는지 세상이 멈춘 건지 알 수 없습니다. 배경은 예쁜 그림이 아니라
+  <b>위치감을 주는 장치</b>입니다.
+  <br>여기 셋은 전부 <b>바닥이 있는</b> 안입니다 — 우주 맵과 갈리는 지점이고, 이 안들의 강점이자 함정입니다.</p>
+</header>
+
+<h2 id="s-why">바닥이 있다 — 공짜로 얻는 것과 대가</h2>
+<p class="sub"><b>얻는 것</b>: 질감이 발밑을 흐르니 「내가 움직인다」가 공짜로 읽힙니다. 우주는 별을 촘촘히
+깔지 않는 한 이걸 못 줍니다.
+<br><b>대가</b>: 지면은 화면을 <b>100% 덮습니다.</b> 별은 화면의 1%만 덮으니 아무리 밝아도 이펙트와 안
+싸우지만, 지면은 1%만 밝아도 <b>그 1%가 화면 전체에 깔립니다.</b> 그래서 지면 맵의 설계는
+「평균을 어둡게」가 아니라 <b>밝은 화소의 면적을 상한으로 묶는 것</b>입니다.</p>
+<div class="warn">
+  <h3>세 안이 공통으로 지키는 한 줄</h3>
+  <p>이 게임의 이펙트는 전부 <b>3단 계조</b>입니다 — 어두운 바탕 → 중간 → <b>흰 앞날</b>.
+  눈은 그 흰 앞날을 「이펙트」의 표식으로 배웁니다.</p>
+  <p>⇒ <b>배경은 3단 중 맨 아래 한 단만 씁니다.</b> 배경에는 중간층도 흰 앞날도 없습니다.
+  이 한 줄이 「배경이 이펙트를 먹는」 사고를 <b>구조로</b> 막습니다 — 색을 잘 고르는 문제가 아니라
+  <b>계조를 몇 단 쓰느냐</b>의 문제입니다. (C안의 이끼만 두 단까지 예외를 두고, 그 예외의 상한을
+  아래 표에 수치로 못 박았습니다.)</p>
+</div>
+<div class="note">세 안은 <b>「행성이 무엇으로 읽히는가」</b>가 다르고, 그보다 먼저
+<b>「위치감을 무엇이 주는가」</b>가 다릅니다 — A는 지형지물, B는 흐름과 시차, C는 점점이 박힌 발광체.
+색만 다른 세 벌이 아닙니다.</div>
+<table>
+  <tr><th style="width:150px">밝기 상한</th><th>A · 흑암반</th><th>B · 재의 바다</th><th>C · 이끼 평원</th></tr>
+  <tr><td>바탕 색 / 명도</td><td>#0B0C0E · .05</td><td>#0A0A0C · .04</td><td>#08090B · .03</td></tr>
+  <tr><td>질감의 밝은 층</td><td>자갈 알파 ≤.09<br>균열 립 알파 .10 · 폭 1.8px</td>
+      <td>물결 마루 알파 .036 · 폭 2px<br>날리는 재 알파 ≤.23 · 2px</td>
+      <td>자갈 알파 ≤.09×.55<br>흙 얼룩 알파 .026</td></tr>
+  <tr><td>가장 밝은 것</td><td>잔불 — 반경 1.8px · 화면당 3.2개<br>면적비 <b>0.006%</b></td>
+      <td>잉걸 — 반경 1.3px · 5개<br>면적비 <b>0.002%</b></td>
+      <td>포자낭 — 반경 1.5px · 군락당 5개<br>명도 상한 <b>.26</b></td></tr>
+  <tr><td>3단 계조 중 쓰는 단</td><td><b>1단</b>(맨 아래)</td><td><b>1단</b></td>
+      <td><b>2단</b> — 유일한 예외</td></tr>
+</table>
+<div class="note">세 안 모두 <b>「위층은 밝게가 아니라 어둡게」</b>를 씁니다. 지면 위에 겹치는 층
+(균열의 어깨 · 표류하는 재 장막 · 흙 얼룩의 어두운 쪽)을 전부 <b>어두워지는 쪽</b>으로 두면,
+층을 아무리 겹쳐도 이펙트와 안 싸웁니다. B의 장막은 처음에 흰 안개였다가
+<b>「보이면 밝고, 안 밝으면 안 보이는」</b> 막다른 길에 걸려 부호를 뒤집은 것입니다 —
+재가 지면을 <b>가리는</b> 것이니 물리에도 맞습니다.</div>
+
+<h2 id="s-a">A · 금 간 흑암반</h2>
+<p class="sub"><b>식어서 갈라진 용암 판.</b> 균열망이 땅을 168px 다각형으로 쪼갭니다. 판 하나가 캐릭터의
+열 배쯤이라, <b>멈춰 있어도</b> 「나는 이 판의 왼쪽 아래 모서리에 있다」가 읽힙니다 — 세 안 중
+정지 상태에서 위치를 말해 주는 유일한 안입니다.
+<br><b>이펙트를 안 먹는 방법</b>: 균열은 <b>바탕보다 어둡습니다</b>(#040406 명도 .02 / 바탕 #0B0C0E 명도 .05).
+배경에서 눈에 띄는 것을 밝기가 아니라 <b>어둠</b>으로 만들면, 가산 발광 이펙트와 애초에 같은 축에서
+안 다툽니다. 밝은 것은 균열 립(알파 .10 · 폭 1.8px)과 잔불(꼭짓점의 5.5% · 반경 1.8px · 화면당 3.2개)뿐.
+<br><b>선만으로는 안 됩니다</b>: 틈과 바탕의 명도 차가 .03뿐이라 5px 선이 「머리카락 자국」으로만
+보였습니다(헤드리스 실측). 답은 선을 밝히는 게 아니라 <b>판을 서로 다른 값으로 칠하는 것</b>이었습니다 —
+실제 갈라진 암반이 그렇게 보이는 이유는 틈이 진해서가 아니라 <b>판마다 색이 다르기</b> 때문입니다.
+판 사이 최대 명도 차 <b>.022</b>. 그리고 셋 중 하나는 이웃의 값을 물려받아 두 칸이 한 판으로 붙습니다 —
+안 그러면 판이 전부 168px로 같아 격자가 드러납니다.
+<br><b>이음매</b>: 균열은 타일이 아니라 <b>월드 좌표 hash</b>입니다. 이웃 셀이 같은 꼭짓점 함수를 부르므로
+저절로 이어지고, 주기가 아예 없습니다. 바탕 질감은 512 타일 + 27° 돌린 256 타일 두 겹.
+<br><b>비용</b>: 프레임당 fillRect 2회(패턴) + 판 40칸 + 균열 60~80줄 × 4획 = <b>0.22ms</b>(960×540 실측).</p>
+<div class="grid" id="map2a"></div>
+
+<h2 id="s-b">B · 재의 바다</h2>
+<p class="sub"><b>무릎까지 쌓인 화산재.</b> 지형지물이 <b>하나도 없습니다.</b> 대신 세 겹이 서로 다른
+속도로 흐릅니다 — 재 물결 1.0× · <b>어두운 재 장막 1.34×</b> · 날리는 재 2.4×.
+<br><b>위치감</b>: 「여기가 어디」는 못 주고 <b>「어느 쪽으로 얼마나 빨리」</b>만 줍니다. 그 대신 그건 셋 중
+제일 잘 줍니다(시차가 유일한 신호이므로 눈이 거기에만 붙습니다). 못 주는 쪽은 미니맵이 갚습니다.
+<br><b>이펙트를 안 먹는 방법</b>: <b>셋 중 가장 안전합니다</b> — 밝은 화소 비율도(0.0008%) 평균 명도도(.033)
+셋 중 최저입니다. 화면에서 제일 밝은 것이 물결 마루(흰 알파 .036)와 날리는 재(알파 ≤.23 · 2px)뿐이고,
+그 위는 잉걸 5개가 전부입니다. 대신 <b>「행성이 심심하다」</b>는 대가를 집니다 — 그 교환이 이 안의
+정체입니다.
+<br><b>시차 층을 어둡게 둔 이유</b>: 처음엔 흰 안개였는데, 진하게 두면 평균 명도가 검은 배경보다
+올라가고(.072) 옅게 두면 <b>아예 안 보였습니다</b>. 밝기를 조절할 게 아니라 <b>부호를 뒤집는</b> 문제였습니다.
+어두워지는 층은 아무리 진해도 이펙트와 안 싸우고, 재가 지면을 <b>가리는</b> 것이니 물리에도 맞습니다.
+<br><b>이음매</b>: 물결은 <b>정수 파수만</b> 씁니다. sin(2π·k·x/S)는 x=0과 x=S에서 값도 기울기도 같아
+가로 이음매가 <b>수학적으로 0</b>입니다. 세로는 삐져나간 행을 반대편에 한 번 더 그려 막습니다.
+행 간격을 균등하게 뒀더니 <b>골판지</b>로 보여서, 행마다 자리를 흔들고 다섯 중 하나는 뺐습니다.
+<br><b>비용</b>: 프레임당 fillRect 2회 + 파티클 77개 = <b>0.08ms</b>(셋 중 최저).</p>
+<div class="grid" id="map2b"></div>
+
+<h2 id="s-c">C · 발광 이끼 평원</h2>
+<p class="sub"><b>죽은 흙에 살아 있는 것만 빛나는 곳.</b> 군락이 별자리처럼 놓여, 멈춰서도 「저 세 덩이
+사이」로 자기 위치를 말할 수 있습니다.
+<br><b>이펙트를 안 먹는 방법</b> — 배경이 <b>스스로 빛나는 유일한 안</b>이라 여기가 이 과제의 함정입니다.
+장치 넷으로 묶습니다: ① <b>면적 상한</b> 셀의 46%에만·화면 점유 ≤14% ② <b>명도 상한 .26</b>
+(몸통 .11 / 속 .20 / 포자낭 반경 1.5px) — 이펙트의 흰 앞날(1.00)과 4배 차 ③ <b>흰 앞날 금지</b>,
+이끼는 3단 중 두 단까지만 ④ <b>숨을 안 맞춘다</b> — 군락마다 주기(3.4~6.3s)와 위상이 다릅니다.
+맞추면 화면 전체 밝기가 같이 오르내려 그 순간마다 이펙트와 싸웁니다.
+<br><b>실루엣은 각진 별이 아니라 둥근 돌기</b>입니다. 처음 <code>jagPoly</code>로 그렸더니
+<b>캐릭터의 각진 별 코어를 바닥에 한 번 더 그린 꼴</b>이 됐습니다. 이끼는 뾰족할 이유가 없고,
+돌기가 뭉친 실루엣(<code>puffPoly</code>)이라야 「번져 자란 것」으로 읽힙니다. 군락마다 새끼 군락
+셋을 흩어 스티커가 안 되게 했습니다.
+<br><b>이음매</b>: 군락은 월드 hash 격자(214px) — 주기 없음. 흙 얼룩은 384 타일 + 33° 돌린 자갈.
+<br><b>비용</b>: 프레임당 fillRect 2회 + 군락 12~16개 × (그라디언트 1 + 다각형 5 + 점 8) = <b>0.23ms</b>.</p>
+<div class="grid" id="map2c"></div>
+<div class="warn">
+  <h3>C안이 지고 있는 위험 하나</h3>
+  <p>독(毒 <b>#57D96B</b> 130°)과 이끼(162°)가 <b>32°</b>밖에 안 떨어져 있습니다. 명도가 .78 대 .20이라
+  실기에선 갈리지만, 독 캐릭터에서만 이끼 알파를 0.6배로 내리는 훅 하나를 남겨 둘 자리입니다.
+  <b>지금은 안 넣었습니다</b> — 실기에서 정말 붙는지 보고 넣을 것이라서.</p>
+</div>
+
+<h2 id="s-proof">먹혔나 — 같은 이펙트를 넷에 얹어 본다</h2>
+<p class="sub">「배경이 이펙트를 안 헤친다」는 <b>말로 하는 게 아니라 겹쳐 놓고 봐야 합니다.</b>
+위의 큰 칸 셋에는 이미 실제 이펙트 <b>빛파동(FX.bolt)</b>이 어둠 아홉 마리와 함께 돌고 있습니다.
+아래는 같은 이펙트를 <b>지금의 검은 배경</b>과 세 안 위에 나란히 놓은 것입니다 — 첫 칸이 대조군입니다.</p>
+<div class="grid" id="map2ref"></div>
+<p class="sub" style="margin-top:14px">그리고 <b>이펙트를 뺀 배경만</b>. 대비 판정은 여기서 합니다 —
+셋 다 밝은 화소(명도&gt;0.35)가 <b>0.02% 미만</b>이고, <b>평균 명도는 셋 다 지금의 검은 배경보다
+낮습니다</b>(아래 표). 바닥을 깔았는데 화면이 더 어두워진 것은, 겹치는 층을 전부 어두워지는 쪽으로
+뒀기 때문입니다.</p>
+<div class="grid" id="map2bg"></div>
+
+<h2 id="s-mini">미니맵 — 한 겹만 그린다</h2>
+<p class="sub">우측 하단. 플레이어가 5분 내내 되풀이하는 결정은 하나입니다 — <b>어느 쪽으로 빠질까.</b>
+거기 필요한 것은 「적이 어디 있나」가 아니라 <b>「빈 곳이 어디냐」</b>이고, 500마리를 점으로 찍으면
+미니맵은 그냥 회색 사각형이 됩니다. 그래서 개체를 버리고 <b>밀도</b>를 그립니다.
+계조도 <b>2단</b>입니다(성긴 .26 / 빽빽한 .58) — 연속 히트맵은 「구름」이 되어 정작 빈 곳의 윤곽이
+안 잡힙니다. 셀 셰이딩을 쓰는 이유와 같습니다.</p>
+<table>
+  <tr><th style="width:110px">후보</th><th style="width:80px">넣나</th><th>왜</th></tr>
+  <tr><td><b>적 밀도</b></td><td><b style="color:#FFD27A">넣는다</b></td>
+      <td>유일한 결정(도주 방향)을 <b>직접</b> 바꾼다. 개체가 아니라 <b>빈 곳</b>을 그린다.</td></tr>
+  <tr><td><b>지형</b></td><td>뺀다</td>
+      <td>이 맵의 지형은 <b>통행을 안 막는다</b> — 500마리 경로탐색을 안 사려고, 그리고 서바이버는
+      열린 평면이 생명이라서. 못 막는 것을 그리면 결정에 영향이 0인 잉크다.
+      <b>← 우주 맵과 답이 갈리는 자리.</b> 바닥이 생겼다고 바닥을 미니맵에 옮기는 것은 소음이다.</td></tr>
+  <tr><td><b>보스</b></td><td>뺀다</td>
+      <td>방향 정보라 밀도와 <b>축이 다르다</b>. 섞으면 두 겹이 되므로 <b>화면 가장자리 화살표</b>로
+      뺀다(미니맵 밖).</td></tr>
+  <tr><td><b>암흑물질</b></td><td>뺀다</td>
+      <td>이미 화면에서 스스로 빛난다. 두 번 말할 이유가 없다.</td></tr>
+</table>
+<div class="grid" id="map2mini" style="margin-top:16px"></div>
+<div class="note">미니맵에서 <b>흰 것은 나 하나뿐</b>입니다. 눈이 무엇을 찾을지 배울 필요가 없습니다.
+판은 지면보다 <b>더 어둡습니다</b> — UI는 땅 위에 얹은 것이 아니라 <b>뚫린 구멍</b>이라야 지면을
+안 밝힙니다.</div>
+
+<h2 id="s-num">실측</h2>
+<p class="sub">헤드리스 크롬에서 <b>배경만</b> 960×540으로 그리고, 상대휘도
+(0.2126R+0.7152G+0.0722B, sRGB 0~1)가 <b>0.35를 넘는 화소</b>의 비율을 셌습니다. t=0/2.7/6.1/11.3초
+네 시점의 최댓값입니다. 비용은 같은 크기에서 배경만 60프레임 그린 평균입니다.</p>
+<table>
+  <tr><th>안</th><th class="num">명도&gt;0.35</th><th class="num">명도&gt;0.20</th><th class="num">평균 명도</th><th class="num">배경 1프레임</th><th>위치감의 출처</th></tr>
+  <tr><td><b>A · 금 간 흑암반</b></td><td class="num" id="n-a1">—</td><td class="num" id="n-a2">—</td><td class="num" id="n-a3">—</td><td class="num" id="n-a4">—</td><td>지형지물(균열 다각형)</td></tr>
+  <tr><td><b>B · 재의 바다</b></td><td class="num" id="n-b1">—</td><td class="num" id="n-b2">—</td><td class="num" id="n-b3">—</td><td class="num" id="n-b4">—</td><td>흐름과 시차(1.0/1.34/2.4×)</td></tr>
+  <tr><td><b>C · 발광 이끼 평원</b></td><td class="num" id="n-c1">—</td><td class="num" id="n-c2">—</td><td class="num" id="n-c3">—</td><td class="num" id="n-c4">—</td><td>점점이 박힌 발광체(군락)</td></tr>
+  <tr><td>참고 · 지금의 검은 배경</td><td class="num">0.000%</td><td class="num">0.00%</td><td class="num">0.049</td><td class="num">0.00ms</td><td>없음</td></tr>
+</table>
+<p class="sub" style="margin-top:10px">표의 값은 이 페이지를 열면 <b>그 자리에서 다시 잽니다</b> —
+숫자를 문서에 박아 두면 코드를 고쳤을 때 조용히 거짓말이 됩니다.</p>
+
+</div>
+<!-- ⚠️ file:// 에서 브라우저가 vfx.js 를 세게 캐시한다. 시안을 고쳐도 새로고침에
+     반영이 안 돼 「왜 똑같지?」가 났다(2026-08-10). 매 로드마다 쿼리를 갈아
+     항상 새로 읽게 한다. file:// 에서도 쿼리 문자열은 먹는다(확인함). -->
+<script>document.write(unescape("%3Cscript src=\"vfx.js?t=")+Date.now()+unescape("\"%3E%3C/script%3E"));</script>
+<script>
+// 실측 — 표의 숫자를 **여는 순간 다시 잰다.** 박아 둔 숫자는 코드가 바뀌면
+// 조용히 거짓말이 되므로, 문서가 스스로 재도록 둔다.
+window.addEventListener("load",function(){
+  if(typeof MAPP==="undefined"||!MAPP.bg)return;
+  var W=960,H=540,cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  var c=cv.getContext("2d",{willReadFrequently:true});
+  var keys=[["fissure","a"],["ashsea","b"],["moss","c"]],TS=[0,2.7,6.1,11.3];
+  keys.forEach(function(kv){
+    var hi=0,mid=0,avg=0;
+    TS.forEach(function(t){
+      c.setTransform(1,0,0,1,0,0);c.globalAlpha=1;c.globalCompositeOperation="source-over";
+      c.fillStyle="#000";c.fillRect(0,0,W,H);
+      MAPP.bg[kv[0]](c,t,W,H);
+      var d=c.getImageData(0,0,W,H).data,n=W*H,h=0,m=0,s=0;
+      for(var i=0;i<d.length;i+=4){
+        var L=(0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2])/255;
+        s+=L;if(L>0.35)h++;if(L>0.20)m++;}
+      hi=Math.max(hi,h/n);mid=Math.max(mid,m/n);avg=Math.max(avg,s/n);});
+    // 비용 — 배경만 60프레임
+    var t0=performance.now();
+    for(var f=0;f<60;f++){c.setTransform(1,0,0,1,0,0);MAPP.bg[kv[0]](c,f*0.05,W,H);}
+    var ms=(performance.now()-t0)/60;
+    var P=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+    P("n-"+kv[1]+"1",(hi*100).toFixed(3)+"%");
+    P("n-"+kv[1]+"2",(mid*100).toFixed(2)+"%");
+    P("n-"+kv[1]+"3",avg.toFixed(3));
+    P("n-"+kv[1]+"4",ms.toFixed(2)+"ms");
+  });
+});
+</script>

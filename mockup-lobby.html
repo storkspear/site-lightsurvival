@@ -1,0 +1,462 @@
+<title>라서 — 로비 시안 3안</title>
+<style>
+  :root{--ground:#0A0A0E;--panel:#13131A;--edge:#26262F;--ink:#EDEDF2;--dim:#9494A2;--faint:#5A5A68;
+    --gold:#FFD27A;--amber:#FF8A3D}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);
+    font-family:"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.6}
+  .wrap{max-width:1600px;margin:0 auto;padding:44px 20px 90px}
+  /* 목차 — 섹션이 열두 개라 스크롤만으로는 못 찾는다 */
+  nav.toc{position:sticky;top:0;z-index:20;background:rgba(10,10,14,.94);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--edge);
+    margin:0 0 28px;padding:10px 0;display:flex;gap:6px;flex-wrap:wrap}
+  nav.toc a{font-size:11.5px;letter-spacing:.02em;color:var(--dim);text-decoration:none;
+    padding:5px 10px;border:1px solid transparent;border-radius:99px;white-space:nowrap}
+  nav.toc a:hover{color:var(--ink);border-color:var(--edge);background:#16161E}
+  h2{scroll-margin-top:64px}
+  header{border-bottom:1px solid var(--edge);padding-bottom:34px;margin-bottom:46px}
+  .kicker{font-size:11px;letter-spacing:.36em;text-transform:uppercase;color:var(--amber);margin:0 0 14px}
+  h1{font-size:clamp(31px,5vw,50px);line-height:1.05;margin:0 0 16px;font-weight:600;letter-spacing:-.025em;text-wrap:balance}
+  .lede{color:var(--dim);max-width:66ch;margin:0;font-size:15px}
+  .lede b{color:var(--ink);font-weight:600}
+  h2{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--amber);margin:44px 0 5px;font-weight:600}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 14px;max-width:74ch}
+  .sub b{color:var(--ink);font-weight:600}
+  body.bare .sub,body.bare .note,body.bare .refs,body.bare .ia,body.bare .spec,
+  body.bare header .lede{display:none}
+  .note{border-left:2px solid var(--amber);padding:2px 0 2px 16px;color:var(--dim);font-size:13.5px;margin:26px 0 0;max-width:74ch}
+  .note b{color:var(--ink);font-weight:600}
+
+  /* ── 레퍼런스 표 — 「예쁘게」를 취향이 아니라 판단으로 만드는 자리 ────── */
+  .refs{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
+  .ref{width:302px;flex:0 0 302px;background:var(--panel);border:1px solid var(--edge);
+    border-radius:4px;padding:13px 14px 14px}
+  .ref .src{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+  .ref .q{font-size:12.5px;color:var(--ink);margin:6px 0 7px;line-height:1.55}
+  .ref .q i{color:var(--dim);font-style:normal}
+  .ref .so{font-size:11px;color:var(--dim);line-height:1.5}
+  .ref .so b{color:#7CFFB0;font-weight:600}
+
+  /* ── 정보 구조 ─────────────────────────────────────────────────────── */
+  .ia{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
+  .ia .lv{width:302px;flex:0 0 302px;background:var(--panel);border:1px solid var(--edge);
+    border-radius:4px;padding:13px 14px 14px}
+  .ia .lv h4{margin:0 0 3px;font-size:12.5px;font-weight:600;color:var(--ink)}
+  .ia .lv .n{font-size:10px;letter-spacing:.18em;color:var(--amber);margin-bottom:6px}
+  .ia .lv p{margin:0 0 7px;font-size:11.5px;color:var(--dim);line-height:1.55}
+  .ia .lv p:last-child{margin:0}
+  .ia .lv b{color:var(--ink);font-weight:600}
+
+  /* ── 조작대 ────────────────────────────────────────────────────────── */
+  .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 20px}
+  .ctl .cl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-right:2px}
+  .ctl button{font:inherit;font-size:11.5px;color:var(--dim);background:#13131A;
+    border:1px solid var(--edge);border-radius:99px;padding:6px 13px;cursor:pointer}
+  .ctl button:hover{color:var(--ink);border-color:#3A3A46}
+  .ctl button.on{color:#0A0A0E;background:var(--gold);border-color:var(--gold);font-weight:700}
+
+  /* ── 폰 프레임 3개 가로 ─────────────────────────────────────────────── */
+  .rack{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .col{width:392px;flex:0 0 392px}
+  .phone{width:392px;padding:14px;background:#0E0E13;border:1px solid #23232C;
+    border-radius:44px;box-shadow:0 30px 80px -40px #000}
+  .screen{position:relative;width:364px;height:788px;border-radius:31px;overflow:hidden;
+    background:#08080C;isolation:isolate}
+  .screen canvas.bg{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+  /* scrim — 배경이 무엇으로 바뀌든 **글자 대비를 여기서 보장한다.**
+     이게 없으면 밝은 맵이 들어온 날 로비 전체를 다시 손봐야 한다. */
+  .screen .scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:
+      linear-gradient(180deg,rgba(8,8,12,.86) 0%,rgba(8,8,12,.10) 26%,rgba(8,8,12,.10) 52%,rgba(8,8,12,.92) 88%),
+      radial-gradient(120% 68% at 50% 46%,rgba(8,8,12,0) 40%,rgba(8,8,12,.72) 100%)}
+  .ui{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;
+    padding:14px 15px 12px;color:#EDEDF2}
+  /* 엄지 존 — 아래 38%. 켜면 세 안 전부에 같은 띠가 깔려 **주 버튼이 그
+     안에 있는지**를 눈으로 판정할 수 있다(근거는 레퍼런스 ①). */
+  .screen .thumb{position:absolute;left:0;right:0;bottom:0;height:38%;z-index:3;display:none;
+    pointer-events:none;background:linear-gradient(180deg,rgba(124,255,176,0),rgba(124,255,176,.10));
+    border-top:1px dashed rgba(124,255,176,.45)}
+  /* 진단용 라벨은 **왼쪽**에 둔다 — 오른쪽 62% 지점은 C안의 「무한」 별
+     라벨 자리라, 검증 오버레이가 검증 대상을 가려 버렸다(2026-08-11). */
+  .screen .thumb::after{content:"엄지 존 · 아래 38%";position:absolute;top:6px;left:9px;
+    font-size:9px;letter-spacing:.12em;color:rgba(124,255,176,.9);
+    background:rgba(6,10,8,.86);padding:2px 6px;border-radius:99px}
+  body.thumbs .screen .thumb{display:block}
+  .notch{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:104px;height:24px;
+    border-radius:99px;background:#08080C;z-index:4}
+  .home{width:118px;height:4px;border-radius:99px;background:rgba(237,237,242,.32);
+    margin:6px auto 0;flex:0 0 auto}
+
+  /* 화면 공통 부품 */
+  .sysrow{display:flex;justify-content:space-between;align-items:center;
+    font-size:10.5px;color:#7E7E8C;letter-spacing:.02em;height:26px;flex:0 0 auto}
+  .toprow{display:flex;justify-content:space-between;align-items:center;height:34px;flex:0 0 auto}
+  .tbtn{font-size:11.5px;color:#B9B9C6;letter-spacing:.06em;padding:6px 10px;border-radius:99px;
+    border:1px solid rgba(180,180,200,.16);background:rgba(18,18,26,.5);backdrop-filter:blur(6px)}
+  .tbtn.icon{padding:6px 9px}
+  /* 뾰족한 윤곽 — 셀 문법을 UI 로 옮긴 것. 모서리 하나를 깎는다. */
+  .cut{clip-path:polygon(0 0,calc(100% - 11px) 0,100% 11px,100% 100%,11px 100%,0 calc(100% - 11px))}
+  .panel{background:rgba(16,16,23,.62);border:1px solid rgba(180,180,200,.13);
+    backdrop-filter:blur(9px);padding:11px 13px}
+  .lbl{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:#6E6E7C}
+  .val{font-size:13px;color:#EDEDF2;font-weight:600;letter-spacing:-.01em}
+  .tnum{font-variant-numeric:tabular-nums}
+  .dimtx{color:#8B8B99}
+  /* 주 버튼 — **화면에서 색이 있는 유일한 것.** 무속성이 회백이라는 색 규약
+     덕에, 금빛 하나만 두면 눈이 갈 곳이 하나로 확정된다. */
+  .cta{position:relative;height:60px;display:flex;align-items:center;justify-content:center;
+    gap:10px;flex:0 0 auto;cursor:default;
+    background:linear-gradient(180deg,rgba(255,210,122,.20),rgba(255,210,122,.05));
+    border:1px solid rgba(255,210,122,.55);
+    box-shadow:0 0 34px -12px rgba(255,210,122,.85),inset 0 1px 0 rgba(255,255,255,.34)}
+  .cta .b{font-size:17px;font-weight:700;color:#FFE9C6;letter-spacing:.04em}
+  .cta .s{font-size:11px;color:rgba(255,233,198,.62);letter-spacing:.02em}
+  .cta.ghost{background:rgba(18,18,26,.5);border-color:rgba(180,180,200,.20);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10);height:52px}
+  .cta.ghost .b{color:#D2D2DE;font-size:15px;font-weight:600}
+  .sub2{text-align:center;font-size:11.5px;color:#7E7E8C;padding:9px 0 2px;flex:0 0 auto}
+  .sub2 u{text-decoration:none;color:#A6A6B4;border-bottom:1px solid rgba(166,166,180,.3)}
+  .seg{display:flex;gap:0;border:1px solid rgba(180,180,200,.16);background:rgba(16,16,23,.55);
+    flex:0 0 auto;overflow:hidden}
+  .seg div{flex:1 1 0;text-align:center;font-size:12px;padding:9px 0;color:#8B8B99;letter-spacing:.04em}
+  .seg div.on{background:rgba(237,237,242,.10);color:#EDEDF2;font-weight:600;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+  .seg div.lock{color:#5E5E6C}
+  .grow{flex:1 1 auto;min-height:0}
+  .row{display:flex;align-items:center;gap:9px}
+  .deckstrip{width:100%;height:24px;display:block}
+  .barmini{height:4px;background:rgba(237,237,242,.09);overflow:hidden;margin-top:7px}
+  .barmini i{display:block;height:100%;background:linear-gradient(90deg,#8E8E9E,#DADAE6)}
+
+  /* A안 */
+  .heroWrap{position:relative;display:flex;flex-direction:column;align-items:center;flex:0 0 auto}
+  .heroWrap canvas{width:292px;height:292px;display:block}
+  .heroName{font-size:26px;font-weight:600;letter-spacing:.30em;color:#E8E8F0;margin-top:-8px}
+  .heroSub{font-size:11px;color:#7E7E8C;letter-spacing:.14em;margin-top:5px}
+  .heroTag{position:absolute;top:8px;left:50%;transform:translateX(-50%);
+    font-size:9.5px;letter-spacing:.26em;color:#6E6E7C}
+
+  /* B안 — 카드가 주인공 */
+  .decktabs{display:flex;gap:7px;flex:0 0 auto}
+  .decktabs div{font-size:11.5px;padding:7px 12px;color:#8B8B99;
+    border:1px solid rgba(180,180,200,.14);background:rgba(16,16,23,.5)}
+  .decktabs div.on{color:#0A0A0E;background:#D9D9E4;border-color:#D9D9E4;font-weight:700}
+  #lb-b-grid{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+  .dcard{width:60px;flex:0 0 60px;background:rgba(16,16,23,.62);
+    border:1px solid rgba(180,180,200,.13);padding:5px 3px 5px;text-align:center;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+  .dcard canvas{width:100%;aspect-ratio:1;display:block}
+  .dcard .dcn{font-size:8.5px;color:#8B8B99;margin-top:2px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em}
+  .dcard.arm{border-color:rgba(255,210,122,.22)}
+  .mix{display:flex;height:5px;overflow:hidden;margin-top:8px}
+  .mix i{display:block;height:100%}
+  .resume{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;
+    background:rgba(16,16,23,.66);border:1px solid rgba(180,180,200,.16);padding:9px 12px;
+    font-size:12px;color:#C6C6D2}
+  .resume b{color:#EDEDF2;font-weight:600}
+  .resume .go{font-size:11px;color:var(--gold)}
+
+  /* C안 — 성도가 주인공.
+     지도는 **상자가 아니라 층**이다. 상자에 넣으면 「로비 안에 지도 위젯이
+     있다」가 되고, 층으로 깔아야 「지도가 곧 로비다」가 된다. */
+  .screen canvas.map{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
+  .drawer{flex:0 0 auto;background:rgba(12,12,18,.80);border:1px solid rgba(180,180,200,.14);
+    backdrop-filter:blur(10px);padding:10px 13px 12px;margin:0 -3px}
+  .handle{width:44px;height:3px;border-radius:99px;background:rgba(237,237,242,.26);margin:0 auto 10px}
+  .starcard{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+  .starcard .nm{font-size:15px;font-weight:600;color:#EDEDF2}
+  .starcard .st{font-size:11px;color:var(--gold);letter-spacing:.06em}
+
+  /* 안 설명 */
+  .spec{margin-top:16px;background:var(--panel);border:1px solid var(--edge);border-radius:4px;
+    padding:15px 16px 16px}
+  .spec .h{display:flex;align-items:baseline;gap:9px;margin-bottom:9px}
+  .spec .h b{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .spec .h span{font-size:10px;letter-spacing:.2em;color:var(--amber)}
+  .spec dl{margin:0;font-size:11.5px;line-height:1.6}
+  .spec dt{color:var(--amber);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;margin-top:9px}
+  .spec dt:first-child{margin-top:0}
+  .spec dd{margin:2px 0 0;color:var(--dim)}
+  .spec dd b{color:var(--ink);font-weight:600}
+  .spec dd.bad{color:#E0879A}
+  @media(max-width:1300px){.rack{justify-content:center}}
+</style>
+
+<div class="wrap">
+<nav class="toc">
+  <span style="color:#9494A2;margin-right:6px">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본 공격</a><a href="mockup-mani.html">발현</a><a href="mockup-manic.html">발현 전용기</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html">저주</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-etc.html">그 외</a><a href="mockup-map2.html">행성 맵</a><a href="mockup-lobby.html" style="color:var(--gold);font-weight:700">로비</a>
+  <span style="color:#26262F;margin:0 8px">|</span><a href="#s-ref">레퍼런스</a><a href="#s-ia">정보 구조</a><a href="#s-frames">3안</a><a href="#s-bg">배경 교체</a><a href="#s-open">남은 판정</a>
+  <a href="#" id="bare" style="margin-left:auto;color:var(--amber)">설명 접기</a>
+</nav>
+<header>
+  <p class="kicker">Light Survival · 로비 시안</p>
+  <h1>출격 전의 한 화면</h1>
+  <p class="lede">이어하기 · 새로하기 · 무한모드 · 덱 고르기를 <b>한 화면에 다 늘어놓으면 소음</b>입니다.
+  세 안은 색이 아니라 <b>「무엇이 화면의 주인공인가」</b>로 갈립니다 — 캐릭터 / 덱 / 성도(항로도).
+  주인공이 정해지면 나머지가 어디로 물러나는지가 따라 정해지고, 그게 곧 정보 구조입니다.
+  <b>모바일 세로 364×788</b> 기준, 배경은 <b>갈아끼울 수 있게</b> 분리했습니다.</p>
+</header>
+
+<h2 id="s-ref">레퍼런스 — 「예쁘게」를 판단으로 바꾸는 근거</h2>
+<p class="sub">아래 다섯 개가 세 안의 뼈대를 정했습니다. 각 카드의 <b>초록 줄</b>이 이 시안에 실제로 반영된 자리입니다.</p>
+<div class="refs">
+  <div class="ref"><div class="src">① 엄지 존 · Parachute Design</div>
+    <div class="q">“Place primary actions in the green zone; secondary or destructive actions in stretch or hard-to-reach areas <i>to create intentional friction.</i>”
+    초록 존 = <b>아래 30~40%</b>, 최소 탭 44×44, 고정 CTA 는 하단에서 100~150px.</div>
+    <div class="so"><b>반영</b> — 세 안 모두 주 버튼을 아래 38% 안에 두고, <b>새로하기(파괴적)</b>는 그 아래 작은 글씨 또는 지도 상단으로 밀었습니다. 「엄지 존 표시」 버튼으로 눈으로 판정할 수 있습니다.</div></div>
+  <div class="ref"><div class="src">② Continue 우선 · UX Quip</div>
+    <div class="q">“a player is only going to start a new game <i>once</i>, but will continue the game <i>multiple times</i>” — 그리고 New Game 을 위에 두면 <b>세이브를 덮어쓴다.</b></div>
+    <div class="so"><b>반영</b> — 진행 중인 판이 있으면 주 버튼 라벨이 <b>「이어하기」</b>로 바뀌고 새로하기는 확인을 요구합니다. B안만 이 원칙을 <b>일부러 거스르고</b>, 그 대가를 아래에 적었습니다.</div></div>
+  <div class="ref"><div class="src">③ 초점 · Game Developer</div>
+    <div class="q">“The more important the element is, <i>the bigger it should be on the UI.</i>” 그리고 UI 다섯 개가 서로 초점을 다투면 <b>플레이어는 중요한 것을 놓친다</b>(Offworld Trading Company 사례).</div>
+    <div class="so"><b>반영</b> — 한 안에 <b>큰 것은 하나</b>만 둡니다. A는 몸, B는 카드 판, C는 지도. 나머지는 전부 한 급 작게 눌렀습니다.</div></div>
+  <div class="ref"><div class="src">④ 카드 우선 · Marvel Snap UI (Tiffany Smart)</div>
+    <div class="q">“the cards should always take precedent in the visual hierarchy, and <i>the UI should always serve the purpose of highlighting the cards.</i>” 카드 게임 관습을 베끼지 않고 새로 풀었다고 밝힙니다.</div>
+    <div class="so"><b>반영</b> — B안은 크롬을 거의 지우고 <b>덱 20장이 화면을 먹습니다.</b> 카드 테두리·라벨을 최소로 눌러 문양이 먼저 보이게 했습니다.</div></div>
+  <div class="ref"><div class="src">⑤ 허브는 장소다 · Halls of Torment / 성도 읽기</div>
+    <div class="q">캠프(허브)에서 <b>비석이 스테이지 선택</b>이고 사당이 강화입니다 — 메뉴가 아니라 <b>장소</b>입니다. 성도 규약: <b>점 크기 = 밝기</b>, <b>잇는 선이 형태를 만든다</b>, 격자는 항해를 뜻한다.</div>
+    <div class="so"><b>반영</b> — C안은 로비가 곧 <b>맵의 축소판</b>입니다. 스테이지가 별이고 <b>무한모드는 항로에서 떨어진 별</b>이며, 별을 고르는 것이 곧 모드 선택입니다.</div></div>
+</div>
+<p class="note">레퍼런스에서 <b>안 가져온 것</b>도 적어 둡니다. 모바일 뱀서라이크의 로비는 대개 <b>상점·뽑기·일일보상 탭</b>이 하단을 차지하는데(Survivor.io 계열), 이 게임엔 그 층이 없고
+넣으면 <b>출격까지 두 번 이상 헤매게 됩니다.</b> 하단 탭바를 안 쓰는 이유입니다 — 목적지가 하나(출격)인 화면에서 탭바는 목적지를 <b>넷으로 보이게</b> 만듭니다.</p>
+
+<h2 id="s-ia">정보 구조 — 앞에 둘 것과 한 단 뒤로 보낼 것</h2>
+<p class="sub">네 개(이어하기·새로하기·무한·덱)를 <b>같은 층에 놓지 않습니다.</b> 층을 가르는 기준은 <b>빈도 × 되돌릴 수 있는가</b>입니다.</p>
+<div class="ia">
+  <div class="lv"><div class="n">1층 — 항상 보인다</div><h4>이어하기 / 출격</h4>
+    <p>제일 자주 누르고 <b>되돌릴 수 있습니다</b>(판은 5~10분). 화면당 주 버튼은 <b>하나</b>여야 하므로, 진행 중인 판이 있으면 이 버튼의 <b>라벨만 바뀝니다</b> — 버튼을 하나 더 만들지 않습니다.</p>
+    <p>같이 보이는 것: <b>어디까지 왔는가</b>(스테이지 · 경과) — 이어하기를 누르기 전에 필요한 정보가 그것뿐이기 때문입니다.</p></div>
+  <div class="lv"><div class="n">1층 — 상태로만 보인다</div><h4>덱 20장</h4>
+    <p>덱은 <b>고르는 일</b>이 아니라 <b>확인하는 일</b>로 로비에 옵니다. 20칸을 편집까지 여기서 하면 출격 화면이 편집기가 됩니다.</p>
+    <p>그래서 로비에는 <b>구성(색·개수)</b>만 띠로 놓고, 카드 하나하나를 고르는 <b>도감</b>은 한 단 뒤입니다. 16px 칸에서는 어차피 문양이 안 읽히고 <b>색과 실루엣만</b> 남습니다.</p></div>
+  <div class="lv"><div class="n">2층 — 한 번 더 눌러야</div><h4>무한모드</h4>
+    <p>모드는 <b>버튼이 아니라 목적지</b>입니다. 주 버튼을 둘로 쪼개면 초점이 둘이 되어(③) 둘 다 안 읽힙니다.</p>
+    <p>A·B안은 <b>세그먼트</b>로 목적지를 먼저 정하고 버튼은 하나로 두고, C안은 <b>지도 위의 다른 별</b>로 둡니다. 셋 다 「모드 선택 → 출격」의 <b>순서</b>는 같습니다.</p></div>
+  <div class="lv"><div class="n">3층 — 확인을 요구한다</div><h4>새로하기</h4>
+    <p>유일하게 <b>되돌릴 수 없는</b> 것(진행 중인 판이 사라집니다). 그래서 ①의 “의도적 마찰”을 그대로 씁니다 — 작은 글씨 + 확인.</p>
+    <p>진행 중인 판이 <b>없으면</b> 이 항목은 사라지고 주 버튼이 그냥 <b>「출격」</b>이 됩니다. 없는 선택지를 회색으로 남겨두지 않습니다.</p></div>
+  <div class="lv"><div class="n">4층 — 로비 밖</div><h4>도감 · 기록 · 설정</h4>
+    <p>출격 동선에 없는 것은 <b>화면 위쪽</b>(엄지가 안 닿는 자리)으로 보냅니다 — 이것도 ①의 의도적 마찰입니다.</p>
+    <p>세 안 모두 상단 좌우 두 칸만 씁니다. 셋 이상 놓이는 순간 로비가 <b>포털</b>이 되고, 출격이 여러 선택지 중 하나로 내려앉습니다.</p></div>
+</div>
+
+<h2 id="s-frames">3안 — 무엇이 화면의 주인공인가</h2>
+<p class="sub">셋 다 <b>같은 상태</b>를 그립니다: 진행 중인 판이 있고(3장 · 4:12), 덱은 20/20, 무한은 아직 잠김. 그래야 비교가 됩니다.
+배경을 갈아끼우고 엄지 존을 켜 보세요 — 세 안 모두 <b>같은 계약</b> 위에 있습니다.</p>
+<div class="ctl">
+  <span class="cl">배경</span>
+  <button data-bg="cosmos" class="on">우주</button>
+  <button data-bg="planet">행성</button>
+  <button data-bg="space">우주(실물)</button>
+  <button data-bg="ground">행성(실물)</button>
+  <button data-bg="none">없음</button>
+  <span style="width:14px"></span>
+  <span class="cl">검증</span>
+  <button id="thumbBtn">엄지 존 표시</button>
+</div>
+
+<div class="rack">
+
+  <!-- ══ A안 「제단」 — 캐릭터가 주인공 ══════════════════════════════════ -->
+  <div class="col">
+   <div class="phone"><div class="screen">
+    <canvas class="bg" id="lb-a-bg"></canvas>
+    <div class="scrim"></div>
+    <div class="notch"></div>
+    <div class="thumb"></div>
+    <div class="ui">
+      <div class="sysrow"><span>9:41</span><span>■■■ ▮</span></div>
+      <!-- 상단 = 엄지가 안 닿는 자리. 출격 동선이 아닌 것만 둔다. -->
+      <div class="toprow"><div class="tbtn cut">도감 20/31</div><div class="tbtn icon cut">기록 · 설정</div></div>
+      <div class="grow" style="display:flex;flex-direction:column;justify-content:center">
+        <div class="heroWrap">
+          <div class="heroTag">무속성 · 발현</div>
+          <!-- 몸은 ELEM.goldMani — 게임의 그 캐릭터를 그대로 부른다 -->
+          <canvas id="lb-a-hero"></canvas>
+          <div class="heroName">빛</div>
+          <div class="heroSub">아직 색이 없다</div>
+        </div>
+      </div>
+      <!-- 진행 — 이어하기를 누르기 전에 알아야 하는 것은 이 두 줄뿐이다 -->
+      <div class="panel cut" style="margin-bottom:9px">
+        <div class="row" style="justify-content:space-between">
+          <div><div class="lbl">진행 중</div><div class="val">3장 · 덮쳐오는 어둠</div></div>
+          <div style="text-align:right"><div class="lbl">경과</div><div class="val tnum">4:12</div></div>
+        </div>
+        <div class="barmini"><i style="width:63%"></i></div>
+      </div>
+      <!-- 덱은 **상태**로만. 편집은 한 단 뒤(도감). -->
+      <div class="panel cut" style="margin-bottom:9px;padding:9px 13px 10px">
+        <div class="row" style="justify-content:space-between;margin-bottom:5px">
+          <div class="lbl">덱 · 성흔</div><div style="font-size:11px;color:#A6A6B4">20 / 20 · 편집 ›</div></div>
+        <canvas class="deckstrip" id="lb-a-deck"></canvas>
+      </div>
+      <div class="seg cut" style="margin-bottom:10px">
+        <div class="on">여정</div><div class="lock">무한 · 3장 클리어로 해금</div></div>
+      <div class="cta cut"><span class="b">이어하기</span><span class="s">3장 · 4:12</span></div>
+      <div class="sub2">진행 중인 판을 버리고 <u>처음부터</u></div>
+      <div class="home"></div>
+    </div>
+   </div></div>
+   <div class="spec">
+     <div class="h"><b>A안 — 제단</b><span>캐릭터가 주인공</span></div>
+     <dl>
+       <dt>주인공</dt><dd><b>몸.</b> 화면의 절반을 캐릭터가 먹고, 나머지는 전부 그 아래 한 급 작게 깔립니다(③). 로비를 열 때마다 <b>「내가 무엇인가」</b>가 먼저 보입니다 — 이 게임은 빛이 색을 입어가는 게임이라, 그 변화가 로비의 보상이 됩니다.</dd>
+       <dt>앞에 둔 것</dt><dd>이어하기(주 버튼) · 진행 상태 · 덱 <b>구성</b> 띠 · 모드 세그먼트. 위에서 아래로 <b>정체 → 상황 → 채비 → 출발</b> 순서라 눈이 한 방향으로만 흐릅니다.</dd>
+       <dt>뒤로 보낸 것</dt><dd>도감(덱 편집)·기록·설정을 <b>상단 두 칸</b>으로. 새로하기는 주 버튼 아래 작은 글씨 + 확인(①②).</dd>
+       <dt>맵과의 접합</dt><dd>배경이 <b>그대로 맵의 하늘</b>입니다. 우주 맵이면 성운, 행성 맵이면 지평선이 몸 뒤로 깔리고 <b>UI 는 한 줄도 안 바뀝니다.</b></dd>
+       <dt class="bad">위험</dt><dd class="bad">덱이 <b>띠 한 줄</b>로 눌려서, 덱을 자주 바꾸는 플레이어에게는 매번 한 단 더 들어가는 화면이 됩니다. 「무엇을 들고 가는가」가 이 게임의 재미의 절반이면 A안은 그 절반을 뒤로 미룹니다.</dd>
+     </dl>
+   </div>
+  </div>
+
+  <!-- ══ B안 「패」 — 덱이 주인공 ═══════════════════════════════════════ -->
+  <div class="col">
+   <div class="phone"><div class="screen">
+    <canvas class="bg" id="lb-b-bg"></canvas>
+    <div class="scrim"></div>
+    <div class="notch"></div>
+    <div class="thumb"></div>
+    <div class="ui">
+      <div class="sysrow"><span>9:41</span><span>■■■ ▮</span></div>
+      <div class="toprow">
+        <div class="row">
+          <!-- 캐릭터는 지우지 않는다. **인장 하나로 줄인다** — 정체는 남기고
+               초점은 안 뺏는 크기(③). -->
+          <canvas id="lb-b-seal" style="width:34px;height:34px;display:block"></canvas>
+          <div><div class="lbl" style="letter-spacing:.16em">빛 · 무속성</div>
+               <div style="font-size:11px;color:#A6A6B4">도감 20/31</div></div>
+        </div>
+        <div class="tbtn icon cut">설정</div>
+      </div>
+      <div class="seg cut" style="margin:10px 0 9px">
+        <div class="on">여정 · 3장</div><div class="lock">무한 · 잠김</div></div>
+      <div class="decktabs" style="margin-bottom:9px">
+        <div class="on">덱 A</div><div>덱 B</div><div>덱 C</div>
+        <div style="margin-left:auto;border:0;background:none;color:#8B8B99">도감에서 고르기 ›</div>
+      </div>
+      <!-- 덱 20장 — **UI 가 카드를 위해 물러난다**(④). 크롬을 최대한 지웠다.
+           5열 × 4행은 임의가 아니다: 폭 334px 에서 문양이 읽히는 최대 크기가
+           54px 이고, 4열로 키우면 5행이 되어 세로가 모자란다. -->
+      <div id="lb-b-grid"></div>
+      <div class="panel cut" style="margin:9px 0 0;padding:9px 13px 11px">
+        <div class="row" style="justify-content:space-between">
+          <div class="lbl">구성</div>
+          <div style="font-size:11px;color:#A6A6B4">무기 8 · 마법 9 · 방어 3</div></div>
+        <div class="mix">
+          <i style="width:40%;background:#C9C9D6"></i><i style="width:45%;background:#6D7BA8"></i><i style="width:15%;background:#FFD27A"></i></div>
+      </div>
+      <!-- 남는 세로는 **덱 덩어리 아래**에 몰아 둔다. 카드 사이를 벌리면
+           스무 장이 한 덩어리로 안 읽히고, 아래를 비우면 그 여백이 그대로
+           엄지 존의 숨통이 된다. -->
+      <div class="grow"></div>
+      <!-- 진행 중인 판은 **얇은 줄**로. 원칙(②)을 일부러 거스르는 자리다. -->
+      <div class="resume cut" style="margin-bottom:9px">
+        <span>진행 중 · <b>3장 4:12</b></span><span class="go">이어하기 ›</span></div>
+      <div class="cta cut"><span class="b">이 덱으로 출격</span></div>
+      <div class="home"></div>
+    </div>
+   </div></div>
+   <div class="spec">
+     <div class="h"><b>B안 — 패</b><span>덱이 주인공</span></div>
+     <dl>
+       <dt>주인공</dt><dd><b>덱 20장.</b> 화면의 3분의 2를 카드가 먹고 크롬은 전부 물러납니다(④). 판 안 3택이 <b>이 20장 안에서만</b> 뜨므로, 여기가 곧 <b>빌드를 정하는 자리</b>라는 주장입니다.</dd>
+       <dt>앞에 둔 것</dt><dd>덱 프리셋 탭(덱 A/B/C) — 로비에서 <b>1탭으로 덱 교체</b>가 끝납니다. 카드 하나하나의 교체만 도감으로 갑니다. 구성 막대가 「무기 8 · 마법 9 · 방어 3」을 한 줄로 요약합니다.</dd>
+       <dt>뒤로 보낸 것</dt><dd>캐릭터를 <b>34px 인장</b>으로 줄였습니다. 새로하기는 주 버튼(=이 덱으로 출격)에 흡수됩니다 — 덱을 바꿔 출격하는 것이 곧 새 판이라, 여기서는 별도 항목이 필요 없습니다.</dd>
+       <dt>맵과의 접합</dt><dd>카드가 화면을 덮으므로 배경은 <b>가장 적게 보입니다.</b> 맵이 무엇으로 바뀌든 가장 안전한 안이고, 반대로 맵의 분위기를 <b>가장 못 살립니다.</b></dd>
+       <dt class="bad">위험</dt><dd class="bad">②를 <b>일부러 어깁니다</b> — 이어하기가 얇은 줄로 내려갑니다. 「판이 5~10분이라 이어하기 빈도가 낮다」는 가정에 거는 것이고, 그 가정이 틀리면(자주 끊기는 폰 게임) 제일 자주 쓰는 동선이 제일 작은 글씨가 됩니다. <b>이 가정은 실기로만 판정됩니다.</b></dd>
+     </dl>
+   </div>
+  </div>
+
+  <!-- ══ C안 「성도」 — 지도가 주인공 ════════════════════════════════════ -->
+  <div class="col">
+   <div class="phone"><div class="screen">
+    <!-- 지도 = 로비. 스테이지가 별이고 무한은 항로에서 떨어진 별이다(⑤).
+         ⚠️ C안만 bg 캔버스가 따로 없다 — 시안의 프레임 루프가 캔버스마다
+         불투명하게 지워서 캔버스를 겹칠 수 없기 때문에, 성도가 `LOBBYBG` 를
+         직접 불러 자기 안에 깔고 그린다. 교체 지점은 여전히 하나다. -->
+    <canvas class="map" id="lb-c-map"></canvas>
+    <div class="scrim"></div>
+    <div class="notch"></div>
+    <div class="thumb"></div>
+    <div class="ui">
+      <div class="sysrow"><span>9:41</span><span>■■■ ▮</span></div>
+      <div class="toprow"><div class="tbtn cut">항로도</div><div class="tbtn icon cut">도감 · 설정</div></div>
+      <div class="grow"></div>
+      <div class="drawer cut">
+        <div class="handle"></div>
+        <div class="starcard">
+          <div class="nm">3장 · 덮쳐오는 어둠</div><div class="st">진행 중 4:12</div></div>
+        <div class="row" style="justify-content:space-between;margin-bottom:6px">
+          <div class="lbl">덱 · 성흔 20/20</div><div style="font-size:11px;color:#A6A6B4">편집 ›</div></div>
+        <canvas class="deckstrip" id="lb-c-deck" style="margin-bottom:11px"></canvas>
+        <div class="cta cut"><span class="b">이어하기</span><span class="s">4:12</span></div>
+        <div class="sub2">다른 별을 고르면 <u>새 판</u>이 시작된다</div>
+      </div>
+      <div class="home"></div>
+    </div>
+   </div></div>
+   <div class="spec">
+     <div class="h"><b>C안 — 성도</b><span>지도가 주인공</span></div>
+     <dl>
+       <dt>주인공</dt><dd><b>항로도.</b> 로비가 메뉴가 아니라 <b>장소</b>입니다(⑤). 스테이지는 별이고, 이은 선이 「어디까지 왔는가」를 형태로 보여줍니다. 점의 크기가 곧 밝기 = 난이도라 <b>표를 안 읽어도</b> 앞이 험한 것이 보입니다.</dd>
+       <dt>앞에 둔 것</dt><dd>선택된 별 → 서랍의 카드 → 주 버튼. <b>모드가 버튼이 아니라 목적지</b>가 되어, 무한모드는 <b>항로에서 떨어져 혼자 도는 별</b>입니다 — 「끝이 없는 곳」이 그림 한 장으로 설명됩니다.</dd>
+       <dt>뒤로 보낸 것</dt><dd>덱은 <b>하단 서랍</b>(끌어올리면 20칸 전체). 캐릭터는 지도 위의 <b>작은 빛 하나</b>로만 있습니다 — 지금 어디 있는지를 표시하는 역할입니다.</dd>
+       <dt>맵과의 접합</dt><dd>셋 중 <b>가장 강하게 붙습니다.</b> 우주 맵이면 성도가 그대로 성간 항로, 행성 맵이면 별들이 지평선 위에 뜹니다. 로비가 맵의 <b>축소판</b>이라 화면 전환이 「줌 인」으로 읽힙니다.</dd>
+       <dt class="bad">위험</dt><dd class="bad">스테이지가 <b>셋뿐</b>인 지금은 지도가 <b>휑합니다</b>(7개까지 갈 때까지는 빈 하늘). 그리고 덱이 서랍에 들어가 <b>덱 교체가 두 번째 동작</b>이 됩니다. 지도의 좌표가 늘어나면 세로 스크롤이 생겨 <b>주 버튼이 지도를 가리는</b> 문제도 따라옵니다.</dd>
+     </dl>
+   </div>
+  </div>
+
+</div>
+
+<h2 id="s-bg">배경 교체 계약 — 로비는 배경을 모른다</h2>
+<p class="sub">지금 「우주 맵」과 「행성 맵」이 각각 만들어지는 중입니다. 로비가 어느 쪽에도 붙으려면 <b>둘을 다 아는 로비</b>를 만들면 안 되고,
+<b>둘 다 모르는 로비</b>를 만들어야 합니다. 그래서 화면을 세 겹으로 고정했습니다.</p>
+<div class="ia">
+  <div class="lv"><div class="n">겹 1</div><h4>bg 캔버스 — 유일한 교체 지점</h4>
+    <p><code>LOBBYBG.cosmos</code> / <code>LOBBYBG.planet</code> 중 하나가 그립니다. 맵 담당이 함수 하나를 등록하면 끝이고, <b>UI 는 한 줄도 안 바뀝니다.</b> 지금 든 둘은 <b>자리표</b>입니다 — 진짜 맵이 오면 갈아끼웁니다.</p></div>
+  <div class="lv"><div class="n">겹 2</div><h4>scrim — 대비를 보장하는 고정층</h4>
+    <p>위·아래 어둠 그라디언트 + 가운데 비네트. 배경이 밝아지든 화려해지든 <b>글자 대비는 이 층이 책임집니다.</b> 이게 없으면 맵이 바뀔 때마다 로비 전체를 다시 손봐야 합니다.</p>
+    <p>동시에 이 층이 <b>「어둠 속의 빛」</b>이라는 톤을 지킵니다 — 배경이 예뻐질수록 UI 가 아니라 <b>캐릭터가</b> 묻히기 때문입니다.</p></div>
+  <div class="lv"><div class="n">겹 3</div><h4>ui — 배경을 참조하지 않는다</h4>
+    <p>패널은 전부 반투명 + blur 라 <b>배경의 색을 빌려 씁니다.</b> 고정 색을 박으면 우주에서는 맞고 행성에서는 뜹니다.</p>
+    <p>색이 <b>넓은 면적</b>으로 있는 것은 주 버튼 하나뿐입니다. 무속성이 회백이라는 색 규약 덕에, 금빛 한 점만 두면 눈이 갈 곳이 확정됩니다.
+    덱 띠의 색은 <b>정보</b>(구성)라 남기되 <b>밝기를 뺐습니다</b> — 요약이 주 버튼보다 세게 빛나면 위계가 뒤집힙니다.</p></div>
+</div>
+<p class="note">캐릭터·문양은 <b>전부 기존 함수</b>를 부릅니다 — 몸은 <code>ELEM.goldMani</code>(무속성 발현),
+카드 문양은 <code>ICON.*</code> / <code>AICON.*</code>, 별은 <code>celSplash</code>·<code>jagPoly</code>(각진 별)로 <b>캐릭터 코어와 같은 도형</b>입니다.
+로비에서 새로 그리면 <b>게임과 다른 캐릭터</b>가 되고, 시안이 두 벌이 되는 순간 어느 쪽이 진짜인지 아무도 모르게 됩니다.</p>
+
+<h2 id="s-open">남은 판정 — 고르기 전에 정해야 하는 것</h2>
+<p class="sub">세 안 중 하나를 고르는 것이 아니라, <b>아래 셋을 먼저 답하면 안이 따라 정해집니다.</b></p>
+<div class="ia">
+  <div class="lv"><div class="n">판정 1</div><h4>덱은 얼마나 자주 바뀌는가</h4>
+    <p>판마다 바꾸면 <b>B</b>, 며칠에 한 번이면 <b>A</b>. 이건 취향이 아니라 <b>도감 해금 속도</b>가 정하는 값입니다 — 31장 중 20장을 고르는 지금 구조에서는 초반엔 거의 매판, 후반엔 거의 고정입니다.</p></div>
+  <div class="lv"><div class="n">판정 2</div><h4>스테이지는 7개에서 멈추는가</h4>
+    <p>7개면 <b>C</b>의 지도가 딱 좋고, 20개를 넘기면 지도가 스크롤되어 <b>주 버튼과 싸웁니다.</b> 무한모드가 본편이 되면 지도의 의미도 줄어듭니다.</p></div>
+  <div class="lv"><div class="n">판정 3</div><h4>이어하기가 실제로 얼마나 쓰이는가</h4>
+    <p>판이 5~10분이라도 <b>폰은 끊깁니다.</b> 이어하기 빈도가 높으면 B안의 얇은 줄은 실패이고, 낮으면 A·C의 큰 버튼이 과합니다. <b>실기 로그 한 주면 답이 나옵니다.</b></p></div>
+</div>
+
+</div>
+<!-- ⚠️ file:// 에서 브라우저가 vfx.js 를 세게 캐시한다. 시안을 고쳐도 새로고침에
+     반영이 안 돼 「왜 똑같지?」가 났다(2026-08-10). 매 로드마다 쿼리를 갈아
+     항상 새로 읽게 한다. file:// 에서도 쿼리 문자열은 먹는다(확인함). -->
+<script>document.write(unescape("%3Cscript src=\"vfx.js?t=")+Date.now()+unescape("\"%3E%3C/script%3E"));</script>
+<script>
+// 조작대 — 배경 교체는 vfx.js 의 setLobbyBg 하나만 건드린다.
+// (로비가 배경을 모른다는 계약을 페이지도 지킨다: 여기서 하는 일은 키 전달뿐)
+document.querySelectorAll(".ctl button[data-bg]").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll(".ctl button[data-bg]").forEach(o=>o.classList.remove("on"));
+    b.classList.add("on");
+    if(window.setLobbyBg)window.setLobbyBg(b.dataset.bg);
+  };});
+document.getElementById("thumbBtn").onclick=(e)=>{
+  document.body.classList.toggle("thumbs");
+  e.target.classList.toggle("on");};
+</script>
