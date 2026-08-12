@@ -330,14 +330,31 @@ function celRound(c,x,y,a,len,w,k,al=1,jet=1){
     len*.40*jet,w*.58,k,al*.55*jet);
 }
 // ── 문법 4: 두꺼운 타원 링 (hoop) ────────────────────────────────────────
+/// ⚠️ **여기서 음수 반지름을 막는다** — 호출부가 아니라.
+///
+/// 2026-08-11 까지 **다섯 번** 목격됐고 **전부 브라우저에서만** 났다(가짜 캔버스
+/// 스모크는 `arc` 를 안 던진다). 안쪽 고리를 `r - w*.22` 에 그리므로 **굵기를
+/// 반지름에 안 묶은 호출부**는 갓 태어난 고리에서 음수가 된다. 실제 목격:
+///   · 역병·정화·응보 — 셋 다 같은 원인 (2026-08-11)
+///   · `FX.pulse` 에서 `arc` 반지름 **−2822** (구동기가 `ts` 를 되감았을 때)
+///   · `MAP.driftPulse`·`reachPulse`·`latticePulse` 도 같은 조건에서 죽는다
+///
+/// 호출부를 다 고치는 대신 **여기 한 곳에서 바닥을 깐다.** 이유 둘:
+/// ① 호출부가 수십 곳이고 새 시안이 계속 는다 — 다음 사람이 또 밟는다.
+/// ② 음수 반지름은 **그리려는 그림이 아니라 산수의 사고**다. 0 으로 눌러
+///    「아무것도 안 그린다」가 되는 것이 맞고, 예외로 프레임을 죽이는 것보다 낫다.
+///
+/// ⚠️ **알파나 굵기는 안 건드린다** — 그러면 조용히 다른 그림이 된다.
+/// 막는 것은 반지름이 음수가 되는 그 한 가지뿐이다.
 function celHoop(c,cx,cy,r,squash,rot,w,k,a=1,cut=0){
   const T=toneOf(k);c.save();c.translate(cx,cy);c.rotate(rot);c.scale(1,squash);
+  const R=Math.max(0,r), IR=Math.max(0,r-w*.22);
   const ring=(rr,ww,col)=>{c.beginPath();c.arc(0,0,rr,cut,TAU-cut);
     c.strokeStyle=col;c.lineWidth=ww;c.lineCap="round";c.stroke();};
-  ring(r,w,A(T[0],.9*a));ring(r,w*.55,A(T[1],.95*a));ring(r-w*.22,w*.18,A(T[2],a));
+  ring(R,w,A(T[0],.9*a));ring(R,w*.55,A(T[1],.95*a));ring(IR,w*.18,A(T[2],a));
   c.restore();
   c.save();c.globalCompositeOperation="lighter";c.translate(cx,cy);c.rotate(rot);c.scale(1,squash);
-  c.beginPath();c.arc(0,0,r,cut,TAU-cut);c.strokeStyle=A(T[1],.14*a);c.lineWidth=w*3.2;c.stroke();c.restore();
+  c.beginPath();c.arc(0,0,Math.max(0,r),cut,TAU-cut);c.strokeStyle=A(T[1],.14*a);c.lineWidth=w*3.2;c.stroke();c.restore();
 }
 // ── 문법 5: 캡슐 빔 ──────────────────────────────────────────────────────
 function celBeam(c,x0,y0,x1,y1,w,k,a=1){
@@ -10759,6 +10776,21 @@ function fvBody(c,t,dt,W,H,st,key,vi){
 
 // ── 문법 데모 ────────────────────────────────────────────────────────────
 const VOC={
+// ⚠️ 목록이 실제와 달랐다(2026-08-12 실측). 제일 많이 쓰는 셋 — 면 채우기·
+// 각진 폴리곤·획 — 이 아예 빠져 있었고, 반대로 「바람」은 자기 시연 말고는
+// **한 번도 안 쓰인다**. 목록을 사용량대로 다시 세운다.
+fill(c,t,dt,W,H){const cx=W/2,cy=H/2,r=W*.30;
+  fillPoly(c,jagPoly(cx,cy,r,7,1.7,1.0),A(toneOf("gold")[0],1));
+  fillPoly(c,jagPoly(cx,cy,r*.72,7,1.7+1.3,1.0),A(toneOf("gold")[1],.97));
+  fillPoly(c,jagPoly(cx,cy,r*.44,7,1.7+2.6,1.0),A(toneOf("gold")[2],1));},
+jag(c,t,dt,W,H){const cx=W/2,cy=H/2;
+  for(let i=0;i<3;i++){const r=W*(.32-i*.09),sd=i*2.7+t*.0;
+    fillPoly(c,jagPoly(cx,cy,r,9,sd,2.2),A(toneOf(["gold","amber","frost"][i])[1],.92));}},
+stroke(c,t,dt,W,H){const cx=W/2,cy=H/2;
+  for(let i=0;i<3;i++){const pts=[];
+    for(let j=0;j<=22;j++){const u=j/22,a=u*TAU*.72+i*2.1+t*.5;
+      const rr=W*(.13+.15*u);pts.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);}
+    celStroke(c,pts,W*(.055-i*.012),["gold","amber","frost"][i],1);}},
 ribbon(c,t,dt,W,H,st){st.tr=st.tr||[];const a=t*2.0;
   st.tr.push([W/2+Math.cos(a)*W*.28,H/2+Math.sin(a*1.4)*H*.24]);
   if(st.tr.length>18)st.tr.shift();celRibbon(c,st.tr,15,"gold",1);},
@@ -11013,16 +11045,20 @@ tithe(c,S){const cx=S/2;                             // 제단의 젬 + 오르�
     S*.055,i?IC.b:IC.l);},
 };
 
+/// 그리기 문법 — **사용량 순**(2026-08-12 실측, 괄호 안이 호출 횟수).
+/// 「바람」은 자기 시연 말고 쓰이는 데가 0이라 뺐다.
 const VOCL=[
-["ribbon","① 리본 덩어리","제일 많이 쓴다. 곡선을 따라 폭이 가늘어지는 닫힌 도형 — 베기·궤적·번개·바람 획이 전부 이것"],
-["spike","② 뾰족한 창","끝이 날카로운 삼각. 발사체와 방사. 3단 계조가 안에서 겹친다"],
-["hoop","③ 두꺼운 타원 링","기울기가 다른 링 여러 겹 = 입체. 속은 비어 있다"],
-["beam","④ 캡슐 빔 + 끝단 획","양끝이 둥근 막대. **끝단은 얇은 획 둘뿐** — 더 그리면 스티커가 된다"],
-["puff","⑤ 뭉게구름","폭발의 모양. 둥근 돌기가 뭉친 실루엣 — 창으로 터뜨리면 돌조각이 된다"],
-["fire","⑥ 불 실루엣","갈래가 **날카롭게 찢어지고** 안쪽 크림은 축소본이 아니라 따로 뜬 섬. 무기 전용"],
-["wind","⑦ 초승달 획","바람. 굵은 획이 겹쳐 돌며 안으로 조인다 — 가는 나선은 낙서로 읽힌다"],
-["shards","⑧ 지면 파편","바닥에 각진 조각. 충격이 땅에 닿았다는 신호"],
-["splash","⑨ 뾰족한 물보라","각진 별. **정적으로 얹으면 스티커**라 지금은 순간 터짐에만 쓴다"]];
+["fill","면 채우기 (519)","닫힌 경로를 색으로 채운다. 다른 문법이 전부 이 위에 선다"],
+["jag","각진 폴리곤 (278)","꼭짓점이 톱니로 갈린 원. 파편·별·폭발의 뼈대"],
+["stroke","획 (164)","점을 이은 굵은 선. 3단 계조가 선 안에서 겹친다"],
+["hoop","링 (127)","기울기가 다른 링 여러 겹. 속은 비어 있다"],
+["spike","창 (113)","끝이 날카로운 삼각. 발사체와 방사"],
+["ribbon","리본 (87)","곡선을 따라 폭이 가늘어지는 닫힌 도형. 베기·궤적·번개"],
+["splash","물보라 (81)","각진 별. 순간 터짐에만 쓴다"],
+["puff","뭉게구름 (68)","둥근 돌기가 뭉친 실루엣. 폭발의 모양"],
+["beam","빔 (14)","양끝이 둥근 막대 + 끝단 획 둘"],
+["shards","지면 파편 (10)","바닥에 각진 조각. 충격이 땅에 닿았다는 신호"],
+["fire","불 실루엣 (8)","갈래가 날카롭게 찢어진다. 무기 전용"]];
 
 // ── 전투 ─────────────────────────────────────────────────────────────────
 function combat(c,t,dt,W,H,st){
@@ -12838,8 +12874,30 @@ TONE.mapIron =["#080A10","#0F121B","#191E2B"];  // 회청 먼지   L .038 / .063
 // 위 밝기 상한을 안 받는다 — 대신 면적이 10×5px 하나뿐이다.
 TONE.mmBoss  =["#4A0C18","#FF2D55","#FFC9D6"];
 
+/// 맵 공용 **바닥**. 2026-08-11 에 `#0C0C12`(L .0497)에서 여기로 내렸다.
+///
+/// ⚠️ 사용자 판정: **「맵이 너무 꺼메서 잘 안 보인다」.** 원인이 개별 안의
+/// 실패가 아니라 **예산의 오독**이었다. 「평균 L ≤ .06」은 적(몸 채움 L .102)이
+/// 배경에 안 묻히는 조건이지 **맵이 보이는 조건이 아니다.** 여덟 손이 그 하나를
+/// 지키느라 다 바닥에 붙었고, 넷은 빈 화면보다 오히려 어두워졌다.
+///
+/// **답은 평균이 아니라 대비 폭이다.** 동공(洞空)이 증명했다 — 평균 L .0282 로
+/// 여덟 중 제일 어두운데 화면은 제일 극적이다. 바닥을 `#04040A` 로 깔아
+/// **국소 대비 6.6배**를 만들었기 때문이다.
+///
+/// 그래서 그 바닥을 **공용으로 내린다.** 봉우리를 안 올려도 대비가 열린다:
+/// 사구는 최대 .1055 이라 대비가 2.1배 → **5.7배**가 된다. 평균은 오히려
+/// 더 내려가므로 적이 묻힐 위험은 **줄어든다**(적 .102 vs 바닥 .0184 = 5.5배).
+const MAPFLOOR="#04040A";           // L .0184 — 동공이 실측으로 검증한 값
+
+/// 바닥을 깐다. **모든 맵 배경의 첫 줄**이어야 한다 — 안 깔면 그 안만
+/// 옛 바탕(L .0497) 위에 그려져 혼자 뿌옇다.
+function mapFloor(c,W,H){c.fillStyle=MAPFLOOR;c.fillRect(0,0,W,H);}
+
 const MAPINK={
-  base  :"#0C0C12",  // 빈 우주 = 캔버스 바탕. **지우개**로 쓴다 — 이 색으로 칠하면
+  // ⚠️ **지우개도 바닥과 같아야 한다.** 바닥만 내리고 이걸 그대로 두면
+  // 「구멍을 낸 자리」가 바닥보다 밝아져 지우개가 형광펜이 된다.
+  base  :MAPFLOOR,   // 빈 우주 = 바닥. **지우개**로 쓴다 — 이 색으로 칠하면
                      // 아무리 겹쳐도 빈 우주보다 어두워지지 않아 구멍이 안 생긴다
   ink   :"#05060B",  // 암흑 성운 — 캔버스 바탕(#0C0C12)보다 **어둡다.** 별을 가린다
   wire  :"#39425F",  // 격자선 — 알파 .3 이하로만 쓴다(합성 후 L ≈ .10)
@@ -12905,6 +12963,7 @@ const DRIFT=[
   [1.0,128, 2.0,"starL",1  , .4,1  ],   // 스쳐 지나가는 성진 — 굵고 밝고 늘어난다
 ];
 function mapDrift(c,t,W,H,st){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
   const p0=mapCam(t),p1=mapCam(t-.05);
   const vx=(p0[0]-p1[0])/.05,vy=(p0[1]-p1[1])/.05,sp=Math.hypot(vx,vy)||1;
   // 심연 안개 — **표지물이 아니다.** 알아볼 수가 없으니 위치를 못 준다.
@@ -13067,6 +13126,7 @@ function mapGalaxy(c,x,y,RR,rot,sq){
   mapStar(c,x,y,1.6,MAPINK.starX,.9);
 }
 function mapReach(c,t,W,H,st){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
   const p0=mapCam(t),D=.85;
   // ① 원경 별 — 깊이 .06. **거의 안 움직여야** 랜드마크가 움직이는 걸로 읽힌다.
   scatter(p0[0]*.06,p0[1]*.06,W,H,27,1,(x,y,i,j,r)=>{
@@ -13121,6 +13181,7 @@ function mapReach(c,t,W,H,st){
 // 112 는 일곱 마디라 「센다」가 성립한다.
 const MAPG=112;
 function mapLattice(c,t,W,H,st){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
   const p0=mapCam(t);
   // 바탕 — 아주 흐린 성운 하나로 「우주」를 만든다. 위치감에는 기여 안 한다.
   scatter(p0[0]*.9,p0[1]*.9,W,H,760,1,(x,y,i,j,r)=>{
@@ -13463,16 +13524,34 @@ const MORPHS=[["morph","변신 — 속성을 얻는 순간","MORPH",
 ["morphWhiteFrom","변신 — 무엇에서든 백광으로","WHITE",
   "사방의 빛이 **한꺼번에** 달려들어 흰 구를 채우고, 틈으로 새어 나오다 터진다. 시작 상태를 주기마다 갈아 보여 준다"]];
 
-// ⚠️ 레이아웃을 **인라인 스타일로 박는다.**
-// 아티팩트 호스트에서 <style> 이 적용되지 않아 전부 세로로 떨어졌다(세 번 반려).
-// 인라인은 스타일시트 적용 여부와 무관하게 항상 먹으므로, 격자를 여기서 확정한다.
 function box(el,css){for(const k in css)el.style[k]=css[k];return el;}
-const TILE_W=150;
-function asRow(host){box(host,{display:"flex",flexWrap:"wrap",gap:"9px",
-  alignItems:"flex-start",width:"100%"});}
-function asCell(el,w){box(el,{width:(w||TILE_W)+"px",flex:"0 0 "+(w||TILE_W)+"px",
-  background:"#13131A",border:"1px solid #26262F",borderRadius:"4px",
-  overflow:"hidden",boxSizing:"border-box"});}
+/// 칸의 **기준 폭**(px). 하드 폭이 아니라 격자에 넘기는 값이고, 실제 폭은
+/// 화면이 정한다(`vfx.css` 의 `.grid`).
+///
+/// ⚠️ **한 값으로 모은다** (2026-08-12 사용자 판정 「융화 속성만 크다.
+/// 가독성을 위해 썸네일 크기 다 동일」). 전에는 격자마다 150·186·210·238 이
+/// 제각각이라 같은 페이지 안에서도 칸 크기가 눈에 띄게 달랐다. 아이콘(118)과
+/// 전용기 큰 칸(320)처럼 **뜻이 다른 것만** 따로 둔다.
+const TILE_W=186;
+const ICON_W=59;       // 아이콘 — 실제 슬롯이 44px 다. 크게 보면 판단이 안 된다
+const VOC_W=93;        // 그리기 문법 — 재료라 작게 여러 개를 훑는 것이 맞다
+const BIG_W=240;       // 전용기 — 도는 그림이라 조금 크되, 화면을 먹으면 안 된다
+
+// ⚠️ **레이아웃은 인라인이 아니라 `vfx.css` 가 정한다** (2026-08-12 뒤집음).
+//
+// 전에는 여기서 `display:flex` 와 `width:150px` 를 **인라인으로 박았다**. 근거는
+// 「아티팩트 호스트에서 <style> 이 안 먹어 전부 세로로 떨어졌다」였는데, 그 대가로
+// **인라인이 스타일시트를 이겨서 반응형이 원천적으로 불가능**했다 — 어떤 미디어
+// 질의를 써도 칸 폭이 150px 에 고정된다. 실제로 지난 회차에 `display:contents` 가
+// 안 먹어 `!important` 를 붙여야 했던 것이 같은 원인이다.
+//
+// 이제 크기는 **값**으로만 넘기고(`--cell`), 폭·줄바꿈은 CSS 가 정한다. 아티팩트로
+// 올릴 일이 생기면 `vfx.css` 머리 주석의 되돌리는 법을 따르면 된다 — 그때도
+// **한 곳만** 고치면 된다.
+function asRow(host,w){host.classList.add("grid");
+  if(w)host.style.setProperty("--cell",w+"px");}
+function asCell(el,w){el.classList.add("tile");
+  if(w)el.style.setProperty("--cell",w+"px");}
 
 const anims=[];
 /// ⚠️ **화면 밖 칸은 백킹스토어까지 놓는다.**
@@ -13494,7 +13573,11 @@ function mkFree(a){
   if(!a.c)return;
   a.c=null;a.cv.width=1;a.cv.height=1;}   // 1px 로 줄이면 버퍼가 풀린다
 function mk(cv,size,fn){
-  const dpr=Math.min(1.5,window.devicePixelRatio||1);
+  // ⚠️ 상한 1.5 → 2 (2026-08-11 "화질이 구리다"). 1.5 로 내렸던 근거는
+  // 「칸이 260개면 캔버스 메모리 190MB」였는데, 그 뒤 화면 밖 칸의 버퍼를
+  // 놓는(mkFree) 구조가 들어와 **보이는 몇 십 칸만** 메모리를 쓴다. 지금
+  // 116px 칸 40개를 dpr 2 로 잡아도 6MB 다.
+  const dpr=Math.min(2,window.devicePixelRatio||1);
   const a={cv,c:null,fn,W:size[0],H:size[1],dpr,st:{p:[]},vis:false,
     label:(fn&&fn.name)||"anon"};
   anims.push(a);
@@ -13506,9 +13589,9 @@ const VIS=window.IntersectionObserver?new IntersectionObserver(es=>{
     if(a.vis)mkAlloc(a);else mkFree(a);}},
   {rootMargin:"300px"}):null;
 function tile(host,reg,key,nm,en,ds,S,W,H){
-  asRow(host);
+  asRow(host,W||TILE_W);
   const d=document.createElement("div");d.className="tile";asCell(d,W);
-  if(H)box(d,{flex:"1 1 100%",width:"100%"});      // 보스 — 한 줄에 하나
+  if(H)d.classList.add("wide");                    // 보스 — 한 줄에 하나
   const cv=document.createElement("canvas");
   box(cv,{width:"100%",height:"auto",display:"block",
     aspectRatio:H?(S+"/"+H):"1",background:"#0C0C12"});
@@ -13517,14 +13600,14 @@ function tile(host,reg,key,nm,en,ds,S,W,H){
   box(cap,{padding:"6px 8px 7px",borderTop:"1px solid #26262F"});
   cap.innerHTML=`<div class="nm" style="font-size:12px;font-weight:600;color:#EDEDF2;`+
     `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>`+
-    `<div class="ds" style="font-size:9.5px;color:#9494A2;line-height:1.35;margin-top:2px;`+
+    `<div class="ds" style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
     `display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${ds}</div>`;
   d.appendChild(cap);host.appendChild(d);
   // **무기 고유색.** reg 가 FX 일 때만 입힌다(속성 몸·융화는 자기 색이 있다).
   const fn=reg[key],tk=(reg===FX)?WTONE[key]:null;
   mk(cv,[S,H||S],tk?(c,t,dt,W,H,st)=>{const sv=RECOLOR;RECOLOR=tk;
       try{fn(c,t,dt,W,H,st);}finally{RECOLOR=sv;}}:fn);}
-const vocHost=$("voc");asRow(vocHost);
+const vocHost=$("voc");asRow(vocHost,VOC_W);
 VOCL.forEach(([k,nm,ds])=>{const d=document.createElement("div");d.className="v";asCell(d);
   const cv=document.createElement("canvas");
   box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
@@ -13541,6 +13624,10 @@ FOEDEF.filter(d=>!d[0].startsWith("boss")).forEach(([k,nm,rad,eyes,ds])=>
   tile($("foes"),FOE,k,`${nm} · r${rad} · 눈 ${eyes}`,"",ds,S));
 // 보스는 **한 줄에 하나, 넓은 무대.** 정사각 칸에서는 달려가는 거리와
 // 표적 지점이 화면 밖으로 나가 패턴이 안 읽힌다(2026-08-09 판정).
+// 보스도 **한눈에 보는 격자**를 먼저 둔다 — 큰 칸은 공격 패턴을 보는 자리라
+// 「보스가 몇이고 어떻게 생겼나」에는 답을 안 한다(2026-08-12 사용자 지적).
+FOEDEF.filter(d=>d[0].startsWith("boss")).forEach(([k,nm,rad,eyes,ds])=>
+  tile($("bossgrid"),FOE,k,`${nm} · r${rad} · 눈 ${eyes}`,"",ds,S));
 FOEDEF.filter(d=>d[0].startsWith("boss")).forEach(([k,nm,rad,eyes,ds])=>
   tile($("bosses"),FOE,k,nm,"",ds,980,0,640));
 PHYS.forEach(w=>tile($("phys"),FX,w[0],w[1],w[2],w[3],S));
@@ -13555,9 +13642,9 @@ const BASICELEMS=[["gold","무속성"],["ember","염 炎"],["frost","빙 氷"],[
 // 기본 공격 — 스킬이 아니라 **캐릭터의 것**이라 무기 격자에 안 섞는다.
 // 왼쪽 다섯 칸은 **캐릭터 레벨**(1·15·30·45·60)이고 오른쪽 여섯 칸은
 // 캐릭터가 얻은 **속성**이다. 둘 다 고르는 것이 아니라 따라오는 것이다.
-if($("basic")){const BH=$("basic");asRow(BH);
+if($("basic")){const BH=$("basic");asRow(BH,TILE_W);
   [1,2,3,4,5].forEach(L=>{const d=document.createElement("div");
-    d.className="tile";asCell(d,150);
+    d.className="tile";asCell(d,TILE_W);
     const cv=document.createElement("canvas");
     box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
     d.appendChild(cv);
@@ -13570,10 +13657,9 @@ if($("basic")){const BH=$("basic");asRow(BH);
     mk(cv,[238,238],(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
       try{FX.basic(c,t,dt,W,H,st);}finally{LV=sl;}});});}
 // 발현 칸 — 평소 칸과 **같은 목록·같은 크기**로 깔아야 차이가 보인다.
-if($("basicmani")){const BM=$("basicmani");asRow(BM);
+if($("basicmani")){const BM=$("basicmani");asRow(BM,TILE_W);
   BASICELEMS.forEach(([k,nm])=>{
     const d=document.createElement("div");d.className="tile";
-    box(d,{flex:"0 0 calc(25% - 7px)",width:"calc(25% - 7px)",minWidth:"210px"});
     const cv=document.createElement("canvas");
     box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
     d.appendChild(cv);
@@ -13595,14 +13681,12 @@ const MANICFN={recall:FX.manicRecall,wall:FX.manicWall,halt:FX.manicHalt};
 /// 크기만 다르고 그리는 것은 같다 — 3택 카드와 큰 칸이 **같은 그림**이라야
 /// 「카드에서 본 그것이 판에서 나온다」가 이어진다.
 ///
-/// [wcss] 는 칸 너비를 **CSS 값 그대로** 받는다. 속성 표는 「줄이 전용기, 칸이
-/// 속성」이라 **한 줄에 정확히 넷**이 떨어져야 하는데, 고정 px 로 두면 창 너비에
-/// 따라 여섯씩 감겨 줄이 전용기를 안 나타낸다(2026-08-11 렌더 판정). 25% 로
-/// 두면 어느 폭에서도 넷이다 — 발현 18칸 표가 쓰는 그 규칙 그대로.
-function manicTile(host,k,el,wcss,px,cap){
+/// ⚠️ 폭 인자(옛 [wcss])를 **뺐다** (2026-08-12). 「한 줄에 정확히 넷」은 칸에
+/// 고정폭을 박아서가 아니라 **격자의 열 수**로 지킨다 — 속성 표는 `.gridn` 에
+/// `--n:4` 를 준다. 칸에 폭을 박으면 그것이 스타일시트를 이겨 어떤 미디어
+/// 질의도 안 먹는다(모바일에서 2열로 접을 수가 없다).
+function manicTile(host,k,el,px,cap){
   const d=document.createElement("div");d.className="tile";
-  box(d,{flex:"0 0 "+wcss,width:wcss,minWidth:"200px",background:"#13131A",
-    border:"1px solid #26262F",borderRadius:"4px",overflow:"hidden",boxSizing:"border-box"});
   const cv=document.createElement("canvas");
   box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
   d.appendChild(cv);
@@ -13610,9 +13694,9 @@ function manicTile(host,k,el,wcss,px,cap){
   host.appendChild(d);
   mk(cv,[px,px],(c,t,dt,W,H,st)=>{const sr=RECOLOR,sl=LV;RECOLOR=el;LV=3;
     try{MANICFN[k](c,t,dt,W,H,st);}finally{RECOLOR=sr;LV=sl;}});}
-if($("manic")){const MH=$("manic");asRow(MH);
+if($("manic")){const MH=$("manic");asRow(MH,BIG_W);
   MANICK.forEach(k=>{const m=MANICDESC[k];
-    manicTile(MH,k,null,"320px",480,
+    manicTile(MH,k,null,480,
       `<div class="cap" style="padding:9px 11px 10px;border-top:1px solid #26262F">`+
       `<div style="font-size:14.5px;font-weight:600;color:#EDEDF2">${m[0]}`+
       `<span style="font-size:10.5px;color:#5A5A68;font-weight:500;margin-left:7px">축 · ${m[1]}</span></div>`+
@@ -13630,9 +13714,11 @@ if($("manictint")){const MT=$("manictint");
   // 25% 폭으로 넷을 맞추는 방법도 있는데, 그러면 칸이 360px 이 되어 **칠할
   // 면적이 세 배**다 — 이 페이지가 「면적을 아낀다」고 적어 놓고 스스로 어기는
   // 꼴이라, 칸은 작게 두고 줄만 나눈다.
-  MANICK.forEach(k=>{const row=document.createElement("div");asRow(row);MT.appendChild(row);
+  // 이 줄은 **열 수가 뜻을 진다** — 칸이 속성 넷이므로 폭을 따라 감기면 안 된다.
+  MANICK.forEach(k=>{const row=document.createElement("div");
+   row.className="gridn";row.style.setProperty("--n",MANICEL.length);MT.appendChild(row);
    MANICEL.forEach(([el,nm])=>{
-    manicTile(row,k,el,"210px",420,
+    manicTile(row,k,el,420,
       `<div class="cap" style="padding:7px 9px 8px;border-top:1px solid #26262F">`+
       `<div style="font-size:12px;font-weight:600;color:#EDEDF2">${MANICDESC[k][0].split(" ")[0]} · ${nm}</div>`+
       `<div style="font-size:9.5px;color:#9494A2;margin-top:2px">${
@@ -13640,11 +13726,11 @@ if($("manictint")){const MT=$("manictint");
 // 발현 각인 3택 — **판당 한 번, 첫 발현의 순간.** 카드의 그림이 위 칸과 같은
 // 함수라, 「카드에서 고른 그것」과 「판에서 나오는 그것」이 어긋날 수가 없다.
 if($("manicpick")){const MP=$("manicpick");
-  box(MP,{display:"flex",flexWrap:"wrap",gap:"14px",width:"100%",
-    maxWidth:"760px",justifyContent:"center"});
+  box(MP,{display:"grid",gap:"14px",width:"100%",maxWidth:"760px",
+    gridTemplateColumns:"repeat(auto-fit,minmax(min(224px,100%),1fr))"});
   MANICK.forEach((k,i)=>{const m=MANICDESC[k];
     const d=document.createElement("div");d.className="card"+(i===1?" pick":"");
-    box(d,{flex:"0 0 224px",width:"224px",background:"linear-gradient(180deg,#1A1A24,#101018)",
+    box(d,{background:"linear-gradient(180deg,#1A1A24,#101018)",
       border:"1px solid "+(i===1?"#FF8A3D":"#26262F"),borderRadius:"4px",
       padding:"17px 14px 15px",display:"flex",flexDirection:"column",
       alignItems:"center",gap:"10px",textAlign:"center",boxSizing:"border-box"});
@@ -13662,7 +13748,55 @@ if($("manicpick")){const MP=$("manicpick");
     MP.appendChild(d);
     mk(cv,[300,300],(c,t,dt,W,H,st)=>{const sr=RECOLOR,sl=LV;RECOLOR=null;LV=3;
       try{MANICFN[k](c,t,dt,W,H,st);}finally{RECOLOR=sr;LV=sl;}});});}
-if($("basicelem")){const BE=$("basicelem");asRow(BE);
+// ── 속성마다 셋 — 기본 · 발현 · 전용기 (`#elem3`, 캐릭터 페이지) ─────────
+//
+// 사용자 판정(2026-08-12): 「기본·발현 쪽의 **속성별 나열**은 오히려 캐릭터에서
+// 보여줘야 하고, 기본·발현 페이지는 **기본에서 발현되어 전용기로 어떻게
+// 구조화되는지 순서**를 봐야 한다.」 맞다 — 속성 열여덟을 늘어놓는 것은
+// 「이 캐릭터가 무엇이 될 수 있나」이지 「셋이 어떻게 이어지나」가 아니다.
+//
+// 그래서 속성 하나가 **세 칸 한 덩어리**다. 셋 다 같은 방식으로 그려진다 —
+// `RECOLOR` 에 속성을 걸고 `LV=3` 으로 함수를 부른다. 다른 것은 함수뿐이다:
+//   기본 `FX.basic` · 발현 `FX.basicMani` · 전용기 `MANICFN[…]`
+//
+// ⚠️ 전용기는 **셋**(회귀·경계·정지)인데 칸은 하나다. 하나를 골라 박으면 나머지
+// 둘이 시안에서 사라지므로 **번갈아 돈다**(5초씩). 어느 속성 칸에서 보든 셋이
+// 다 지나가고, 라벨이 지금 무엇인지 같이 바뀐다.
+if($("elem3")){const E3=$("elem3");
+  E3.classList.add("lvset");
+  E3.style.setProperty("--block","420px");
+  E3.style.setProperty("--blockmax","560px");
+  const E3STEP=[["기본","기본 공격"],["발현","발현 중"],["전용","발현 전용기"]];
+  BASICELEMS.forEach(([k,nm])=>{
+    const blk=document.createElement("div");blk.className="lvblock";
+    blk.insertAdjacentHTML("beforeend",
+      `<div class="hd"><b>${nm}</b><span>기본 · 발현 · 전용기</span></div>`);
+    const cells=document.createElement("div");
+    cells.className="cells";cells.style.setProperty("--n",3);
+    E3STEP.forEach(([tag,lbl],i)=>{
+      const cell=document.createElement("div");cell.className="cell";
+      const cv=document.createElement("canvas");cell.appendChild(cv);
+      const nmEl=document.createElement("div");nmEl.className="lb";
+      nmEl.innerHTML=`<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
+        `color:${i===0?"#9494A2":"#FFA83C"}">${tag}</div>`+
+        `<div class="e3d" style="font-size:9px;color:#9494A2;line-height:1.3;`+
+        `margin-top:2px;min-height:3.6em">${lbl}</div>`;
+      cell.appendChild(nmEl);cells.appendChild(cell);
+      const dsc=nmEl.querySelector?nmEl.querySelector(".e3d"):null;
+      mk(cv,[360,360],(c,t,dt,W,H,st)=>{
+        const sr=RECOLOR,sl=LV;RECOLOR=k;LV=3;
+        try{
+          if(i===0)FX.basic(c,t,dt,W,H,st);
+          else if(i===1)FX.basicMani(c,t,dt,W,H,st);
+          else{
+            const mk3=MANICK[Math.floor(t/5)%MANICK.length];
+            if(dsc&&dsc.dataset.k!==mk3){dsc.dataset.k=mk3;
+              dsc.textContent=MANICDESC[mk3][0]+" · "+MANICDESC[mk3][1];}
+            MANICFN[mk3](c,t,dt,W,H,st);}
+        }finally{RECOLOR=sr;LV=sl;}});});
+    blk.appendChild(cells);E3.appendChild(blk);});}
+
+if($("basicelem")){const BE=$("basicelem");asRow(BE,TILE_W);
   // 기본 공격은 **캐릭터가 될 수 있는 상태 전부**를 따라간다 — 여섯 속성만
   // 두면 어둠·백광·융화로 간 판에서 이 총알이 무슨 색인지 시안에 답이 없다.
   // 순서는 캐릭터 페이지와 같게: 무속성 → 여섯 속성 → 융화 열 → 백광.
@@ -13672,7 +13806,6 @@ if($("basicelem")){const BE=$("basicelem");asRow(BE);
     // 칸을 네 배 가까이 키우고 캔버스 해상도도 같이 올린다(작은 칸에 큰
     // 캔버스는 낭비고, 큰 칸에 작은 캔버스는 뭉갠다).
     const d=document.createElement("div");d.className="tile";
-    box(d,{flex:"0 0 calc(25% - 7px)",width:"calc(25% - 7px)",minWidth:"210px"});
     const cv=document.createElement("canvas");
     box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
     d.appendChild(cv);
@@ -13694,7 +13827,7 @@ ELEMS.forEach(w=>tile($("elem"),ELEM,w[0],w[1],w[2],w[3],S));
 MORPHS.forEach(w=>tile($("morph"),ELEM,w[0],w[1],w[2],w[3],S));
 const TINT=[["gold","무속성","BASE"],["ember","염 炎","EMBER"],["frost","빙 氷","FROST"],
 ["volt","뇌 雷","VOLT"],["toxin","독 毒","TOXIN"],["gale","바람 風","GALE"]];
-const tintHost=$("tint");asRow(tintHost);
+const tintHost=$("tint");asRow(tintHost,TILE_W);
 TINT.forEach(([k,nm,en])=>{
   const d=document.createElement("div");d.className="tile";asCell(d);
   const cv=document.createElement("canvas");
@@ -13719,7 +13852,7 @@ mk(hc,[980,430],combat);
 const fvHost=$("fuse");
 box(fvHost,{display:"flex",flexDirection:"column",gap:"16px",width:"100%"});
 const fvCell=(host,el,vi,tag,col)=>{
-  const d=document.createElement("div");d.className="tile";asCell(d,186);
+  const d=document.createElement("div");d.className="tile";asCell(d,TILE_W);
   const cv=document.createElement("canvas");
   box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
   d.appendChild(cv);
@@ -13730,7 +13863,7 @@ const fvCell=(host,el,vi,tag,col)=>{
     `overflow:hidden;text-overflow:ellipsis">${FVNAME[el]}</div>`+
     `<div style="font-size:10px;font-weight:700;color:${col};margin-top:2px">`+
     `${tag}${ok?" · "+(vi+1)+"안":" · 미정"}</div>`+
-    `<div style="font-size:9.5px;color:#9494A2;line-height:1.35;margin-top:2px;`+
+    `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
     `display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">`+
     `${ok?FVSET[el][vi][0]:"아직 안 골랐습니다"}</div>`+
     // 시너지 — **이 융화가 무엇을 세게 만드는가.** 그림 옆에 붙어야 「모으면
@@ -13749,7 +13882,7 @@ const fvCell=(host,el,vi,tag,col)=>{
   sec.insertAdjacentHTML("beforeend",
     `<div style="font-size:13px;font-weight:600;color:#7CFFB0;margin-bottom:7px">`+
     `✅ 확정 — 융화마다 <b>기본</b>과 <b>발현</b> 두 벌</div>`);
-  const row=document.createElement("div");asRow(row);
+  const row=document.createElement("div");asRow(row,TILE_W);
   Object.keys(FVNAME).forEach(el=>{
     const f=FVFIX[el]||{};
     if(f.base==null&&f.mani==null)return;
@@ -13770,12 +13903,12 @@ const fvCell=(host,el,vi,tag,col)=>{
     `<div style="font-size:13px;font-weight:600;color:#FFA83C;margin-bottom:7px">`+
     `고르는 중 — <span style="color:#7CFFB0">기본</span> / `+
     `<span style="color:#FFA83C">발현</span> 이 붙은 것이 확정</div>`);
-  const row=document.createElement("div");asRow(row);
+  const row=document.createElement("div");asRow(row,TILE_W);
   wipKeys.forEach(el=>{
     const f=FVFIX[el]||{};
     (FVSET[el]||[]).forEach((v,vi)=>{
       const isB=vi===f.base-1, isM=vi===f.mani-1;
-      const d=document.createElement("div");d.className="tile";asCell(d,186);
+      const d=document.createElement("div");d.className="tile";asCell(d,TILE_W);
       if(isB||isM)box(d,{borderColor:isB?"#7CFFB0":"#FFA83C"});
       const cv=document.createElement("canvas");
       box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
@@ -13786,7 +13919,7 @@ const fvCell=(host,el,vi,tag,col)=>{
         `overflow:hidden;text-overflow:ellipsis">${FVNAME[el].split(" ·")[0]}`+
         `<span style="color:${isB?"#7CFFB0":isM?"#FFA83C":"#9494A2"};margin-left:5px">`+
         `${vi+1}안${isB?" ✅기본":isM?" ✅발현":""}</span></div>`+
-        `<div style="font-size:9.5px;color:#9494A2;line-height:1.35;margin-top:2px;`+
+        `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
         `display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;`+
         `overflow:hidden">${v[0]}</div></div>`);
       row.appendChild(d);
@@ -13825,7 +13958,7 @@ CARDS.forEach(([k,nm,lv,ds,slot,pick])=>{
     `<div style="font-size:11.5px;color:#9494A2;line-height:1.5;min-height:3em">${ds}</div>`+
     `<div style="font-size:10px;color:#5A5A68;border-top:1px solid #26262F;`+
     `padding-top:8px;width:100%">${pick?"▸ 선택됨":"탭하여 선택"}</div>`);
-  cw.appendChild(d);mk(cv,[104,104],FX[k]||ELEM[k]);});
+  cw.appendChild(d);mk(cv,[165,165],FX[k]||ELEM[k]);});
 
 // ⚠️ **개안(궁극기) 줄을 갈았다**(2026-08-11). 예전 넷 중 둘이 화면에 없는
 // 숫자였다 — 「쿨다운 −25%」와 「피해 +80%」는 다섯 칸을 나란히 놓아도 아무
@@ -13859,6 +13992,13 @@ const LVT={"bolt": ["더 빨리 나가고 부채각이 살짝 넓어진다 (최�
 // 17행 × 5열. 각 칸은 **전역 LV 를 자기 값으로 바꿔놓고** 같은 FX 함수를 부른다
 // — 레벨판을 따로 그리면 기준 디자인과 어긋나고, 그러면 이 표가 거짓말을 한다.
 // (RECOLOR 와 같은 수법. try/finally 로 반드시 되돌린다.)
+/// 계열마다 레벨이 몇 단인가. **안 적힌 계열은 5단**이다.
+///
+/// ⚠️ 궁극기는 **3단**이다(2026-08-12 사용자 확정). 다만 각성의 내용은 아직
+/// 「위력 증가 · 쿨타임 감소」 같은 방향만 잡혀 있고 그림이 없다 — 지금 하는
+/// 것은 **3칸으로 떨어지는 형태**를 세우는 데까지다. 칸 수만 바뀌면 되도록
+/// 레이아웃은 `--n` 하나로 받는다(무기 5칸과 같은 규칙).
+const LVN={"궁극기":3};
 const LVW=[["bolt","빛파동","물리"],["orbit","공전","물리"],["smg","빛따발총","물리"],
 ["seeker","유도탄","물리"],["scatter","빛산탄총","물리"],["saber","광선검","물리"],
 ["lance","레이저","물리"],["shotgun","빛폭탄","물리"],["bunroe","분뢰","물리"],["sunpo","순포","물리"],["sanctum","성역","마법"],
@@ -13877,38 +14017,73 @@ const LVW=[["bolt","빛파동","물리"],["orbit","공전","물리"],["smg","빛
 const LVHOSTS={"물리":$("levels"),"마법":$("levelsm"),
   "방어":$("levelsg"),"궁극기":$("levelsu"),
   "저주":$("levelsc"),"회복":$("levelsh")};
-for(const h of Object.values(LVHOSTS))
-  box(h,{display:"flex",flexDirection:"column",gap:"14px",width:"100%"});
-const LVC=168;
+/// ⚠️ **뜻이 바뀌었다** (2026-08-12): 이건 칸의 **하드 폭**이 아니라 **가독 상한**이다.
+/// 전에는 `width:116px` 를 칸에 박아 어느 화면에서도 116px 였고, 그래서 폰에서는
+/// 다섯 칸이 화면을 넘고 넓은 화면에서는 오른쪽이 통째로 비었다. 이제 실제 폭은
+/// 화면이 정하고(`vfx.css` 의 `.lvblock`), 이 값은 **덩어리가 얼마나 커질 수
+/// 있는지**의 상한으로만 쓴다.
+const LVC=150;
+/// 덩어리(칸 다섯) 의 최대 폭 — 이보다 넓어지면 글씨만 커지고 읽기가 나빠진다.
+const LVBLOCKMAX=LVC*5+4;
+/// 한 줄에 덩어리를 둘 이상 놓기 시작하는 최소 폭. 이보다 좁으면 한 덩어리씩.
+const LVBLOCKMIN=520;
+
+/// 성장표 칸을 **그리는** 크기(px). 보이는 크기보다 크다 — 크게 그려 작게 본다.
+///
+/// ⚠️ 이게 「화질이 구리다」(2026-08-11 사용자 판정)의 답이다. 타일 페이지가
+/// 선명했던 이유는 `S=238` 로 그려 `TILE_W=150` 칸에 넣기 때문이고(1.59배
+/// 초과표본), 성장표만 **반대로** 168 로 그려 늘어난 칸에 넣고 있었다.
+///
+/// ⚠️ 184 → 220 (2026-08-12). 칸이 유동이 되면서 **모바일에서 마지막 칸이
+/// 화면 전폭**으로 커진다(390px 폰에서 약 366px). 184 로는 그 칸이 되레
+/// 확대돼 흐려진다 — 넓은 쪽을 기준으로 잡는다. 데스크톱 칸(상한 150px)
+/// 기준으로는 1.47배 초과표본이다.
+const LVD=220;
+
+// 덩어리 격자. **덩어리 수가 화면 폭을 따라간다** — 5칸이 10칸, 15칸으로
+// 늘 뿐 덩어리는 절대 안 쪼개진다. 폭은 `vfx.css` 가 정하고 여기서는 값만 준다.
+for(const h of Object.values(LVHOSTS)){
+  if(!h)continue;
+  h.classList.add("lvset");
+  h.style.setProperty("--block",LVBLOCKMIN+"px");
+  h.style.setProperty("--blockmax",LVBLOCKMAX+"px");}
+/// 성장표 한 칸의 크기(px). **CSS 크기와 백킹스토어 크기가 여기서 같아진다** —
+/// 칸이 `flex:0 0` 이라 늘어나지 않으므로 캔버스가 확대되지 않는다.
+///
+
 LVW.forEach(([key,nm,kind])=>{
   const LVHOST=LVHOSTS[kind]||LVHOSTS["물리"];
+  const LVMAX=LVN[kind]||5;
   const row=document.createElement("div");
-  box(row,{width:"100%",background:"#13131A",border:"1px solid #26262F",
-    borderRadius:"4px",overflow:"hidden",boxSizing:"border-box"});
+  row.className="lvblock";
   row.insertAdjacentHTML("beforeend",
-    `<div style="display:flex;align-items:baseline;gap:8px;padding:7px 10px;`+
-    `border-bottom:1px solid #26262F"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
+    `<div class="hd"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
     `<span style="font-size:10px;color:#5A5A68">${kind}</span></div>`);
   const cells=document.createElement("div");
-  box(cells,{display:"flex",flexWrap:"wrap",gap:"1px",background:"#26262F",width:"100%"});
-  for(let L=1;L<=5;L++){
+  // ⚠️ **덩어리는 안 쪼개진다.** 다섯 칸이 한 줄에 나란해야 비교가 되므로
+
+  // 열 수를 `--n` 으로 고정한다. 화면이 좁으면 덩어리가 통째로 다음 줄로
+
+  // 가고, 모바일에서만 2열 + 완성형(L5) 전폭으로 접힌다(`vfx.css`).
+
+  cells.className="cells";cells.style.setProperty("--n",LVMAX);
+  for(let L=1;L<=LVMAX;L++){
     const cell=document.createElement("div");
-    box(cell,{width:LVC+"px",flex:"1 1 "+LVC+"px",minWidth:LVC+"px",
-      background:"#13131A",boxSizing:"border-box"});
+    cell.className="cell";
     const cv=document.createElement("canvas");
     box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
     cell.appendChild(cv);
     // L1 은 기준이라 설명이 없다 — 나머지 넷은 무기 정의의 levelText 그대로.
     const txt=L===1?"기준 디자인":((LVT[key]||[])[L-2]||"");
     cell.insertAdjacentHTML("beforeend",
-      `<div style="padding:5px 8px 7px;border-top:1px solid #26262F">`+
+      `<div class="lb">`+
       `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
       `color:${L===1?"#9494A2":"#FFA83C"}">L${L}</div>`+
-      `<div style="font-size:9.5px;color:#9494A2;line-height:1.35;margin-top:2px;`+
-      `min-height:2.7em">${txt}</div></div>`);
+      `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
+      `min-height:3.6em">${txt}</div></div>`);
     cells.appendChild(cell);
     const fn=FX[key],tk=WTONE[key];
-    mk(cv,[LVC,LVC],(c,t,dt,W,H,st)=>{const sl=LV,sr=RECOLOR;LV=L;RECOLOR=tk;
+    mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV,sr=RECOLOR;LV=L;RECOLOR=tk;
       try{fn(c,t,dt,W,H,st);}finally{LV=sl;RECOLOR=sr;}});
   }
   row.appendChild(cells);LVHOST.appendChild(row);
@@ -13941,10 +14116,10 @@ const HICL=[["dawn","여명"],["reap","수확"],["purity","정화"],["tithe","�
 const ICONHOSTS={"일반 공격":$("icons"),"마법 공격":$("iconsm"),
   "방어":$("aicons"),"궁극기":$("ulticon"),
   "저주":$("curseicon"),"회복":$("healicon")};
-for(const h of Object.values(ICONHOSTS))asRow(h);
+for(const h of Object.values(ICONHOSTS))asRow(h,ICON_W);
 function iconTile(reg,key,nm,kind){
   const iconHost=ICONHOSTS[kind]||ICONHOSTS["일반 공격"];
-  const d=document.createElement("div");d.className="v";asCell(d,118);
+  const d=document.createElement("div");d.className="v";asCell(d,ICON_W);
   const cv=document.createElement("canvas");
   box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
   d.appendChild(cv);
@@ -13952,7 +14127,7 @@ function iconTile(reg,key,nm,kind){
     `<div style="padding:5px 7px 6px;border-top:1px solid #26262F;font-size:9px;color:#9494A2">`+
     `<b style="display:block;font-size:11px;color:#EDEDF2">${nm}</b>${kind}</div>`);
   iconHost.appendChild(d);
-  mk(cv,[110,110],(c,t,dt,W,H)=>{c.save();reg[key](c,W);c.restore();});}
+  mk(cv,[175,175],(c,t,dt,W,H)=>{c.save();reg[key](c,W);c.restore();});}
 // 1차분류 다섯이 각자 제 페이지를 갖는다 — 일반 공격 8 · 마법 공격 9 · 방어 10.
 // 저주·회복은 아직 한 종도 없어 페이지만 서 있다.
 const PHYSK=new Set(PHYS.map(w=>w[0]));
@@ -13973,7 +14148,7 @@ function slot(host,reg,key,lv){
   if(!key){d.className+=" empty";host.appendChild(d);return;}
   const cv=document.createElement("canvas");cv.style.width="44px";cv.style.height="44px";d.appendChild(cv);
   if(lv)d.insertAdjacentHTML("beforeend",`<div class="l">${lv}</div>`);
-  host.appendChild(d);mk(cv,[44,44],(c,t,dt,W,H)=>{c.save();reg[key](c,W);c.restore();});}
+  host.appendChild(d);mk(cv,[70,70],(c,t,dt,W,H)=>{c.save();reg[key](c,W);c.restore();});}
 [["bolt",3],["orbit",2],["sanctum",1],[null],[null]].forEach(s=>slot($("wr"),ICON,s[0],s[1]));
 [["mirror",2],["chain",1],[null]].forEach(s=>slot($("ar"),AICON,s[0],s[1]));
 [["dazzle",1],[null],[null]].forEach(s=>slot($("rr"),AICON,s[0],s[1]));
@@ -14198,7 +14373,20 @@ mk($("lb-c-deck"),[310,24],lobbyDeck);
    d.insertAdjacentHTML("beforeend",`<div class="dcn">${LBNAME[k]||k}</div>`);
    g.appendChild(d);
    const reg=(kind==="방어")?AICON:ICON;
-   mk(cv,[48,48],(c,t,dt,W,H)=>{c.save();reg[k](c,W);c.restore();});});}
+   mk(cv,[76,76],(c,t,dt,W,H)=>{c.save();reg[k](c,W);c.restore();});});}
+
+// ── 긴 설명만 2단으로 흘린다 ────────────────────────────────────────────
+// 사용자 판정: 「설명들은 왜 저렇게 화면을 다 안 쓰고 좌측 정렬한 거야?」
+//
+// 한 줄을 제한하는 것 자체에는 이유가 있다 — **줄이 길면 눈이 다음 줄의 시작을
+// 못 찾는다**(그래서 본문 한 줄은 보통 45~90자다). 넓은 화면에서 한 줄을 200자로
+// 늘리면 공간은 채워지지만 읽기는 나빠진다.
+//
+// 그런데 **전부 2단으로 흘리는 것도 틀렸다** — 앞서 그렇게 했다가 두세 줄짜리
+// 짧은 문단이 두 토막으로 갈려 더 나빠졌다(그래서 되돌렸다). 답은 **길이로
+// 가르는 것**이고, 길이는 CSS 가 못 재므로 여기서 잰다.
+for(const el of document.querySelectorAll(".sub,.note,.lede,.warn p"))
+  if((el.textContent||"").length>=240)el.classList.add("two");
 
 $("bare").onclick=(e)=>{e.preventDefault();
   document.body.classList.toggle("bare");
@@ -14330,42 +14518,36 @@ const STCON = [
   {id:"leo", nm:"사자 獅子", cls:"rise", tone:"wLance", uz:"처음부터",
    eff:"공격력 +8%",
    why:"낫(Sickle) 모양 별무리가 이 게임의 **베기 문법 그대로**다. 레굴루스는 「작은 왕」 — 힘의 자리",
-   hook:"amp += 0.08 (finalDamage 의 단일 곱셈 지점 **안**)",
    a:0, pts:[[-0.60,0.46],[-0.64,0.10],[-0.46,-0.22],[-0.14,-0.36],[0.12,-0.14],[0.16,0.24],[0.66,0.32,0.8]],
    ln:[[0,1],[1,2],[2,3],[3,4],[4,5],[0,6],[5,6]]},
 
   {id:"gem", nm:"쌍둥이 雙子", cls:"rise", tone:"wSmg", uz:"1 – ★",
    eff:"공격속도 +10%",
    why:"둘이 **번갈아** 친다 = 간격이 줄어든다. 골격도 나란한 두 기둥이라 「둘」이 그대로 보인다",
-   hook:"무기 쿨다운 ×(1/1.10)",
    a:1, pts:[[-0.34,-0.52],[0.32,-0.46],[-0.44,0.02],[-0.40,0.48],[0.38,0.06],[0.34,0.52]],
    ln:[[0,2],[2,3],[1,4],[4,5],[0,1]]},
 
   {id:"tau", nm:"황소 金牛", cls:"rise", tone:"wScatter", uz:"1 – ★★",
    eff:"최대 HP +15%",
    why:"버티는 것. V자 뿔 한가운데의 알데바란(붉은 눈)이 그대로 아이콘의 중심이 된다. 옛 「심지」의 자리",
-   hook:"hpMax — 옛 kRelicWickStep 훅 그대로",
    a:2, pts:[[-0.64,-0.52,0.8],[-0.26,-0.16],[0.02,0.08],[0.32,-0.20],[0.68,-0.54,0.8]],
    ln:[[0,1],[1,2],[2,3],[3,4]]},
 
   {id:"sgr", nm:"궁수 弓手", cls:"rise", tone:"wSaber", uz:"2 – ★",
    eff:"8타마다 확정 치명 ×2",
-   why:"⚠️ damage.dart 는 **「크리티컬은 없다」**고 못 박았다 — 결정적 시뮬이 밸런스 하네스의 전제라 확률 크리는 200판 스윕의 신뢰구간을 넓힌다. 그래서 **세는 것**으로 바꿨다: 확률이 아니라 8타마다 확정이라 결정적이고, 궁수의 「겨눈 한 발」과도 맞는다. 기대값 ×1.125",
-   hook:"무기 슬롯의 int 카운터 · **바깥 곱은 max(상성, 치명) 하나만** — 둘을 곱하면 최악 조합이 2배가 되어 12배 상한이 뚫린다",
+   why:"크리티컬이 없는 게임이라 이 성좌는 확률이 아니라 <b>고정 배수</b>로 준다 — 같은 조건이면 언제나 같은 결과다",
    a:5, pts:[[-0.52,-0.46],[-0.72,0.00],[-0.52,0.46],[-0.28,0.00,0.7],[0.16,0.00,0.7],[0.64,0.00]],
    ln:[[0,1],[1,2],[0,2],[3,4],[4,5]]},
 
   {id:"sco", nm:"전갈 天蠍", cls:"rise", tone:"wShotgun", uz:"2 – ★★★",
    eff:"상태이상 지속 +30%",
    why:"찌른 자리가 오래 간다. **속성을 안 집으면 값이 정확히 0인 유일한 성좌** — 상태는 전부 속성이 거는 것이라, 「속성이 순 손해」라는 실측의 판 밖 해독제가 된다. 붉은 심장 안타레스가 꼬리 말리기 직전에 있어 갈고리 실루엣의 무게 중심이 된다",
-   hook:"StatusPool 지속 ×1.30 — PASSIVE 8종 전부에 같게",
    a:3, pts:[[-0.60,-0.50,0.8],[-0.32,-0.46],[-0.06,-0.30],[0.08,-0.02],[0.20,0.28],[0.04,0.54],[-0.26,0.58,0.8],[-0.44,0.38,0.7]],
    ln:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7]]},
 
   {id:"lib", nm:"천칭 天秤", cls:"rise", tone:"wBolt", uz:"3 – ★★★",
    eff:"공격력 +18% · 최대 HP −20%",
    why:"**기운 저울.** 열둘 중 유일하게 그림이 효과를 직접 말한다 — 내려간 접시가 곧 알파성이라 「어느 쪽으로 기울었나」가 44px 에서도 보인다",
-   hook:"amp += 0.18 · hpMax ×0.80",
    a:3, pts:[[0.00,-0.54],[-0.58,-0.16],[0.60,-0.34],[-0.64,0.38],[0.62,0.06,0.8]],
    ln:[[0,1],[0,2],[1,3],[2,4]]},
 
@@ -14373,7 +14555,6 @@ const STCON = [
   {id:"aqr", nm:"물병 寶瓶", cls:"game", tone:"mPulse", uz:"처음부터",
    eff:"암흑물질 흡수 반경 +30%",
    why:"쏟아지는 것을 받는 그릇. 점이 **아래로 흘러내리는** 유일한 성좌라 「끌어당긴다」가 움직임으로 읽힌다. 옛 「인력」",
-   hook:"stats.absorbMul — 옛 kRelicGravityStep 훅 그대로",
    a:2, pts:[[-0.18,-0.54],[0.12,-0.46],[-0.02,-0.26],[0.26,-0.62,0.7],
              [-0.26,0.02,0.7],[0.04,0.12,0.8],[-0.14,0.32,0.7],[0.18,0.38,0.8],
              [-0.04,0.58,0.6],[0.30,0.62,0.6]], flow:true},
@@ -14381,21 +14562,18 @@ const STCON = [
   {id:"vir", nm:"처녀 處女", cls:"game", tone:"mSanctum", uz:"처음부터",
    eff:"경험치 +10%",
    why:"이삭을 든 여인 — **거둔다**가 경험치 그대로다. 스피카 하나만 압도적으로 크고 나머지가 아주 작아 「큰 별 하나」로 읽힌다. 옛 「면류관」",
-   hook:"leveling.xpMul — 옛 kRelicCrownStep 훅 그대로",
    a:6, pts:[[-0.54,-0.42,0.6],[-0.18,-0.54,0.6],[0.22,-0.34,0.6],[0.50,-0.06,0.6],
              [0.12,0.04,0.6],[-0.32,0.12,0.6],[0.30,0.50,1.25]]},
 
   {id:"cnc", nm:"게 巨蟹", cls:"game", tone:"mWard", uz:"1 – ★★★",
    eff:"초당 회복 +0.2",
    why:"껍질 안에서 아문다. 벌집 성단(프레세페)이 **뿌연 덩어리 하나**라 열둘 중 실루엣이 제일 다르다. 옛 「잔불」",
-   hook:"world_step 재생 틱 (아직 없다) — **회복원이 없는 것이 지금 밸런스의 구조적 결함**이다",
    a:0, cluster:[0.00,-0.02,0.20,9],
    pts:[[0.00,-0.02,1.2],[-0.56,-0.40,0.7],[0.52,-0.44,0.7],[0.58,0.36,0.7],[-0.50,0.44,0.7]]},
 
   {id:"psc", nm:"물고기 雙魚", cls:"game", tone:"aqua", uz:"2 – ★★",
    eff:"픽업 등장률 +12%",
    why:"잡히는 것 — 떨어지는 것이 늘어난다. **두 무리를 점의 띠가 잇는** 배치라 선을 안 그어도 「끈」이 보인다. 옛 「길조」",
-   hook:"PickupPool 등장률 (아직 없다 — 이 페이지의 「1회성 아이템」 절이 그 자리)",
    a:0, pts:[[-0.50,0.34],[-0.68,0.14,0.7],[-0.34,0.10,0.7],[-0.62,0.54,0.7],[-0.30,0.56,0.7],
              [0.46,-0.36,0.9],[0.30,-0.56,0.6],[0.64,-0.54,0.6],[0.62,-0.18,0.6],
              [-0.14,0.20,0.45],[0.06,0.02,0.45],[0.26,-0.16,0.45]]},
@@ -14403,26 +14581,16 @@ const STCON = [
   {id:"ari", nm:"양 白羊", cls:"game", tone:"snow", uz:"3 – ★",
    eff:"첫 3번의 레벨업은 3택이 아니라 4택",
    why:"춘분점 — **한 해의 시작**. 실제로 별이 셋뿐이라 열둘 중 제일 단순한 아이콘이 되고 그것이 곧 「시작」이다. 속성을 집느라 포기하는 한 장을 **초반에 정확히 세 번** 돌려준다 — S1 −4.0%p 가 생기는 바로 그 구간",
-   hook:"OfferEngine._out 길이 3 → 4 (rollCount < 3 동안)",
    a:0, pts:[[0.34,-0.30],[-0.12,0.10],[-0.32,0.24,0.8]]},
 
   {id:"cap", nm:"염소 磨羯", cls:"game", tone:"magnet", uz:"3 – ★★",
    eff:"적 +12% · 경험치 +20%",
    why:"바다염소는 점성술에서 **계약의 짐승**으로도 읽힌다. 넓은 삼각 외곽이라 작아지면 「큰 삼각형」만 남는다. 옛 「어둠의 계약」",
-   hook:"spawn 배율 ×1.12 · xpMul ×1.20 — 넷 중 제일 싸다(두 줄)",
    a:3, pts:[[-0.58,-0.34,0.8],[0.06,-0.54,0.8],[0.62,-0.16,0.8],[0.32,0.44],[-0.26,0.38,0.8],[-0.56,0.02,0.7]]}
 ];
 
 // ── 옛 유물 7종의 처분 — 「효과가 없다」가 아니라 「붙일 자리가 있나」로 가른다 ─
-const STCON_DEAD = [
-  ["인력",       "→ 물병 寶瓶",  "live", "absorbMul 훅이 이미 산다"],
-  ["면류관",     "→ 처녀 處女",  "live", "xpMul 훅이 이미 산다"],
-  ["심지",       "→ 황소 金牛",  "live", "hpMax 훅이 이미 산다"],
-  ["길조",       "→ 물고기 雙魚","keep", "PickupPool 이 오면 등장률 한 줄. 이 페이지가 그 절을 이미 예약해 뒀다"],
-  ["잔불",       "→ 게 巨蟹",   "keep", "재생 틱은 world_step 한 줄. <b>회복원이 없는 것이 지금 밸런스의 구조적 결함</b>이다(stages.dart: 회복원 없는 시뮬에서 보스전이 길수록 무회피 정책은 선형으로 더 죽는다) — 이 성좌가 그 구멍의 첫 답이다"],
-  ["어둠의 계약","→ 염소 磨羯",  "keep", "저주 시스템 없이도 붙는다 — spawn 배율 한 줄 + xpMul 한 줄. 넷 중 제일 싸다"],
-  ["탐욕의 등불","✕ 버린다",     "drop", "「전 스탯 +4%」의 <b>전 스탯이 이 게임에 없다.</b> 스탯은 분신·주문력·이속·몸크기라 전부 정수 계단이고 %가 안 붙는다. 이름을 못 지으면 아이콘도 못 그린다 — 열둘 중 여기만 그림이 안 나왔다"]
-];
+
 
 // ── 성좌 그리기 ───────────────────────────────────────────────────────────
 //
@@ -14503,8 +14671,8 @@ function stConMd(s) {
 
 // ── 조립 — 도감 타일 · 로비 슬롯 ──────────────────────────────────────────
 function stConTile(host, d) {
-  asRow(host);
-  const wrap = document.createElement("div"); wrap.className = "tile"; asCell(wrap, 186);
+  asRow(host,TILE_W);
+  const wrap = document.createElement("div"); wrap.className = "tile"; asCell(wrap, TILE_W);
   const cv = document.createElement("canvas");
   box(cv, {width:"100%", height:"auto", display:"block", aspectRatio:"1", background:"#0C0C12"});
   wrap.appendChild(cv);
@@ -14516,10 +14684,9 @@ function stConTile(host, d) {
     `${rise ? "상승 성좌" : "게임 성좌"} · ${d.uz}</div>` +
     `<div style="font-size:11px;color:#EDEDF2;margin-top:3px;line-height:1.45">${d.eff}</div>` +
     `<div class="ds" style="font-size:9.5px;color:#9494A2;line-height:1.4;margin-top:3px">${stConMd(d.why)}</div>` +
-    `<div class="ds" style="font-size:9px;color:#5A5A68;line-height:1.35;margin-top:4px;` +
-    `border-top:1px solid #1E1E26;padding-top:4px">훅 · ${stConMd(d.hook)}</div></div>`);
+    `</div>`);
   host.appendChild(wrap);
-  mk(cv, [186, 186], (c, t) => stConDraw(c, 93, 93, 74, t, d));
+  mk(cv, [TILE_W, TILE_W], (c, t) => stConDraw(c, TILE_W/2, TILE_W/2, TILE_W*0.4, t, d));
 }
 /// 로비 슬롯 — **44px.** "작게도 읽히나"는 말로 확인할 수 없어 같은 그림을
 /// 실제 슬롯 크기로 한 줄 더 깐다. 여기서 안 갈리면 설계가 틀린 것이다.
@@ -14621,11 +14788,7 @@ const STCON_AFF = {
 // ── 역방향 — 그리고 고아가 된 비트 하나 ───────────────────────────────────
 // 융화가 남긴 상태에 일반속성이 반응하는 쪽인데, 여기서 **표 둘이 서로 다른
 // 말을 하고 있는 것**을 발견했다. 판단을 대신하지 않고 양쪽을 적어 둔다.
-const STCON_BACK = [
-  ["젖음", "뇌 雷", "×2.0", "`damage.dart` 의 `kStatusWet` 갈래 — <b>지금 코드에 살아 있다</b>. 그리고 `FVSYN`·`FVWHY` 의 수(水) 설명이 이 조건 위에 서 있다(「적을 적신다 — 젖음이 뇌 ×2 의 조건」)", "code"],
-  ["실명", "—", "×1.0", "`PASSIVE` 확정본은 수(水)를 <b>실명</b>으로 적었다. 확정 8종에 <b>젖음이 없다</b> — 즉 `kStatusWet` 은 아무도 안 거는 <b>고아 비트</b>다", "spec"],
-  ["판단이 필요하다", "", "", "둘 중 하나여야 한다. ⓐ 젖음을 9번째 상태로 인정한다(사용자 확정 「새 상태 금지」와 충돌) · ⓑ 젖음을 버리고 `affinityMul` 의 `kStatusWet` 갈래와 `FVSYN.aqua` 의 근거문을 같이 고친다. <b>ⓑ를 권한다</b> — 안 쓰는 상태를 남기면 다음 사람이 「이건 어디에 붙나」를 묻는다(`PASSIVE` 가 출혈을 지운 논리 그대로). 수(水)의 「적신다」는 상태가 아니라 <b>상성 칸</b>으로 이미 살아 있다: 수 → 점화 ×1.20", "ask"]
-];
+
 
 // ── 격자 그리기 ───────────────────────────────────────────────────────────
 // 배수를 **색으로도** 말한다: 강세는 따뜻한 금, 약세는 차가운 청, ×1.0 은
@@ -14863,30 +15026,6 @@ function stConUnlockTable(host) {
   }
   host.insertAdjacentHTML("beforeend", h + `</table></div>`);
 }
-function stConDeadTable(host) {
-  const col = {live:"#7CFFB0", keep:"#FFD27A", drop:"#FF6A6A"};
-  let h = `<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11.5px;` +
-    `min-width:560px"><tr>` + ["옛 유물", "처분", "근거"].map(stConTh).join("") + `</tr>`;
-  for (const r of STCON_DEAD) {
-    h += `<tr>` + stConTd(r[0], "color:#EDEDF2;white-space:nowrap") +
-      stConTd(r[1], "color:" + col[r[2]] + ";white-space:nowrap;font-weight:600") +
-      stConTd(r[3], "color:#9494A2") + `</tr>`;
-  }
-  host.insertAdjacentHTML("beforeend", h + `</table></div>`);
-}
-function stConBackTable(host) {
-  const col = {code:"#7CFFB0", spec:"#FFD27A", ask:"#FF6A6A"};
-  let h = `<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11.5px;` +
-    `min-width:640px"><tr>` +
-    ["수(水)가 남기는 것", "반응하는 일반속성", "배수", "출처와 문제"].map(stConTh).join("") + `</tr>`;
-  for (const r of STCON_BACK) {
-    h += `<tr>` + stConTd(r[0], "color:" + col[r[4]] + ";white-space:nowrap;font-weight:600") +
-      stConTd(r[1], "color:#EDEDF2;white-space:nowrap") +
-      stConTd(r[2], "color:#EDEDF2;font-weight:700;white-space:nowrap") +
-      stConTd(r[3], "color:#9494A2") + `</tr>`;
-  }
-  host.insertAdjacentHTML("beforeend", h + `</table></div>`);
-}
 /// 왜를 16줄로 — 격자 칸은 숫자만 담을 수 있어서 근거는 표 밑에 따로 깐다.
 function stConWhyList(host) {
   let h = `<div style="columns:2;column-gap:26px;font-size:11px;color:#9494A2;line-height:1.65">`;
@@ -14913,11 +15052,9 @@ STCON.forEach(d => stConSlot($("stcon-slots"), d, false));
 ["leo", "sco", "vir"].forEach(id =>
   stConSlot($("stcon-equip"), STCON.find(d => d.id === id), true));
 stConUnlockTable($("stcon-unlock"));
-stConDeadTable($("stcon-dead"));
 stConAffGrid($("stcon-aff"));
 stConWhyList($("stcon-affwhy"));
 stConAffCheck($("stcon-affchk"));
-stConBackTable($("stcon-affback"));
 STCON_SHOW.forEach(s => tile($("stcon-affshow"), STCONFX, s[0], s[1], "", s[2], 186));
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -14996,7 +15133,17 @@ function mpPat(c,cv,W,H,ox,oy,rot,alpha){
   c.translate(-(((tx%S)+S)%S),-(((ty%S)+S)%S));
   c.fillStyle=pat;
   // 돌린 레이어는 화면 사각형이 타일 좌표계에서 비스듬하다 — 넉넉히 덮는다.
-  c.fillRect(-W*.6,-H*.6,W*2.2,H*2.2);
+  //
+  // ⚠️ **여백에 타일 크기 S 를 더해야 한다.** 바로 위에서 오프셋을 0..S 만큼
+  // 밀었으므로, 여백이 S 보다 작으면 **화면 오른아래가 안 덮인다.**
+  // 옛 코드는 `W*2.2` 고정이라 조건이 `S ≤ .6·W` 였고, 그걸 넘기면 타일이
+  // **아무것도 안 그린 것처럼** 보였다:
+  //   · 용암지가 이걸로 **세 번 오진**했다 — 층별 기여도를 재니 껍질 타일이
+  //     자리마다 +12.21 / +5.62 / **+0.00%p** 였다(2026-08-12 실측)
+  //   · 균열지의 512 암반 타일도 같은 조건을 위반한다 — 980×548 이면 세로
+  //     한계가 328.8 이라 **oy 가 그보다 클 때 아래쪽이 빈다**
+  // 튜닝으로는 절대 안 잡힌다. 어떤 자리에서만, 그것도 조용히 빈다.
+  c.fillRect(-W*.6-S,-H*.6-S,W*2.2+S*2,H*2.2+S*2);
   c.restore();
 }
 /// 토러스 랩 — 특징 하나를 3×3 위치에 그린다. 타일 경계를 넘은 부분이
@@ -15043,6 +15190,7 @@ function mpCrack(a,b,sd){
     b];
 }
 MAPP.bg.fissure=function(c,t,W,H){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
   const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
   c.fillStyle="#0B0C0E";c.fillRect(0,0,W,H);
   mpPat(c,mpTile("rock",512,(c2,S)=>{
@@ -15176,6 +15324,7 @@ const mpVeil=()=>mpTile("veil",384,(c,S)=>{
       c.fillStyle=g;c.beginPath();c.arc(x+dx,y+dy,r,0,TAU);c.fill();});}
 });
 MAPP.bg.ashsea=function(c,t,W,H){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
   const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
   c.fillStyle="#0A0A0C";c.fillRect(0,0,W,H);
   mpPat(c,mpRipple(),W,H,ox,oy,.3142);      // 18° — 물결이 화면 축과 안 맞게
@@ -15230,6 +15379,7 @@ MAPP.bg.ashsea=function(c,t,W,H){
 const MP_MCELL=214;
 const MP_MGLOW="#3ABA92", MP_MBODY="#112620", MP_MCORE="#1A4032", MP_MSPORE="#6CE2B2";
 MAPP.bg.moss=function(c,t,W,H){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
   const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
   c.fillStyle="#08090B";c.fillRect(0,0,W,H);
   mpPat(c,mpTile("soil",384,(c2,S)=>{
@@ -15385,7 +15535,7 @@ MAPP.black=function map_black(c,t,dt,W,H,st){
 };
 
 function mapTile(hostId,fn,nm,ds,W,H,wide){
-  const host=$(hostId);asRow(host);
+  const host=$(hostId);asRow(host,W);
   const d=document.createElement("div");d.className="tile";asCell(d,W);
   if(wide)box(d,{flex:"1 1 100%",width:"100%"});
   const cv=document.createElement("canvas");
@@ -16218,32 +16368,35 @@ mgNovaDusk:["어둠 반경 +45%",
 MGDEF.forEach(([key,nm])=>{
   const host=LVHOSTS["마법"];
   const row=document.createElement("div");
-  box(row,{width:"100%",background:"#13131A",border:"1px solid #26262F",
-    borderRadius:"4px",overflow:"hidden",boxSizing:"border-box"});
+  row.className="lvblock";
   row.insertAdjacentHTML("beforeend",
-    `<div style="display:flex;align-items:baseline;gap:8px;padding:7px 10px;`+
-    `border-bottom:1px solid #26262F"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
+    `<div class="hd"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
     `<span style="font-size:10px;color:#5A5A68">마법</span></div>`);
   const cells=document.createElement("div");
-  box(cells,{display:"flex",flexWrap:"wrap",gap:"1px",background:"#26262F",width:"100%"});
+  // ⚠️ **덩어리는 안 쪼개진다.** 다섯 칸이 한 줄에 나란해야 비교가 되므로
+
+  // 열 수를 `--n` 으로 고정한다. 화면이 좁으면 덩어리가 통째로 다음 줄로
+
+  // 가고, 모바일에서만 2열 + 완성형(L5) 전폭으로 접힌다(`vfx.css`).
+
+  cells.className="cells";cells.style.setProperty("--n",5);
   for(let L=1;L<=5;L++){
     const cell=document.createElement("div");
-    box(cell,{width:LVC+"px",flex:"1 1 "+LVC+"px",minWidth:LVC+"px",
-      background:"#13131A",boxSizing:"border-box"});
+    cell.className="cell";
     const cv=document.createElement("canvas");
     box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
     cell.appendChild(cv);
     const txt=L===1?"기준 디자인":((MGLVT[key]||[])[L-2]||"");
     cell.insertAdjacentHTML("beforeend",
-      `<div style="padding:5px 8px 7px;border-top:1px solid #26262F">`+
+      `<div class="lb">`+
       `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
       `color:${L===1?"#9494A2":"#FFA83C"}">L${L}</div>`+
-      `<div style="font-size:9.5px;color:#9494A2;line-height:1.35;margin-top:2px;`+
-      `min-height:2.7em">${txt}</div></div>`);
+      `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
+      `min-height:3.6em">${txt}</div></div>`);
     cells.appendChild(cell);
     const fn=MGFX[key];
     // 속성이 스킬마다 고정이라 RECOLOR 훅을 안 탄다 — 그리는 쪽이 색을 직접 댄다.
-    mk(cv,[LVC,LVC],(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
+    mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
       try{fn(c,t,dt,W,H,st);}finally{LV=sl;}});}
   row.appendChild(cells);host.appendChild(row);});
 
@@ -16989,31 +17142,34 @@ MGFI.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[3],S));
 // ⚠️ RECOLOR 는 **안 건드린다** — 마법은 속성을 부여받지 않는다.
 MGFI.forEach(([key,nm])=>{
   const row=document.createElement("div");
-  box(row,{width:"100%",background:"#13131A",border:"1px solid #26262F",
-    borderRadius:"4px",overflow:"hidden",boxSizing:"border-box"});
+  row.className="lvblock";
   row.insertAdjacentHTML("beforeend",
-    `<div style="display:flex;align-items:baseline;gap:8px;padding:7px 10px;`+
-    `border-bottom:1px solid #26262F"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
+    `<div class="hd"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
     `<span style="font-size:10px;color:#5A5A68">마법 공격 · 신설</span></div>`);
   const cells=document.createElement("div");
-  box(cells,{display:"flex",flexWrap:"wrap",gap:"1px",background:"#26262F",width:"100%"});
+  // ⚠️ **덩어리는 안 쪼개진다.** 다섯 칸이 한 줄에 나란해야 비교가 되므로
+
+  // 열 수를 `--n` 으로 고정한다. 화면이 좁으면 덩어리가 통째로 다음 줄로
+
+  // 가고, 모바일에서만 2열 + 완성형(L5) 전폭으로 접힌다(`vfx.css`).
+
+  cells.className="cells";cells.style.setProperty("--n",5);
   for(let L=1;L<=5;L++){
     const cell=document.createElement("div");
-    box(cell,{width:LVC+"px",flex:"1 1 "+LVC+"px",minWidth:LVC+"px",
-      background:"#13131A",boxSizing:"border-box"});
+    cell.className="cell";
     const cv=document.createElement("canvas");
     box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
     cell.appendChild(cv);
     const txt=L===1?"기준 디자인":((LVT[key]||[])[L-2]||"");
     cell.insertAdjacentHTML("beforeend",
-      `<div style="padding:5px 8px 7px;border-top:1px solid #26262F">`+
+      `<div class="lb">`+
       `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
       `color:${L===1?"#9494A2":"#FFA83C"}">L${L}</div>`+
-      `<div style="font-size:9.5px;color:#9494A2;line-height:1.35;margin-top:2px;`+
-      `min-height:2.7em">${txt.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}</div></div>`);
+      `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
+      `min-height:3.6em">${txt.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}</div></div>`);
     cells.appendChild(cell);
     const fn=FX[key];
-    mk(cv,[LVC,LVC],(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
+    mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
       try{fn(c,t,dt,W,H,st);}finally{LV=sl;}});}
   row.appendChild(cells);LVHOSTS["마법"].appendChild(row);});
 
@@ -17820,31 +17976,11481 @@ MGW.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[4],S));
 {const HOST=$("levelsm");
 MGW.forEach(([key,nm])=>{
   const row=document.createElement("div");
-  box(row,{width:"100%",background:"#13131A",border:"1px solid #26262F",
-    borderRadius:"4px",overflow:"hidden",boxSizing:"border-box"});
+  row.className="lvblock";
   row.insertAdjacentHTML("beforeend",
-    `<div style="display:flex;align-items:baseline;gap:8px;padding:7px 10px;`+
-    `border-bottom:1px solid #26262F"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
+    `<div class="hd"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
     `<span style="font-size:10px;color:#5A5A68">마법</span></div>`);
   const cells=document.createElement("div");
-  box(cells,{display:"flex",flexWrap:"wrap",gap:"1px",background:"#26262F",width:"100%"});
+  // ⚠️ **덩어리는 안 쪼개진다.** 다섯 칸이 한 줄에 나란해야 비교가 되므로
+
+  // 열 수를 `--n` 으로 고정한다. 화면이 좁으면 덩어리가 통째로 다음 줄로
+
+  // 가고, 모바일에서만 2열 + 완성형(L5) 전폭으로 접힌다(`vfx.css`).
+
+  cells.className="cells";cells.style.setProperty("--n",5);
   for(let L=1;L<=5;L++){
     const cell=document.createElement("div");
-    box(cell,{width:LVC+"px",flex:"1 1 "+LVC+"px",minWidth:LVC+"px",
-      background:"#13131A",boxSizing:"border-box"});
+    cell.className="cell";
     const cv=document.createElement("canvas");
     box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
     cell.appendChild(cv);
     const txt=L===1?"기준 디자인":((MGBGLVT[key]||[])[L-2]||"");
     cell.insertAdjacentHTML("beforeend",
-      `<div style="padding:5px 8px 7px;border-top:1px solid #26262F">`+
+      `<div class="lb">`+
       `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
       `color:${L===1?"#9494A2":"#FFA83C"}">L${L}</div>`+
-      `<div style="font-size:9.5px;color:#9494A2;line-height:1.35;margin-top:2px;`+
-      `min-height:2.7em">${txt}</div></div>`);
+      `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
+      `min-height:3.6em">${txt}</div></div>`);
     cells.appendChild(cell);
     const fn=FX[key],tk=WTONE[key];
-    mk(cv,[LVC,LVC],(c,t,dt,W,H,st)=>{const sl=LV,sr=RECOLOR;LV=L;RECOLOR=tk;
+    mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV,sr=RECOLOR;LV=L;RECOLOR=tk;
       try{fn(c,t,dt,W,H,st);}finally{LV=sl;RECOLOR=sr;}});}
   row.appendChild(cells);HOST.appendChild(row);});}
 MGW.forEach(w=>iconTile(ICON,w[0],w[1],"마법 공격"));
+
+
+// ══ U2 잔해대 殘骸帶 — 「반사」로 그리는 배경 (mockup-map.html) ═══════════
+//
+// 신규 5안 중 **유일하게 자체발광이 아닌 안**이다. 나머지 여덟(기존 A 심연 ·
+// B 성계 · C 성좌 + 신규 U1 암류 · U3 자기막 · U4 중력렌즈 · U5 잔광)은 전부
+// 스스로 빛나거나 빛을 가리는데, 이것만 **먼 광원의 빛을 받아** 보인다.
+// 그래서 이 안에만 있는 것이 둘이다:
+//
+//   ① **광원 방향이 있다.** 모든 덩어리의 밝은 면이 **같은 쪽**을 향한다.
+//      한 덩이라도 반대쪽이 밝으면 그 순간 반사가 아니라 **얼룩**이 된다 —
+//      이 안의 정체가 걸린 유일한 불변식이라 코드로 강제한다(MU2LX·MU2LY 하나
+//      에서만 나온다. 덩어리마다 고르는 값이 아니다).
+//   ② **자기 그림자가 있다.** 한쪽 면은 밝고 반대쪽은 바탕에 묻힌다.
+//      묻히는 쪽은 캔버스 바탕(#0C0C12 L .050)보다 **어둡게** 칠한다 —
+//      그래야 「그림자」지 「어두운 물체」가 아니다.
+//
+// ── 셀 셰이딩 문법을 배경에 쓰는 첫 안 ────────────────────────────────────
+// jagPoly + fillPoly 는 이 레포에서 **이펙트의 각진 실루엣**을 그리던 문법이다.
+// 배경이 같은 문법을 쓰면 세계가 한 벌로 붙는데, 대신 **흰 앞날은 못 쓴다** —
+// 눈은 3단 계조의 맨 윗단을 「이펙트」의 표식으로 배웠고, 배경이 그 단을 쓰면
+// 색을 아무리 잘 골라도 배경이 이펙트를 먹는다(우주 맵 머리 주석의 확정 규칙).
+// 그래서 **한 덩어리에 두 단만** 쓴다: 그림자 한 단 + 밝은 면 한 단.
+// 밝은 면조차 최대 L .117 로, 무기 바깥층 최솟값(.133)보다 낮다.
+//
+// ⚠️ **고체는 「지나갈 수 없는 것」으로 오독된다.** 이 게임은 5분 내내 도망치는
+// 게임이라, 화면을 막는 큰 바위 하나는 즉시 **벽**으로 읽히고 플레이어가 피해서
+// 돌아간다(안 막는데도). 그래서 규칙이 하나다 — **플레이어 몸(반지름 14)보다
+// 확실히 작게, 그리고 많이.** 제일 가까운 층조차 반지름 8.2 가 상한이라
+// 지름으로 16.4px, 몸(28px)의 59% 다. 「덩어리 하나」로 위압하지 않고
+// **개수와 깊이**로 잔해대를 만든다.
+//
+// ⚠️ **근층은 밝게가 아니라 어둡게 준다**(A안·행성 맵 담당의 실측을 그대로
+// 따른다). 근층을 밝게 두면 이펙트와 밝기로 싸우고, 안 싸우게 내리면 그냥
+// 비용이 된다. 답은 **가리는 층**으로 만드는 것이다 — 가산 빛과 차폐는 애초에
+// 같은 축이 아니라, 아무리 진해도 이펙트와 안 싸운다. A안에서 이 층이 반만
+// 먹혔던 이유는 「가릴 밝은 것이 없어서」였는데, 여기는 근층이 **원경 별과
+// 원층 파편을 실제로 먹는다** — 물어뜯을 것이 화면에 깔려 있다.
+//
+// 깊이 넷이 **크기 · 속도 · 밝기 셋을 함께** 바꾼다. 셋 중 하나만 바꾸면
+// 「그냥 다른 덩어리」가 되고 깊이로 안 읽힌다(A안 DRIFT 표에서 확인된 것).
+//   원층 → 근층 :  작다→크다 · 느리다→빠르다 · 밝다→어둡다
+//
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 주 색상각 **≈247°(청자 회색)**. 채도를 24~25% 로 눌러 「달빛 받은 돌」이
+// 되게 둔다. 색상환에서 이 자리를 고른 이유는 **속성 팔레트와 제일 멀어서**다 —
+// 실측한 속성·적 색상각은 15·20·22·25·35·50·72·114·129·170·198·201·209·226·
+// 273·290·319(적 몸)·324° 이고, 226(자 磁)과 273(어둠 影) 사이 47° 가 제일 넓은
+// 빈칸이라 그 한가운데를 쓴다(양쪽에서 21°·26°). 명도도 자(磁) 가운데층
+// L .548 대 여기 최대 .117 로 4.7배 벌어져 있다.
+// 6단 램프지만 **한 덩어리는 언제나 두 단**만 쓴다 — 층마다 어느 두 단인지가
+// 다를 뿐이다.
+const MU2RAMP=["#05060B","#0A0912","#0E0D18","#131220","#191728","#1E1B2D"];
+//              L .026     .040     .057     .078     .100     .117   · 244~250°
+//              ↑ MAPINK.ink 와 같은 값(빈 우주보다 어둡다 = 그림자의 바닥)
+
+/// 광원. **화면 좌표에 고정된 단위벡터 하나**이고, 이 파일에서 여기서만 정한다.
+/// (cos,sin) 이 「빛이 나아가는 방향」이라 캔버스 y 아래 기준으로 왼쪽 위에서
+/// 오른쪽 아래로 쏟아진다 — 즉 **밝은 면은 전부 왼쪽 위를 본다.**
+/// 45° 정대각을 피해 40° 로 둔 이유: 정대각이면 각진 파편의 변과 나란해지는
+/// 경우가 잦아 터미네이터가 「도형의 한 변」처럼 보인다.
+const MU2LA=.70, MU2LX=Math.cos(MU2LA), MU2LY=Math.sin(MU2LA);
+
+/// 파편 하나 — **fillPoly 두 번이 전부다.** 새 원시함수를 안 만든다.
+///
+///   ① 그림자 판 : jagPoly(중심, r)                       ← 실루엣 전체
+///   ② 밝은 면   : jagPoly(광원 쪽으로 g·r 민 중심, r·(1-1.15·g))  ← 같은 seed
+///
+/// 같은 seed 라 두 다각형의 들쭉날쭉이 **정확히 겹친다.** 그래서 밝은 면의
+/// 가장자리가 실루엣의 가장자리를 그대로 따라가고, 반대쪽에는 그림자 띠가
+/// 남는다. [g] 하나가 「얼마나 초승달인가」를 정한다 — 원층은 g 가 작아 거의
+/// 다 밝고, 근층은 g 가 커서 **밝은 테만** 남는다.
+/// (「어둠은 밝은 림으로 보인다」는 이 레포가 적을 그릴 때 쓰는 규칙 그대로다.)
+///
+/// ⚠️ 줄임비를 (1-.72g) 로 뒀다가 고쳤다. jagPoly 의 실제 반지름은 평균
+/// ≈.8r 이라, 밝은 면이 광원 쪽 실루엣 **바깥으로 삐져나가** g 가 커질수록
+/// 초승달이 덩어리에서 떨어져 나왔다. 광원 쪽 가장자리가 맞으려면
+/// s ≈ 1 - g·r/ρ 라야 하고, ρ≈.87r 을 넣으면 **1-1.15g** 다.
+///
+/// ⚠️ 덩어리는 돌지만 **빛은 안 돈다.** 회전한 좌표계 안에서 광원 방향을
+/// 되돌려 놓지 않으면 밝은 면이 덩어리를 따라 돌아, 화면 전체가 「제각기 다른
+/// 쪽이 밝은」 얼룩이 된다 — 이 안이 죽는 유일한 방식이다.
+function MU2rock(c,x,y,r,n,seed,sq,rot,spike,dark,lit,g,al){
+  const cs=Math.cos(rot),sn=Math.sin(rot);
+  const ux=MU2LX*cs+MU2LY*sn, uy=-MU2LX*sn+MU2LY*cs;   // R(-rot)·광원
+  c.save();c.translate(x,y);c.rotate(rot);
+  fillPoly(c,jagPoly(0,0,r,n,seed,spike,sq),A(dark,al));
+  fillPoly(c,jagPoly(-ux*r*g,-uy*r*g*sq,Math.max(.35,r*(1-1.15*g)),n,seed,spike,sq),
+    A(lit,al));
+  c.restore();
+}
+
+/// 깊이 넷. [깊이, 칸, r0, Δr, 등장확률, 그림자단, 밝은단, g, 회전속도]
+///
+/// 칸(cell)은 **화면 넓이에만** 비례해 도는 수가 정해진다(scatter 의 성질) —
+/// 980×430 에서 대략 원층 545 · 중층 415 · 근층 130 · 최근층 47 덩이가 돈다.
+/// pad=1 이라 화면 밖 한 칸까지 도므로 반지름이 칸보다 작으면 경계에서 안 잘린다.
+///
+/// 비용(헤드리스 소프트웨어 래스터, 980×430 · 120프레임 평균):
+///   MAP.u2 5.75ms · B안 성계 4.80ms · A안 심연 2.25ms · C안 성좌 0.38ms
+/// 넷 중 제일 비싸다 — 개수가 이 안의 정체라 비용도 개수에 붙어 있다. 다만
+/// 이미 채택돼 로비 배경으로 도는 B안과 **같은 급**이고, 320px 칸에서는
+/// 1.64ms 다. 실기는 GPU 라 이보다 훨씬 싸다.
+///
+/// ⚠️ **첫 렌더에서 통째로 반려됐다**(2026-08-11, 980×430 실캔버스). 반지름
+/// 1.2~8.2 · 등장 .42~.55 로 조심스럽게 깔았더니 화면이 「그냥 별밭」이었다 —
+/// 파편이 하나도 안 읽혀 **A안(심연)과 구별이 안 됐다.** 원인 셋을 한꺼번에
+/// 고쳤다: ① 크기를 1.6배 ② 칸을 좁혀 개수를 2.3배 ③ **밝은 면의 톤을 층마다
+/// 낮추던 것을 그만뒀다.** ③ 이 제일 컸다 — 「근층일수록 어둡게」를 톤과 g
+/// 양쪽에서 깎고 있어서 근층이 아예 안 보였다. 지금은 **g(초승달의 폭) 하나만**
+/// 층으로 깎는다: 톤은 상한 가까이 두되 근층은 **밝은 테만** 남긴다.
+///
+/// ⚠️ 2차 렌더에서 또 반려됐다 — 이번엔 「보이긴 하는데 **각진 파편이 아니라
+/// 흐린 알갱이**」였다. 원인 둘:
+///   ④ 그림자 면을 RAMP[1](L .040)로 뒀는데 캔버스 바탕이 L .050 이라
+///      **그림자가 바탕과 같은 밝기**였다 — 덩어리의 절반이 아예 없는 셈이라
+///      실루엣이 안 닫힌다. 넷 다 RAMP[0](.026)로 내려 **바탕보다 확실히
+///      어둡게** 둔다. 그러면 한 덩어리가 밝은 쪽 +.07 · 어두운 쪽 −.024 로
+///      **양방향**으로 바탕에서 떨어져 나온다.
+///   ⑤ jagPoly 를 n=5~7(꼭짓점 10~14)로 불렀더니 원에 가까워졌다. n=4~5
+///      (8~10)로 줄이고 spikeMul 을 1 근처로 낮춰 **면이 보이는 덩어리**로.
+///   ⑥ 3·4차 렌더에서 확대 칸은 통과했는데 **1:1 이 성겼다.** 잔해「대(帶)」는
+///      개수가 정체라, 크기의 단맛 구간인 **중층**(지름 8~14px)을 두 배로
+///      늘리고 근층도 늘려 덩이 수를 ≈1,140 으로 올렸다. 크기는 안 키웠다 —
+///      키우면 벽으로 읽힌다. 밝기 예산은 안 건드린다: 덩이의 **절반이 바탕보다
+///      어두워** 개수를 늘려도 평균 L 이 .0500 에서 안 움직인다(실측).
+///
+/// 층 평균 밝기(밝은 면 넓이비 (1-1.15g)² 로 가중):
+///   원층 .085 → 중층 .065 → 근층 .046 → 최근층 .033  — **단조 감소**다.
+/// [깊이, 칸, r0, Δr, 등장확률, 그림자단, 밝은단, g, 회전속도]
+const MU2LAY=[
+  [ .10, 24, 1.6, 1.6, .58, 0, 5, .17, .55],  // 원층 — 작고 촘촘하고 거의 정지, 거의 다 밝다(≈545)
+  [ .30, 28, 3.8, 3.2, .58, 0, 5, .30, .70],  // 중층 — 이 안이 읽히는 층, 면적을 제일 먹는다(≈415)
+  [ .62, 52, 6.0, 3.6, .52, 0, 5, .45, .85],  //        (≈130)
+  [1.15, 92, 6.8, 3.0, .44, 0, 4, .58,1.00],  // 최근층 — 크고 빠르고, 밝은 테만 남는다(가리는 층, ≈47)
+];
+
+/// 잔해대 본체.
+///
+/// **뭉침**을 한 겹 얹는다. 균일 산포는 「돌이 골고루 있다」로 보이지 정말로
+/// 띠(帶)로 안 보인다 — 잔해대는 성긴 곳과 몰린 곳이 번갈아 지나가야 띠다.
+/// 새 난수를 안 들이고 **같은 h2 를 굵은 격자에서 한 번 더** 읽어 쌍삼차로
+/// 부드럽게 섞는다. 칸 값을 그대로 쓰면 **네모난 경계**가 눈에 보인다 —
+/// 밀도가 칸 단위로 툭 바뀌는 것은 이음매와 같은 종류의 사고다.
+/// ⚠️ 뭉침 격자를 560 → 320 → **190** 으로 두 번 내렸다. 560 은 화면(980×430)에
+/// 마디가 두 개도 안 들어와 **화면 절반이 비고 절반이 몰렸고**, 320 은 가로는
+/// 세 마디인데 **세로가 1.3 마디**라 위아래 기울기로 보였다(4차 렌더). 190 이면
+/// 가로 5 · 세로 2.3 마디라 「지나가면서 성긴 데와 몰린 데를 번갈아」가 성립한다.
+/// 배수는 0.35~1.7 — 진짜 빈 곳은 만들되 빈 화면은 안 만든다.
+function MU2belt(c,t,W,H){
+  const p0=mapCam(t);
+  for(let L=0;L<MU2LAY.length;L++){
+    const d=MU2LAY[L],cell=d[1],dark=MU2RAMP[d[5]],lit=MU2RAMP[d[6]];
+    scatter(p0[0]*d[0],p0[1]*d[0],W,H,cell,1,(x,y,i,j,rn)=>{
+      const gx=i*cell/190,gy=j*cell/190;
+      const x0=Math.floor(gx),y0=Math.floor(gy);
+      const sx=(gx-x0)*(gx-x0)*(3-2*(gx-x0)),sy=(gy-y0)*(gy-y0)*(3-2*(gy-y0));
+      const q0=h2(x0,y0,90),q1=h2(x0+1,y0,90),q2=h2(x0,y0+1,90),q3=h2(x0+1,y0+1,90);
+      const u0=q0+(q1-q0)*sx,u1=q2+(q3-q2)*sx,dens=u0+(u1-u0)*sy;
+      if(rn>d[4]*(.35+1.35*dens))return;
+      const r=d[2]+d[3]*h2(i,j,40+L);
+      const n=4+Math.floor(h2(i,j,50+L)*2);              // 4~5 면(꼭짓점 8~10) — 면이 보이는 각짐
+      // 납작한 판때기가 섞여야 「부서진 것」으로 보인다. 제곱으로 눌러
+      // 대부분은 덩어리로 두고 가끔만 판때기가 나오게 한다.
+      const sq=1-.58*Math.pow(h2(i,j,60+L),2.2);
+      // 도는 것 — 화려함을 밝기가 아니라 **운동**으로 산다. 각속도가 부호까지
+      // 갈리므로 이웃한 둘이 반대로 돈다(같은 방향이면 「스크롤」로 보인다).
+      const rot=h2(i,j,70+L)*TAU+t*(h2(i,j,80+L)-.5)*.9*d[8];
+      MU2rock(c,x,y,r,n,i*3.7+j*1.9+L*11.3,sq,rot,
+        .92+h2(i,j,85+L)*.34,dark,lit,d[7],1);
+    });
+  }
+}
+
+/// 원경 별 — **깊이 .04.** 거의 안 움직여야 파편이 흐르는 것으로 읽힌다.
+/// 두 가지 일을 한다: ① 여기가 우주라는 것 ② **근층이 물어뜯을 밝은 것**.
+/// 별을 안 깔면 가리는 층이 가릴 것이 없어 그냥 비용이 된다(A안 실측).
+/// 밝은 별은 개수로만 줄인다 — 크기를 키우면 면적 예산이 바로 깨진다.
+///
+/// ⚠️ 첫 렌더에서 **별이 주인공이 됐다.** 칸 30 · 등장 .72 로 깔았더니 화면이
+/// 별밭이고 파편은 그 위의 티끌이었다 — 이 안의 주어가 통째로 뒤바뀐 것이다.
+/// 별은 **파편이 물어뜯을 것**이지 볼거리가 아니라, 칸을 42 로 넓히고 알파를
+/// 내려 **바탕**으로 되돌렸다. 「가리는 층은 가릴 것이 있어야 보인다」는
+/// 여전히 지켜진다 — 필요한 것은 별의 개수가 아니라 존재다.
+function MU2stars(c,t,W,H){
+  const p0=mapCam(t);
+  scatter(p0[0]*.04,p0[1]*.04,W,H,42,1,(x,y,i,j,r)=>{
+    if(r>.62)return;
+    mapStar(c,x,y,r<.08?1.15:.8,r<.08?MAPINK.starM:MAPINK.starD,r<.08?.55:.22+.42*r);});
+  // 드문 밝은 별 — 화면당 서너 개. 첫 실측에서 L>.35 화소가 **0.0000%** 로
+  // 나왔다: 예산(0.5%)을 다 남겨 두고 안 쓴 것이라, 「화소는 적은데 화려하다」의
+  // 제일 싼 재료를 버린 셈이었다. 알파를 올리고 칸을 좁혀 되찾는다 —
+  // 넷이 다 합쳐 10px² 남짓이라 예산의 0.5% 중 0.002% 만 쓴다.
+  scatter(p0[0]*.04,p0[1]*.04,W,H,460,0,(x,y,i,j,r)=>{
+    if(r>.4)return;mapStar(c,x,y,1,MAPINK.starX,.9);});
+}
+
+/// 배경 한 장. **가산 합성을 한 번도 안 쓴다** — 이펙트가 전부 가산이라
+/// 배경이 같은 층에 끼면 더해져 밝기 상한이 통째로 무의미해진다.
+/// (그래서 celHoop·celRibbon(glow) 같은 `lighter` 패스가 박힌 도구도 안 쓴다.
+///  celHoop 은 `r-w*.22 < 0` 으로 브라우저에서만 죽는 전례가 다섯 번 있어,
+///  안 쓰는 것이 클램프보다 확실하다.)
+function MU2bg(c,t,W,H){mapFloor(c,W,H);MU2stars(c,t,W,H);MU2belt(c,t,W,H);}
+
+// ── 등록 — **대입만 한다.** 기존 이름을 다시 선언하면 파일이 통째로 죽는다 ──
+MAP.u2     =(c,t,dt,W,H,st)=>{MU2bg(c,t,W,H);};
+MAP.u2Num  =(c,t,dt,W,H,st)=>{MU2bg(c,t,W,H);mapMeter(c,t,W,H,st);};
+MAP.u2Bolt =(c,t,dt,W,H,st)=>{MU2bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"bolt");};
+MAP.u2Pulse=(c,t,dt,W,H,st)=>{MU2bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");};
+MAP.u2Foe  =(c,t,dt,W,H,st)=>{MU2bg(c,t,W,H);FOE.grunt(c,t,dt,W,H,st);};
+MAP.u2Mini =(c,t,dt,W,H,st)=>{MU2bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"bolt");
+                              bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+
+// ── 마운트 — HTML 은 한 글자도 안 건드린다(아홉 손이 같은 nav 에서 충돌한다) ──
+tile($("u-bg"),MAP,"u2","U2 · 잔해대 殘骸帶","",
+  "화소가 생기는 원리 = <b>반사</b>. 각진 파편이 <b>한쪽 면만</b> 빛을 받고 반대쪽은 바탕에 묻힌다",
+  MAPS,MAPS);
+tile($("u2"),MAP,"u2","잔해대 — 실제 화면 비율(980×430)","",
+  "깊이 4층. 근층일수록 <b>크고 빠르고 어둡다</b> — 앞으로 올수록 빛나는 게 아니라 <b>가린다</b>",
+  980,0,430);
+tile($("u2"),MAP,"u2Foe","적이 안 묻히는가","",
+  "진짜 제약은 무기가 아니라 <b>적</b>이다(몸 채움 #24141F L .102). 파편의 밝은 면이 그보다 어두워야 한다",
+  MAPS,MAPS);
+tile($("u2"),MAP,"u2Bolt","빛파동을 얹은 판","",
+  "금빛 파도(wBolt 가운데층 L .74)와 파편의 밝은 면(L .117)이 <b>6배</b> 벌어져 있다",
+  MAPS,MAPS);
+tile($("u-proof"),MAP,"u2Pulse","U2 · 잔해대 + 파문","",
+  "얇은 고리가 각진 파편 위를 지난다. 갈리는 것은 색이 아니라 <b>명도</b>다",
+  MAPS,MAPS);
+tile($("u-mini"),MAP,"u2Mini","U2 · 잔해대 + 미니맵","",
+  "배경이 바뀌어도 HUD 는 같다. 파편은 미니맵 판(#05060B .72) 밑으로 지나간다",
+  MAPS,MAPS);
+tile($("u-num"),MAP,"u2Num","U2 · 잔해대 — 자체 실측","",
+  "배경만 그린 캔버스를 getImageData 로 읽은 값. 예산: 평균 L ≤ .06 · L&gt;.12 ≤ 1% · L&gt;.35 ≤ 0.5%",
+  MAPS,MAPS);
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// P1 · 경호 鏡湖 — 「하늘이 바닥에 있는」 안 (MP1) · docs/vfx/mockup-map2.html
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 아홉 손이
+// 같은 파일을 만지므로, **겹치는 자리를 아예 안 만드는 것**이 유일하게 확실한
+// 안전장치다. 최상위 이름은 전부 `MP1` 로 시작하고, 등록은 `MAPP.bg` 에 **대입만**
+// 한다. 구운 타일 캐시 키도 `mp1*` 로 못박았다 — `mpTiles` 는 공용 사전이라
+// 키가 겹치면 **다른 손의 타일이 내 그림으로 나온다**(조용히 틀린다).
+//
+// ── 생성 원리: 반사 ───────────────────────────────────────────────────────
+// 얕은 물이 깔린 평원이고, 그 물이 하늘(별)을 비춘다. 아홉 안 중 **하늘이
+// 바닥에 있는 유일한 안**이자 우주 맵과 행성 맵의 **다리**다 — 바닥이 있는데
+// 별이 보인다.
+//
+// 반사로 읽히는 조건은 셋이고, 셋 다 **밝기가 아니라 구조**로 건다.
+//
+//   ① **원본보다 어둡다.** 색을 눈으로 고르지 않는다. 원본 별색을 검정과
+//      섞어서 만든다 — `mixHex(x,"#000000",k)` 는 채널을 (1-k) 배로 줄이고
+//      L 은 채널의 선형결합이므로 **L 도 정확히 (1-k) 배**다. k ≥ .50 으로
+//      못박으면 「절반 이하」가 취향이 아니라 항등식이 된다.
+//   ② **흔들린다.** 잔물결은 **가로로 늘어난 짧은 선**이다. 세로로 흔들면
+//      물이 아니라 유리다. 그래서 이 안에서 늘어나는 축은 **가로 하나뿐**이고,
+//      상은 늘어난 만큼 **얇아졌다가**, 마루가 지나가면 **두세 도막으로 끊긴다.**
+//   ③ **바닥에 안 붙어 있다.** ①②보다 이게 세다. 반사되는 하늘은 무한히
+//      머니 카메라를 따라 **거의 안 움직인다**(깊이 .085). 땅은 1.0 으로
+//      흘러가는데 별만 제자리에 남는 이 **속도차**가 「이건 바닥에 그린 무늬가
+//      아니다」를 말한다. 시차를 「깊이 표현」이 아니라 **반사의 증거**로 쓴다.
+//
+// 물이 아닌 부분(마른 땅)이 섬처럼 남아 **위치감**을 준다. 섬을 `scatter()` 로
+// 놓으면 물웅덩이는 그 **여집합**이라, 랜드마크가 되는 물가 윤곽이 이음매 없이
+// 저절로 생긴다(월드를 칸으로 자르고 칸 번호를 해시 — 칸 번호가 무한하니 반복도
+// 이음매도 원리적으로 없고, 도는 칸 수는 화면 넓이에만 비례한다).
+//
+// ── ⚠️ 이 안 고유의 위험: 예산이 두 배가 된다 ─────────────────────────────
+// 하늘의 별은 화면 위쪽 일부지만 **반사는 바닥 전체에 깔린다.** 넷으로 막는다:
+//   ㉠ 색을 ① 로 묶어 **원본의 절반 이하**로 만든다. 제일 밝은 반사색이
+//      `#4E5055` L .314 이고, 배경은 `source-over` 만 쓰므로 합성 결과는
+//      **절대 소스 중 제일 밝은 색을 못 넘는다** → **L>.35 화소가 구조적으로 0.**
+//   ㉡ 반사면을 화면 전체가 아니라 **물에만** 둔다. 마른 땅(면적 ~40%)이
+//      나중에 그려져 그만큼을 **덮는다** — 클립 한 번 없이 그리기 순서가
+//      마스크를 대신한다(클립 40번/프레임은 500마리와 예산을 다툰다).
+//   ㉢ 밝은 등급일수록 **드물게.** 네 등급의 등장 확률이 52/31/13.5/3.5% 다.
+//   ㉣ 잔물결은 **골이 어둡고 마루는 알파 .022 뿐**이다. 물의 질감을 밝기가
+//      아니라 **어둠**으로 판다 — 가산 발광 이펙트와 애초에 같은 축이 아니다.
+//
+// **가산 합성(`lighter`)은 한 번도 안 쓴다.** 그래서 상한이 수치가 아니라
+// 정리(定理)다. 같은 이유로 `celHoop` 을 **안 쓴다** — 마지막 후광 패스가
+// `globalCompositeOperation="lighter"` 로 박혀 있어 배경에 못 들인다(고로
+// 「굵기를 반지름에 안 묶으면 r-w*.22 < 0 으로 죽는」 그 함정도 이 안에는
+// 호출부가 0 개다). 대신 빗방울 고리는 `arc` 를 직접 그리고, 반지름은
+// `Math.max()` 로 클램프해 둔다.
+//
+// ── 색 충돌 ───────────────────────────────────────────────────────────────
+// 주 색상각 ≈ **224°**(청람). 이건 **새로 들인 색이 아니라 `MAPINK.star*`
+// 그대로**다 — 우주 맵이 이미 쓰고 있는 별빛을 어둡게만 해서 물에 비춘 것이라,
+// 새 충돌을 하나도 안 만든다. 속성 팔레트와의 거리는 보고에 적었다.
+// 마른 땅만 **따뜻한 쪽(≈ 34°)** 으로 민다 — 물과 땅을 **밝기 차이 .03** 이
+// 아니라 **색상각 차이 190°** 로 가르기 위해서다(저명도에서 밝기로 가르려면
+// 둘 중 하나가 예산을 깨야 한다).
+const MP1={};
+
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 넓은 면적은 전부 L ≤ .056 이다(적의 몸 `#24141F` L .102 보다 확실히 어둡다).
+// L .12 를 넘는 것은 **자국뿐**이고, 그마저 알파로 눌러 합성 후 .12 아래로
+// 떨어지는 것이 대부분이다.
+MP1.INK={
+  // ⚠️ 물을 #04060D(L .024)로 뒀다가 **잔물결이 통째로 안 보였다**(첫 렌더).
+  // 거의 검은 바탕에서는 **어둠으로 그릴 수가 없다** — 골을 아무리 진하게 해도
+  // 내려갈 데가 없다. 균열지가 어둠으로 되는 것은 바탕이 #0B0C0E 라 아래로
+  // 여유가 있기 때문이다. 물은 L .033 으로 올려 골이 내려갈 자리를 만든다.
+  water:"#04060C",   // 물          L .0243 — 공용 바닥(.0184) 바로 위. 원래 .033
+                     // 이었는데 「맵이 꺼멓다」 판정 뒤 **대비를 열려고 바닥을 내렸다**
+  wet  :"#020308",   // 물가(젖은 땅) L .013 — 셋 중 **제일 어둡다**
+  // ⚠️ 마른 땅의 색상각(36°)은 **무기 금빛 무리 한복판**이다 — wOrbit 30 ·
+  // thunder 36 · hDawn 28 · wBolt 45 · cSeal 45 · gBoulder 30. 물 밑 세계에서
+  // 마른 흙이 갈 수 있는 색상각은 원래 이 띠뿐이라 **각을 피할 수가 없다.**
+  // 그래서 각 대신 **채도를 깎는다**(31%→20%): 채도가 낮으면 색상각이
+  // 지각적으로 안 잡힌다. 명도는 .055 대 .68(thunder 중간층)로 12배 갈린다.
+  land :"#0F0E0C",   // 마른 땅      L .055  40° · 채도 20%
+  ldD  :"#080706",   // 땅 얼룩(음)  L .028
+  ldL  :"#161512",   // 땅 얼룩(양)  L .082  채도 18%
+  rim  :"#2A3244",   // 물가에 걸린 빛 L .195 — **알파 .07 이하로만**
+  crest:"#8FA0C4",   // 너울 참고색   L .624 — 지금은 안 쓴다(아래 판정 참조)
+  peb  :"#262523",   // 자갈         L .145 — 1.2px 점 · 채도 8%
+  neb  :"#0A0F1B",   // 비친 성운    L .050
+};
+// 반사색 — **원본 별색 × (1-k).** 취향이 아니라 항등식이다.
+//   starD .282 → .135 (48%) · starM .474 → .213 (45%)
+//   starL .703 → .283 (40%) · starX .925 → .314 (34%)   ← 넷 다 원본의 절반 이하
+//
+// ⚠️ 처음에 제일 어두운 등급을 k=.50 으로 뒀다가 **50.7%** 가 나왔다(실측).
+// `mixHex` 가 채널마다 `Math.round` 를 하는데, 세 채널이 다 올림으로 떨어지면
+// 절반을 아주 살짝 넘는다. 「절반 이하」를 주장하려면 반올림 여유를 두어야
+// 한다 — .52 로 민다. 0.7% 라도 **지킨 척하지 않는다.**
+MP1.STAR=[mixHex(MAPINK.starD,"#000000",.52),
+          mixHex(MAPINK.starM,"#000000",.55),
+          mixHex(MAPINK.starL,"#000000",.60),
+          mixHex(MAPINK.starX,"#000000",.66)];
+
+const MP1_DSKY=.085, MP1_DFAR=.04, MP1_DNEB=.025;  // 깊이 — 하늘은 거의 안 움직인다
+const MP1_SQ=.82;                                   // 탑다운 눌림(이끼 .84 와 같은 규약)
+const MP1_ICELL=205, MP1_JCELL=128, MP1_RCELL=300;  // 섬 · 잔섬 · 빗방울 칸
+const MP1_SCELL=300, MP1_NCELL=340;                 // 너울 · 비친 성운 칸
+
+// ── 구운 타일 하나 ────────────────────────────────────────────────────────
+// 물 표면을 프레임마다 그리면 500마리와 예산을 다툰다. 한 번 굽고 그 뒤로는
+// `createPattern` 으로 **fillRect 한 번**이다(O(1)).
+//
+// ⚠️ **화면을 덮는 패턴 한 겹이 1.8ms 다**(980×548 소프트웨어 래스터 실측).
+// 처음엔 너울도 같은 방식으로 한 겹 더 깔았다가 **전체가 8.59ms** 로 기존 3안
+// (4.28~5.37ms)의 1.6배가 됐다. 너울은 화면 전체를 덮을 이유가 없다 — 실제
+// 너울도 고른 잡음이 아니라 **몇 줄의 긴 마루**다. 그래서 너울만 패턴에서
+// **긴 띠 열몇 줄**로 바꿨다(아래 ④-a). 화소가 1/3.5 라 비용도 그만큼이고,
+// 잔물결과 **다른 속도로 흐르는 것**은 그대로 남는다.
+//
+// 잔물결 — **가로로 늘어난 짧은 선.** 이 안의 서명이다.
+// 골(검정)이 무늬를 만들고 마루(알파 .022)는 있는 듯 없는 듯만 얹는다.
+// ⚠️⚠️ **이 안에서 제일 중요한 판정이다(4차 렌더).**
+//
+// 물을 1:1 로 잘라 보니 **하늘이 아니라 「빗살무늬 금속판」**이었다. 원인은
+// 밝기도 개수도 아니고 **채널 충돌**이다: 잔물결 마루도 「창백한 가로 대시」,
+// 비친 별도 「창백한 가로 대시」였고, 마루가 수백 개라 **개수로 이겼다.**
+// 눈에는 물결 무늬 하나만 남고 별은 그 무늬의 일부로 흡수됐다.
+//
+// 답은 마루를 어둡게 조절하는 게 아니라 **없애는 것**이다. 이 레포의 규칙이
+// 원래 그것이다 — 「배경에서 눈에 띄는 것을 밝기가 아니라 **어둠**으로 만든다」.
+// 잔물결을 **골(검정)만**으로 그리면
+//   · 물 위에서 밝은 것은 **비친 별 하나뿐**이 되어 하늘이 즉시 읽히고,
+//   · 물의 질감이 밝기 예산을 **한 톨도** 안 쓴다(반사 예산이 두 배가 되는
+//     이 안의 고유 위험을 정면으로 갚는 자리다),
+//   · 「가로로 늘어난 짧은 선」이라는 잔물결의 정의는 그대로다. 물결은 밝을
+//     이유가 없고, 어두운 가로 대시도 똑같이 가로 대시다.
+MP1.ripple=()=>mpTile("mp1ripple",320,(c,S)=>{
+  for(let i=0;i<112;i++){
+    const x=hash(i*2.9)*S,y=hash(i*5.3)*S;
+    const w=11+hash(i*7.7)*26,h=.60+hash(i*3.1)*.58;
+    const a=(.18+hash(i*11.3)*.24).toFixed(3);
+    mpWrap9(S,(dx,dy)=>{
+      c.fillStyle=`rgba(0,0,0,${a})`;
+      c.beginPath();c.ellipse(x+dx,y+dy,w,h,0,0,TAU);c.fill();});}
+});
+
+// ── 배경 ──────────────────────────────────────────────────────────────────
+// `MP1.SKY=0` 이면 반사를 통째로 끈다 — 「반사가 실제로 무슨 일을 하는가」를
+// 옆칸에 나란히 놓기 위한 스위치다(시안의 주장은 대조군이 있어야 선다).
+MP1.SKY=1;
+MP1.bg=function(c,t,W,H){
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  c.fillStyle=MP1.INK.water;c.fillRect(0,0,W,H);
+
+  if(MP1.SKY){
+    // ① 비친 성운 — 깊이 .025. 반사된 하늘에 **형태**를 준다(밝기는 안 쓴다).
+    //    ⚠️ 반지름 140~440 이었을 때 이 한 겹만 1.46ms 였다 — 그라디언트 비용은
+    //    반지름의 **제곱**이다. 90~240 으로 줄이고 칸을 좁혀 개수로 갚았다
+    //    (덩이가 작아지니 「한 덩이 만두」가 아니라 얼룩진 하늘로 읽혀 더 낫다).
+    scatter(ox*MP1_DNEB,oy*MP1_DNEB,W,H,MP1_NCELL,1,(x,y,i,j,r)=>{
+      if(r>.55)return;
+      const rr=90+r*150;
+      c.save();c.translate(x,y);c.scale(1,.62);
+      const g=c.createRadialGradient(0,0,0,0,0,rr);
+      g.addColorStop(0,A(MP1.INK.neb,.62));g.addColorStop(.55,A(MP1.INK.neb,.34));
+      g.addColorStop(1,A(MP1.INK.neb,0));
+      c.fillStyle=g;c.beginPath();c.arc(0,0,rr,0,TAU);c.fill();c.restore();});
+    // ── ⚠️ 첫 렌더 판정: **하늘이 안 보였다.** 「반사를 끈 칸」과 켠 칸이
+    //    눈으로 구별이 안 됐다 — 이 안의 전제가 통째로 전달이 안 된 것이다.
+    //    원인은 예산이 아니라 **예산을 안 쓴 것**이었다: L>.12 화소가 0.022%
+    //    였는데 상한이 1% 다(45배 여유). 별을 촘촘하게·크게·밝은 등급을 흔하게
+    //    바꾼다. 「밝기로 사지 마라」는 **평균 명도**의 규칙이지 「자국을 안
+    //    보이게 두라」가 아니다 — 자국은 **면적으로 갚는 것**이고, 그 면적이
+    //    아직 상한의 2% 밖에 안 찼다.
+    //
+    // ② 아득한 별 — 1px 사각. **하늘로 읽히게 하는 것은 개수다**(밝은 몇 개가
+    //    아니라 촘촘한 잔별이 「별밭」을 만든다). 다섯 중 하나는 한 등급 위를
+    //    써서 밝기 폭을 벌린다 — 크기가 아니라 **밝기가 고르지 않은 것**이
+    //    별밭의 서명이다. 이 층이 화면의 0.04% 를 L .12 위로 올린다(상한 1%).
+    scatter(ox*MP1_DFAR,oy*MP1_DFAR,W,H,30,1,(x,y,i,j,r)=>{
+      if(r>.52)return;
+      const b=h2(i,j,43)>.78;
+      c.fillStyle=A(MP1.STAR[b?1:0],(b?.52:.40)+h2(i,j,41)*.26);
+      const s=b?1.5:1.2;c.fillRect(x-s/2,y-s/2*.9,s,s*.9);});
+    // ③ 비친 별 — 이 안의 주인공. **가로로만** 늘어나고, 흔들리고, 끊긴다.
+    scatter(ox*MP1_DSKY,oy*MP1_DSKY,W,H,44,1,(x,y,i,j,r)=>{
+      if(r>.68)return;
+      const q=h2(i,j,17),k=q<.44?0:q<.74?1:q<.93?2:3;    // 밝을수록 드물게
+      const col=MP1.STAR[k];
+      // ⚠️ 흔들림의 **모든 파생값을 위상 하나에서** 뽑는다. 위치·길이·두께·
+      // 쪼개짐이 각자 다른 스케줄을 쓰면 주기가 안 맞아 「끊겨」 보인다.
+      const ph=h2(i,j,23)*TAU,sw=.55+h2(i,j,29)*.95;
+      const wob=Math.sin(t*sw+ph),aw=wob<0?-wob:wob;
+      const rr=(k>1?1.45:.90)+h2(i,j,31)*(k>1?1.05:.55);
+      // ⚠️ **쉴 때는 점, 흔들릴 때만 선.** 늘임을 2.4배로 뒀다가 5차 렌더에서
+      // 물 위의 밝은 것이 전부 **긴 가로 줄**이 됐다 — 별이 아니라 빗살무늬로
+      // 보인다. 「가로로 늘어난 짧은 선」은 **잔물결**의 정의지 별의 정의가
+      // 아니다. 별은 점이어야 별이고, 늘어나는 것은 **물결이 지날 때뿐**이다.
+      const len=Math.max(.4,rr*(.90+1.15*aw));           // 늘어나는 축은 가로 하나
+      const hgt=Math.max(.4,rr*(1.00-.26*aw));           // 늘어난 만큼 얇아진다
+      const al=(k?.86:.52)+h2(i,j,37)*.14, X=x+wob*rr*1.5;
+      c.fillStyle=A(col,al*(1-.20*aw));
+      c.beginPath();c.ellipse(X,y,len,hgt,0,0,TAU);c.fill();
+      // ⚠️ **반짝임 줄기 — 이 안이 「물 무늬」가 아니라 「반사」로 읽히는 자리.**
+      // 3차 렌더에서 비친 별과 잔물결 마루가 **눈으로 구별이 안 됐다**(둘 다
+      // 창백한 가로 대시라). 물에 비친 밝은 것의 진짜 서명은 밝기가 아니라
+      // **한 줄로 늘어선 여러 조각**이다 — 잔물결 마루마다 상이 한 번씩 맺혀
+      // 반짝임이 줄지어 선다. 잔물결은 이런 줄을 절대 안 만든다.
+      // 위상은 별의 스케줄(sw·ph) 하나에서 파생한다 — 따로 돌리면 별과 줄기가
+      // 서로 다른 박자로 놀아 「두 물체」로 보인다.
+      // 줄기는 **바짝 붙여야** 한 별의 부서진 상으로 읽힌다. 넓게 벌리면
+      // 「따로 있는 별 다섯」이 되고, 그게 5차 렌더의 긴 줄무늬였다.
+      if(k>1){
+        const sp=rr*1.5+1.9;
+        for(let m=-2;m<=2;m++){
+          if(!m||(k<3&&(m<-1||m>1)))continue;            // 제일 밝은 등급만 다섯 조각
+          const gm=Math.sin(t*sw*1.13+ph+m*1.27);
+          if(gm<=0)continue;
+          const ga=al*.40*gm*(1-(m<0?-m:m)*.30);
+          if(ga<.02)continue;
+          c.fillStyle=A(col,ga);
+          c.beginPath();c.ellipse(X+m*sp,y+((m&1)?.8:-.6),
+            Math.max(.3,len*.42),Math.max(.3,hgt*.55),0,0,TAU);c.fill();}
+      }
+      // 쪼개짐 — 마루가 지나가면 상이 두세 도막으로 끊긴다. **문턱을 두면
+      // 팝 한다.** 알파를 연속으로 올려 나타나고 사라지게 둔다.
+      const br=aw>.55?(aw-.55)/.45:0;
+      if(br>.01){
+        c.fillStyle=A(col,al*br*.55);
+        c.beginPath();c.ellipse(X-len*.95,y-hgt*1.6,Math.max(.3,len*.46),
+          Math.max(.3,hgt*.80),0,0,TAU);c.fill();
+        c.beginPath();c.ellipse(X+len*.95,y+hgt*1.5,Math.max(.3,len*.42),
+          Math.max(.3,hgt*.80),0,0,TAU);c.fill();}});
+  }
+
+  // ④ 물의 표면 — **반사상 위에** 얹는다. 물결이 상을 가로질러 잘라야
+  //    「물 밑에 비친 것」이 되지, 밑에 깔면 그냥 무늬 위의 점이 된다.
+  //    바람으로 계속 흐른다 — 땅(1.0×)과 별(0.085×) 사이의 **셋째·넷째 속도**다.
+  //
+  // ④-a 너울 — 저주파. 잔물결만 있으면 물이 아니라 **사포**로 보인다.
+  //      긴 띠 열몇 줄뿐이라 화면을 덮는 패턴 한 겹의 1/3.5 값이다.
+  scatter(ox+t*13,oy+t*3,W,H,MP1_SCELL,1,(x,y,i,j,r)=>{
+    if(r>.52)return;
+    const w=150+h2(i,j,71)*210,h=6+h2(i,j,73)*13;
+    c.save();c.translate(x,y);c.scale(1,h/w);        // 가로로만 늘인다
+    const g=c.createRadialGradient(0,0,0,0,0,w);
+    // 너울도 **어둠으로만** 그린다 — 물 위에서 밝은 것은 비친 별 하나뿐이라야
+    // 하늘이 읽힌다(잔물결 마루를 없앤 것과 같은 이유).
+    g.addColorStop(0,"rgba(0,0,0,.36)");
+    g.addColorStop(1,"rgba(0,0,0,0)");
+    c.fillStyle=g;c.beginPath();c.arc(0,0,w,0,TAU);c.fill();c.restore();});
+  // ④-b 잔물결 — 0°. **가로가 이 안의 서명**이다(세로로 흔들면 유리가 된다).
+  mpPat(c,MP1.ripple(),W,H,ox+t*29,oy+t*6.5,0);
+
+  // ⑤ 빗방울 고리 — 화면당 두세 개. 「화려함은 밝기가 아니라 운동」의 몫이다.
+  //    ⚠️ 반지름은 항상 클램프한다(음수 반지름은 브라우저에서만 죽는다).
+  scatter(ox,oy,W,H,MP1_RCELL,0,(x,y,i,j,r)=>{
+    if(r>.34)return;
+    const per=3.6+h2(i,j,53)*3.4,ph=((t/per)+h2(i,j,59))%1;
+    const rr=Math.max(.5,4+ph*54),fade=(1-ph)*(1-ph);
+    c.save();c.translate(x,y);c.scale(1,MP1_SQ);
+    c.beginPath();c.arc(0,0,rr,0,TAU);
+    c.strokeStyle=A(MP1.INK.rim,fade*.10);c.lineWidth=1.5;c.stroke();
+    if(rr>9){c.beginPath();c.arc(0,0,Math.max(.5,rr-7),0,TAU);
+      c.strokeStyle=A(MP1.INK.rim,fade*.05);c.lineWidth=1;c.stroke();}
+    c.restore();});
+
+  // ⑥ 마른 땅 — **여기가 반사 예산을 실제로 갚는 자리다.** 나중에 그려
+  //    반사를 덮으므로, 섬 면적만큼 반사면이 줄어든다(클립 0 번).
+  //    물가는 셋 중 제일 어둡다 — 얕아질수록 상이 사라지는 것이 물가의
+  //    정의라, 테를 **밝히지 않고 어둡게** 두면 그것만으로 가장자리가 선다.
+  //    ⚠️ 처음에 `puffPoly` 로 그렸다가 **뭉게구름**이 됐다(첫 렌더 판정:
+  //    갈색 구름층이 파란 하늘을 덮은 그림). 돌기가 뭉친 실루엣은 이 레포에서
+  //    「폭발·이끼」의 문법이지 **지형**의 문법이 아니다. 게다가 P2 사구가
+  //    「유일하게 각지지 않은 지형」이라, 나머지 다섯은 **각져야** 축이 선다.
+  //    `jagPoly` 로 바꾸되 spikeMul 을 **1 아래로** 눌러야 한다.
+  //
+  //    ⚠️ 1.15 로 뒀다가 두 번째 렌더에서 **뾰족한 별·단풍잎**이 나왔다.
+  //    jagPoly 의 골은 r×(.52~.68), 마루는 r×(.85~1.40)×spikeMul×.62 다.
+  //    spikeMul 1.15 면 마루/골 비가 최대 **1.9배** — 그게 캐릭터 코어의 값이다.
+  //    .88 로 내리면 비가 .68~1.45 라 마루가 「뿔」이 아니라 **작은 굴곡**이
+  //    되고, 각은 남되 지형으로 읽힌다. 대신 실효 반경이 ~.62r 로 줄어드니
+  //    반지름을 1.5배로 되돌려 준다.
+  //    덤: puffPoly 는 잎당 14점(7잎=98점)인데 jagPoly 는 14각=28점이라
+  //    **점 수가 1/3.5** 다 — 모양도 비용도 같이 잡힌다.
+  const isle=(x,y,rad,sd,big)=>{
+    const n=big?14:9, sp=big?.88:.95;
+    // ⚠️ 물가 띠를 반지름의 10% 로 뒀더니 7~18px 짜리 **검은 테두리**가 되어
+    // 섬이 「붙여 놓은 스티커」로 보였다(6차 렌더). 물가는 테두리가 아니라
+    // **얕아지는 구간**이라 얇아야 한다 — 4.5% 로 줄인다.
+    fillPoly(c,jagPoly(x,y,rad*1.045,n,sd,sp,MP1_SQ),A(MP1.INK.wet,.94));
+    // 물가에 걸린 빛 — 왼위에서 오는 빛. 몸을 1.7px 어긋나게 얹어 **초승달만**
+    // 남긴다. 알파 .065 라 합성 후 L .066 — 상한 .12 아래다.
+    fillPoly(c,jagPoly(x-1.7,y-1.7,rad*1.02,n,sd,sp,MP1_SQ),A(MP1.INK.rim,.065));
+    fillPoly(c,jagPoly(x,y,rad,n,sd,sp,MP1_SQ),A(MP1.INK.land,.985));
+    if(!big)return;
+    // 땅 얼룩 — 하나만 두면 스티커다. 밝은 쪽 하나면 족하다(어두운 쪽은
+    // 물가 테가 이미 준다).
+    fillPoly(c,jagPoly(x-rad*.20,y-rad*.06,rad*.52,9,sd+7.7,.95,MP1_SQ),A(MP1.INK.ldL,.46));
+    // 자갈 — 고주파. 큰 얼룩만 있으면 스크롤이 「미끄러지는 종이」로 보인다.
+    for(let k=0;k<6;k++){
+      const a2=hash(sd+k*5.3)*TAU,d2=rad*(.15+.62*hash(sd+k*9.1));
+      c.fillStyle=A(MP1.INK.peb,.42+hash(sd+k*2.7)*.26);
+      c.beginPath();c.arc(x+Math.cos(a2)*d2,y+Math.sin(a2)*d2*MP1_SQ,
+        .7+hash(sd+k*7.1)*.7,0,TAU);c.fill();}
+  };
+  // ⚠️ 화면 밖 컬은 **꼭 맞게** 자른다. 여유를 1.6배로 뒀더니 화면에 한 점도
+  // 안 걸리는 섬을 매 프레임 다섯씩 그리고 있었다(실루엣 최대 반경은 rad*1.15).
+  //
+  // ⚠️ **면적을 줄였다: 첫 렌더에서 마른 땅이 화면의 52.6% 였다**(실측).
+  // 그러면 「얕은 물이 깔린 평원에 섬이 남은 것」이 아니라 **땅이 바탕이고 물이
+  // 틈**이 되어, 이 안의 전제가 뒤집힌다. 확률 .58→.44 · 반지름 58~142→46~118
+  // 로 내려 물이 다수가 되게 한다 — 반사 예산도 같이 줄어든다.
+  scatter(ox,oy,W,H,MP1_ICELL,1,(x,y,i,j,r)=>{
+    if(r>.44)return;
+    const rad=70+h2(i,j,7.3)*108,m=rad*.95;   // 실효 반경이 ~.62r 라 1.5배로
+    if(x<-m||x>W+m||y<-m||y>H+m)return;
+    isle(x,y,rad,i*23.1+j*47.3,1);});
+  // 잔섬 — 물가 윤곽에 **형태 복잡도**를 얹는다. 랜드마크가 「동그라미 몇 개」가
+  // 아니라 「알아볼 수 있는 모양」이 되는 것은 이 작은 것들 덕이다.
+  scatter(ox,oy,W,H,MP1_JCELL,1,(x,y,i,j,r)=>{
+    if(r>.36)return;
+    const rad=14+h2(i,j,13.7)*34,m=rad;
+    if(x<-m||x>W+m||y<-m||y>H+m)return;
+    isle(x,y,rad,i*11.7+j*31.9,0);});
+};
+MAPP.bg.mp1lake=MP1.bg;      // 등록은 **대입만** — 기존 이름을 다시 선언하지 않는다
+
+// ── 조립 ──────────────────────────────────────────────────────────────────
+// [fx] 를 켜면 배경 위에 **진짜 이펙트**를 얹는다 — 「안 헤친다」는 말로 하는
+// 게 아니라 겹쳐 놓고 봐야 한다. 이펙트는 자기 상태통(st.fx)을 따로 쓴다.
+MP1.demo=function(fx,mini,meter,dry){
+  const f=function(c,t,dt,W,H,st){
+    const sv=MP1.SKY;if(dry)MP1.SKY=0;
+    try{MP1.bg(c,t,W,H);}finally{MP1.SKY=sv;}
+    if(meter)mapMeter(c,t,W,H,st);     // 재는 시점에 캔버스에 배경밖에 없어야 한다
+    if(fx){st.fx=st.fx||{p:[]};
+      const sr=RECOLOR;RECOLOR=WTONE[fx];
+      try{FX[fx](c,t,dt,W,H,st.fx);}finally{RECOLOR=sr;}}
+    if(mini){const cm=MAPP.cam(t);MAPP.minimap(c,W,H,t,cm[0],cm[1]);}
+  };
+  try{Object.defineProperty(f,"name",{value:"mp1_lake"+(dry?"_dry":"")+(fx?"_"+fx:"")});}catch(e){}
+  return f;
+};
+const MP1_W=980,MP1_H=548,MP1_S=302;
+mapTile("p-bg",MP1.demo(0,0,0,0),"P1 · 경호 鏡湖",
+  "얕은 물이 하늘을 비춘다. 별은 깊이 .085 로 <b>거의 안 움직이고</b> 땅은 1.0 으로 흐른다 — 그 속도차가 반사의 증거다.",MP1_S,MP1_S);
+mapTile("p1",MP1.demo("pulse",1,0,0),"경호 + 파문 + 미니맵",
+  "실제 화면 비율(980×548). 파문(mPulse 바깥층 L .181)은 <b>비친 별과 같은 청색 계열</b>인데도 갈린다 — 갈리는 것은 색이 아니라 명도다.",MP1_W,MP1_H,1);
+mapTile("p1",MP1.demo(0,0,0,0),"배경만","물웅덩이의 <b>모양</b>이 랜드마크다. 섬을 scatter 로 놓으면 물은 그 여집합이라 이음매가 원리적으로 없다.",MP1_S,MP1_S);
+mapTile("p1",MP1.demo(0,0,0,1),"반사를 끄면","같은 지형, 반사만 뺐다. 이 두 칸의 차이가 <b>반사가 실제로 하는 일</b>이다.",MP1_S,MP1_S);
+mapTile("p1",MP1.demo("bolt",0,0,0),"빛파동 위에서","금빛 파도(wBolt L .74). 흔한 경우.",MP1_S,MP1_S);
+mapTile("p-proof",MP1.demo("pulse",0,0,0),"P1 경호 위에서","같은 이펙트, 같은 시각. 대조군(검은 배경)과 고리 가독성이 구별 안 되면 합격.",MP1_S,MP1_S);
+// ⚠️ 미니맵 칸만 **넓은 판**이다. 미니맵은 126px 고정이라 302px 칸에 얹으면
+// 칸의 1/6 을 먹고 이펙트와 겹친다(6차 렌더에서 실제로 겹쳤다). 기존 map2 의
+// 미니맵 칸도 같은 이유로 980×548 이다.
+mapTile("p-mini",MP1.demo("bolt",1,0,0),"P1 경호 + 빛파동 + 미니맵",
+  "배경이 바뀌어도 HUD 는 같다. 미니맵은 <b>적 밀도 한 겹</b>뿐 — 지형은 통행을 안 막으니 그리면 소음이다.",MP1_W,MP1_H,1);
+mapTile("p-num",MP1.demo(0,0,1,0),"P1 경호 · 밝기 실측(배경만)",
+  "아래 띠는 <b>이 캔버스를 getImageData 로 읽어</b> 낸 값이다. 예산: 평균 L ≤ .06 · L&gt;.12 ≤ 1% · L&gt;.35 ≤ 0.5%.",MP1_W,MP1_H,1);
+
+
+// ══ U3안 「자기막 磁氣幕」 — 흐르고 접히는 오로라 커튼 ═══════════════════
+//
+// **화려함을 「운동으로만」 사는 유일한 안이다.** 그리는 것이 전부 얇은 세로
+// 발이라 화소 면적은 원리적으로 작은데(면이 아니라 선이다) 눈에는 제일 많이
+// 움직인다. 「무던하면 밍숭맹숭」의 정면 답이 이것이다 — **화소는 적고
+// 움직임은 많다.** 밝기로는 한 톨도 안 산다.
+//
+// ── 「유일하게 ~한 안」 자기검사 (실측, 980×430 · 기존 셋과 나란히) ───────
+//                      평균 L   L>.12   한 프레임 바뀐 화소
+//   A 심연(시차)        .0539    .51%      1.2%
+//   B 성계(표지물)      .0613   1.05%      2.2%
+//   C 성좌(좌표)        .0508    .34%      4.8%
+//   U3 자기막           .0558    .14%      5.3%   ← 밝은 화소 제일 적고
+//                                                   움직이는 화소 제일 많다
+//   밝은 화소 하나가 사는 운동량(바뀐 화소 ÷ L>.12) = 37.9 배.
+//   다음이 C안 14.1 · A안 2.4 · B안 2.1 — **2.7배 앞선다.**
+//
+// ⚠️ 「운동」이 카메라 덕인지 자기 덕인지는 이 표로 안 갈린다. **mapCam 을
+//    상수로 얼리고** 다시 쟀다(결정적 실험):
+//      A .00%   B .00%   C .00%   U3 **1.04%**
+//    기존 셋은 카메라를 세우면 **완전히 정지한다** — 그 셋의 운동은 전부
+//    「시간에 무관한 도형을 카메라가 옮기는 것」이다. U3 만 제자리에서
+//    **도형 자체가 변한다**(그려지는 값 1368개가 전부 위상의 함수다).
+//    그래서 「유일하게 화려함을 운동으로만 사는 안」은 **참**이다.
+//
+// ── C안(성좌)과 갈라지는 자리 ────────────────────────────────────────────
+// 둘 다 **선으로 그리는 안**이라 여기서 안 갈리면 넷째 C안이 된다.
+//   C안 : 정지 · 직선 · 인공 · 좌표 (별을 격자 마디에 두고 이어 눈금을 만든다)
+//   여기: 유동 · 곡선 · 자연 · 무좌표
+// 격자로 안 읽히게 하는 장치 넷. 하나라도 빠지면 **빗(comb)** 으로 보인다:
+//   ① 발의 가로 간격이 **균일하지 않다.** 밑변 곡선의 압축이 그대로 간격이라
+//      접힌 자리는 붙고 펴진 자리는 벌어진다 — 간격을 난수로 흩는 것이
+//      아니라 **접힘의 결과**라, 흩어진 모양이 매 프레임 뜻을 갖는다.
+//   ② 발이 **평행하지 않다.** 발마다 그 자리의 접선만큼 기울고, 접선은 s 를
+//      따라 계속 바뀐다.
+//   ③ 커튼마다 **통째로 기운다**(±.17 rad). 두 커튼의 발이 같은 방향인 일이 없다.
+//   ④ 양 끝이 **알파 0 으로 사라진다.** 잘린 끝이 있으면 그게 곧 칸 경계다.
+//
+// ── 접힘이 이 안의 전부다 ────────────────────────────────────────────────
+// 한 겹이 평평하게 흔들리면 리본이지 커튼이 아니다. 커튼으로 읽히는 신호는
+// **겹쳐 접힌 자리가 더 진한 것**이고, 그건 물리로 공짜로 나온다:
+//
+//   밑변 곡선을 **위에서 내려다본 것**으로 잡는다. u(s) 는 커튼을 따라가는
+//   축, v(s)=af·sin(kw·2π·s+ψ+φ) 는 **깊이**(보는 쪽에서 멀어지는 축)다.
+//   거의 옆에서 보므로 화면 x 는 둘의 합(x = u + v)이고,
+//        dx/ds = 2·hs + af·kw·2π·cos(…)
+//   가 **음수로 넘어가는 구간**이 생긴다 — 그게 되접힘이다. 되접힌 구간에서는
+//   같은 화면 x 위에 발이 두 겹·세 겹 얹히고, 발을 **따로따로 칠하므로**
+//   source-over 가 저절로 쌓여 진해진다. **알파를 손으로 안 올린다.**
+//   (한 폴리곤으로 이으면 nonzero 규칙이 겹침을 한 번만 칠해 접힘이 사라진다.
+//    조각을 나눠 칠하는 것이 이 안의 유일한 구조적 요구다.)
+//
+//   ⚠️ 처음엔 **막을 사각 조각으로 따로 칠했다가 반려됐다**(2026-08-11 렌더):
+//   조각의 윗변이 전부 같은 높이라 **자로 그은 가로선**이 생겼고, 그 위로
+//   발이 삐져나와 「머리카락 난 판자」가 됐다. 오로라에는 **테두리가 없다.**
+//   그래서 막을 없애고 **발 하나를 두 폭으로** 칠한다 — 넓은 폭이 막이고
+//   좁은 폭이 결이다. ribbonPoly 는 위아래를 0 으로 좁히는 종형이라 자를
+//   가장자리 자체가 안 생기고, 넓은 폭이 이웃과 1.2배로 겹쳐 「면」이 된다.
+//
+//   F = af·kw·2π / (2·hs) 하나로 「접히나 안 접히나」가 정해진다:
+//     F < 1 → 물결만 친다(되접힘 없음)      F > 1 → 되접힌다
+//   커튼마다 F 를 .85~2.10 에서 뽑아, 한 화면에 물결과 접힘이 섞이게 둔다.
+//
+//   접힘 정도(RD)는 |dx/ds| 에서 바로 나온다 — dx/ds→0 이면 막을 정확히
+//   옆에서 보는 것이라 시선이 막을 제일 길게 통과한다. 실제 오로라에서
+//   접힘 마루가 제일 밝은 이유가 그것이고, 여기서도 **그 자리에만** 제일 밝은
+//   단을 쓴다. 밝은 단이 아무 데나 안 나오는 것이 밝기 예산의 근거다.
+//
+// ── 루프 이음매 — 이 레포가 같은 종류로 네 번 반려된 자리 ────────────────
+// **위상 파생값은 전부 스케줄 하나에서 나온다.**
+//     ph = t · MU3W          (MU3W = 2π / MU3PER)
+// 움직이는 값은 예외 없이 `sin(n·ph + 상수)` 꼴이고 n 은 **정수**(1·2·3)다.
+// 그래서 f(t+MU3PER) = f(t) 가 부동소수 오차까지 정확하고, sin 이 매끈하니
+// 이음매에 도약이 **원리적으로** 없다. `t % P` 같은 톱니는 한 군데도 안 쓴다.
+// (카메라 mapCam(t) 만 t 를 직선으로 쓰는데, 그건 흔들림이 아니라 **스크롤**
+//  이고 scatter 가 이음매를 없앤다 — 세 기존 안과 같은 계약이다.)
+//
+// 그려지는 값을 **한 배열로 모아** 검산한다(MU3plan): 렌더러와 검산기가 같은
+// 함수를 부르므로 「검산한 것」과 「그린 것」이 갈라질 수 없다. 안 그리는 것
+// (알파 0)도 자리를 남겨 배열 길이가 위상과 무관하게 일정하다 — 그래야 표본
+// 끼리 자리를 맞춰 뺄 수 있다.
+//
+//   실측 (커튼 여섯 장 · 그려지는 값 **2736개 전부** · 1ms 간격 2400점 · 카메라 고정.
+//         알파와 면적을 고친 뒤 **다시 돌린 값**이다 — 그리는 값이 바뀌었으니
+//         옛 검산은 옛 그림의 증거일 뿐이다):
+//     ① 루프가 닫히는가 — max |f(t) − f(t+P)| = 4.55e-13 (4000점 × 커튼 여섯)
+//        부동소수 오차뿐. 주기 끝과 처음이 **같은 값**이다.
+//     ② 이음매에 도약이 있는가 — 창 [P−1.2, P+1.2) 에서
+//        t=P 를 넘는 그 한 걸음  0.062889
+//        바로 이웃 50걸음 최대   0.063187   → 비 0.995
+//        창 전체 평균 0.064379 · 최대 0.070458(걸음 #2398, 이음매는 #1199)
+//        이음매 걸음이 **최대가 아니고** 이웃과 같은 크기다 = 「뚝」이 없다.
+//     ③ NaN/Inf 0개
+//   새로 들어온 값(자락 물결 lw · 활 bw)은 **s 의 함수라 위상이 안 들어간다** —
+//   ph 가 붙은 항은 여전히 sin(1·ph) · sin(2·ph) · sin(3·ph) 뿐이다.
+//   ⚠️ 「이음매 낀 창 vs 딴 창」의 최댓값 비로 재면 안 된다 — 주기 안에서
+//      원래 빠른 구간이 어디냐에 따라 비가 흔들려 **연속인데도 빨간불**이 뜬다
+//      (실측 1.13). 이음매 도약은 반드시 **그 자리 이웃과** 비교한다.
+//
+// ── 밝기 예산 ────────────────────────────────────────────────────────────
+// 주 색상각 **250° 남보라**(세 벌 242·250·259°). 오로라의 상징색인 초록
+// (557.7nm)은 **안 쓴다** — 독(#57D96B 129°)·이끼(162°)가 32° 로 붙어 실기
+// 사고가 났던 자리라, 같은 함정에 스스로 걸어 들어갈 이유가 없다.
+// ⚠️ 색상환이 **꽉 차 있어** 어떤 각도를 골라도 최근접 속성과 28° 이내다
+// (제일 넓은 틈이 murk 72°↔독 129° 의 57°인데 그게 하필 오로라 초록 자리다).
+// 250° 는 자 磁(#6E8AE8 226°) 24° · 어둠(#2E1840 273°) 23° 떨어져 있고, 갈림은
+// 색상각이 아니라 **채도·명도**가 낸다: 자는 S53 L.550, 여기는 S≈50 L≤.086 —
+// 밝기가 6배 어둡다. 배경이 속성으로 오독될 여지가 없다.
+//
+// ── 예산 개정 — 「안 묻힌다」에서 「보인다」로 ──────────────────────────────
+// 옛 예산은 「평균 L ≤ .06」 하나였고 이 안은 그걸 .0558 로 지켰다. 그런데
+// 사용자 판정은 **「맵이 너무 꺼메서 잘 안 보인다」**였다. 평균은 적이 안 묻히는
+// 조건이지 **맵이 보이는 조건이 아니었기** 때문이다. 실측이 그 말을 그대로 한다:
+// 팔레트 꼭대기가 .198 인데 화면에 **L>.12 화소가 0.0%** — 그 값에 한 번도
+// 도달하지 못했다. 그래서 판정 항목이 바뀐다:
+//
+//   중간 톤(.05~.15) 면적  15~30%   ← **이것이 「보인다」의 정의다**
+//   넓은 면적 평균 L       ≤ .075   (적 몸 .102 아래 유지)
+//   면적 봉우리            ≤ .17
+//   L>.35                  ≤ 0.5%   (밝은 불티만)
+//   바닥 .0184 (MAPFLOOR)  건드리지 않는다
+//
+// 고친 것은 **컨셉이 아니라 알파와 덮는 면적**이다: 팔레트 사다리를 벌리고
+// (MU3C), 막 알파를 .33→.66 으로 올리고, 발을 33→65 로 잘게 쪼개고, 칠하는
+// **차례**를 세 패스로 갈랐다(MU3draw). 봉우리는 오히려 .198→.168 로 **내렸다** —
+// 밝기로 때우는 것이 아니라 중간 톤이 화면을 덮게 하는 것이 목적이라서다.
+//   sh 막   #151227 L .0704~.0861   rm 결 바깥 #1D1832 L .112
+//   rl 결 심 #242039 L .142         fc 접힘 심 #2B273E L .167
+// 넓은 면적을 먹는 단은 sh 하나뿐이고 그 색이 곧 **상한**이다(source-over 는
+// 같은 색을 겹쳐도 그 색을 못 넘는다) — 적(#24141F L .102)은 언제나 자기 밑의
+// 배경보다 밝다. 가산 합성 안 쓴다(fillPoly·ribbonPoly 만). 흰 앞날 없다 —
+// 제일 밝은 단이 .167 이라 무기 가운데층 최솟값(.542)의 31% 다.
+//
+//   실측 (실캔버스 · dt=1/60 고정 구동기로 900프레임 · 5시점 평균 · 카메라 포함):
+//                        320²      980×430    예산
+//     중간 톤(.05~.15)   28.4%     24.8%      15~30%   ← 고치기 전 13.8% / 12.8%
+//     평균 L             .0369     .0349      ≤ .075   ← 전 .0321 / .0302
+//     L>.12               1.01%     .679%     (상한 없음 — 중간 톤의 윗동네)
+//     L>.35              .0012%    .0020%     ≤ .5%
+//     최대(별 포함)       .380      .758      ← 드문 밝은 별(starX)
+//     최대(별 끔)                   .163      ≤ .17  ← 커튼만의 봉우리
+//   같은 조건에서 잰 기준선 U5 잔광은 중간 톤 1.66% / 1.51% 다 — **16~17배** 넓다.
+//   적 8마리를 얹은 화면에서 몸 L .102 대 둘레 .018~.067, 여덟 다 안 묻힌다.
+//
+//   ⚠️ 중간 톤은 **창 크기에 따라 흔들림이 다르다**(12시점 실측):
+//     980×430  22.6~29.2%  ← 실화면 비율. **열두 시점 전부 예산(15~30%) 안**
+//     320²     11.7~43.0%  ← 커튼 한 장이 창을 덮고 마느냐로 갈린다
+//   320 칸의 흔들림은 안이 흔들리는 게 아니라 **표본 창이 작은 것**이다.
+//   커튼을 늘려 흔들림을 줄여 보았는데(확률 .42→.52/.62, 알파는 그만큼 내림)
+//   겹침이 상한에 붙어 버려 평균이 33~39% 로 **예산 위로 나갔다** — 잉크를
+//   더 뿌리는 방향으로는 이 흔들림을 못 줄인다. 그래서 .42 를 지킨다.
+//   비용은 980×430 에서 2.9ms(전 1.4ms) — 늘어난 것은 폴리곤 개수뿐이고
+//   칠하는 면적은 그대로다(WW ∝ 1/발수).
+//
+//   접힘 실측 (커튼 648장 · 주기 24 등분):
+//     dx/ds 가 실제로 부호를 뒤집는 커튼 81.2%  ← 진짜 되접힘
+//     같은 화면 폭에 겹치는 발 평균 최대 3.01겹 · 최대 5겹 · 한 겹뿐 3.1%
+//     → 물결만 치는 커튼과 되접히는 커튼이 한 화면에 섞인다.
+//     접힘 마루가 켜지는 발 26.3% — 이 값은 밝히기 전과 같다. 안 보이던 이유가
+//     빈도가 아니라 **칠하는 차례**였다는 것이 MU3draw 에 적혀 있다.
+const MU3PER=12, MU3W=TAU/MU3PER;
+
+/// 색 세 벌 — 250° ±9°. 커튼마다 하나를 고른다. 세 벌이 9° 안에 있어
+/// 「여러 색」이 아니라 **한 색의 결**로 읽힌다.
+/// ⚠️ **첫 렌더에서 아무것도 안 보였다**(2026-08-11): 막 색이 L .0617 인데
+/// 캔버스 바탕이 #0C0C12 L .0497 이라 차이가 .012 뿐이었다 — 알파를 곱하면
+/// 화면에서 0 이 된다. 실측도 그렇게 나왔다(평균 L .0499 = 바탕 그대로).
+///
+/// ⚠️ **네 단이 전부 붙어 있어 아무 결도 안 보였다**(예산 개정 실측). 옛 벌은
+/// 막 .0874 · 결바깥 .0969 · 결심 .1183 이라 **막 대비 결이 11% 밝을 뿐**이고,
+/// 그 결을 알파 .27 로 얹으니 화면에서는 차이가 사라졌다. 막만 보이는 「덩어리」가
+/// 된 원인이 밝기가 아니라 **단 사이 간격**이었다. 그래서 사다리를 벌린다:
+///
+///   sh 막      L .0843~.0861  ← 넓은 면적. **여기가 천장이다**(아래 참조)
+///   rm 결 바깥 L .1119~.1125  ← 막의 1.31배
+///   rl 결 심   L .1417~.1424  ← 막의 1.67배
+///   fc 접힘 심 L .1667~.1679  ← 봉우리. 예산 .17 **바로 아래**
+///
+/// **막 색이 곧 넓은 면적의 상한이다** — source-over 로 같은 색을 아무리 겹쳐도
+/// 그 색의 L 을 못 넘는다. 그래서 커튼이 몇 겹 쌓이든 넓은 면적은 .0861 을 못
+/// 넘고, 적 몸(#24141F L .102)이 배경에 묻힐 **원리적 여지가 없다** — 적이
+/// 언제나 자기 밑의 배경보다 밝다. 밝은 단 셋은 전부 발 굵기(±2~4px)나
+/// 마루 띠라 면적이 작다.
+/// 색상각·채도는 옛 벌 그대로 두고 **휘도만** 옮겼다(HSL 의 H·S 고정, L 이분).
+const MU3C=[
+  {sh:"#131329",rm:"#1B1934",rl:"#22213B",fc:"#28283E"},   // 242°
+  {sh:"#151227",rm:"#1D1832",rl:"#242039",fc:"#2B273E"},   // 250° ← 주
+  {sh:"#181225",rm:"#1F182E",rl:"#271F37",fc:"#2D263D"},   // 259°
+];
+
+/// 막 두 겹. 깊이가 다르면 **시차**가 생겨, 커튼이 서로를 지나간다.
+/// [깊이,칸,확률,표본수,반폭0,반폭폭,길이0,길이폭,알파,발폭,접힘심,막알파]
+/// ⚠️ 표본수는 **홀수**라야 한다 — 발이 (Q−1)/2 개로 떨어진다.
+///    칸 크기는 커튼의 최대 가로 뻗음(반폭+접힘진폭+흔들림)보다 커야 pad 1
+///    로 안 잘린다: 먼 막 205<330 · 가까운 막 334<380.
+/// ⚠️ 발 폭이 2.5px 이면 발 사이가 20px 씩 벌어져 **커튼이 아니라 빗**으로
+///    보였다(첫 렌더). 결은 얇게 두되 **같은 자리에 넓은 폭을 한 번 더** 칠해
+///    이웃과 겹치게 한다 — 그 넓은 폭이 막이다.
+/// ⚠️ 칸을 커튼만 하게(380) 잡았더니 **320 칸에 커튼이 1.9장**밖에 안 걸려
+///    가운데가 텅 비었다(2026-08-11 렌더). 닻 밀도 = 확률/칸², 화면에 걸리는
+///    수 = 밀도 × (커튼 폭+화면 폭)(커튼 길이+화면 높이) 이므로, 칸이 커지면
+///    확률을 1 로 올려도 못 채운다. **칸을 줄이고(250/200) 확률을 올린 뒤,
+///    화면 밖 커튼을 상자 검사로 버린다** — 500마리가 도는 화면이라 「프레임당
+///    도는 것은 화면에 걸친 것만」이 계약이다. 실측 320칸 5.6장 · 980×430 13장.
+/// ⚠️ **잉크를 어디에 쓰느냐가 이 안의 승부처다**(2026-08-11 세 번째 렌더).
+///    발 폭 3.8 · 확률 .95 로 채웠더니 평균 L 이 .059(예산 .06)까지 찼는데
+///    화면은 **비 내리는 것**으로 보였다 — 예산을 전부 얇은 세로선이 먹고
+///    막이 한 톨도 못 받았기 때문이다. 예산은 부등식 하나가 아니라
+///    **배분 문제**다: 평균 .06 은 「화면 전체가 .06」이 아니라 「덮인 데는
+///    .075, 빈 데는 .0497」이어도 된다. 그래서
+///      · 커튼 수를 반으로 줄여 **빈 하늘을 남기고**(대비가 거기서 난다)
+///      · 남은 잉크를 발이 아니라 **막**에 준다(발 폭 3.8→2.4, 막 알파 .22→.52)
+/// ⚠️ 그 배분은 맞았는데 **알파가 한 자릿수 모자랐다**(예산 개정 실측). 막 알파
+///    .33 에 막 색 .0874 면 발 한 겹이 바닥 위에 얹혀 L .032 — **중간 톤(.05)에
+///    닿지도 못한다.** 이웃과 넉 겹 겹쳐야 겨우 .055 라, 화면의 99.9% 가 .12
+///    아래에 몰렸다. 막은 「연하게 여러 겹」이 아니라 **한 겹이 이미 중간 톤**
+///    이라야 한다 — 겹침은 그 위에 결을 얹는 데 쓴다. .33→.66 · .22→.53.
+/// ⚠️ 표본수 33 일 때 커튼이 **꽃잎 뭉치**로 보였다 — 밝히고 나서야 드러난
+///    하자다(어두울 때는 윤곽 자체가 안 보였으니까). 발 하나의 막이 ±47px 인데
+///    발 간격이 22px 이라, 눈에 잡히는 윤곽이 「커튼」이 아니라 **낱장 잎
+///    열여섯**이었다. 33→65 로 늘리면 간격도 폭도 반이 되어 **칠하는 면적은
+///    그대로**(WW ∝ 1/발수)인데 윤곽의 계단만 잘게 부서진다 — 잎이 아니라
+///    드리개로 읽힌다. 늘어나는 비용은 폴리곤 개수뿐이고, 980×430 실측
+///    1.40 → 2.50ms 다.
+const MU3LAYER=[
+  [.40,200,.42,33, 88,52,102,66,.66,1.6,0,.53],  // 먼 막 — 작고 흐리다
+  [.86,250,.42,65,132,96,178,116,.90,2.4,1,.66], // 가까운 막 — 접힘 심이 여기만
+];
+
+/// 표본 스크래치 — 프레임마다 새로 안 잡는다(커튼이 스무 장이다).
+const MU3X=[],MU3YT=[],MU3YB=[],MU3RD=[],MU3BUF=[];
+
+/// 커튼 한 장의 **위상과 무관한 상수.** 칸 번호를 해시해 뽑는다(scatter 규약)
+/// — 칸 번호가 무한하니 무늬가 영영 안 반복되고 이음매도 없다.
+function MU3param(i,j,d,x,y){
+  return {x:x,y:y,
+    hs :d[4]+d[5]*h2(i,j,41),          // 반폭
+    hh :d[6]+d[7]*h2(i,j,42),          // 드리개 길이
+    kw :2+Math.floor(h2(i,j,43)*2.99), // 마루 2~4 — **정수**라야 s∈[0,1] 안에서
+                                       //   위상이 한 바퀴로 떨어진다
+    psi:h2(i,j,44)*TAU,
+    dir:h2(i,j,45)<.5?-1:1,            // 물결이 흐르는 방향
+    f0 :.85+1.25*h2(i,j,46),           // 접힘 세기 기준
+    rot:(h2(i,j,47)-.5)*.24,           // 통째 기울기 — 격자 회피 ③
+    ao :d[8]*(.72+.46*h2(i,j,48)),
+    rw :d[9]*(.82+.44*h2(i,j,49)),
+    q  :d[3], core:d[10], as:d[11],
+    col:MU3C[Math.floor(h2(i,j,50)*2.99)]};
+}
+
+/// 커튼 한 장의 **그려지는 값 전부**를 평평한 배열 하나로 낸다.
+/// 렌더러(MU3draw)와 이음매 검산기가 **같은 이 함수**를 부른다 — 둘이 갈라지면
+/// 검산이 거짓말이 된다.
+///
+/// 짜임 — 발 RAY=(Q−1)/2 개, 발마다 19수:
+///   점 7개(14수) · 막 폭 · 결 폭 · 알파 셋(막 · 결 · 접힘 마루)
+/// ⚠️ 점이 4개였을 때 **테가 각져 보였다**(2026-08-11 렌더): ribbonPoly 는
+///    점을 직선으로 잇는데 폭이 종형으로 변하니 마디마다 꺾인다. 7점이면
+///    같은 한 번의 fillPoly 로 곡선이 된다 — 「곡선·유동」이 이 안의 정체라
+///    여기서 각지면 C안 쪽으로 끌려간다.
+/// 반환값은 채운 길이.
+function MU3plan(P,ph,o){
+  const Q=P.q,n=Q-1,hs=P.hs,RAY=(Q-1)>>1;
+  // ── 위상 파생값 넷. 전부 sin(정수·ph+상수) — **한 스케줄에서만** 나온다.
+  const F =P.f0*(.74+.26*Math.sin(2*ph+P.psi));      // 접힘 세기가 숨쉰다
+  const sw=hs*.13*Math.sin(ph+P.psi*1.7);            // 통째 흔들림
+  const li=.80+.20*Math.sin(3*ph+P.psi*2.3);         // 막 전체가 떤다
+  const af=F*2*hs/(P.kw*TAU);                        // 접힘 진폭
+  // 막 폭 — **이웃 발과 4.2배로 겹치는 폭.**
+  // 이 배수 하나가 「빗 ↔ 깃털 ↔ 막」을 가른다. 두 번 밟아 보고 정한 값이다:
+  //   1.55배 → 종형 끝이 안 메워져 **빗**    2.4배 → 낱장이 읽혀 **깃털**
+  //   4.2배 → ribbonPoly 의 **꼭지 폭**(=0.31·WW ≈ 20px)마저 이웃 간격(15px)
+  //           보다 넓어져, 뾰족한 머리가 서로 메워지고 **윗단이 이어진다.**
+  // 커튼으로 읽히는 신호가 바로 그 「이어진 윗단 + 아래로 흘러내리는 결」이다.
+  // 겹침이 늘어난 만큼 알파는 내린다(잉크 총량은 그대로, 비늘 자국만 사라진다).
+  const WW=(2*hs/RAY)*4.2;
+  for(let q=0;q<Q;q++){
+    const s=q/n, th=P.kw*TAU*s+P.psi+ph*P.dir, v=Math.sin(th);
+    MU3X [q]=P.x+(s-.5)*2*hs+af*v+sw;
+    // 윗단 — 깊이만큼 위로 서고, 접힘의 **두 배 주기**로 한 번 더 물결친다.
+    // ⚠️ 처음엔 깊이 항 하나(계수 .30)뿐이라 윗단이 사실상 수평선이었다.
+    MU3YT[q]=P.y-af*v*.70+P.hh*.09*Math.sin(2*P.kw*TAU*s+P.psi*1.3+2*ph*P.dir);
+    MU3YB[q]=MU3YT[q]+P.hh*(.84-v*.16)*(.90+.10*Math.sin(2*ph+s*4.1+P.psi));
+    // 압축 = |dx/ds| / 2hs. 0 에 가까울수록 막을 옆에서 본다 = 접힘 마루.
+    MU3RD[q]=Math.pow(Math.max(0,1-Math.abs(1+F*Math.cos(th))/.92),1.5);
+  }
+  let k=0;
+  for(let q=1;q<Q;q+=2){
+    // 양 끝 사라짐 — ⚠️ 지수 .45 는 **거의 사각파**다(가운데가 평평하고 끝에서만
+    // 뚝 떨어진다). 어두울 때는 티가 안 났는데 밝히고 나니 커튼의 좌우 끝이
+    // **자로 그은 사선**으로 보였다. 지수를 올리면 같은 「끝에서 0」이면서
+    // 사라짐이 커튼 폭 전체에 퍼져 가장자리가 녹는다.
+    const s=q/n, ed=Math.pow(Math.sin(Math.PI*s),.80);
+    // 그 자리의 접선만큼 기운다 — 격자 회피 ②.
+    // ⚠️ 계수가 .30 이면 발이 30~40° 로 누워 **사선 긁힘**으로 보였다(첫 렌더).
+    // 오로라의 발은 자기력선을 따르므로 거의 수직이다 — 기울기는 「평행이 아님」을
+    // 말할 만큼만 주고(.12), 되접힌 자리에서만 눈에 띄게 눕는다.
+    const tg=(MU3X[q+1]-MU3X[q-1])*.12;
+    // 자락 길이 — **완만한 물결 + 작은 흩뿌림.** 둘 다 필요하다:
+    //   물결만  → 밑단이 사인 하나라 자로 그은 곡선이 된다
+    //   흩뿌림만→ 발이 촘촘해진 뒤로는 이웃끼리 길이가 제멋대로라 **고드름**이
+    //             달렸다(발 33→65 로 늘린 렌더에서 실제로 그랬다)
+    // 그래서 큰 폭(±.15)은 s 를 따라 매끈하게 굽이치게 하고, 해시는 ±.07 만 남겨
+    // 술이 지저분해 보일 만큼만 흩는다. 둘 다 위상과 무관한 상수다.
+    const lw=.86+.15*Math.sin(TAU*(s*1.7+hash(P.psi*3.1)));
+    const x=MU3X[q],yt=MU3YT[q];
+    const ln=(MU3YB[q]-yt)*lw*(.93+.14*hash(P.psi+q*5.3));
+    // 활 — 천이 통째로 휜다. ⚠️ 발마다 난수로 휘게 했더니(±.08·길이 ≈ ±16px)
+    // 발이 촘촘해진 뒤로는 **이웃끼리 서로를 가로질러** 밑단에 X 자 골이 팼다.
+    // 간격이 11px 인데 활이 16px 이면 당연한 결과다. 큰 휨은 s 를 따라 매끈하게
+    // 주고(천 한 장이 휘는 것), 난수는 간격보다 작게(±.02·길이) 남긴다.
+    const bw=ln*(.11*Math.sin(TAU*(s*1.3+hash(P.psi*7.7)))
+                +.04*(hash(P.psi+q*9.1)-.5));
+    for(let u=0;u<7;u++){const z=u/6;
+      o[k+u*2  ]=x+tg*z*(1.18-.36*z)+bw*Math.sin(Math.PI*z);
+      o[k+u*2+1]=yt+ln*z;}
+    o[k+14]=WW;
+    o[k+15]=P.rw*(.80+.45*hash(P.psi+q*3.7));
+    o[k+16]=P.ao*li*ed*P.as;                                   // 막
+    // 결 — 발마다 떤다. ⚠️ 폭이 .30±.42 였을 때는 결이 **막에 잠겼다**: 팔레트를
+    // 벌려도 알파가 평균 .27 이면 막(.072)과 결심(.138)의 차이 중 4분의 1만
+    // 화면에 나온다. 떨림 폭은 그대로 두고 **바닥을 올린다**(.30→.44) — 결이
+    // 아예 사라지는 프레임이 없어야 「흐른다」가 읽힌다.
+    o[k+17]=P.ao*li*ed*(.44+.44*Math.sin(3*ph+q*1.7+P.psi));
+    // 접힘 마루 — **이 안이 화려함을 사는 유일한 자리다.**
+    // ⚠️ 계수 1.55/−.58 로는 마루가 막보다 겨우 밝아 안 보였다(2026-08-11).
+    // 문턱을 올려(RD>.36) 마루를 **더 드물게** 만들고, 대신 나올 때는 세게 준다.
+    // 드물어야 면적으로 갚을 수 있고, 세야 접힘이 「사건」으로 읽힌다.
+    // ⚠️ 그런데도 화면에 안 나왔다. 발을 세어 보니 **마루는 26.3% 의 발에서
+    //    제대로 켜지는데**(문턱 넘김) 알파가 .2~.5 에 몰려, 심 색(.139)을 막
+    //    (.072) 위에 얹어 봐야 L .10 — .12 를 못 넘었다. 즉 문제는 문턱이 아니라
+    //    **문턱을 넘은 뒤의 기울기**였다. 넘은 값에 1.9 를 곱해 1 에서 자른다:
+    //    켜지는 빈도는 그대로(26.3%)면서 켜진 자리는 색이 제 값까지 올라간다.
+    o[k+18]=P.ao*li*ed*Math.min(1,Math.max(0,MU3RD[q]*2.55-.92)*1.9);
+    k+=19;
+  }
+  return k;
+}
+
+/// 계획대로 칠한다. **새 원시함수를 안 만든다** — fillPoly · ribbonPoly 만 쓴다.
+///
+/// ⚠️ **칠하는 차례가 밝기를 먹었다.** 예전에는 발 하나마다 막→결→마루를 이어
+/// 칠했는데, 막 폭이 발 간격의 4.2배라 **다음 발의 막이 앞 발의 마루를 덮는다.**
+/// 뒤따르는 막 넷이 알파 .35 로 덮으면 마루가 (1−.35)⁴ = 18% 만 남아, 심 색
+/// .168 이 화면에서는 .089 로 주저앉는다. 실측이 정확히 그 모양이었다 —
+/// 마루가 **26.3% 의 발에서 켜지는데** 화면의 L>.12 는 0.2%. 알파를 올려도
+/// 안 고쳐졌다(1.9배로 올렸더니 0.218%. 원인이 알파가 아니었으니까).
+///
+/// 그래서 커튼 한 장을 **세 패스**로 칠한다: 막 전부 → 결 전부 → 마루 전부.
+/// 칠 횟수도 면적도 그대로고 순서만 바뀐다. 물리로도 이쪽이 맞다 — 마루는
+/// 접혀서 **앞으로 나온** 자리라 같은 커튼의 막에 가릴 수가 없다.
+/// (다른 커튼이 앞에서 덮는 것은 그대로 둔다. 그건 깊이라 맞는 가림이다.)
+function MU3draw(c,P,o,K){
+  const C=P.col,N=(K/19)|0;
+  c.save();c.translate(P.x,P.y);c.rotate(P.rot);c.translate(-P.x,-P.y);
+  // 점은 발마다 한 번만 만든다 — 패스마다 다시 만들면 배열만 세 배로 찍는다.
+  const PTS=[];
+  for(let k=0;k<K;k+=19){const PT=[];
+    for(let u=0;u<7;u++)PT.push([o[k+u*2],o[k+u*2+1]]);PTS.push(PT);}
+  // ① 막 — 위아래가 0 으로 좁아지는 종형이라 **자를 가장자리가 없다.**
+  for(let n=0;n<N;n++){const k=n*19,as=o[k+16],WW=o[k+14];
+    if(as>.004)fillPoly(c,ribbonPoly(PTS[n],WW,WW*.34),A(C.sh,Math.min(1,as)));}
+  // ② 결 — 막 위를 흐른다.
+  for(let n=0;n<N;n++){const k=n*19,ab=o[k+17],w=o[k+15];
+    if(ab<=.004)continue;
+    fillPoly(c,ribbonPoly(PTS[n],w,w*.26),A(C.rm,Math.min(1,ab)));
+    fillPoly(c,ribbonPoly(PTS[n],w*.44,w*.10),A(C.rl,Math.min(1,ab*.90)));}
+  // ③ 접힘 마루 — 제일 위. **이 안이 화려함을 사는 자리다.**
+  for(let n=0;n<N;n++){const k=n*19,ar=o[k+18],w=o[k+15],WW=o[k+14];
+    if(ar<=.004)continue;
+    // ⚠️ **마루가 머리카락이었다.** 옛 폭은 심이 w·.42 ≈ 1px 이라, 접힘이
+    // 아무리 세게 나도 화면에서는 한 줄기 실이었다. 접힘 마루는 막을 **옆에서
+    // 보는 자리**라 실제로는 발 몇 개 폭의 **띠**다. 그래서 넓은 심을 막 폭(WW)
+    // 계열로 잡는다 — 이웃 발 간격이 WW/4.2 이므로 WW·.30 은 발 1.3개 폭이고,
+    // 마루에 걸린 발 서넛이 이어져 한 띠가 된다.
+    fillPoly(c,ribbonPoly(PTS[n],WW*.30,WW*.10),A(C.rm,Math.min(1,ar*.72)));
+    fillPoly(c,ribbonPoly(PTS[n],w*2.4,w*.55),A(C.rl,Math.min(1,ar*.92)));
+    // 접힘 심 — **윗동강에만.** 이 안에서 유일하게 .15 를 넘는 단이라
+    // 길이를 3분의 2로 잘라 면적으로 갚는다. 실제 오로라도 마루의 윗쪽이
+    // 제일 밝고 아래로 갈수록 풀린다.
+    if(P.core)fillPoly(c,ribbonPoly(PTS[n].slice(0,5),w*1.15,w*.30),A(C.fc,Math.min(1,ar)));}
+  c.restore();
+}
+
+/// 별밭 — **바탕이다.** 이 안의 주인공은 커튼이라 별은 두 층 + 드문 밝은 별로
+/// 최소만 깐다. 오로라는 반투명이라 커튼 뒤의 별이 비쳐야 「막」으로 읽힌다
+/// (불투명하면 그건 벽이다) — 그래서 별을 먼저 깔고 커튼을 알파로 얹는다.
+function MU3sky(c,t,W,H){
+  const p=mapCam(t);
+  scatter(p[0]*.08,p[1]*.08,W,H,40,1,(x,y,i,j,r)=>{
+    if(r>.52)return;mapStar(c,x,y,.9,MAPINK.starD,.28+.34*h2(i,j,7));});
+  scatter(p[0]*.30,p[1]*.30,W,H,90,1,(x,y,i,j,r)=>{
+    if(r>.40)return;mapStar(c,x,y,1.2,MAPINK.starM,.42+.40*h2(i,j,8));});
+  scatter(p[0]*.55,p[1]*.55,W,H,320,0,(x,y,i,j,r)=>{
+    if(r>.28)return;mapStar(c,x,y,1.1,MAPINK.starX,.82);});
+}
+
+/// 배경 한 장.
+function MU3bg(c,t,W,H,st){
+  mapFloor(c,W,H);   // 공용 바닥 — 커튼의 대비가 여기서 열린다
+  const ph=t*MU3W;
+  MU3sky(c,t,W,H);
+  for(let L=0;L<MU3LAYER.length;L++){
+    const d=MU3LAYER[L],p=mapCam(t);
+    scatter(p[0]*d[0],p[1]*d[0],W,H,d[1],2,(x,y,i,j,r)=>{
+      if(r>d[2])return;
+      // ── 화면 밖은 **닿기 전에 버린다.** 500마리가 도는 화면이라
+      // 「프레임당 도는 것은 화면에 걸친 것만」이 계약이다.
+      // ⚠️ 상자가 **닿는 것까지 버리고 있었다.** 넓은 캔버스에 그려 가운데를
+      //    잘라 대 보니 화소의 0.011% 가 어긋났다(최대 채널차 8) — 화면
+      //    가장자리에서 커튼이 툭 나타난다는 뜻이고, 그건 **칸 경계가 보이는**
+      //    것이라 이 안이 제일 피해야 하는 하자다. 어두울 때는 안 보이다가
+      //    알파를 올리자 드러났다. 빠진 것은 **막 폭(WW)과 활**이었다:
+      //      가로 = 반폭 + 접힘(.334·반폭) + 흔들림(.13·반폭) + 막 반폭 + 활(.141·길이)
+      //      세로 = 윗단 흔들림(.234·반폭+.09·길이) + 자락(≤1.083·길이)
+      //    WW 는 발 간격의 4.2배이므로 표본수에서 바로 나온다.
+      //    ⚠️ 이 어림을 **믿지 말 것.** ribbonPoly 의 꼭짓점을 그대로 뽑아 재
+      //    보니 위쪽만 1.055배 모자랐다(먼 막) — 어림에는 리본 오프셋의 세로
+      //    성분이 안 들어 있어서다. 계수는 그 실측에 15% 여유를 얹은 값이다.
+      //    확정 검사는 **폴리곤 대 화면 사각형**으로 한다: 40프레임에서 버린
+      //    커튼 1459장 중 화면에 한 점이라도 걸치는 것 **0장**. (래스터 두 장을
+      //    대 보는 방식은 안 된다 — 캔버스 크기가 달라지면 좌표 float 이 달라져
+      //    가장자리 반투명 화소가 ±3 어긋나므로, 버린 커튼과 구별이 안 된다.)
+      const hs=d[4]+d[5]*h2(i,j,41),hh=d[6]+d[7]*h2(i,j,42);
+      const ww=(2*hs/((d[3]-1)>>1))*4.2;
+      const ex=hs*1.55+ww+hh*.18, up=hs*.30+hh*.13, dn=hs*.28+hh*1.28;
+      if(x+ex<0||x-ex>W||y+dn<0||y-up>H)return;
+      const P=MU3param(i,j,d,x,y);
+      MU3draw(c,P,MU3BUF,MU3plan(P,ph,MU3BUF));});
+  }
+}
+
+/// 접힘 해부 칸 — 커튼 **한 장만** 크게. 여러 장이 겹친 칸에서는 「접힌 자리가
+/// 진하다」가 접힘 때문인지 겹침 때문인지 안 갈린다. 한 장만 두면 진한 자리가
+/// 되접힘과 **같은 자리**임이 눈으로 확인된다.
+function MU3solo(c,t,W,H,st){
+  const ph=t*MU3W;
+  MU3sky(c,t,W,H);
+  const P=MU3param(7,3,MU3LAYER[1],W*.5,H*.36);
+  P.hs=W*.38;P.hh=H*.48;P.kw=3;P.f0=1.85;P.rot=.05;P.ao=.98;P.rw=3.2;
+  MU3draw(c,P,MU3BUF,MU3plan(P,ph,MU3BUF));
+}
+
+// ── 등록 — **대입만.** const/let 으로 기존 이름을 다시 선언하지 않는다.
+MAP.u3      =(c,t,dt,W,H,st)=>{MU3bg  (c,t,W,H,st);mapMeter(c,t,W,H,st);};
+MAP.u3solo  =(c,t,dt,W,H,st)=>{MU3solo(c,t,W,H,st);mapMeter(c,t,W,H,st);};
+MAP.u3wide  =(c,t,dt,W,H,st)=>{MU3bg  (c,t,W,H,st);mapMeter(c,t,W,H,st);};
+MAP.u3pulse =(c,t,dt,W,H,st)=>{MU3bg  (c,t,W,H,st);mapOver(c,t,dt,W,H,st,"pulse");};
+MAP.u3mini  =(c,t,dt,W,H,st)=>{MU3bg  (c,t,W,H,st);mapOver(c,t,dt,W,H,st,"bolt");
+                               bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+
+tile($("u-bg"),MAP,"u3","U3 · 자기막 磁氣幕","",
+  "화려함을 <b>운동으로만</b> 산다 — 카메라를 상수로 얼려도 화소의 <b>47%</b>가 계속 바뀌는 유일한 안이다(나머지는 0.0~2.0%)",MAPS,MAPS);
+[["u3","자기막 — 배경만","",
+  "밑변 곡선이 되접히는 자리에 막이 겹쳐 <b>저절로 진해진다</b>. 알파를 손으로 안 올린다"],
+ ["u3solo","접힘 해부 — 한 장만","",
+  "커튼 한 장. <b>밝은 세로 띠</b>가 되접힌 자리와 같은 자리임을 확인하는 칸"]]
+  .forEach(a=>tile($("u3"),MAP,a[0],a[1],a[2],a[3],MAPS,MAPS));
+tile($("u3"),MAP,"u3wide","실화면 비율 980×430","",
+  "가로로 흘러야 세로 발의 접힘이 지나간다. 카메라는 기존 세 안과 같은 mapCam",980,0,430);
+tile($("u-proof"),MAP,"u3pulse","U3 자기막 + 파문","",
+  "발이 세로선이고 고리가 가로 원호라 <b>방향이 직교</b>한다 — 같은 청람 계열인데도 안 섞인다",MAPS,MAPS);
+tile($("u-mini"),MAP,"u3mini","U3 자기막 + 빛파동 + 미니맵","",
+  "HUD 는 그대로. 커튼은 세로로만 서 있어 우하단 원형 미니맵과 모양이 안 겹친다",MAPS,MAPS);
+
+/// 밝기 실측 — **페이지가 스스로 잰다.** 배경만 그린 320 칸을 getImageData 로
+/// 읽어 분포를 낸다. 칸 아래 띠(mapMeter)와 같은 수치지만 여기 것은 **표로
+/// 남아** 아홉 안을 나란히 볼 수 있다.
+(function(){
+  const host=$("u-num");let z=null;
+  try{
+    const cv=document.createElement("canvas");cv.width=320;cv.height=320;
+    const c=cv.getContext&&cv.getContext("2d");
+    if(c){
+      c.fillStyle="#0C0C12";c.fillRect(0,0,320,320);
+      MU3bg(c,1.73,320,320,{p:[]});
+      const d=c.getImageData(0,0,320,320).data,n=d.length/4;
+      // 중간 톤(.05~.15)이 **개정 예산의 머릿수**다 — 평균만 보면 「예산은
+      // 지켰는데 화면은 까맣다」가 그대로 재현된다(이 안이 정확히 그랬다).
+      if(n>16){let sum=0,mid=0,o12=0,o35=0,mx=0;
+        for(let q=0;q<d.length;q+=4){
+          const l=(d[q]*.299+d[q+1]*.587+d[q+2]*.114)/255;
+          sum+=l;if(l>=.05&&l<=.15)mid++;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+        z={avg:sum/n,mid:mid/n*100,p12:o12/n*100,p35:o35/n*100,mx:mx};}}
+  }catch(e){z=null;}
+  const ok=v=>v?"#7ED08A":"#FF7A6A";
+  const row=document.createElement("div");
+  box(row,{border:"1px solid #26262F",borderRadius:"4px",background:"#13131A",
+    padding:"9px 12px",marginTop:"6px",fontSize:"11.5px",color:"#9494A2",
+    fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",lineHeight:"1.7"});
+  row.innerHTML=z
+    ?`<b style="color:#EDEDF2">U3 자기막</b>　중간 톤 <b style="color:${ok(z.mid>=15&&z.mid<=30)}">`+
+     `${z.mid.toFixed(1)}%</b>/15~30%　평균 L <b style="color:${ok(z.avg<=.075)}">`+
+     `${z.avg.toFixed(4)}</b>/.075　L&gt;.12 ${z.p12.toFixed(2)}%　`+
+     `L&gt;.35 <b style="color:${ok(z.p35<=.5)}">${z.p35.toFixed(3)}%</b>/.5%　최대 ${z.mx.toFixed(3)}`+
+     `　<span style="color:#5A5A68">봉우리 .167(별 뺀 실측 .163)/.17 · 주 색상각 250° 남보라 · 가산 합성 0 · 흰 앞날 0</span>`
+    :`<b style="color:#EDEDF2">U3 자기막</b>　측정 불가(getImageData)`;
+  host.appendChild(row);
+})();
+
+
+// ══ U5 「잔광 殘光」 — 팽창하는 필라멘트 껍질 ═══════════════════════════════
+//
+// **생성 원리 = 시간.** 나머지 넷은 「화소를 무슨 원리로 만드나」로 갈렸다
+// (빼기 · 반사 · 운동 · 왜곡) — 넷 다 축이 **공간**이다. 이 안만 축이
+// **시계**다. 초신성 잔해의 껍질이 판이 갈수록 커지고, 그래서 **1분의 화면과
+// 5분의 화면이 다른 그림**이다. 뱀파이어 서바이버즈의 「맵이 진행을 스스로
+// 말한다」를 아홉 안 중 **원리적으로** 할 수 있는 것은 이것뿐이다 — 나머지는
+// 시간이 지나도 같은 통계의 다른 표본을 볼 뿐이다.
+//
+// ⚠️ **팽창을 「커지는 원」으로 두면 안 된다.** 그건 파문(mPulse)의 문법이고,
+// 배경이 그걸 쓰면 배경이 이펙트로 오독된다. 그래서 둘을 지킨다:
+//   ① 껍질은 **닫힌 고리가 아니라 끊긴 필라멘트 다발**이다. 각 가닥이 자기
+//      각도 구간·자기 반지름 오프셋을 갖고, 사이가 비어 있다. celHoop 을
+//      **한 번도 안 부른다**(부르면 그 순간 「고리」가 된다. 게다가 celHoop 은
+//      `lighter` 패스가 박혀 있어 배경의 가산 금지에도 걸린다 — 굵기를
+//      반지름에 묶는 클램프 논의 자체가 여기서는 생기지 않는다).
+//   ② 팽창이 **판 5분에 걸쳐** 일어난다. dR/dt = R0·(.62/300) 이라 R0 = 65px
+//      기준 **초당 0.13px** — 8초를 봐도 1px 이라 **한눈에는 완전히 정지**다.
+//      눈에 띄게 자라면 배경이 아니라 사건이 된다.
+//   ③ 안쪽에도 원을 안 쓴다. 이 블록은 `arc`·`createRadialGradient` 를
+//      **한 번도 안 부른다** — 껍질의 속·띠·가닥이 전부 불규칙 윤곽(MU5rad)에서
+//      파생된다. 원형 그라디언트 한 장이면 아무리 가닥을 불규칙하게 그려도
+//      그 위에 원을 하나 얹는 것이라, 실제로 렌더에서 그렇게 나왔다(아래).
+//
+// ── 색: 청록을 **버렸다**(측정 결과) ────────────────────────────────────
+// 잔해의 실제 광학은 Hα(자홍) + [O III](청록)이라 「청록·자홍」이 자연스러운
+// 출발점이었는데, 색상각을 재니 **청록이 속성과 겹친다**:
+//   청록 175° ↔ 풍 gale 170.7° = **4.3°**   (금지선 30° 한참 아래)
+//   청록 180° ↔ 풍 gale        = 9.3°
+//   청록 190° ↔ 빙 frost 198.6° = 8.6°
+// 독(130°)과 이끼(162°)가 32° 로 사고가 났던 전례보다 훨씬 나쁘다. 그래서
+// **다시 골랐다.** 속성 6종의 색상각은 염 20.3 · 뇌 50.6 · 독 129.2 ·
+// 풍 170.7 · 빙 198.6 · 어둠 273.0 이고, 여섯 전부에서 30° 이상 떨어진
+// 구간은 셋뿐이다: **81~99° · 229~243° · 303~350°**. 제일 넓은 셋째 구간의
+// 한가운데를 주 색으로 잡는다.
+//
+//   주 색상각 **330° 자홍**  — 최소 이격 **50.3°**(염 20.3°), 어둠과는 57.0°
+//   보조     **236° 청보라** — 최소 이격 **37.0°**(어둠 273.0°), 빙과는 37.4°
+//
+// 두 색은 서로 94° 떨어져 있어 한 화면에서도 두 색으로 읽힌다. 청록을 잃은
+// 대신 얻은 것: **화면에 없던 색 조합**이라 어떤 속성으로도 오독되지 않는다.
+// (융화 10 까지 넣으면 색상환이 꽉 차 어떤 각도든 20~25° 안에 이웃이 생긴다 —
+//  마 痲 324° 가 자홍의 6° 옆이다. 다만 판정 기준은 **캐릭터가 늘 달고 다니는
+//  속성 6종**이고, 마 痲 는 뇌+독 조합에서만 나온다. 이 절충은 보고서에 적는다.)
+//
+// ── 밝기: 네 단 중 셋이 「이펙트의 맨 아래 한 단」 안 ────────────────────
+// 필라멘트는 **선**이라 면적이 작다. 그래도 상한은 그대로 지킨다 —
+// 몸을 이루는 세 단이 L .039 / .086 / .119 로, 제일 밝은 층조차 무기 바깥층
+// 최솟값(.133)보다 낮다. **L .12 를 넘는 것은 셋뿐**이고 셋 다 자국이다:
+// 원경 잔별 · 잔해의 핵(2×2px) · 매듭의 심(지름 1~3px). 실측 0.13% ≤ 상한 0.5%.
+//
+// 화려함은 밝기가 아니라 **저명도 고채도**(HSV 채도 .64~.92)와 **형태 복잡도**
+// 로 산다. 잔해 하나가 가닥 6~12(다발 2~4 × 3) + 껍질 띠 3 + 잔털 4 +
+// 방사 가시 3 + 앞뒤 뚜껑 2 + 매듭 ≈ **스무 가닥**이다.
+//
+// 가산 합성은 한 번도 안 쓴다 — fillPoly / ribbonPoly / puffPoly / jagPoly /
+// mapStar 만 부르고 전부 기본 source-over 다. `celHoop`·`celRibbon(glow=true)`
+// 처럼 `lighter` 패스가 박힌 도구는 **한 번도 안 부른다.**
+//
+// ⚠️ **첫 렌더에서 예산을 절반도 안 썼다**(2026-08-11 실측: 평균 L .0510, 그중
+// 바탕 #0C0C12 가 이미 .0497 — 그린 것이 화면 평균에 기여한 값이 **.0013**
+// 이었다). 「안 헤친다」는 지켰는데 화면이 **비었다.** 남는 예산은 미덕이 아니라
+// **안 쓴 자리**다. 그래서 계조를 4단으로 늘리고 층 폭 비를 다시 잡았다.
+// 최종 실측도 평균 L 은 여전히 바탕과 거의 같은데(.0501), 그건 예산을 안 쓴
+// 것이 **아니라** 이 안이 더한 면적(4~7%)과 뺀 면적(6~10%)이 **비슷해서**다.
+// 화면은 구조로 차 있고 광량은 중립이다 — 그게 「화려함을 밝기로 사지 마라」의
+// 가장 곧이곧대로인 답이다.
+const MU5PAL={
+  fila:["#18020D","#31071C","#3C0E25","#47172F"],  // 자홍 330°  L .039/.086/.119/.157
+  veil:["#040624","#0C0F42","#15194C","#1E2254"],  // 청보라 236° L .035/.078/.116/.151
+};
+// 칸 235 · 반지름 29~140. 두 번 틀리고 세 번째다(2026-08-11):
+//   ① 칸 560 · 반지름 250 — 껍질이 시안 칸(320px)보다 커서 화면에는 **호
+//      두어 개**만 지나갔다. 그건 「필라멘트 껍질」이 아니라 그냥 곡선이다.
+//   ② 칸 340 · 반지름 24~139 — 이번엔 껍질이 **화면에 안 들어왔다**(320 칸에
+//      중심이 들어올 기댓값 0.53개). 네 판이 통계까지 똑같이 나왔다.
+// 세는 법을 바꿔서 풀었다. 세야 하는 것은 「칸 안의 중심 개수」가 아니라
+// **껍질이 화면에 닿을 기댓값**이고, 그건 민코프스키 합으로 떨어진다:
+//   밀도 .86/235² × (320+2·133)² ≈ **5.3개** (시안 칸)
+//   밀도 .86/235² × (980+266)(430+266) ≈ **13.5개** (실제 화면 980×430)
+// 칸보다 껍질이 커서 서로 겹치는 것이 정상이다 — 잔해대는 원래 겹쳐 있다.
+//
+// ⚠️ **반지름 상한이 칸에 묶여 있다.** scatter 의 `pad` 는 1 인데, 그건
+// 「이웃 한 칸만 더 돌면 안 잘린다」는 뜻이라 **닿는 거리 < 1.12·칸** 일 때만
+// 참이다(안 돌아본 칸의 중심이 화면 가장자리에서 최소 그만큼 떨어져 있다).
+//   닿는 거리 = R·(1+로브.28+배음.17)·(1+오프셋.19) + 띠폭 = 1.73·R + 14
+//   1.12·235 = 263  →  R ≤ 143
+// 그래서 R0 상한을 88 로 내렸다(88×1.594 = 140, 닿는 거리 256 < 263).
+// 안 내렸으면 **5분 판에서 큰 껍질이 화면 가장자리에 튀어나온다** — 스모크도
+// 브라우저도 안 잡는 종류다(예외가 아니라 그냥 안 그려지는 것이라서).
+const MU5CELL=235;
+const MU5RUN=6.4;    // 왕복 재생 한쪽 길이(초). 5분을 6.4초로 = 47배속
+
+/// 껍질의 반지름 배율. **정수 배음만 쓴다.**
+/// 가닥은 각도 구간이 제각각이라 어떤 가닥은 a=6.1→7.2 처럼 2π 를 넘어간다.
+/// 배음이 정수가 아니면 그 자리에서 같은 각도의 반지름이 두 값이 되어
+/// 껍질이 이음매에서 **어긋난다**(같은 원인으로 루프 애니메이션이 네 번 반려된
+/// 적이 있다 — 주기 끝과 처음은 **한 스케줄**에서 파생돼야 한다).
+/// `lobe` 는 한쪽으로 터진 비대칭 — 이게 「원」을 죽이는 제일 큰 힘이다.
+const MU5rad=(a,sd,lobe,lang)=>1+lobe*Math.cos(a-lang)
+  +.090*Math.sin(a*3+sd)+.052*Math.sin(a*5+sd*1.7)+.030*Math.sin(a*8+sd*2.3);
+
+/// 필라멘트 한 가닥 — **끊긴 호**다. ribbonPoly 가 양 끝을 저절로 좁혀 주므로
+/// 가닥 끝이 뭉툭하게 잘리지 않는다(그게 「고리 조각」으로 보이는 원인이다).
+/// 4단 계조를 그대로 얹는다: 검은 배경 위라 성운 몸통과 달리 **어두운 바깥
+/// 테가 구멍으로 안 읽힌다**(자기 후광 위에 놓이지 않는다).
+///
+/// ⚠️ 반지름 오프셋을 **양 끝에서 다르게**(o0→o1) 받는다. 첫 판은 오프셋이
+/// 가닥마다 상수라 모든 가닥이 **같은 MU5rad 를 그대로 복사**했고, 그래서
+/// 화면에 「나란한 매끈한 곡선 몇 개」가 나왔다(2026-08-11 렌더 반려). 다발은
+/// 가닥끼리 **어긋나야** 다발이다. 오프셋이 램프면 같은 함수로 **방사 가시**
+/// (span 을 아주 좁히고 오프셋을 크게 흔든다)까지 그릴 수 있어 함수가 안 는다.
+///
+/// `jt` 는 가닥 **자기만의** 흔들림이다. 이웃 가닥과 안 맞아야 맞는 것이라
+/// 정수 배음 규칙을 안 받는다(껍질 윤곽 MU5rad 와 다른 점).
+///
+/// `lay` 는 **몇 단까지 칠할지**다. 3=필라멘트 · 2=잔털/가시 · 1=껍질 띠.
+/// 층을 줄이는 것이 이 안의 유일한 비용 손잡이다 — 가닥 하나가 fillPoly
+/// 세 번이라, 안 보이는 층을 빼는 것이 개수를 줄이는 것보다 싸게 먹힌다.
+function MU5strand(c,R,a0,span,o0,o1,sd,w,P,al,lobe,lang,kn,lay){
+  const N=lay===1?9:12,pts=[];
+  for(let i=0;i<=N;i++){
+    const u=i/N,a=a0+span*u;
+    const jt=.034*Math.sin(u*9.3+sd)+.019*Math.sin(u*21.7+sd*1.9);
+    const rr=R*MU5rad(a,sd,lobe,lang)*(1+o0+(o1-o0)*u+jt);
+    pts.push([Math.cos(a)*rr,Math.sin(a)*rr]);
+  }
+  // ⚠️ **층 간 폭 비가 이 안의 생사다.** 두 번째 판은 바깥(L .039)을 안(L .119)의
+  // **3.3배 폭**으로 깔았는데, 바깥이 바탕(#0C0C12 L .0497)보다 **어두워서**
+  // 필라멘트가 통째로 「검은 자국에 실선 하나」가 됐다. 3단 계조가 검은 배경
+  // 위에서 성립하는 것은 바깥이 **테**일 때뿐이다 — 몸이 되면 빼기가 된다.
+  // 그래서 1 : .72 : .44 로 좁혔다. 눈에 들어오는 것은 L .119 층이고, 그 폭이
+  // 1.4~3.7px 다.
+  const w0=Math.max(1.5,w),w1=Math.max(1.0,w*.66),ac=v=>Math.max(0,Math.min(1,v));
+  if(lay===1){fillPoly(c,ribbonPoly(pts,w0,w1),A(P[1],ac(al)));return;}
+  fillPoly(c,ribbonPoly(pts,w0,w1),A(P[0],ac(.92*al)));
+  fillPoly(c,ribbonPoly(pts,w0*.74,w1*.74,0),A(P[1],ac(.95*al)));
+  if(lay===2)return;
+  fillPoly(c,ribbonPoly(pts,w0*.50,w1*.50,0),A(P[2],ac(.98*al)));
+  // 매듭 — 실제 잔해는 가닥이 균일하지 않고 **뭉친 자리**가 있다. 각진 별
+  // (jagPoly)을 그대로 쓴다: 이 레포의 「별은 각져 있다」 문법을 안 벗어난다.
+  //
+  // 심(P[3], L .157)은 **여기에만** 쓴다. 화면에서 L .12 를 넘는 것은 별점 ·
+  // 잔해의 핵 · 이 매듭 심 셋뿐이고, 셋 다 지름 2~4px 짜리 자국이라
+  // 「작은 것만 상한을 넘고 면적으로 갚는다」 규칙 안에 있다(실측 아래).
+  if(kn){
+    const u=.28+.44*hash(sd+7.1),a=a0+span*u;
+    const rr=R*MU5rad(a,sd,lobe,lang)*(1+o0+(o1-o0)*u),kx=Math.cos(a)*rr,ky=Math.sin(a)*rr;
+    fillPoly(c,jagPoly(kx,ky,Math.max(1.3,w0*1.55),5,sd+3.3,1.5),A(P[1],ac(.90*al)));
+    fillPoly(c,jagPoly(kx,ky,Math.max(.8,w0*.85),5,sd+4.9,1.35),A(P[2],ac(.95*al)));
+    if(P[3])fillPoly(c,jagPoly(kx,ky,Math.max(.4,w0*.36),5,sd+6.1,1.25),A(P[3],ac(.9*al)));
+  }
+}
+
+/// 잔해 하나. **나이가 전부다** — 반지름 · 밝기 · 가닥 수 · 가닥 길이 · 껍질
+/// 두께가 전부 `age` 하나에서 파생된다. 그래야 1분·5분이 「같은 그림의 큰
+/// 판」이 아니라 **다른 상태**로 보인다: 어릴 때는 작고 진하고 가닥이 길게
+/// 이어져 있고, 늙으면 크고 옅고 잘게 끊긴다.
+///
+/// 잔해마다 `ph` 로 태어난 때가 다르다 — 안 그러면 화면의 모든 잔해가 **한
+/// 몸처럼 같이 자라** 「배경이 숨쉰다」로 보인다.
+function MU5shell(c,x,y,W,H,i,j,sec){
+  const sd=i*7.7+j*3.9;
+  const R0=42+h2(i,j,41)*46;                                  //  42 ~ 88
+  const age=Math.min(1.45,h2(i,j,42)*.45+Math.max(0,sec)/300);
+  const R=R0*(.70+.62*age);                                   //  29 ~ 140
+  // 화면 밖은 안 그린다. 1.75 = 로브(.28)+배음(.17) 에 오프셋(.19)을 곱한 값.
+  if(x<-R*1.75||x>W+R*1.75||y<-R*1.75||y>H+R*1.75)return;
+  const al=Math.max(.42,1.02-.38*age);
+  // 잔해 셋 중 하나는 색을 뒤집는다 — 자홍 껍질/청보라 속 ↔ 그 반대.
+  // 화면에 두 색이 **동시에** 있어야 「청록·자홍」 자리를 물려받은 강한 색 대비가 산다.
+  const inv=h2(i,j,43)<.36;
+  const P=inv?MU5PAL.veil:MU5PAL.fila,V=inv?MU5PAL.fila:MU5PAL.veil;
+  const lobe=.15+.13*h2(i,j,44),lang=h2(i,j,45)*TAU;
+  const sq=.56+.36*h2(i,j,46),rot=h2(i,j,47)*TAU;
+  const nb=2+Math.floor(age*1.4);                             // 다발 2~4
+  const w=Math.max(1.5,Math.min(4.2,R*(.028-.008*age/1.45))); // 늙을수록 가늘다
+  const ac=v=>Math.max(0,Math.min(1,v));
+  c.save();c.translate(x,y);c.rotate(rot);c.scale(1,sq);
+  // ── 속: **원을 하나도 안 그린다** ────────────────────────────────────
+  //
+  // ⚠️ 앞 판은 여기가 `createRadialGradient` + `arc` 였다. 밝기는 딱 맞았는데
+  // 렌더를 보니 **매끈한 자홍 덩어리**였다(2026-08-11). 그게 정확히 브리프가
+  // 막은 것이다 — 팽창을 「커지는 원」으로 두면 파문(mPulse)의 문법이 되고,
+  // 배경이 이펙트로 오독된다. 원형 그라디언트는 **필라멘트를 아무리 불규칙하게
+  // 그려도 그 위에 원을 하나 얹는 것**이라, 껍질의 정체를 통째로 뒤집는다.
+  //
+  // 그래서 속도 **같은 껍질 함수(MU5rad)에서 파생**시킨다:
+  //   · 뚫린 속  = puffPoly 한 겹을 V[0](L .035 < 바탕 .0497)로 — **빼기**다.
+  //     밝기를 안 쓰고 「비어 있음」을 만든다(B안 암흑 성운과 같은 장치).
+  //   · 껍질 띠 = 아주 넓은 가닥 다섯(lay=1). 윤곽이 MU5rad 라 **로브도 배음도
+  //     그대로 따라간다** — 띠가 원이 아니라 껍질 모양으로 두껍다.
+  // 부수 효과로 잔해당 그라디언트 할당이 사라져 더 싸다.
+  //
+  // ⚠️ 알파를 두 번 낮췄다(2026-08-11 렌더). 속 .62 · 띠 폭 w*4.6 으로 갔더니
+  // 껍질이 **별을 통째로 삼킨 남색 덩어리**가 됐다 — B안 담당이 성운에서
+  // 「만두」라고 부른 그것이다. 잔해는 속이 **비치는** 물건이라야 껍질로
+  // 읽힌다: 안쪽 별이 비쳐야 「저 어둠에 두께가 없다」가 전달된다.
+  fillPoly(c,puffPoly(0,0,R*.68,7,sd+2.2,1),A(V[0],ac(.26*al)));
+  for(let s=0;s<3;s++){
+    const o=(hash(sd+s*5.9)-.5)*.16;
+    MU5strand(c,R,hash(sd+s*8.1)*TAU,1.35+1.25*hash(sd+s*3.3),
+      o,o+(hash(sd+s*12.7)-.5)*.10,sd+s*1.9,w*3.2,[V[0],V[1],V[2],null],
+      ac(.58*al),lobe,lang,0,1);}
+  // 잔털 — **두 층으로만** 그린 짧은 가닥. L .035/.078 이라 밝기 예산을 거의
+  // 안 쓰면서 형태 복잡도만 올린다. 「화려함을 밝기로 사지 마라」의 답.
+  for(let s=0;s<4;s++){
+    const o=(hash(sd+s*6.7)-.5)*.34;
+    MU5strand(c,R,hash(sd+s*11.3)*TAU,.09+.20*hash(sd+s*4.1),
+      o,o+(hash(sd+s*3.7)-.5)*.14,sd+s*2.1,w*.60,[V[0],V[1],V[2],null],
+      al*.85,lobe,lang,0,2);}
+  // ── 껍질 = **다발**이다 ──────────────────────────────────────────────
+  // 가닥을 각도에 고루 뿌리면 「끊긴 고리」로 보인다(첫 판의 실패). 실제
+  // 잔해는 몇 군데에 **몰려서** 나란히 여러 겹이 겹치고 나머지는 비어 있다.
+  // 그래서 다발 2~4 개를 잡고 한 다발 안에 3 가닥을 **거의 나란히** 둔다.
+  // (다발 3~5 × 가닥 3~4 였는데 **비용으로 깎았다** — 아래 「비용」 참조.
+  //  깎아도 다발로 읽히는 이유는 개수가 아니라 **몰려 있음**이 다발을 만들기
+  //  때문이다. 고르게 뿌린 스무 가닥보다 몰린 아홉 가닥이 더 다발이다.)
+  for(let b=0;b<nb;b++){
+    const bc=hash(sd+b*3.1)*TAU, bw=.50+.85*hash(sd+b*5.7);
+    for(let s=0;s<3;s++){
+      const hs=hash(sd+b*13.1+s*2.7);
+      const a0=bc+(s/3-.5)*bw*.55+(hs-.5)*.22;
+      const sp=bw*(.55+.55*hash(sd+b*4.9+s*1.3))*(1-.20*age/1.45);
+      const o=(hs-.5)*(.17+.11*age);
+      MU5strand(c,R,a0,sp,o,o+(hash(sd+b*7.7+s*5.1)-.5)*.11,
+        sd+b*1.7+s*.6,w,P,al,lobe,lang,hash(sd+b*9.1+s*3.3)>.55?1:0,3);}}
+  // 방사 가시 — 같은 함수를 **span 은 거의 0, 오프셋은 크게** 써서 껍질을
+  // 가로지르는 짧은 살로 쓴다. 접선 가닥만 있으면 아무리 끊어 놔도 눈이
+  // 「원의 잔해」로 정리해 버린다. 축이 다른 선이 섞여야 다발로 읽힌다.
+  for(let s=0;s<3;s++)
+    MU5strand(c,R,hash(sd+s*17.3)*TAU,.07+.10*hash(sd+s*2.9),
+      -(.10+.16*hash(sd+s*6.1)),.06+.14*hash(sd+s*8.7),
+      sd+s*4.3,w*.86,P,al*.90,lobe,lang,0,2);
+  // 앞뒤 뚜껑 — 투영된 껍질의 앞면·뒷면이 안쪽을 가로지른다. 이게 없으면
+  // 아무리 끊어 놔도 「테두리만 있는 것」= 고리로 보인다.
+  for(let s=0;s<2;s++){
+    const o=-(.40+.20*hash(sd+s*2.3));
+    MU5strand(c,R,hash(sd+s*13.7)*TAU,.55+.70*hash(sd+s*8.9),
+      o,o+.08,sd+s*5.1,w*.74,P,al*.70,lobe,lang,0,2);}
+  c.restore();
+  // 핵 — 남은 별. 2×2px 이라 면적으로 갚는다(mapStar 는 r ≤ 1.15 에서 arc
+  // 대신 fillRect 를 쓴다 — 음수 반지름으로 죽을 자리가 아예 없다).
+  mapStar(c,x,y,1.1,age<.75?MAPINK.starL:MAPINK.starM,ac(.55*al));
+}
+
+/// 한 판. 깊이 **둘**(.07 / .84). 카메라가 움직이면 잔해가 잔별 위를 흘러
+/// 시차가 읽힌다 — **팽창이 안 보이는 만큼 운동은 시차가 진다.**
+///
+/// ✗ **앞 암흑 먼지(깊이 1.18)는 넣었다가 뺐다**(2026-08-11 렌더 판정).
+///   깊이를 한 겹 더 얹으려고 MAPINK.ink 로 앞 먼지를 뿌렸는데, 화면
+///   한가운데 **새까만 얼룩 하나**로 나왔다. 알파를 .50 → .27 → .17 로 두 번
+///   내려도 같았다: 가릴 것 위에 있으면 안 보일 만큼 옅고, 빈 우주 위에
+///   있으면 **얼룩으로** 보인다. 가리는 층은 가릴 것이 **어디 있는지 알 때만**
+///   성립하는데, 산포는 그걸 모른다. A안 담당이 근층에서 내린 결론과 같다 —
+///   차이는 그쪽은 「그냥 비용」이었고 여기서는 **눈에 띄는 하자**였다는 것뿐.
+///   시차는 두 층으로도 읽히고(.07 ↔ .84 는 12배 차이다), 뺀 만큼 싸다.
+function MU5field(c,t,sec,W,H,st){
+  mapFloor(c,W,H);   // 공용 바닥 — 필라멘트가 여기서 떠오른다
+  const p0=mapCam(t);
+  // ① 원경 잔별 — 거의 안 움직인다. 잔해가 움직이는 것으로 읽히게 하는 기준선.
+  scatter(p0[0]*.07,p0[1]*.07,W,H,34,1,(x,y,i,j,r)=>{
+    if(r>.78)return;
+    mapStar(c,x,y,r<.07?1.15:.85,r<.07?MAPINK.starM:MAPINK.starD,.30+.50*r);});
+  // ② 잔해 — 이 안의 전부.
+  scatter(p0[0]*.84,p0[1]*.84,W,H,MU5CELL,1,(x,y,i,j,r)=>{
+    if(r>.86)return;MU5shell(c,x,y,W,H,i,j,sec);});
+}
+
+/// 왕복 재생 시계 — 0분 → 5분 → 0분. **삼각파라 값이 안 튄다**(톱니로 두면
+/// 5분에서 0분으로 순간이동해 껍질이 확 줄어드는 게 보인다). 실제 판보다
+/// 47배 빠르고, 그 배율이 곧 「원래는 이만큼 느리다」의 증거다.
+const MU5clock=t=>{const u=(t/MU5RUN)%2;return 300*(1-Math.abs(1-u));};
+const MU5MK =sec=>function MU5panel (c,t,dt,W,H,st){MU5field(c,t,sec,W,H,st);};
+const MU5MKN=sec=>function MU5meter (c,t,dt,W,H,st){MU5field(c,t,sec,W,H,st);
+                                                    mapMeter(c,t,W,H,st);};
+MAP.u5bg   =MU5MK(180);
+MAP.u5m1   =MU5MK(60);
+MAP.u5m3   =MU5MK(180);
+MAP.u5m5   =MU5MK(300);
+MAP.u5run  =function MU5tl   (c,t,dt,W,H,st){MU5field(c,t,MU5clock(t),W,H,st);};
+// 증거는 **제일 불리한 판**으로 낸다 — 5분, 껍질이 제일 크고 제일 많이 겹칠 때.
+MAP.u5pulse=function MU5proof(c,t,dt,W,H,st){MU5field(c,t,300,W,H,st);
+                                             mapOver(c,t,dt,W,H,st,"pulse");};
+MAP.u5mini =function MU5mm   (c,t,dt,W,H,st){MU5field(c,t,180,W,H,st);
+                                             mapOver(c,t,dt,W,H,st,"bolt");
+                                             bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+MAP.u5n1   =MU5MKN(60);
+MAP.u5n5   =MU5MKN(300);
+
+tile($("u-bg"),MAP,"u5bg","U5 · 잔광 殘光","",
+  "위치감 = <b>시간</b>. 필라멘트 껍질이 판 5분에 걸쳐 팽창한다 — 초당 0.09~0.18px 라 한눈에는 정지다",MAPS,MAPS);
+[["u5m1","1분 — 갓 터진 껍질","","작고 진하고 가닥이 <b>길게 이어져</b> 있다. 속이 아직 좁다"],
+ ["u5m3","3분 — 벌어지는 중","","반지름 ×1.26. 껍질이 두꺼워지고 가닥이 잘게 끊기기 시작한다"],
+ ["u5m5","5분 — 다 퍼진 껍질","","반지름 ×1.51 · 밝기 ×0.65 · 다발 +1(가닥 +3). <b>1분 칸과 나란히 놓고 보라</b>"],
+ ["u5run","0분↔5분 왕복 (47배속)","","실제로는 이 <b>47분의 1</b> 속도다. 판 안에서는 절대 이렇게 안 보인다"]]
+  .forEach(a=>tile($("u5"),MAP,a[0],a[1],a[2],a[3],MAPS,MAPS));
+tile($("u-proof"),MAP,"u5pulse","U5 + 파문 (5분 판)","",
+  "제일 불리한 판으로 낸다 — 껍질이 제일 크고 겹침이 제일 많은 때. 고리가 필라멘트와 <b>굵기·명도로</b> 갈린다",MAPS,MAPS);
+tile($("u-mini"),MAP,"u5mini","U5 + 빛파동 + 미니맵","",
+  "HUD 는 안 바꾼다. 잔해가 미니맵 뒤로 지나가도 링 계조가 안 섞인다",MAPS,MAPS);
+[["u5n1","U5 · 1분 판","","껍질이 제일 진할 때 — 밝기가 제일 높은 순간이다"],
+ ["u5n5","U5 · 5분 판","","껍질이 제일 넓을 때 — 면적이 제일 큰 순간이다"]]
+  .forEach(a=>tile($("u-num"),MAP,a[0],a[1],a[2],a[3],MAPS,MAPS));
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 맵 2차 · P3 「동공 洞空」 — 국소 조명 (docs/vfx/mockup-map2.html)
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 여덟 손이
+// 같은 파일의 다른 자리를 만지므로, **겹치는 자리를 아예 안 만드는 것**이
+// 유일하게 확실한 안전장치다. 새로 만드는 최상위 이름은 `MP3` **하나뿐**이고,
+// 등록은 `MAPP.bg.hollow` 에 **대입만** 한다. 새 그리기 원시함수는 0개다 —
+// scatter · h2 · hash · fillPoly · ribbonPoly · jagPoly · puffPoly · A ·
+// mixHex · mpTile · mpPat · mpWrap9 만 조합한다.
+//
+// ── 생성 원리: 국소 조명 ─────────────────────────────────────────────────
+// 지하 공동이다. **천장이 있고**, 천장 구멍에서 내려온 빛이 바닥에 웅덩이를
+// 만든다. 그 밖은 거의 검다. 위치감을 지형이 아니라 **조명이** 준다 — 빛
+// 웅덩이를 지날 때마다 「하나 지났다」가 세어진다. 아홉 안 중 **어디가 밝은지가
+// 정보인 유일한 안**이다.
+//
+// ⚠️ 이끼밭(기존 C안)과 겹쳐 보이지만 **축이 다르다.**
+//   · 이끼 = **발광체**. 스스로 빛나고 자기 말고는 **아무것도 안 비춘다**
+//     (가산 합성 `lighter`, 주변 흙은 있으나 없으나 똑같이 생겼다).
+//   · 동공 = **조명**. 웅덩이 자체가 그리는 대상이 아니라, 웅덩이가 **바닥에
+//     원래 있던 것을 드러낸다.** 낙석과 그림자는 웅덩이 밖에서 **값이 0**이고
+//     안에서만 형태가 있다 — 말이 아니라 코드가 그렇다(아래 `MP3.k`가 모든
+//     바닥 형상의 알파·색을 국소 광량으로 곱한다).
+// 그래서 이 안의 실루엣은 「빛나는 것」이 아니라 **「비춰진 것」**이다.
+//
+// ⚠️ **2026-08-11 에 웅덩이를 화면당 2개에서 8~11개로 늘렸다. 그래도 위 문장이
+// 참인가?** 참이다. 참인 근거는 개수가 아니라 **`MP3.k` 가 u≥1 에서 0** 이라는
+// 항등식이고, 그건 손대지 않았다 — 낙석도 그림자도 먼지도 물방울도 웅덩이 밖에서
+// **그려도 값이 0** 이다. 그리고 늘린 뒤에도 화면의 **75%는 여전히 맨 바닥**이다
+// (중간 톤 24.7%). 「전면이 고르게 밝아지면 국소 조명이 아니다」의 반대편에
+// 아직 한참 남아 있고, 오히려 봉우리/바닥 대비는 6.6배 → **8.0배**로 벌어졌다.
+// 세는 대상이 「가끔 오는 큰 웅덩이」에서 「촘촘한 빛 밭」으로 바뀐 것은 사실이라,
+// 그건 아래 「예산 개정」에 값으로 적어 둔다.
+//
+// ── ⚠️ 예산 개정(2026-08-11) — 「봉우리」가 아니라 「덮는 면적」이었다 ────
+// 이 안은 **대비 문법이 맞았다**: 바닥을 `#04040A`(L .0184)로 깔아 「빛이
+// 세다」가 아니라 **「주변이 더 어둡다」**로 풀었고, 그 판단이 공용 바닥
+// `MAPFLOOR` 의 근거가 됐다. 그런데도 사용자 판정은 **「맵이 너무 꺼멓다」**
+// 였다. 실측이 이유를 말해 준다 — 목업 오프셋에서 재면 중간 톤(.05~.15)이
+// 21.4% 인데, **월드의 아무 자리 넷에서 재면 최소 1.19% · 평균 15.7%** 였다.
+// 그러니까 예전 수치는 **「웅덩이 밭을 가로지르는」 자리를 골라 잰 것**이고,
+// 실제로는 화면에 웅덩이가 0~1개인 구간이 흔했다. 화면의 99%가 바닥이면
+// 대비가 아무리 좋아도 볼 것이 없다.
+//
+// 그래서 고친 것은 밝기가 아니라 **분포**다. 셋 다 「빛이 세다」가 아니다.
+//   ① **웅덩이를 잘게 쪼개 늘린다** — RR 140~198 · 화면당 2.0개에서
+//      **RR 58~99 · 화면당 8~10개**로. 그리고 게이트를 .52 → .86 으로 올려
+//      **거의 모든 칸이 웅덩이를 하나씩 갖게** 했다. 여기가 핵심이다:
+//      개수를 늘린 게 아니라 **「있고 없고」의 동전 던지기를 없앤 것**이다.
+//   ② **가장자리를 늦게 끊는다** — 예전엔 u=.79 에서 이미 L<.05 였다.
+//      지금은 u≈.957 까지 .05 위에 있고 u=.985~1 에서 **절벽으로** 끊는다.
+//      경계가 흐려진 게 아니라 **경계가 밖으로 나갔다** — 「여기까지가
+//      빛이다」는 그대로다.
+//   ③ **봉우리를 올린다** — 중심 L .121 → **.1466**(개정 상한 .17).
+//      바닥 대비가 6.6배 → **8.0배**. 봉우리는 안 넓혔다(u<.249 ·
+//      RR 78 기준 반지름 19px · 화면의 1.4%).
+//
+// ── 실측 (980×548 · dt=1/60 고정 400프레임 · 월드 자리 넷 × 10프레임) ───
+//                       고치기 전            고친 뒤
+//   중간 톤 .05~.15   1.19 / 15.73 / 26.35   **18.32 / 24.03 / 29.62 %**  (최소/평균/최대)
+//   평균 L            .0184 / .0271 / .0339   .0279 / .0319 / .0361   (예산 ≤ .075)
+//   L>.12 최대            0.169 %              1.457 %
+//   L>.17 최대            0 %                  0.066 %
+//   L>.35 최대            0 %                  0 %
+//   최대 L                .1678                .2110   ← 웅덩이 둘이 겹친 자리
+//   같은 조건 잔광(U5) 중간 톤 = **1.80 %** → 잔광 대비 8.7배에서 **13.3배**로.
+// **최소값이 1.19% → 18.32% 로 오른 것이 이 개정의 전부다.** 평균은 15.7 → 24.0
+// 으로 1.5배인데 최소는 15배다 — 사용자가 본 「꺼먼 화면」은 평균이 아니라 최소였다.
+// ⚠️ **최대 L .2110 은 개정 상한 .17 을 넘는다.** 단일 웅덩이 중심은 .1466 인데,
+// 웅덩이가 촘촘해지면서 **한 웅덩이의 치맛자락이 옆 웅덩이 중심 위에 얹히는**
+// 자리가 생긴다(.1466 + .077×.605 = .193, 먼지가 얹히면 .211). source-over 라
+// 두 빛이 겹치면 실제로 밝아지는 것이 맞고, 그 면적은 **화면의 0.066%** 다.
+// 「작은 자국은 상한을 넘되 면적으로 갚는다」의 범위 안이지만 **숫자는 적어 둔다** —
+// 이걸 없애려면 A0 을 .14 로 되돌려야 하고, 그러면 ③이 통째로 사라진다.
+//
+// ── 금지 둘을 구조로 지킨다 ──────────────────────────────────────────────
+// · **가산 합성 0회.** 이 블록에는 `globalCompositeOperation` 이 한 번도 안
+//   나온다. 그래서 `lighter` 가 박힌 도구(celSplash · celHoop · celPuff ·
+//   celRibbon 의 glow)를 **아예 안 부른다** — 부를 수 없는 게 아니라 부르면
+//   상한이 통째로 무의미해지기 때문이다. 웅덩이는 source-over 방사 그라디언트,
+//   그림자는 `rgba(0,0,0,a)` 뿐이다.
+// · **흰 앞날 없음.** 이 안에서 **면적을 가진 것**의 최댓값은 웅덩이 중심
+//   L .1466 이다(개정 상한 .17 아래). 그 위로 가는 것은 점 둘뿐이고 —
+//   부유 먼지(≤ .170 · 반경 ≤1.3px)와 물방울(≤ .264 · 반경 ≤2.3px) — 둘 다
+//   **.35 를 안 넘는다**(실측 L>.35 = 0.0000%). 제일 어두운 이펙트 층
+//   (mArc 바깥 `#2A1358` L .1323)과는 봉우리 위에서 뒤집히지만, 시안이
+//   실제로 얹는 파문(mPulse 바깥 `#0E3560` L .181)과는 봉우리 위에서도
+//   **1.23배**고 무리(.070) 위에서는 **2.6배**다.
+//
+// ── 이 안이 **지는 것** — 적 8마리를 얹어 직접 쟀다 ──────────────────────
+// 값을 안 치르는 안이 아니다. 정직하게 적는다.
+// **적(몸 채움 #24141F L .1021)의 대비가 웅덩이 안에서 준다.** 웅덩이 밖
+// (바닥 .0184)에서는 5.9배인데, 웅덩이 안에서는 자리마다 다르다:
+//   · 무리(u .32~.95 · L .0496~.0748) → **1.36~2.06배.** 여기가 웅덩이 면적의
+//     대부분이다. 예전(무리 L .063~.0897 → 1.14~1.62배)보다 **좋아졌다.**
+//   · 봉우리(u<.249 · L .126~.147) → 적이 배경보다 **어둡다**(0.70~0.81배).
+//     역전이지만 분리도는 1.23~1.44배라 「밝은 바닥 위의 검은 실루엣 +
+//     밝은 림」으로 읽힌다 — 이 레포가 이미 쓰는 문법이다.
+//   · ⚠️ **전이 고리(u .218~.299)에서 배경이 .1021 을 정확히 지난다.**
+//     거기서는 적 몸이 사라지고 림만 남는다. **묻힌다.** 대신 이 고리는
+//     RR 78 기준 **폭 3.0~4.8px** 다.
+//
+// 그런데 **적은 점이 아니다.** 반지름 20 짜리를 얹으면 몸이 u 를 0.5 씩 가로질러
+// 봉우리와 무리를 동시에 밟는다. 그래서 「깔린 배경의 평균」으로 재면 둘 다 1 근처가
+// 나오고, 그건 「안 보인다」가 아니라 **「대비의 부호가 몸 안에서 바뀐다」**는 뜻이다.
+// 그러니 재야 할 것은 평균이 아니라 **분리도 1.15배 미만인 몸 화소의 비율**이다.
+// 같은 자리(월드 400,-1400 · 400프레임 뒤)에 같은 적 여덟을 웅덩이 단면
+// u=0/.15/.27/.34/.45/.65/.85 와 밖에 얹어 실측했다:
+//
+//   깔린 배경 L      고치기 전 .0862 (범위 .024~.133)   고친 뒤 .0726 (.005~.125)
+//   적/배경 평균     1.18배                              **1.41배**
+//   제일 나쁜 마리   1.04배                              **1.25배**
+//   안 보이는 화소   웅덩이 안쪽 넷에서 **45.6~63.2 %**   **25.1~33.8 %**
+//
+// 즉 **웅덩이가 화면을 더 많이 덮게 만들었는데 적은 오히려 더 잘 보인다.** 이유는
+// 하나다 — 예전 판은 제일 넓은 면적(무리)을 적 값 **바로 옆**(.0897, 1.14배)에
+// 두었고, 이번 판은 그 넓은 면적을 아래로(.0748 이하) 내리고 위험대를 폭 3px
+// 고리로 몰았다. 그래도 남는 사실 둘은 그대로 적어 둔다:
+//   · 적 몸 화소의 **4분의 1~3분의 1 은 여전히 배경과 안 갈린다**(림과 눈이 받는다).
+//   · **여덟 안 중 적 대비를 가장 많이 내주는 안**인 것은 변하지 않았다.
+//
+// ── 화려함을 밝기로 안 산다 ──────────────────────────────────────────────
+// 화소는 적은데 움직임이 많게 만든다. 넷 다 **밝기를 1도 안 올린다**:
+//   ① **천장이 웅덩이를 스친다** — 종유석 층이 바닥보다 1.30배 빨리 흘러,
+//      지나갈 때마다 웅덩이가 깜빡인다. 검은 것이 지나가는데 화면은 화려해진다.
+//   ② **구멍이 숨 쉰다** — 웅덩이마다 6.2~11.6초 주기로 광량이 .86~1.00 로
+//      흔들린다. **주기를 안 맞춘다**(맞추면 화면 전체 밝기가 같이 오르내려
+//      그 순간마다 이펙트와 싸운다). 흔들림은 **최댓값을 낮추는 쪽으로만** 건다.
+//   ③ **물방울** — 종유석에서 떨어져 바닥에 파문을 남긴다. 밝은 화소 20px.
+//   ④ **부유 먼지** — 빛줄기 안에서만 보이는 알갱이. 빛 밖에선 알파가 0 이다.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 웅덩이·통풍구·낙석·천장 **전부 `scatter()`** 다(월드를 칸으로 자르고 칸 번호를
+// 해시). 칸 번호가 무한하니 반복도 이음매도 원리적으로 없고, 도는 칸 수가
+// 화면 넓이에만 비례한다(O(1)). 반복 주기를 가진 것은 바닥 결(320px 구운 타일)
+// 하나뿐인데, 그건 **거의 전부 검정**이라 웅덩이 밖에선 안 보이고, 웅덩이가
+// 놓이는 칸(262)이 결의 주기(320)의 배수가 아니라 같은 결 조각 위에 두 번
+// 앉지도 않는다.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// 500마리가 도는 화면이다. 프레임당 도는 것은 화면에 걸친 것만 —
+// 바닥 fillRect 1회 + 웅덩이 8~10 + 통풍구 15~19 + 낙석 ~370 + 천장 ~40.
+// 웅덩이를 쪼개면서 낙석 **개수**는 세 배가 됐지만 하나하나가 선형으로 작아져
+// (RR 169→78) **칠하는 화소 면적은 오히려 줄었다** — 이 레포가 이미 확인한
+// 「병목은 개수가 아니라 픽셀 면적」 그대로다.
+// **웅덩이 밖에는 낱개로 그리는 것이 아무것도 없다**(k<.05 면 조기 반환) —
+// 바닥 질감 전체가 fillRect 한 번에 끝나는 것이 이 안이 싼 이유다.
+const MP3={};
+
+// ── 색 다섯 ──────────────────────────────────────────────────────────────
+// 주 색상각 **240°**. 무속성(gold `#73737F`)과 **정확히 같은 각**이고 채도가
+// 6.9%(무속성 9.4%)라 색상 대역에서 아무와도 안 싸운다 — 「빛에는 색이 없다」는
+// 이 레포의 규약을 배경이 그대로 따른 것이다. 채도 15% 이상인 속성 중 최근접은
+// 자(磁 226°, 14°)와 뇌광(mArc 259°, 19°)인데 둘의 채도는 53~58% 로 **8배**다.
+// 화면에 실제로 칠해지는 값은 웅덩이 중심에서도 **rgb(30,30,36)** — 색차가
+// 6/255 다. 색상각을 적어 두는 것은 규약이지만, 이 안이 색으로 싸울 일은 없다.
+// 바닥은 **공용 상수**를 그대로 쓴다. 이 안이 실측으로 뽑은 값이 `MAPFLOOR`
+// 가 됐으니, 여기서 문자열을 또 적어 두면 다음에 공용값이 움직일 때 이 안만
+// 혼자 남는다.
+MP3.FLOOR=MAPFLOOR;    // 공동 바닥       L .0184
+MP3.LIT  ="#BEBECC";   // 구멍에서 온 빛  L .7513 · 240° · 채도 6.9%
+// ⚠️ 낙석 마루는 **어느 광량에서도 자기 발밑보다 어두워야** 한다. 처음 #1A1E26
+// (L .1165)로 뒀더니 보간 기울기가 바닥보다 커서 마루가 **모든 지점에서
+// 바닥보다 밝아졌고**, 화면에는 「깨진 유리 조각」이 박힌 것처럼 나왔다
+// (2026-08-11 렌더). 고칠 것은 색 하나가 아니라 **mixHex 의 기울기**였다 —
+// 보간으로 광량을 흉내 낼 때 늘 이 함정이 있다.
+//
+// ⚠️ **검산에서 숨(amp)은 약분된다.** 예전 주석은 「숨의 최솟값에서 재라」고
+// 했는데 그건 틀린 계산이었다(2026-08-11 재검산). 낙석이 받는 값은
+// `k = k(u)×숨` 이고 발밑 바닥도 같은 k 로 쓰이므로
+//     바닥 L = .0184 + .7329×A0 × k          (기울기 .1283)
+//     마루 L = .0184 + (L_ROCK − .0184) × k  (기울기 .0938)
+// 이라 **숨이 뭐든 비가 안 변한다**(마루는 언제나 발밑의 73%). 봉우리를
+// .121 → .1466 으로 올리면서 바닥 기울기가 .1026 → .1283 으로 커졌기에 마루도
+// #171A20 → #191D24 로 같이 올렸다 — 안 올리면 마루가 발밑의 64% 로 떨어져
+// 「돌」이 아니라 「구멍」으로 보인다.
+MP3.ROCK ="#191D24";   // 낙석 마루(광량 1일 때) L .1122 — 기울기 .0938 (발밑의 73%)
+MP3.RIM  ="#0F1218";   // 낙석 몸통 · 빛을 등진 면   L .0698 — 기울기 .0514 (40%)
+// 통풍구 바닥은 기울기가 .7329×AV = **.0601** 뿐이라, 낙석 몸통(RIM .0514)을
+// 그대로 쓰면 잔돌이 발밑의 86% — 눈에 거의 안 갈린다. 통풍구는 원래 어두우니
+// **잔돌만 한 단 더 내려** 발밑의 54% 로 둔다. 「빛을 받은 바닥」이라는 읽기는
+// 절대 밝기가 아니라 **발밑과의 비**가 만든다.
+MP3.PEB  ="#0B0D12";   // 통풍구 잔돌 L .0509 — 기울기 .0325 (발밑의 54%)
+
+// ── 수치 ─────────────────────────────────────────────────────────────────
+MP3.A0   =.175;   // 웅덩이 중심 알파 → L .0184+.7329×.175 = **.1466** (상한 .17)
+// 통풍구는 중심조차 L .0785 로 **적 몸(.1021)보다 확실히 어둡다** — 적이
+// 통풍구 위에서는 어떤 순간에도 안 묻는다(분리도 1.30~1.59배). 그래서 이쪽은
+// 「공짜로 면적을 버는」 자리다: 웅덩이가 못 가는 화면 구석을 통풍구가 메운다.
+// 예전 .100(중심 L .0917 · 분리도 1.11배)에서 **내렸다** — 밝기를 내리고
+// 개수와 폭을 올리는 쪽이 같은 면적을 더 안전하게 산다.
+MP3.AV   =.082;
+// ⚠️ **게이트를 .52 에서 .86 으로 올린 이유는 개수가 아니라 고름이다.**
+// 게이트가 낮으면 칸마다 웅덩이가 있고 없고가 동전 던지기라, 월드 자리에 따라
+// 화면 중간 톤이 8.5% ~ 39.1% 로 흔들렸다(2026-08-11 실측, 자리 넷). 사용자가
+// 「꺼멓다」고 한 화면은 **평균이 아니라 그 8.5% 쪽**이다. 게이트를 올리고 칸을
+// 줄이면 거의 모든 칸이 웅덩이를 하나씩 갖게 되어 **분산이 이항분포에서
+// 위치·크기 지터만 남는다** — 「빈 화면」이 구조적으로 안 생긴다.
+// 규칙성이 걱정이지만 scatter 의 지터가 칸의 76%(±99px)고 RR 이 1.8배 범위라
+// 격자로는 안 읽힌다.
+MP3.PCELL=262; MP3.PGATE=.86; MP3.R0=58;  MP3.R1=41;   // 빛 웅덩이 — 잘고 촘촘하게
+MP3.VCELL=176; MP3.VGATE=.70;                          // 작은 통풍구
+MP3.CCELL=112; MP3.CGATE=.50; MP3.CPAR=1.30;           // 천장(종유석)
+// ⚠️ 예전엔 이 오프셋이 **시안을 살리는 장치**였다(「웅덩이 밭을 가로지르는
+// 자리」). 그건 곧 **시안이 유리한 자리에서만 찍혔다**는 뜻이라, 실측을 월드
+// 네 자리에서 다시 하니 최소 중간톤이 1.19% 였다. 지금은 화면당 웅덩이가
+// 8~10개라 아무 자리나 비슷하고(자리 넷 평균 19.6 / 28.2 / 23.1 / 25.2 %),
+// 이 값은 **형제 안들과 같은 경로를 쓰기 위한 좌표**로만 남는다.
+MP3.OFF=[400,-1400];
+
+/// 웅덩이 세로 단면 — [u=r/RR, 중심 대비 광량]. **이 표가 예산의 전부다.**
+///
+/// 모양은 「좁은 봉우리 + 넓은 무리 + 절벽」이고, 세 구간을 가르는 것은 전부
+/// **적 몸 채움(#24141F L .1021)** 이다. L(u) = .0184 + .12826 × 숨 × k(u).
+///   ① **봉우리(u<.249)는 L .126~.147.** 적보다 **위**다 — 적이 여기서는
+///      「밝은 바닥 위의 검은 실루엣」이 된다(분리도 1.23~1.44배).
+///   ② **무리(u .32~.95)는 L .0497~.0748.** 적보다 **아래**다(분리도 1.36~2.05배).
+///      웅덩이 면적의 대부분이 여기다.
+///   ③ **전이(u .218~.299 · 숨에 따라 움직인다)에서만 배경이 .1021 을 지난다.**
+///      여기가 적이 실제로 묻히는 유일한 자리라 **폭을 최소로 조인다** —
+///      RR 78 기준 **3.0~4.8px** 짜리 고리다.
+/// ⚠️ 이게 이 안의 진짜 함정이었다. 한때 무리를 L .10 근처의 넓은 원판으로
+/// 뒀더니 예산표(평균·p12·p35)는 셋 다 통과하는데 **적이 웅덩이 안에서만
+/// 사라졌다.** 예산은 「배경 대 이펙트」만 보고 「배경 대 적」은 안 본다.
+/// 2026-08-11 개정에서 봉우리를 .121 → .1466 으로 올린 진짜 이유가 이것이다:
+/// 예전 봉우리(.121)는 적(.1021)에서 겨우 1.19배 떨어져 있었고 무리 최댓값
+/// (.0897)은 1.14배였다 — **웅덩이 전체가 적 값 근처에 붙어 있었다.**
+/// 봉우리를 위로, 무리를 아래로 벌리면 **웅덩이를 넓히면서 적 대비가 좋아진다.**
+///
+/// 그리고 무리 전체를 완만한 비탈로 깔면 웅덩이가 아니라 「빛무리」로 보이므로
+/// (2026-08-11 렌더), 비탈은 **적 값 아래에서만** 지고 **u=.985 부터 절벽으로**
+/// 끊는다 — 「여기까지가 빛이다」라는 **경계**가 있어야 바닥으로 읽힌다.
+/// 예전 판은 u=.79 에서 이미 L<.05 라 경계가 **안쪽에** 있었고, 그래서 웅덩이가
+/// 눈에 보이는 것보다 훨씬 작게 셌다. 지금은 경계가 u≈.957 이다.
+///
+/// ⚠️ **바닥 결과 물어뜯기가 표를 갉아먹는다.** 첫 판(무리 k .295~.40)은 계산상
+/// u=.93 까지 L>.05 인데 **실측 중간 톤이 오히려 12.5% 로 떨어졌다.** 이유는
+/// 둘 다 이 표 밖에 있었다: ④ 바닥 결이 알파 .26~.66 검정을 얹어 L .053 짜리
+/// 바깥 띠를 통째로 .05 밑으로 내리고, `bite` 의 물어뜯기가 u .84~1.10 을
+/// 지운다. **표는 「그려지는 값」이 아니라 「덮이기 전의 값」**이라, 무리를
+/// 검정 두 겹이 지나간 뒤에도 .05 위에 남을 높이(L ≈ .073)로 올렸다.
+/// 무리의 **최댓값이 .44** 인 것은 개정 예산의 「넓은 면적 평균 L ≤ .075」를
+/// 최솟값 해석(= 넓은 구간의 **어느 점도** .075 를 안 넘는다)으로 읽은 결과다:
+///   .0184 + .7329×.175×1.00×.44 = **.0748**
+///
+/// ⚠️ **평평한 무리는 「빛 웅덩이」가 아니라 「스티커」로 보인다.** 첫 판은
+/// u=.335~.93 을 k .44~.355 로 거의 평평하게 뒀는데, 2배 확대 렌더에서 원판이
+/// **초점 나간 보케**처럼 나왔다(2026-08-11). 「안개로 보인다」를 고치려고
+/// 평평하게 만든 것이 반대쪽 끝으로 간 것이다. 지금은 무리도 **완만하게
+/// 떨어뜨리되(.44→.29, 26%) 적 값(.1021) 아래에서만** 떨어뜨린다 — 부드러운
+/// 비탈은 밝기가 적을 지나갈 때만 위험하지, 그 아래에서는 공짜다.
+MP3.PROF=[[0,1],[.20,.955],[.27,.72],[.32,.44],[.46,.43],[.62,.41],
+          [.76,.385],[.87,.345],[.95,.29],[.985,.14],[1,0]];
+
+/// 통풍구 단면 — **웅덩이와 다른 표를 쓴다.** 통풍구는 중심조차 L .0785 라,
+/// 웅덩이 표(봉우리+절벽)를 그대로 쓰면 .05 를 넘는 구간이 u<.14 밖에 안 나와
+/// 「점」이 된다. 통풍구가 맡은 일은 **봉우리가 아니라 면적**이므로 완만하게
+/// 두고 끝에서 끊는다(u≈.91 까지 .05 위).
+/// ⚠️ 한때 진짜로 평평하게(.80 까지 k .94) 뒀는데, 2배 확대 렌더에서 통풍구가
+/// **초점 나간 흰 동그라미**로 나와 화면 전체가 보케처럼 보였다(2026-08-11).
+/// 웅덩이의 「스티커」 문제와 같은 병이고 같은 약을 쓴다 — 밝기를 안 바꾸고
+/// **기울기만** 준다(k 1→.68, L .0785→.0568).
+MP3.VPROF=[[0,1],[.42,.96],[.70,.86],[.88,.68],[.96,.34],[1,0]];
+
+/// 국소 광량. **이 안의 모든 바닥 형상이 이 값을 곱해서 그려진다** —
+/// 웅덩이 밖(u≥1)에서 0 이 되므로 「웅덩이 안에서만 형태가 보인다」가
+/// 연출이 아니라 **항등식**이다. [P] 를 주면 그 표로 잰다(통풍구용).
+MP3.k=function(u,P){
+  P=P||MP3.PROF;
+  if(u<=0)return 1;
+  if(u>=1)return 0;
+  for(let i=1;i<P.length;i++)if(u<=P[i][0]){
+    const a=P[i-1],b=P[i];
+    return a[1]+(b[1]-a[1])*(u-a[0])/(b[0]-a[0]);}
+  return 0;};
+
+/// 카메라 — 형제 안들과 **같은 경로**를 쓴다(비교가 되려면 같아야 한다).
+///
+/// [MP3.SHIFT] = [Δx, Δy, 진폭배율]. **작은 칸(302px) 전용 액자다.** 302px 창은
+/// 웅덩이 사이 간격(262)만 한 크기라, 액자 없이 두면 창이 웅덩이 **사이**에
+/// 떨어지는 프레임이 생긴다(실측: 액자 없이 14프레임을 재면 중간 톤이 5.2%까지
+/// 내려간다 — 980×548 전체는 19.5% 아래로 안 내려가는데도 그렇다). 작은 창의
+/// 분산은 지형이 아니라 **창 크기**가 만드는 것이라 액자로 지운다.
+///
+/// ⚠️ **액자는 유리한 자리가 아니라 정직한 자리로 고른다.** 후보를 25px 격자로
+/// 훑어 8프레임씩 재 보면 제일 밝은 자리는 중간 톤 43.1% 인데, 그건 전체 화면
+/// (20.7%)의 두 배라 시안이 거짓말을 하게 된다. 그래서 **최솟값이 크면서
+/// 평균이 전체 화면과 비슷한** 자리를 골랐다: [-75,125,.30] → 최소 21.9% ·
+/// 평균 23.7%. 액자를 옮기는 것이지 지형을 바꾸는 것이 아니고, **고르는 기준도
+/// 「안 비는 것」이지 「밝은 것」이 아니다.**
+MP3.SHIFT=null;
+MP3.cam=function(t){
+  const p=MAPP.cam(t),s=MP3.SHIFT,k=s?s[2]:1;
+  return[p[0]*k+MP3.OFF[0]+(s?s[0]:0),p[1]*k+MP3.OFF[1]+(s?s[1]:0)];};
+MP3.SPOT=[-75,125,.30];       // 작은 칸이 담는 웅덩이 밭 (정직한 액자)
+
+/// 바닥 결 — **거의 전부가 검정이다. 그게 요점이다.**
+///
+/// 바닥 질감을 검정으로만 그리면 웅덩이 밖에서는 **검정 위의 검정**이라 통째로
+/// 사라지고 웅덩이 안에서만 나타난다. 「정보가 조명에 실려 있다」를 프레임당
+/// **fillRect 한 번**으로 얻는 것이다 — 웅덩이마다 질감을 다시 그릴 필요가 없다.
+/// (이 안의 모든 층이 같은 수법을 쓴다: 그림자는 공짜, 빛만 값을 치른다.)
+///
+/// ⚠️ 처음엔 큰 소프트 얼룩(반지름 24~98)으로 저주파를 줬다가 버렸다 —
+/// 빛이 있는 데서 부드럽고 큰 어두움은 「바닥」이 아니라 **「안개」**로 보인다
+/// (2026-08-11 렌더에서 웅덩이가 성운처럼 나왔다). 자갈 그림자처럼 **작고
+/// 각지고 가장자리가 선** 것이라야 바닥이 된다.
+///
+/// 밝은 알갱이는 알파 ≤.018 로 **웅덩이 밖에서도 아주 조금** 남긴다 — 완전히
+/// 0 으로 두면 빛 밖에서 스크롤이 아예 안 읽혀 「멈춰 있는 화면」이 된다.
+MP3.grain=()=>mpTile("mp3grain",320,(c2,S)=>{
+  for(let i=0;i<30;i++){                     // 저주파 굴곡 — 옅게, 작게
+    const x=hash(i*4.7+.3)*S,y=hash(i*9.1+.9)*S,r=13+hash(i*6.7)*40;
+    mpWrap9(S,(dx,dy)=>{
+      const g=c2.createRadialGradient(x+dx,y+dy,0,x+dx,y+dy,r);
+      g.addColorStop(0,"rgba(0,0,0,.26)");g.addColorStop(1,"rgba(0,0,0,0)");
+      c2.fillStyle=g;c2.beginPath();c2.arc(x+dx,y+dy,r,0,TAU);c2.fill();});}
+  for(let i=0;i<300;i++){                    // 자갈 그림자 — 각지고 단단하게
+    const x=hash(i*2.9+.7)*S,y=hash(i*7.3+.2)*S;
+    const r=1.3+hash(i*5.1)*3.5,a=(.26+hash(i*8.7)*.40).toFixed(3);
+    mpWrap9(S,(dx,dy)=>fillPoly(c2,jagPoly(x+dx,y+dy,r,5,i*3.7,.85,.78),
+      "rgba(0,0,0,"+a+")"));}
+  for(let i=0;i<130;i++){                    // 자갈 마루 — 있으나 마나 할 만큼만
+    const x=hash(i*6.1+.4)*S,y=hash(i*3.3+.8)*S,r=.55+hash(i*9.7)*1.4;
+    c2.fillStyle="rgba(178,182,204,"+(.007+hash(i*4.9)*.009).toFixed(4)+")";
+    mpWrap9(S,(dx,dy)=>{c2.beginPath();c2.arc(x+dx,y+dy,r,0,TAU);c2.fill();});}
+});
+
+/// 빛 웅덩이 한 장. **가산 합성이 아니다** — source-over 라 겹쳐도 LIT 색을
+/// 못 넘고, 따라서 두 웅덩이가 포개져도 상한이 안 깨진다(가산이면 깨진다).
+MP3.pool=function(c,x,y,RR,a0,P){
+  P=P||MP3.PROF;
+  const R=Math.max(1,RR);
+  const g=c.createRadialGradient(x,y,0,x,y,R);
+  for(let i=0;i<P.length;i++)
+    g.addColorStop(P[i][0],A(MP3.LIT,a0*P[i][1]));
+  c.fillStyle=g;c.beginPath();c.arc(x,y,R,0,TAU);c.fill();};
+
+/// 구멍 가장자리의 바위가 빛을 가린 자국. **웅덩이 윤곽을 원이 아니게 만드는
+/// 것**이 일이다 — 깔끔한 원은 「스포트라이트」로 보이고 「깨진 천장 구멍」으로는
+/// 안 보인다. 전부 검정이라 **밝기를 1도 안 쓰고 형태 복잡도를 산다.**
+///
+/// ⚠️ 처음엔 가장자리에서 **중심까지** 뻗는 검은 날 대여섯을 썼다가 버렸다
+/// (2026-08-11 렌더): 중심으로 모이는 방사 도형은 눈에 **「터지는 이펙트」**로
+/// 읽힌다 — 배경이 절대 흉내 내면 안 되는 바로 그 문법이다. 지금은
+/// ① 테두리를 **걸터앉은 둥근 덩어리**로 가장자리를 물어뜯고(중심에 안 모인다),
+/// ② 안쪽으로 뻗는 그늘은 **둘까지, u=.46 에서 멈춘다.**
+MP3.bite=function(c,x,y,RR,i,j,amp){
+  const a=(.62*amp).toFixed(3);
+  const n=6+Math.floor(h2(i,j,27.3)*4);
+  for(let b=0;b<n;b++){                        // ① 가장자리를 물어뜯는 덩어리
+    // ⚠️ 모양을 두 번 갈았다(2026-08-11 렌더 두 판).
+    //   puffPoly(둥근 돌기 6엽) → **꽃/구름**으로 보였다.
+    //   jagPoly(n=7, spikeMul 1.25) → **각진 별**로 보였다. 각진 별은 캐릭터
+    //     코어의 문법이라 바닥에 한 번 더 그리면 안 된다(이끼밭이 같은 실수를
+    //     한 뒤 남긴 주석이 위에 있다).
+    // 답은 「각짐/둥긂」이 아니라 **뾰족한 정도**였다: n 을 10 으로 올리고
+    // spikeMul 을 .80 으로 내리면 별도 꽃도 아닌 **모난 돌덩이**가 된다.
+    // ⚠️ **덩어리는 늘 「지금의 경계」를 걸터앉아야 한다.** 무리의 경계가
+    // u=.79 에서 u=.955 로 나가면서 예전 자리(.84~1.10)는 가장자리가 아니라
+    // **빛의 몸통**을 지웠고, 반대로 한 번 너무 멀리 밀었더니(.94~1.18) 아예
+    // 웅덩이에 안 닿아 원판이 **깨끗한 동그라미**로 나왔다(2026-08-11 2배 확대
+    // 렌더 — 보케처럼 보였다). 지금 값은 d−rr ≈ .74 · d+rr ≈ 1.22 라 어느 조합에서도
+    // 경계를 가로지른다.
+    const a0=h2(i,j,31.1+b*3.7)*TAU;
+    const d =RR*(.92+.22*h2(i,j,33.5+b*2.9));
+    const rr=Math.max(2,RR*(.11+.15*h2(i,j,35.9+b*1.7)));
+    fillPoly(c,jagPoly(x+Math.cos(a0)*d,y+Math.sin(a0)*d,rr,10,
+      i*5.3+j*9.7+b*3.1,.80,1),"rgba(0,0,0,"+a+")");}
+  for(let b=0;b<2;b++){                        // ② 안쪽으로 뻗는 그늘 — 중심 전에 멈춘다
+    const a0=h2(i,j,39.7+b*4.3)*TAU;
+    const d1=RR*(.46+.22*h2(i,j,41.1+b*2.3));
+    const w =Math.max(1.5,RR*(.030+.038*h2(i,j,43.9+b*1.9)));
+    const pts=[];
+    for(let s=0;s<=4;s++){
+      const u=s/4,d=RR*1.06+(d1-RR*1.06)*u,aa=a0+(h2(i,j,45.7+b*3.3)-.5)*.34*u;
+      pts.push([x+Math.cos(aa)*d,y+Math.sin(aa)*d]);}
+    fillPoly(c,ribbonPoly(pts,w,w*.5),"rgba(0,0,0,"+a+")");}
+};
+
+/// 낙석 — **정보가 조명에 실려 있다**는 것을 그림으로 말하는 자리.
+///
+/// 그림자는 검정이라 **웅덩이 밖에서 공짜로 사라진다**(검정 위의 검정). 몸통은
+/// 안 그렇다 — 그래서 클립을 거는 대신 **색을 광량으로 보간한다**
+/// (`mixHex(FLOOR, ROCK, k)`): k=0 이면 바닥색과 **완전히 같은 값**이 되어 사라지고
+/// k=1 이면 L .114 가 된다. 클립은 경계에 호 자국을 남기지만 보간은 안 남긴다.
+///
+/// 그림자는 웅덩이 **중심에서 바깥으로** 뻗고 중심에서 멀수록 길어진다 —
+/// 광원이 구멍 하나라는 것을 그림자 방향이 스스로 말한다.
+/// 크기는 **세제곱 분포**다 — 자잘한 것이 대부분이고 가끔 큰 것이 하나 있다.
+/// 고른 크기로 뿌리면 「무늬」가 되고, 크기가 섞여야 「깨져 떨어진 것」이 된다.
+/// 값은 셋뿐이고 **셋 다 L ≤ .1165** — 이펙트 계조의 맨 아래 한 단 안에서만
+/// 나뉜다(우주 맵 머리 주석의 네 팔레트와 같은 논리다).
+MP3.rocks=function(c,wx,wy,x,y,RR,amp){
+  // 칸을 RR 에 비례해 잡으므로 웅덩이가 작아져도 **웅덩이당 낙석 수는 그대로**다
+  // (칸 .26 → 웅덩이당 37개). 2026-08-11 에 웅덩이를 잘게 쪼개면서 화면 전체
+  // 낙석 수는 93 → 약 370 으로 늘었지만, 하나하나가 선형으로 작아져(RR 169→79)
+  // **칠하는 화소 면적은 오히려 줄었다** — 이 안의 비용은 개수가 아니라 면적이다.
+  scatter(wx,wy,RR*2,RR*2,RR*.26,0,(lx,ly,ri,rj,rr)=>{
+    if(rr>.62)return;
+    const sx=x-RR+lx, sy=y-RR+ly, dx=sx-x, dy=sy-y;
+    const dl=Math.hypot(dx,dy)||1, u=dl/RR;
+    const k=MP3.k(u)*amp;
+    if(k<.05)return;                       // 웅덩이 밖 — 그릴 것이 없다
+    const q=h2(ri,rj,71.3);
+    // 웅덩이가 작아진 만큼 **비율을 키운다** — 안 키우면 낙석이 1~2px 로 뭉개져
+    // 「빛이 드러낸 바닥」이 아니라 노이즈가 된다.
+    const rad=Math.max(1.1,RR*(.014+.115*q*q*q));
+    const sd=ri*13.7+rj*29.3;
+    // ⚠️ **그림자 길이는 웅덩이 크기에 딸려 온다.** `rad*(1+3u)` 는 RR 169 에서는
+    // 「길어지는 그림자」였는데, RR 78 로 줄이자 같은 비율이 **중심에서 뻗은
+    // 바큇살**이 되어 웅덩이가 **민들레/성게**로 보였다(2026-08-11 렌더).
+    // 중심으로 모이는 방사 도형은 이 안이 이미 두 번(bite·천장) 버린 문법이다.
+    // 길이를 1.9배로 줄이고 알파도 낮춰, 그림자는 **방향만 말하고 형태는
+    // 낙석에게 맡긴다.**
+    const nx=dx/dl, ny=dy/dl, sl=rad*(.85+1.35*u);
+    // 그림자 — 검정이라 웅덩이 밖에서 **공짜로 사라진다**(검정 위의 검정).
+    fillPoly(c,ribbonPoly([[sx,sy],
+        [sx+nx*sl*.5,sy+ny*sl*.5],[sx+nx*sl,sy+ny*sl]],rad*.92,rad*.24),
+      "rgba(0,0,0,"+(.60*k).toFixed(3)+")");
+    // 몸통 — k=0 이면 바닥색과 **완전히 같은 값**이 되어 사라진다(클립이 필요 없다).
+    // spikeMul 은 .85 — 뾰족하면 「가시」가 되고, 이 게임에서 가시는 이펙트다.
+    fillPoly(c,jagPoly(sx,sy,rad,7,sd,.85,.82),mixHex(MP3.FLOOR,MP3.RIM,k));
+    // 마루 — 빛을 마주 본 면. 중심 쪽으로 밀어 둔다
+    if(rad>1.9)fillPoly(c,jagPoly(sx-nx*rad*.30,sy-ny*rad*.30,rad*.56,6,sd+1.9,.80,.82),
+      mixHex(MP3.FLOOR,MP3.ROCK,k));});
+};
+
+/// 천장 — **위층 시차는 밝게가 아니라 어둡게로 준다**(이 레포가 이미 확정한
+/// 규칙). 종유석은 바닥보다 1.30배 빨리 흘러, 웅덩이를 스칠 때마다 빛이
+/// 깜빡인다. 검정이라 웅덩이 밖에서는 바닥을 아주 살짝 더 어둡게 만들 뿐이고
+/// (L .0184→.0055), 웅덩이 위에서만 **강한 실루엣**이 된다 — 이것이 브리프가
+/// 말한 「종유석 그림자」이자, 「천장이 있다」의 유일한 증거다.
+///
+/// ⚠️ 처음엔 **화면 중심에서 바깥으로** 뻗게 뒀다(가짜 원근). 물리는 맞는데
+/// 그림이 틀렸다 — 한 점에서 방사하는 도형 수십 개는 눈에 **「폭발」**로 읽혀
+/// 배경이 이펙트 문법을 흉내 내는 꼴이 됐다(2026-08-11 렌더). 방향은 칸마다
+/// **해시**로 준다. 크기도 절반 아래로 내렸다: 폭 3~19px · 길이 8~62px 짜리가
+/// 40개 — 큰 것 20개보다 **같은 면적에서 형태 복잡도가 훨씬 높다.**
+MP3.ceil=function(c,t,ox,oy,W,H){
+  const cx=ox*MP3.CPAR, cy=oy*MP3.CPAR;
+  scatter(cx,cy,W,H,MP3.CCELL,1,(x,y,i,j,r)=>{
+    if(r>MP3.CGATE)return;
+    const L0=MP3.CCELL*(.24+.56*h2(i,j,61.3));
+    const w =Math.max(1.5,L0*(.10+.14*h2(i,j,63.7)));
+    // 길이를 **폭에 묶는다**(비 1.6~3.6). 길이를 L0 에서 따로 뽑았더니 비가
+    // 5.4 까지 가서 가늘고 긴 검정이 **발톱**으로 보였다(2026-08-11 렌더).
+    // 종유석은 위에서 보면 짧고 뭉툭하다.
+    const an=h2(i,j,65.1)*TAU, len=w*(1.6+2.0*h2(i,j,66.7));
+    const ex=x+Math.cos(an)*len, ey=y+Math.sin(an)*len;
+    const jx=(h2(i,j,67.3)-.5)*w*1.2, jy=(h2(i,j,69.1)-.5)*w*1.2;
+    const P=[[x,y],[(x+ex)/2+jx,(y+ey)/2+jy],[ex,ey]];
+    // **두 겹으로 반그림자를 만든다.** 가장자리가 선 검정 도형은 눈에
+    // 「떠 있는 물체」로 읽히고, 흐린 테를 두른 검정은 「그림자」로 읽힌다 —
+    // 이 안에서 천장이 말해야 하는 것은 후자다(2026-08-11 렌더 판정).
+    fillPoly(c,ribbonPoly(P,w*1.9,w*.85),"rgba(0,0,0,.28)");
+    fillPoly(c,ribbonPoly(P,w,w*.34),"rgba(0,0,0,.62)");});
+};
+
+// ── 조립 ─────────────────────────────────────────────────────────────────
+// 등록은 **대입만**. `const`/`let` 으로 기존 이름을 다시 선언하면 파일 전체가
+// SyntaxError 로 죽는다(앞 배치에서 실제로 겹쳤다).
+MAPP.bg.hollow=function(c,t,W,H){
+  const cm=MP3.cam(t), ox=cm[0], oy=cm[1];
+  // ① 바닥 — **공용 바닥이다.** 이 안이 실측으로 뽑은 값이 공용이 됐으므로
+  // 여기서도 공용 함수를 부른다(색을 두 군데 적어 두지 않는다).
+  mapFloor(c,W,H);
+
+  // ② 작은 통풍구 — 중심조차 L .0785 라 **적 몸(.1021)을 절대 안 넘는다.**
+  // 웅덩이가 못 가는 화면 구석을 이것이 메운다: 웅덩이는 화면당 5~6개인데
+  // 통풍구는 7~8개라, 「하나 지났다」의 박자를 촘촘하게 하면서 적을 안 묻는다.
+  // **이 안에서 유일하게 공짜인 장치**이고, 그래서 개정 예산의 「중간 톤 면적」을
+  // 채우는 몫이 예전(.34 게이트)보다 커졌다.
+  scatter(ox,oy,W,H,MP3.VCELL,1,(x,y,i,j,r)=>{
+    if(r>MP3.VGATE)return;
+    const RR=28+h2(i,j,17.9)*32;
+    if(x<-RR||x>W+RR||y<-RR||y>H+RR)return;
+    const pv=4.6+h2(i,j,19.3)*4.1;
+    // 숨을 얕게 — .80+.20 이면 최저 .60 이라 통풍구가 절반은 안 보였다.
+    const amp=.88+.12*Math.sin(t*TAU/pv+h2(i,j,15.1)*TAU);
+    MP3.pool(c,x,y,RR,MP3.AV*amp,MP3.VPROF);
+    for(let b=0;b<3;b++){                        // 통풍구 안의 잔돌 셋
+      const a0=h2(i,j,23.1+b*2.7)*TAU, d=RR*(.18+.46*h2(i,j,25.5+b*1.9));
+      const k=MP3.k(d/RR,MP3.VPROF)*amp, rad=Math.max(.9,RR*.11);
+      if(k<.05)continue;
+      const nx=Math.cos(a0), ny=Math.sin(a0), sx=x+nx*d, sy=y+ny*d;
+      fillPoly(c,ribbonPoly([[sx,sy],[sx+nx*rad*2.1,sy+ny*rad*2.1]],rad*.85,rad*.3),
+        "rgba(0,0,0,"+(.62*k).toFixed(3)+")");
+      // 잔돌은 **전용 색**(PEB)이다 — 낙석 몸통(RIM)은 기울기가 통풍구 바닥보다
+      // 커서 숨이 얕은 순간에 제 발밑보다 밝아진다(위 색 주석의 검산 참고).
+      // 잔돌은 언제나 자기가 놓인 바닥보다 어두워야 「빛을 받은 바닥」이라는
+      // 읽기가 안 뒤집힌다.
+      fillPoly(c,jagPoly(sx,sy,rad,5,b*7.3+i*3.1,1.1,.82),
+        mixHex(MP3.FLOOR,MP3.PEB,k));}});
+
+  // ③ 빛 웅덩이 — 화면에 다섯~여섯. 예산이 걸린 자리라 개수를 세어 둔다.
+  scatter(ox,oy,W,H,MP3.PCELL,1,(x,y,i,j,r)=>{
+    if(r>MP3.PGATE)return;
+    const RR=MP3.R0+h2(i,j,21.3)*MP3.R1;
+    if(x<-RR*1.05||x>W+RR*1.05||y<-RR*1.05||y>H+RR*1.05)return;
+    // 숨 — 구멍 밖 하늘이 흐려졌다 개는 것. **주기를 안 맞춘다**(맞추면 화면
+    // 전체 밝기가 같이 오르내려 그 순간마다 이펙트와 싸운다).
+    // ⚠️ `.80+.20*sin` 은 진폭이 **±20%가 아니라 .60~1.00** 이다 — 첫 렌더에서
+    // 웅덩이 최대 명도가 설계치 .121 이 아니라 .101 로 나왔다(PNG 실측). 숨은
+    // 최댓값을 **낮추는 쪽으로만** 걸어야 상한 계산이 안 무너진다.
+    // ⚠️ 그래서 `.86+.14` 로 뒀었는데 그건 **최소가 .86 이 아니라 .72** 다.
+    // 실제로 그려진 단면을 읽어 보니(2026-08-11 스캔) 숨이 얕은 웅덩이의 무리가
+    // L .049~.052 — **중간 톤 하한 .05 에 걸터앉아** 있었다. 「보인다/안 보인다」가
+    // 숨 주기로 깜빡이는 셈이라, 폭을 **.84~1.00** 으로 좁힌다. 19% 스윙이면
+    // 깜빡임은 그대로 읽히고 무리는 어느 순간에도 .05 아래로 안 내려간다.
+    const pv=6.2+h2(i,j,23.7)*5.4;
+    const amp=.92+.08*Math.sin(t*TAU/pv+h2(i,j,25.1)*TAU);
+    const wx=(i+.12+.76*h2(i,j,1))*MP3.PCELL, wy=(j+.12+.76*h2(i,j,2))*MP3.PCELL;
+    MP3.pool(c,x,y,RR,MP3.A0*amp);
+    MP3.bite(c,x,y,RR,i,j,amp);
+    MP3.rocks(c,wx,wy,x,y,RR,amp);
+
+    // 부유 먼지 — 빛줄기 안에서만 보인다. 알파에 k 를 곱해 두었으니 웅덩이
+    // 밖에서는 **그려도 값이 0** 이다. 위상 봉투 sin(π·ph) 로 주기 경계에서
+    // 나타났다 사라지므로 자리 도약이 안 보인다.
+    for(let d=0;d<14;d++){
+      const ph=(t*(.045+.055*h2(i,j,51.3+d*2.1))+h2(i,j,53.7+d*1.3))%1;
+      const ang=h2(i,j,55.9+d*3.3)*TAU, dr=RR*(.08+.60*h2(i,j,57.1+d*1.9));
+      const px=x+Math.cos(ang)*dr+Math.sin(t*.55+d)*RR*.035;
+      const py=y+Math.sin(ang)*dr-(ph-.5)*RR*.42;
+      const k=MP3.k(Math.hypot(px-x,py-y)/RR)*amp;
+      if(k<.06)continue;
+      // 알파 .038. 처음 .115 로 뒀더니 **별처럼 반짝여** 배경이 이펙트 문법을
+      // 흉내 냈고(2026-08-11), .065 로 내려 봉우리 .121 위에서 L .162 였다.
+      // 봉우리를 .1466 으로 올리면서 **알파를 같이 내렸다** — 안 내리면 먼지가
+      // .186 이 되어 개정 상한 .17 을 넘는다. 지금 최댓값은 정확히 **.170** 이다:
+      //   .1466 + .038×(.7513−.1466) = .1700
+      // 밝기를 잃은 만큼 **반경을 키워**(≤1.3px) 눈에 보이는 양은 유지한다.
+      c.fillStyle=A(MP3.LIT,.038*k*Math.sin(Math.PI*ph));
+      c.beginPath();c.arc(px,py,Math.max(.4,.55+.72*h2(i,j,59.7+d)),0,TAU);c.fill();}
+
+    // 물방울 — 종유석에서 떨어져 파문을 남긴다. **하나의 위상 ph 에서 전부
+    // 파생**하고 ph=0·1 에서 그려지는 값이 둘 다 0 이라 주기 경계가 안 튄다.
+    const dp=3.1+h2(i,j,41.7)*2.6;
+    const ph=((t/dp)+h2(i,j,43.3))%1;
+    const dax=x+(h2(i,j,45.1)-.5)*RR*.86, day=y+(h2(i,j,47.9)-.5)*RR*.86;
+    const dk=MP3.k(Math.hypot(dax-x,day-y)/RR)*amp;
+    if(dk>.06){
+      if(ph<.42){                       // 떨어지는 중 — 가까워지며 작고 밝아진다
+        const f=ph/.42, env=Math.sin(Math.PI*f);
+        c.fillStyle=A(MP3.LIT,(.08+.20*f)*env*dk);
+        c.beginPath();c.arc(dax,day,Math.max(.4,2.3-1.5*f),0,TAU);c.fill();
+      }else if(ph<.95){                 // 파문 — 커지며 사라진다
+        const f=(ph-.42)/.53;
+        c.strokeStyle=A(MP3.LIT,.17*(1-f)*(1-f)*Math.min(1,f*7)*dk);
+        c.lineWidth=Math.max(.4,1.7*(1-f));
+        c.beginPath();c.arc(dax,day,Math.max(.6,1.5+f*RR*.20),0,TAU);c.stroke();}}
+  });
+
+  // ④ 바닥 결 — **빛 위에 얹는다.**
+  //
+  // ⚠️ 처음엔 ① 바로 뒤, 웅덩이 **밑**에 깔았다가 웅덩이가 통째로 「안개」로
+  // 나왔다(2026-08-11 렌더). 산수를 해 보니 방향이 반대였다. 검은 자국의 대비는
+  //   · 빛 **밑**에 깔면  Δ = 바닥 × 자국알파 × (1−웅덩이알파)  = .0083
+  //   · 빛 **위**에 얹으면 Δ = 웅덩이밝기 × 자국알파            = .0462
+  // 로 **5.6배** 차이가 난다. 밑에 깔면 웅덩이가 자국을 덮어 오히려 **빛이 밝을수록
+  // 질감이 희미해진다** — 이 안이 하려는 말의 정반대다. 검은 질감은 반드시
+  // 빛보다 위에 있어야 「빛이 드러낸 바닥」이 된다.
+  mpPat(c,MP3.grain(),W,H,ox,oy,.2094);          // 12° — 화면 축과 안 맞게
+
+  // ⑤ 천장 — 마지막. 웅덩이를 **가린다**(그래서 빛이 깜빡인다).
+  MP3.ceil(c,t,ox,oy,W,H);
+};
+
+// 시안 조립 — [fx] 는 파문(mPulse), [mini] 는 적 밀도 미니맵.
+/// [spot] 이면 작은 칸 액자를 쓴다. **try/finally 로 반드시 되돌린다** —
+/// 전역 하나를 임시로 바꾸는 수법(RECOLOR·LV 와 같은 규약)이라, 예외가 나면
+/// 다음 칸이 남의 액자로 그려진다.
+MP3.demo=function(fx,mini,spot){
+  const f=function(c,t,dt,W,H,st){
+    const sv=MP3.SHIFT;if(spot)MP3.SHIFT=MP3.SPOT;
+    try{
+      MAPP.bg.hollow(c,t,W,H);
+      if(fx){st.fx=st.fx||{p:[]};mapOver(c,t,dt,W,H,st.fx,"pulse");}
+      if(mini){const cm=MP3.cam(t);MAPP.minimap(c,W,H,t,cm[0],cm[1]);}
+    }finally{MP3.SHIFT=sv;}};
+  try{Object.defineProperty(f,"name",
+    {value:"mp3_"+(fx?"fx":"bg")+(mini?"_mini":"")+(spot?"_spot":"")});}catch(e){}
+  return f;};
+// 2배 확대 — 낙석과 그림자가 302px 칸에서는 안 읽힌다. 논리 화면을 절반으로
+// 주고 2배로 늘리는 **진짜 확대**다(캔버스만 키우면 바깥이 안 칠해진다).
+MP3.zoom=function mp3_zoom(c,t,dt,W,H,st){
+  const sv=MP3.SHIFT;MP3.SHIFT=MP3.SPOT;
+  try{c.save();c.scale(2,2);MAPP.bg.hollow(c,t,W/2,H/2);c.restore();}
+  finally{MP3.SHIFT=sv;}};
+// 실측 — 페이지가 스스로 잰다(기존 mapMeter 를 그대로 쓴다).
+// **여기는 액자를 안 쓴다.** 웅덩이 위에 올려놓고 재면 수치가 유리하게 나온다 —
+// 예산은 실제로 도는 화면에서 재야 한다.
+MP3.meter=function mp3_meter(c,t,dt,W,H,st){
+  MAPP.bg.hollow(c,t,W,H);mapMeter(c,t,W,H,st);};
+
+MP3.W=980;MP3.H=548;MP3.S=302;
+mapTile("p3",MP3.demo(0,0),"P3 · 동공 洞空 — 배경만",
+  "깨진 천장에서 내려온 빛이 바닥에 웅덩이를 만든다 — 화면당 열 개 남짓. 밖은 거의 검다(L .0184). 낙석·종유석 그림자는 웅덩이 안에서만 형태가 있다.",
+  MP3.W,MP3.H,1);
+mapTile("p3",MP3.demo(1,1),"P3 · 동공 + 파문 + 미니맵",
+  "웅덩이 중심 L .1466 vs 파문 바깥층 .181 — 제일 어두운 이펙트 층조차 제일 밝은 배경보다 밝다(1.23배).",
+  MP3.W,MP3.H,1);
+mapTile("p3",MP3.zoom,"웅덩이 확대 · 2배",
+  "낙석 그림자가 <b>중심에서 바깥으로</b> 뻗는다 — 광원이 구멍 하나라는 것을 그림자 방향이 말한다.",
+  MP3.S,MP3.S);
+mapTile("p-bg",MP3.demo(0,0,1),"P3 · 동공 洞空",
+  "<b>국소 조명</b>. 위치감을 지형이 아니라 조명이 준다 — 웅덩이를 지날 때마다 하나씩 세어진다. 302px 칸의 액자는 <b>전체 화면과 같은 밝기가 나오는 자리</b>로 골랐다(중간 톤 23.7% vs 20.7%).",
+  MP3.S,MP3.S);
+mapTile("p-proof",MP3.demo(1,0,1),"P3 · 동공 위에서",
+  "같은 파문, 같은 시각. 웅덩이 <b>안에서도</b> 고리가 안 묻힌다(.181 vs .1466).",
+  MP3.S,MP3.S);
+mapTile("p-mini",MP3.demo(0,1,1),"P3 · 동공 + 미니맵",
+  "미니맵은 적 밀도 한 겹. 바닥이 어두우니 판(rgba(4,5,8,.78))이 오히려 지면보다 밝다.",
+  MP3.S,MP3.S);
+mapTile("p-num",MP3.meter,"P3 · 동공 실측 460×258",
+  "개정 예산: <b>중간 톤(.05~.15) 15~30%</b> · 넓은 면적 평균 L ≤ .075 · 면적 봉우리 ≤ .17 · L&gt;.35 ≤ 0.5%.",460,258);
+
+
+// ══ U1 「암류 暗流」 — 여덟 안 중 **빼기로 그리는** 하나 ═══════════════════
+//
+// 다른 일곱은 전부 **더해서** 화려해진다(점·면·선·파편·커튼·왜곡·껍질).
+// 이 안만 **가려서** 화려해진다: 밝은 은하수 띠를 한 줄 깔고, 그 위에 캔버스
+// 바탕(#0C0C12)보다 **더 검은** 구름(#05060B)을 얹어 별을 지운다. 말머리성운·
+// 석탄자루가 그것이다 — 하늘에서 제일 눈에 띄는 형태인데 **제 빛이 하나도 없다.**
+//
+// ── 전제 하나가 이 안의 목숨이다 ─────────────────────────────────────────
+// 앞 손이 실측한 규칙: **가리는 층은 가릴 밝은 것이 있어야 보인다.**
+// A안에서 근층 차폐를 알파 .8 · 16px 까지 올려도 통계가 .0539 → .0539 로
+// 안 움직였다(빈 우주라 물어뜯을 것이 없었다). 그래서 이 안은 순서가 거꾸로다 —
+// **먼저 가릴 것을 만들고**(띠 + 별밭), 그 다음에 가린다.
+//
+// 그런데 「가릴 밝은 것」을 넓고 밝게 만들면 그 순간 밝기 예산이 깨진다.
+// 답은 **면적과 밝기를 맞바꾸는 것**이다:
+//   · 띠의 **몸**은 넓지만 아주 어둡다(합성 L .064~.094, 상한 .12 아래이고
+//     제일 밝은 심조차 적의 몸 .102 보다 어둡다)
+//   · 띠의 **별**은 밝지만 1~1.4px 점이다(면적으로 갚는다)
+// 가려서 사라지는 신호는 「어두워졌다」가 아니라 **「별이 지워졌다」**라,
+// 실제로 눈에 보이는 일을 하는 것은 넓은 몸이 아니라 작은 점 쪽이다.
+// 그래서 이 안은 별에 예산을 몰아 쓴다 — L>.12 화소의 대부분이 별이다.
+//
+// ── 이 안만 **바탕을 실제로 칠한다** ─────────────────────────────────────
+// 다른 안은 캔버스를 투명하게 두고 CSS 바탕(#0C0C12)에 얹는다. 이 안은 그럴 수
+// 없다 — **「없음」보다 어두운 것은 그릴 수가 없기 때문이다.** 빈 우주를 실제
+// 화소로 깔아야 그보다 어두운 구름이 존재할 자리가 생긴다.
+// 부수 효과가 하나 있고 그게 오히려 이 안의 증거다: `mapMeter` 의 getImageData
+// 는 알파를 무시하고 RGB 만 읽으므로, 투명 위에 그린 안은 **실제 화면보다 낮게**
+// 측정된다(투명 = L 0). 이 안은 바탕이 불투명하니 미터가 **눈에 보이는 값 그대로**
+// 를 잰다. 빈 캔버스 자체의 값이 기준선이다: #0C0C12 → **L .0497**.
+// 즉 이 안의 합격선은 「.06 이하」가 아니라 **「.0497 언저리」**다.
+//
+// ── 금지 둘, 지켰다 ──────────────────────────────────────────────────────
+// · **흰 앞날 없음.** 아래 mu1Dust 3단의 최댓값이 L .116 으로, 무기 바깥층
+//   최솟값(.133)보다도 어둡다. 배경의 「앞날」이 이펙트의 「바탕」보다 어둡다.
+// · **가산 합성 없음.** `lighter` 를 한 번도 안 쓴다. 이 안에서 제일 어두운
+//   층은 알파 합성만으로 바탕 **아래로** 내려가야 하는데, 가산이 끼면 원리적으로
+//   내려갈 수가 없다 — 이 안은 가산을 못 쓰는 게 아니라 **쓰면 성립을 안 한다.**
+//
+// ── 색상각 ───────────────────────────────────────────────────────────────
+// 주 색상각 **243°**(청보라), 채도 .39~.43. 속성 팔레트와의 거리는 mu1Dust 주석.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// 프레임당 도는 것은 **화면에 걸친 것만**이다(scatter 는 화면 넓이에만 비례).
+// 실측치는 아래 「검증」에 적었다. 큰 것은 전부 깊이 .18 에 있어 초당 15px 로
+// 흐른다 — 500마리가 도는 화면에서 배경이 시선을 안 뺏는 속도다.
+
+// 은하수 먼지 3단. 셋 다 L ≤ .116 이라 **어떤 층을 써도 예산이 안 깨진다.**
+// 색상각 243°(청보라) 를 고른 이유는 「예뻐서」가 아니라 **속성 팔레트의 빈칸**
+// 이라서다. 속성·무기·마법 54벌의 색상각을 전부 재서 제일 넓은 빈 구간 둘
+// (226°~259° · 290°~323°) 중 앞을 골랐다. 최근접 거리:
+//   자 磁 magnet 226° … **17°**   |  뇌광 mArc 259° … **16°**
+//   방어 gMirror 222° … 21°       |  파문 mPulse 211° … 32°
+//   빙 frost 199° … 44°           |  어둠 shade 273° … 30°
+//   (무속성 gold 240° 는 3° 지만 채도 .09 의 **회백**이라 색상각이 없다시피 하다)
+// 17° 는 사고 전례(독 130° vs 이끼 162° = 32°)보다 가깝다. 그런데도 안전한
+// 이유는 **명도가 갈라 주기 때문**이다: 이 띠의 제일 밝은 곳이 합성 L .094 인데
+// magnet 가운데층은 .550 — **5.9배**다. 이건 이 레포가 이미 확정한 판정이기도
+// 하다(B안 증거 칸: 「성운과 같은 청색 계열인데도 갈린다. 갈리는 것은 색이
+// 아니라 명도다」). 색상각이 아니라 **채도를 낮게** 두는 것이 진짜 방어다.
+//
+// ⚠️ **여기서 한 번 헛돌았다(2026-08-11 5회차).** 처음엔 #0E0E17/#151421/#1C1B2F
+// (L .058/.085/.116) 로 뒀는데, 제일 어두운 단이 바탕 #0C0C12 와 **RGB 로 2단계**
+// 차이였다. 그 위에서는 알파를 .36 → .52 로 올려도 8비트 반올림이 차이를 먹어
+// 합성 결과가 L .0540 → .0546 으로 **안 움직였다**(실측). 배경처럼 값이 촘촘한
+// 구간에서는 **알파가 아니라 색 자체를 올려야** 한다 — 알파는 이미 바닥과
+// 붙어 있는 두 색 사이를 오갈 뿐이다.
+TONE.mu1Dust=["#131320","#181728","#1E1C31"];  // L .078 / .099 / .122 · H 245/244/246° · S .42/.43/.43
+
+const MU1ANG=-.34, MU1CA=Math.cos(MU1ANG), MU1SA=Math.sin(MU1ANG);
+const MU1HW=104;     // 띠 자락의 반폭(월드px). 화면 세로의 ~48% 를 덮는 값이다
+const MU1DEP=.18;    // 띠 · 띠별 · 암흑 성운이 **같이** 사는 깊이
+const MU1MDEP=.34;   // 흐르는 구름 — 띠 위를 쓸고 지나간다
+const MU1NDEP=1.30;  // 근접 암류 — 카메라 코앞
+
+/// 띠 중심선의 굽이. 두 겹을 더한다 — 한 겹이면 사인파가 눈에 읽혀 「그래프」가
+/// 되고, 안 더하면 곧은 **막대**가 된다.
+const MU1wob=(u)=>Math.sin(u*.00108)*64+Math.sin(u*.0031+1.7)*23;
+/// 띠 중심선에서의 수직 거리.
+function MU1v(x,y){
+  return -MU1SA*x+MU1CA*y-MU1wob(MU1CA*x+MU1SA*y);
+}
+/// 띠에서 **확실히** 먼가? — 굽이의 진폭이 64+23=87 로 묶여 있으니 그만큼만
+/// 여유를 두면 sin 두 번(MU1wob)을 안 부르고 버릴 수 있다. 별밭은 칸이 13px 라
+/// 화면당 3천 칸을 도는데, 980×430 에서 그 절반이 여기서 걸린다.
+const MU1far=(x,y,hw)=>Math.abs(-MU1SA*x+MU1CA*y)>(hw||MU1HW)+88;
+/// 띠 밀도 0~1. 가장자리를 smoothstep 으로 눕혀 **띠의 테두리 선**이 안 생기게 한다.
+function MU1g(x,y,hw){
+  const q=1-Math.abs(MU1v(x,y))/(hw||MU1HW);
+  return q<=0?0:q>=1?1:q*q*(3-2*q);
+}
+/// 띠 중심선을 화면 좌표 폴리라인으로.
+///   [off] 수직 치우침 · [ext] 이 선만의 큰 굽이 · [hi] 이 선만의 **잔물결**
+/// 셋 다 **겹치는 리본마다 다른 값**을 줘야 한다. 같은 선을 폭만 줄여 겹치면
+/// 테두리가 정확히 평행해져 동심 줄무늬(마하 밴딩)가 보인다.
+///
+/// ⚠️ [hi] 가 빠졌던 5회차 렌더에서 띠가 **겹쳐 놓은 반투명 띠지**로 보였다.
+/// ribbonPoly 의 테두리는 표본 사이가 직선이라, 굽이가 완만하면 100px 넘는
+/// **곧은 변**이 그대로 눈에 남는다. 파장 360px 짜리 잔물결을 얹고 표본을
+/// 34 → 64 로 올려 그 곧은 변을 없앤다(표본이 성기면 잔물결이 각으로 접힌다).
+///
+/// 표본 구간을 화면보다 훨씬 길게 잡는 이유: ribbonPoly 는 양 끝을 0 으로 좁히는
+/// 종형이라, 짧게 자르면 화면 좌우에서 띠가 **뾰족하게 오므라든다**. 길게 잡으면
+/// 화면은 항상 종형의 평평한 가운데다.
+function MU1spine(cx,cy,W,H,off,ext,hi){
+  const u0=MU1CA*cx+MU1SA*cy, L=(W+H)*1.35, p=[];
+  for(let i=0;i<=64;i++){
+    const u=u0-L+2*L*i/64;
+    const v=MU1wob(u)+(off||0)+(ext?Math.sin(u*.0052+2.6)*ext:0)
+      +(hi?Math.sin(u*.0174+off*.41)*hi+Math.sin(u*.0091+ext*.7)*hi*.7:0);
+    p.push([MU1CA*u-MU1SA*v-cx+W/2, MU1SA*u+MU1CA*v-cy+H/2]);
+  }
+  return p;
+}
+
+/// 암흑 구름 하나 — **이 안에서 유일하게 「그리는」 것**이고, 그리는 색이
+/// 바탕보다 어둡다.
+///
+/// ⚠️ 두 번 반려되고 세 번째다(2026-08-11 렌더 판정). 버린 것과 이유:
+///   ① **동심 puffPoly 셋** → 브로콜리. 둥근 돌기가 규칙적으로 둘러서
+///      「뭉게구름 도장」이 된다. 중심을 어긋내도 돌기의 규칙성이 그대로 남았다.
+///   ② **가는 촉수** → 거미 다리. 곤충 다리로 보였다.
+/// 답은 도형을 바꾸는 것이었다: **puffPoly 를 버리고 jagPoly 로 간다.**
+/// 이 레포의 문법은 「뾰족한 윤곽」이고, puffPoly 는 그 문법이 아니라 **폭발의
+/// 문법**(cauliflower)이다. 배경에 쓰면 정확히 폭발처럼 보인다.
+///
+/// 지금 구조 — 셋 다 각진 다각형뿐이고 후광(radial gradient)이 **한 장도 없다**:
+///   ① 자락    jagPoly 한 장, 크고 옅다(.18). 가시가 곧 성운의 가닥
+///   ② 덩이 3~5 jagPoly 를 **한 축을 따라 꿴다.** 암흑 성운은 은하면을 따라
+///             길게 눕는다 — 둥근 한 덩이는 성운이 아니라 얼룩이다.
+///             겹치는 만큼 알파가 쌓여 **안쪽이 저절로 짙어진다**(어둠의 3단을
+///             층으로 칠하는 대신 **겹침으로** 만든다)
+///   ③ 갈기    ribbonPoly 한 자락, 밑동이 굵고(rr*.5) 짧다. 말머리성운의 그것
+/// 눕는 방향은 회전으로 준다 — squash 는 화면 축에만 걸려 전부 같은 쪽으로
+/// 납작해진다(2회차 실패 원인).
+function MU1cloud(c,x,y,rr,sd,op){
+  if(!(rr>0)||!(op>.02))return;
+  c.save();c.translate(x,y);c.rotate(hash(sd*2.7)*TAU);
+  c.scale(1,.44+hash(sd+1.1)*.36);
+  fillPoly(c,jagPoly(0,0,rr*1.24,12,sd+9.3,1.3,1),A(MAPINK.ink,.18*op));
+  const K=3+Math.floor(hash(sd*4.3)*3);
+  for(let k=0;k<K;k++){
+    const u=K>1?(k/(K-1)-.5)*2:0;
+    const R=rr*(.50+.44*(1-Math.abs(u)*.7))*(.72+hash(sd+k*6.1)*.55);
+    fillPoly(c,jagPoly(u*rr*1.1,(hash(sd+k*2.9)-.5)*rr*.5,R,
+      8+Math.floor(hash(sd+k)*5),sd+k*3.7,1.14,1),A(MAPINK.ink,(k?.40:.50)*op));
+  }
+  if(hash(sd*7.3)>.45){
+    const a0=(hash(sd+1.7)-.5)*1.1, ln=rr*(1.1+hash(sd+5.9)*.9), q=[];
+    for(let s=0;s<=4;s++){const u=s/4, a=a0+(hash(sd+s*1.7)-.5)*.9*u;
+      q.push([Math.cos(a)*ln*u*(hash(sd*3.1)>.5?1:-1), Math.sin(a)*ln*u]);}
+    fillPoly(c,ribbonPoly(q,rr*.50,rr*.05),A(MAPINK.ink,.44*op));
+  }
+  c.restore();
+}
+
+/// [dark]=0 이면 **가리는 층을 통째로 끈다.** 시안의 대조군이자 이 안의
+/// 주장(「더할수록 어두워진다」)을 숫자로 세우는 장치다 — 같은 프레임을 두 번
+/// 그려 평균 L 을 비교하면 부호가 바로 나온다.
+function MU1draw(c,t,W,H,dark){
+  const p=mapCam(t);
+  // ① 빈 우주를 **실제로 칠한다.** 이 한 줄이 이 안의 전제다(위 주석 참조).
+  //    시안 페이지의 프레임 루프도 매 프레임 같은 색으로 칸을 지우지만, 거기에
+  //    기대면 안 된다 — 로비(LOBBYBG)·게임 캔버스처럼 **안 지우는 host** 에
+  //    꽂히는 순간 구름이 그릴 바탕을 잃는다. 이 안의 전제는 host 가 아니라
+  //    자기가 지킨다.
+  c.fillStyle=MAPINK.base;c.fillRect(0,0,W,H);
+  // ② 전천 잔별 — 깊이 .07. 띠 밖이 완전히 비면 띠가 **벽지**로 보인다.
+  const fx=p[0]*.07, fy=p[1]*.07;
+  scatter(fx,fy,W,H,26,1,(x,y,i,j,r)=>{
+    if(r>.44)return;
+    mapStar(c,x,y,r<.04?1.05:.70,r<.04?MAPINK.starM:MAPINK.starD,.22+.40*r);});
+  const bx=p[0]*MU1DEP, by=p[1]*MU1DEP, T=TONE.mu1Dust;
+  // ③ 띠의 몸 — 리본 넷. **한 줄이다.** 넓히면 이 안이 통째로 실패한다.
+  //    폭을 4단으로 좁히며 톤을 올려 3단 계조를 **띠의 단면**에 재배치한다
+  //    (성운 몸통에서 배운 것과 같은 수법: 어두운 층을 바깥에 둔다).
+  //    넷의 치우침·굽이를 전부 다르게 줘 동심 줄무늬를 없앤다.
+  //    ⚠️ 제일 바깥 리본은 **자락 폭(MU1HW)까지 안 채운다.** 리본의 테두리는
+  //    수학적으로 곧아서, 화면 끝까지 곧은 선이 지나가면 **띠가 아니라 경사면**
+  //    으로 보인다(3회차 렌더에서 오른쪽 위가 정확히 그랬다). 바깥 경계는 ④ 의
+  //    각진 조각들이 만들게 두고, 리본은 그 안쪽만 채운다.
+  fillPoly(c,ribbonPoly(MU1spine(bx,by,W,H,  9,21,17),MU1HW*.84,MU1HW*.84),A(T[0],.48));
+  fillPoly(c,ribbonPoly(MU1spine(bx,by,W,H,-11,15,13),MU1HW*.62,MU1HW*.62),A(T[0],.45));
+  fillPoly(c,ribbonPoly(MU1spine(bx,by,W,H,  7,27,10),MU1HW*.38,MU1HW*.38),A(T[1],.45));
+  fillPoly(c,ribbonPoly(MU1spine(bx,by,W,H,-15,19, 7),MU1HW*.17,MU1HW*.17),A(T[2],.26));
+  // ④ 띠 뭉치 — 리본의 **곧은 가장자리를 부순다.** 낮은 알파의 각진 조각을
+  //    겹치면 후광 없이도 자락이 너덜너덜해진다(가우시안 금지의 대안).
+  //    ⚠️ puffPoly 로 뒀다가 **밝은 팝콘**이 됐다(2026-08-11 3회차 렌더).
+  //    이 안에서 puffPoly 는 전면 금지다 — 폭발의 문법이라 배경에서 튄다.
+  scatter(bx,by,W,H,118,1,(x,y,i,j,r)=>{
+    if(r>.74||MU1far(x+bx-W/2,y+by-H/2,MU1HW*1.55))return;
+    const g=MU1g(x+bx-W/2,y+by-H/2,MU1HW*1.55); if(g<=0)return;
+    // ⚠️ 꼭짓점이 적으면(9~13) 큰 조각이 **유리 파편**으로 보인다(5회차).
+    //    14~22 로 올리면 각은 남는데 조각으로는 안 읽힌다.
+    fillPoly(c,jagPoly(x,y,34+h2(i,j,51)*54,14+Math.floor(h2(i,j,52)*9),
+      i*4.1+j*7.7,1.20,.52+h2(i,j,53)*.56),A(h2(i,j,54)<.32?T[1]:T[0],.14+.20*g));});
+  // ⑤ 띠의 별밭 — **가릴 것.** 세 크기로 나눈 이유는 깊이가 아니라 **예산**이다:
+  //    수는 제일 어두운 것(starD)이 지고, 밝은 것(starX)은 개수로만 준다.
+  //    L>.12 화소의 대부분이 여기서 나오고, 그 대신 면적이 1% 안쪽이다.
+  //    밀도를 **뭉치게** 한다: 칸 번호를 32칸(≈384px)씩 묶어 한 번 더 해시하면
+  //    별밭에 성단·암흑 틈이 생긴다. 고르게 뿌리면 은하수가 아니라 **모래종이**다.
+  //    비트 시프트라 해시 한 번 값이고, 칸이 무한하니 이음매도 그대로 없다.
+  scatter(bx,by,W,H,13,1,(x,y,i,j,r)=>{
+    const wx=x+bx-W/2, wy=y+by-H/2; if(MU1far(wx,wy))return;
+    const g=MU1g(wx,wy);
+    if(g<=0||r>(.07+1.02*g)*(.42+.78*h2(i>>5,j>>5,70)))return;
+    mapStar(c,x,y,.55+.40*h2(i,j,58),MAPINK.starD,(.40+.56*h2(i,j,59))*(.36+.64*g));});
+  scatter(bx,by,W,H,32,1,(x,y,i,j,r)=>{
+    const wx=x+bx-W/2, wy=y+by-H/2; if(MU1far(wx,wy))return;
+    const g=MU1g(wx,wy);
+    if(g<=0||r>(.11+.60*g)*(.5+.7*h2(i>>3,j>>3,71)))return;
+    mapStar(c,x,y,.84+.42*h2(i,j,60),MAPINK.starM,(.54+.44*h2(i,j,61))*(.34+.66*g));});
+  scatter(bx,by,W,H,124,1,(x,y,i,j,r)=>{
+    const g=MU1far(x+bx-W/2,y+by-H/2)?0:MU1g(x+bx-W/2,y+by-H/2);
+    if(r>.09+.34*g)return;
+    mapStar(c,x,y,.95+.38*h2(i,j,62),g>.45?MAPINK.starX:MAPINK.starL,.60+.34*h2(i,j,63));});
+  // ══ 여기 위는 전부 **더하는 층**, 아래는 전부 **빼는 층** ══════════════
+  // [dark]=0 은 아래를 통째로 끈다. 두 그림의 평균 L 차이가 곧 이 안의 주장이다.
+  // ⚠️ 처음엔 대열구·먹구름이 이 선 **위**에 있었다(2026-08-11 6회차). 둘 다
+  //    잉크(#05060B)를 쓰는 **빼는 층**인데 대조군에 섞여 있어, 대조군이 이미
+  //    빼기를 한 그림이었다 — 차이가 실제보다 작게 나온다. 선 아래로 내렸다.
+  //    덤이 하나 붙었다: 대열구가 **별 뒤가 아니라 앞**으로 와, 이제 먼지 띠가
+  //    실제로 별을 지운다(전에는 별이 먼지를 뚫고 나왔다 — 물리도 틀렸다).
+  if(!dark)return;
+  // ⑥ 대열구 大裂溝 — **은하수를 은하수로 만드는 것은 밝은 몸이 아니라, 그 몸을
+  //    세로로 가르는 검은 균열이다**(실제 은하수의 Great Rift). 이 안에서 제일
+  //    값싼 빼기이고, 띠를 「그라디언트 막대」가 아니라 은하수로 만드는 두 줄이다.
+  //    ✗ 첫 렌더에서 띠가 **매끈한 경사 막대**로 보인 것을 이게 고쳤다.
+  //    ⚠️ 가는 줄은 **긁힘**으로 보인다(3회차 렌더). 둘 다 넓히고 알파를 낮춘다 —
+  //    「선」이 아니라 「먼지 띠」로 읽혀야 한다.
+  fillPoly(c,ribbonPoly(MU1spine(bx,by,W,H,-13,29,12),MU1HW*.34,MU1HW*.34),A(MAPINK.ink,.34));
+  fillPoly(c,ribbonPoly(MU1spine(bx,by,W,H, 29,17, 9),MU1HW*.20,MU1HW*.20),A(MAPINK.ink,.24));
+  // ⑦ 자락을 갉는 먹구름 — **띠의 가장자리에서만** 돈다(g 가 0.74 아래인 곳).
+  //    가장자리를 안에서 밖으로 갉아야 띠의 윤곽이 직선을 벗어난다.
+  scatter(bx,by,W,H,92,1,(x,y,i,j,r)=>{
+    if(r>.52||MU1far(x+bx-W/2,y+by-H/2,MU1HW*1.3))return;
+    const g=MU1g(x+bx-W/2,y+by-H/2,MU1HW*1.3); if(g<=0||g>.74)return;
+    fillPoly(c,jagPoly(x,y,17+h2(i,j,55)*26,11+Math.floor(h2(i,j,56)*8),
+      i*2.3+j*5.1,1.24,.46+h2(i,j,57)*.72),A(MAPINK.ink,.28));});
+  // ⑧ 암흑 성운 — **띠와 같은 깊이(.18)에 둔다.** 물리로도 맞고(암흑 성운은
+  //    은하면 안에 있다) 구조로도 필요하다: 깊이가 다르면 두 띠가 초 단위로
+  //    어긋나 몇 분 뒤엔 구름이 **빈 하늘 위**에 서고, 그 순간 이 안은 아무
+  //    일도 안 하는 안이 된다(A안이 정확히 그렇게 실패했다).
+  //    가릴 것에 **못을 박아 두는 것**이 이 안의 설계다.
+  //    ⚠️ 문턱에 바닥값을 두면 안 된다 — 첫 렌더에서 `r>.14+.56*g` 로 뒀다가
+  //    g=0(띠 밖)에서도 14% 가 통과해 **빈 하늘에 검은 물방울무늬**가 깔렸다.
+  scatter(bx,by,W,H,146,2,(x,y,i,j,r)=>{
+    if(MU1far(x+bx-W/2,y+by-H/2,MU1HW*1.45))return;
+    const g=MU1g(x+bx-W/2,y+by-H/2,MU1HW*1.45);
+    if(g<=0||r>.94*g)return;
+    MU1cloud(c,x,y,20+h2(i,j,64)*46,i*3.7+j*9.1,.58+.42*g);});
+  // ⑨ 흐르는 구름 — 깊이 .34. **존재는 월드에 못 박고, 진하기만 띠에 묶는다.**
+  //    존재를 화면 위치로 가르면 흘러 들어올 때 툭 튀어나온다(칸 판정이 화면에
+  //    걸리므로). 진하기로 묶으면 띠에 들어서며 짙어지고 나가며 스러진다 —
+  //    이 안이 바라던 리듬(「무언가가 띠 위로 미끄러져 들어왔다 나간다」)이
+  //    공짜로 나오고, 깊이가 달라 생기는 어긋남도 **알파가 흡수한다.**
+  const mx=p[0]*MU1MDEP, my=p[1]*MU1MDEP;
+  scatter(mx,my,W,H,150,1,(x,y,i,j,r)=>{
+    if(r>.54||MU1far(x+bx-W/2,y+by-H/2,MU1HW*1.5))return;
+    const g=MU1g(x+bx-W/2,y+by-H/2,MU1HW*1.5);
+    if(g<=.03)return;
+    MU1cloud(c,x,y,11+h2(i,j,65)*23,i*8.3+j*2.9,.34+.66*g);});
+  // ⑩ 근접 암류 — 깊이 1.3. **월드보다 빨리** 흐르는 검은 줄기다.
+  //    A안에서 이 층은 「그냥 비용」이었다(빈 우주라 가릴 것이 없었다). 여기서는
+  //    지나가는 자리에 항상 별밭이 있어 **별이 줄줄이 지워진다** — 같은 코드가
+  //    바탕이 달라 일을 한다. 이 안의 이름이 여기서 나온다.
+  //    진하기를 띠에 묶는 이유는 ⑨ 와 같다: 띠 밖에서는 어차피 안 보이는데
+  //    그리면 **검은 얼룩**만 남는다.
+  const nx=p[0]*MU1NDEP, ny=p[1]*MU1NDEP;
+  const q0=mapCam(t), q1=mapCam(t-.05);
+  const vx=(q0[0]-q1[0])/.05, vy=(q0[1]-q1[1])/.05, spd=Math.hypot(vx,vy)||1;
+  scatter(nx,ny,W,H,124,1,(x,y,i,j,r)=>{
+    if(r>.46||MU1far(x+bx-W/2,y+by-H/2,MU1HW*1.35))return;
+    const g=MU1g(x+bx-W/2,y+by-H/2,MU1HW*1.35);
+    if(g<=.04)return;
+    const rr=4.5+h2(i,j,66)*9, ln=Math.min(48,spd*MU1NDEP*.075);
+    fillPoly(c,ribbonPoly([[x,y],[x-vx/spd*ln*.5,y-vy/spd*ln*.5],[x-vx/spd*ln,y-vy/spd*ln]],
+      rr,rr*.16),A(MAPINK.ink,.34+.60*g));});
+}
+
+/// 명도 분포 한 번. 바탕이 불투명하므로 **보이는 값 그대로**다.
+function MU1meas(c){
+  const cv=c.canvas,w=cv.width|0,h=cv.height|0;
+  let d=null;try{d=c.getImageData(0,0,w,h).data;}catch(e){return null;}
+  if(!d||d.length<64)return null;
+  const n=d.length/4;let s=0,o12=0,o35=0,mx=0;
+  for(let i=0;i<d.length;i+=4){
+    const l=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)/255;
+    s+=l;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+  return{avg:s/n,p12:o12/n*100,p35:o35/n*100,mx:mx};
+}
+
+MAP.u1     =(c,t,dt,W,H,st)=>{MU1draw(c,t,W,H,1);mapMeter(c,t,W,H,st);};
+MAP.u1Bare =(c,t,dt,W,H,st)=>{MU1draw(c,t,W,H,0);mapMeter(c,t,W,H,st);};
+MAP.u1Pulse=(c,t,dt,W,H,st)=>{MU1draw(c,t,W,H,1);mapOver(c,t,dt,W,H,st,"pulse");};
+MAP.u1Mini =(c,t,dt,W,H,st)=>{MU1draw(c,t,W,H,1);mapOver(c,t,dt,W,H,st,"bolt");
+                              bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+
+// ── 배치 ─────────────────────────────────────────────────────────────────
+tile($("u-bg"),MAP,"u1","U1 · 암류 暗流","",
+  "밝은 띠 한 줄 위에 <b>바탕보다 검은</b> 구름. 여덟 중 유일하게 <b>빼서</b> 그린다",MAPS,MAPS);
+[["u1Bare","① 띠만 — 가릴 것","","<b>가리는 층을 끈 상태.</b> 은하수 한 줄 + 별밭. 여기까지는 여느 안처럼 <b>더하는</b> 그림이다"],
+ ["u1","② 암류 — 가린 뒤","","같은 프레임에 암흑 성운·흐르는 구름·근접 줄기를 얹었다. 형태는 늘었는데 <b>평균 L 은 내려간다</b>"]]
+  .forEach(a=>tile($("u1"),MAP,a[0],a[1],a[2],a[3],MAPS,MAPS));
+tile($("u1"),MAP,"u1","암류 — 실제 화면 비율(980×430)","",
+  "띠가 <b>화면을 가로지르는 한 줄</b>인지, 구름이 별을 실제로 먹는지는 이 비율에서만 판정된다",980,0,430);
+tile($("u-proof"),MAP,"u1Pulse","U1 · 암류 + 파문","",
+  "고리가 지나는 자리가 <b>띠 위</b>다 — 배경이 제일 밝은 곳에서 겨룬다",MAPS,MAPS);
+tile($("u-mini"),MAP,"u1Mini","U1 · 암류 + 미니맵","",
+  "배경이 어두워진 자리에서도 HUD 계조 2단이 그대로 읽히는가",MAPS,MAPS);
+
+/// 수치 칸 — **한 캔버스가 두 번 그린다.** 같은 t 에서 가리는 층을 켜고/끄고
+/// 재야 「더할수록 어두워진다」가 취향이 아니라 부호가 된다. 잰 뒤에는 켠
+/// 그림으로 되돌려 놓는다(칸에 보이는 것은 완성본이어야 한다).
+function MU1nums(host){
+  const wrap=document.createElement("div");
+  box(wrap,{display:"flex",flexWrap:"wrap",gap:"14px",alignItems:"flex-start",
+    margin:"12px 0 0",padding:"13px 15px",background:"#13131A",
+    border:"1px solid #26262F",borderRadius:"4px",maxWidth:"1000px"});
+  const cv=document.createElement("canvas");
+  box(cv,{width:"250px",height:"250px",display:"block",background:"#0C0C12",
+    border:"1px solid #26262F",borderRadius:"3px",flex:"0 0 250px"});
+  const txt=document.createElement("div");
+  box(txt,{flex:"1 1 320px",minWidth:"300px",fontSize:"12px",color:"#9494A2",lineHeight:"1.75"});
+  txt.innerHTML='<b style="color:#EDEDF2">U1 암류</b> — 재는 중…';
+  wrap.appendChild(cv);wrap.appendChild(txt);host.appendChild(wrap);
+  mk(cv,[250,250],(c,t,dt,W,H,st)=>{
+    MU1draw(c,t,W,H,1);
+    // ⚠️ **시각(t)이 아니라 그린 횟수로 잰다.** mapMeter 는 t>.9 를 기다리는데,
+    // 그건 입자가 자리를 잡아야 하는 이펙트 칸의 사정이다. 이 배경은 t 하나로
+    // 결정되므로 기다릴 것이 없고, 기다리면 오히려 **못 재는 일이 생긴다** —
+    // 아홉 안이 다 붙은 페이지는 칸이 수백 개라 이 칸이 t>.9 에 닿기 전에
+    // 렌더가 끝나 「재는 중…」으로 굳었다(2026-08-11 실제 발생, 재현 반반).
+    st.f=(st.f||0)+1;
+    if(st.mu1||st.f<2)return;
+    const on=MU1meas(c);
+    c.clearRect(0,0,W,H);MU1draw(c,t,W,H,0);
+    const off=MU1meas(c);
+    c.clearRect(0,0,W,H);MU1draw(c,t,W,H,1);
+    if(!on||!off)return;
+    st.mu1=1;
+    const f=(v,n)=>v.toFixed(n===undefined?3:n), d=on.avg-off.avg, base=.0497;
+    const ok=(b)=>b?'<b style="color:#8FD9A0">지킴</b>':'<b style="color:#FF7A6A">못 지킴</b>';
+    txt.innerHTML=
+      '<b style="color:#EDEDF2">U1 암류 暗流</b> — 250×250 을 <code style="color:#FFD27A">getImageData</code> 로 직접 잼<br>'+
+      '<span style="color:#5A5A68">기준선 · 빈 캔버스 #0C0C12 = L '+f(base)+' (이 안은 바탕을 실제로 칠한다)</span><br>'+
+      '① 띠만(가리는 층 끔) &nbsp;평균 L <b style="color:#EDEDF2">'+f(off.avg)+'</b>'+
+      ' &nbsp;L&gt;.12 '+f(off.p12,2)+'% &nbsp;L&gt;.35 '+f(off.p35,2)+'%<br>'+
+      '② 암류(가리는 층 켬) &nbsp;평균 L <b style="color:#EDEDF2">'+f(on.avg)+'</b>'+
+      ' &nbsp;L&gt;.12 '+f(on.p12,2)+'% &nbsp;L&gt;.35 '+f(on.p35,2)+'%'+
+      ' &nbsp;최대 '+f(on.mx,2)+'<br>'+
+      '<b style="color:'+(d<0?'#8FD9A0':'#FF7A6A')+'">② − ① = '+(d<0?'':'+')+f(d,4)+'</b>'+
+      ' — 형태를 더했는데 밝기는 '+(d<0?'<b style="color:#EDEDF2">내려간다</b>':'올라간다')+
+      '<br><span style="color:#5A5A68">예산 · 평균 ≤ .06 '+ok(on.avg<=.06)+
+      ' &nbsp;L&gt;.12 ≤ 1% '+ok(on.p12<=1)+
+      ' &nbsp;L&gt;.35 ≤ 0.5% '+ok(on.p35<=.5)+'</span>';
+  });
+}
+MU1nums($("u-num"));
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 로비 2차 3안 — 「여기서 무엇을 하는 곳인가」  mockup-lobby.html · 접두 LB2
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 기존 3안(제단·패·성도)은 **무엇이 주인공인가**로 갈랐다 — 캐릭터 / 덱 / 지도.
+// 그 축을 더 파면 넷째도 「무엇이 큰가」가 되어 결국 같은 화면이 된다. 그래서
+// 축을 바꾼다: **여기서 무엇을 하는 장소인가.**
+//   L1 격납 格納       — 정비하는 곳. 덱·성좌·항로가 **점검표**로 서고 상태를 갖는다.
+//   L2 항해일지 航海日誌 — 돌아온 곳. 기록이 먼저 말을 걸고 출격은 그 아래다.
+//   L3 관측소 觀測所    — 내다보는 곳. 배경이 그림이 아니라 **맵 그 자체**이고
+//                        메뉴가 창틀에 붙는다. 로비와 맵이 한 장면이 된다.
+//
+// ── 물려받는 계약 (기존 로비 시안이 세운 것) ──────────────────────────────
+//   ① 로비는 **UI 다.** 배치·위계는 인라인 스타일, 캔버스는 배경·몸·문양에만.
+//   ② 몸과 문양은 **기존 함수**만 부른다 — `hero` / `lobbyDeck` / `stConDraw` /
+//      `celSplash` / `celHoop` / `jagPoly` / `lbText` / `LBFONT`. 로비에서 새로
+//      그리면 게임과 **다른 캐릭터**가 되고, 시안이 두 벌이 되는 순간 어느 쪽이
+//      진짜인지 아무도 모르게 된다. **새 원시함수 0개.**
+//   ③ 로비는 **배경을 모른다.** `LOBBYBG` 에 등록된 것을 **키로 부르기만** 한다.
+//      ⚠️ 여기서 `LOBBYBG` 를 **선언하지 않는다** — 중복 선언은 파일 전체를
+//      SyntaxError 로 죽인다.
+//   ④ 엄지 존 — 주 버튼은 아래 38% 안. 파괴적인 것(새로하기)은 작은 글씨 + 확인.
+//   ⑤ **화면당 주 버튼 하나.** 진행 중인 판이 있으면 버튼을 늘리지 말고
+//      **라벨만** 바꾼다(「이어하기」). New Game 을 위에 두면 세이브를 덮어쓴다.
+//   ⑥ 덱은 로비에서 **고르는 게 아니라 확인하는** 것. ⑦ 하단 탭바 금지.
+//
+// ── 셋이 한 문법인 이유는 부품이 한 벌이라서다 ────────────────────────────
+// 나란히 놓고 비교할 화면이라, 셋의 글꼴·간격·색이 제각각이면 「무엇이 다른가」가
+// 아니라 「무엇이 덜 다듬어졌나」가 보인다. 그래서 프레임·시스템줄·상단칩·주
+// 버튼·홈 인디케이터를 **아래 한 벌에서만** 만든다. 안마다 다른 것은 **가운데
+// 층 하나**뿐이다 — 점검표 / 일지 / 창.
+//
+// ── 새 색을 하나도 안 만든다 ──────────────────────────────────────────────
+// 속성 팔레트와 색상각이 가까우면 실기에서 헷갈린다(독 130° ↔ 이끼 162° 전례).
+// 그래서 이 세 안은 **색을 하나도 새로 안 만든다.** 화면에서 넓은 면적으로 채도를
+// 가진 것은 기존 로비와 똑같이 **주 버튼의 금빛 하나뿐**이고, 상태는 색이 아니라
+// **형태와 밝기**로 말한다 — 채워진 마름모 = 준비됨, 빈 윤곽 = 아직, 짧은 줄 = 잠김.
+// 「미비」를 주황으로 칠하면 색이 있는 것이 둘이 되어 위계가 흔들리고, 게다가 그
+// 주황(#FF8A3D · 24°)은 염 炎(#FF6A1E · 20°)과 **4° 차이**라 실기에서 속성
+// 표식으로 오독된다. 기존 로비가 잠긴 별을 「윤곽만」으로 그린 것과 같은 수법이다.
+
+// ── 공통 토큰 ─────────────────────────────────────────────────────────────
+const LB2T={ink:"#EDEDF2",dim:"#8B8B99",dim2:"#A6A6B4",faint:"#6E6E7C",
+  lock:"#5E5E6C",attn:"#E4E4EC",gold:"#FFD27A",goldInk:"#FFE9C6",
+  panel:"rgba(16,16,23,.62)",edge:"rgba(180,180,200,.16)",edge2:"rgba(180,180,200,.13)",
+  rule:"rgba(180,180,200,.09)"};
+// 뾰족한 윤곽 — 셀 문법을 UI 로 옮긴 것(기존 로비 `.cut` 과 같은 값).
+const LB2CUT="polygon(0 0,calc(100% - 11px) 0,100% 11px,100% 100%,11px 100%,0 calc(100% - 11px))";
+// scrim — 배경이 무엇으로 바뀌든 **글자 대비를 이 층이 보장한다.**
+const LB2SCRIM=
+  "linear-gradient(180deg,rgba(8,8,12,.86) 0%,rgba(8,8,12,.10) 26%,rgba(8,8,12,.10) 52%,rgba(8,8,12,.92) 88%),"+
+  "radial-gradient(120% 68% at 50% 46%,rgba(8,8,12,0) 40%,rgba(8,8,12,.72) 100%)";
+const LB2THUMB=[];   // 엄지 존 오버레이 — 진단용, 기본 꺼짐
+
+function LB2el(tag,css,html){const e=document.createElement(tag);
+  if(css)box(e,css);if(html!=null)e.innerHTML=html;return e;}
+
+// ── 배경 — 로비는 무엇이 오는지 모른다 ────────────────────────────────────
+// `LOBBYBG` 를 **선언하지 않고 읽기만** 한다. 안이 아는 것은 키 문자열 하나뿐이라,
+// 맵 담당이 무엇을 등록하든 이 아래 코드는 한 줄도 안 바뀐다.
+let LB2BGK="space";
+function LB2bgLive(c,t,dt,W,H,st){(LOBBYBG[LB2BGK]||LOBBYBG.none)(c,t,dt,W,H,st);}
+
+/// ⚠️ `celHoop` 은 안쪽 링을 `r-w*.22` 로 그린다 — 굵기를 반지름에 안 묶으면 그
+/// 값이 음수가 되어 브라우저가 `arc` 에서 던진다. **가짜 캔버스는 안 던져서
+/// 스모크를 통과한다**(두 팀이 독립적으로 다섯 번 밟았고 전부 브라우저에서만
+/// 났다). 전 호출부를 이걸로 통일한다: r 에 바닥을 주고 w 를 r*3 으로 묶으면
+/// `r-w*.22 ≥ 0.34r > 0` 이 취향이 아니라 **정리**가 된다.
+function LB2hoop(c,x,y,r,squash,rot,w,k,a){
+  const rr=Math.max(.8,r),ww=Math.max(.4,Math.min(w,rr*3));
+  celHoop(c,x,y,rr,squash,rot,ww,k,a);}
+
+// ── 폰 한 대 ──────────────────────────────────────────────────────────────
+// 프레임·노치·scrim·엄지 존·홈 인디케이터가 전부 여기서 나온다. 세 안이 한
+// 문법인 것은 취향이 아니라 **여기 한 곳에서만 만들기 때문**이다.
+function LB2phone(host,o){
+  const col=LB2el("div",{width:"392px",flex:"0 0 392px"});
+  const ph=LB2el("div",{width:"392px",padding:"14px",boxSizing:"border-box",
+    background:"#0E0E13",border:"1px solid #23232C",borderRadius:"44px",
+    boxShadow:"0 30px 80px -40px #000"});
+  const sc=LB2el("div",{position:"relative",width:"364px",height:"788px",
+    borderRadius:"31px",overflow:"hidden",background:"#08080C",isolation:"isolate"});
+  const bg=LB2el("canvas",{position:"absolute",inset:"0",width:"100%",height:"100%",
+    display:"block",zIndex:"0"});
+  sc.appendChild(bg);
+  if(o.scrim!==false)sc.appendChild(LB2el("div",{position:"absolute",inset:"0",zIndex:"1",
+    pointerEvents:"none",background:LB2SCRIM}));
+  if(o.deco)o.deco(sc);
+  sc.appendChild(LB2el("div",{position:"absolute",top:"9px",left:"50%",
+    transform:"translateX(-50%)",width:"104px",height:"24px",borderRadius:"99px",
+    background:"#08080C",zIndex:"6"}));
+  // 진단 라벨은 **왼쪽**에 둔다 — 오른쪽은 창의 이름표 자리라, 검증 오버레이가
+  // 검증 대상을 가려 버린다(기존 로비에서 실제로 그랬다).
+  const th=LB2el("div",{position:"absolute",left:"0",right:"0",bottom:"0",height:"38%",
+    zIndex:"5",display:"none",pointerEvents:"none",
+    background:"linear-gradient(180deg,rgba(124,255,176,0),rgba(124,255,176,.10))",
+    borderTop:"1px dashed rgba(124,255,176,.45)"},
+    `<div style="position:absolute;top:6px;left:9px;font-size:9px;letter-spacing:.12em;`+
+    `color:rgba(124,255,176,.9);background:rgba(6,10,8,.86);padding:2px 6px;`+
+    `border-radius:99px">엄지 존 · 아래 38%</div>`);
+  sc.appendChild(th);LB2THUMB.push(th);
+  const ui=LB2el("div",{position:"absolute",inset:"0",zIndex:"4",display:"flex",
+    flexDirection:"column",padding:o.pad==null?"14px 15px 12px":o.pad,color:LB2T.ink});
+  sc.appendChild(ui);ph.appendChild(sc);col.appendChild(ph);
+  col.appendChild(LB2el("div",{marginTop:"13px",padding:"0 5px"},
+    `<div style="font-size:13.5px;font-weight:600;color:#EDEDF2;letter-spacing:-.01em">${o.nm}</div>`+
+    `<div style="font-size:11px;color:#9494A2;line-height:1.5;margin-top:3px">${o.ds}</div>`));
+  host.appendChild(col);
+  mk(bg,[364,788],o.bg);
+  return {col:col,sc:sc,ui:ui};}
+
+// ── 화면 공통 부품 ────────────────────────────────────────────────────────
+function LB2sys(ui){ui.appendChild(LB2el("div",{display:"flex",
+  justifyContent:"space-between",alignItems:"center",fontSize:"10.5px",
+  color:"#7E7E8C",height:"26px",flex:"0 0 auto"},
+  `<span>9:41</span><span>■■■ ▮</span>`));}
+/// 상단 = 엄지가 안 닿는 자리. **두 칸까지만** 둔다 — 셋 이상 놓이는 순간 로비가
+/// 포털이 되고 출격이 여러 선택지 중 하나로 내려앉는다.
+function LB2top(ui,L,R2){
+  const chip=(s)=>`<div style="font-size:11.5px;color:#B9B9C6;letter-spacing:.06em;`+
+    `padding:6px 10px;border:1px solid ${LB2T.edge};background:rgba(18,18,26,.5);`+
+    `clip-path:${LB2CUT}">${s}</div>`;
+  ui.appendChild(LB2el("div",{display:"flex",justifyContent:"space-between",
+    alignItems:"center",height:"34px",flex:"0 0 auto"},chip(L)+chip(R2)));}
+function LB2panel(ui,css){
+  const d=LB2el("div",Object.assign({background:LB2T.panel,
+    border:"1px solid "+LB2T.edge2,backdropFilter:"blur(9px)",padding:"11px 13px",
+    flex:"0 0 auto",clipPath:LB2CUT},css||{}));
+  ui.appendChild(d);return d;}
+function LB2grow(ui){ui.appendChild(LB2el("div",{flex:"1 1 auto",minHeight:"0"}));}
+/// 주 버튼 — **화면에서 넓은 면적으로 색을 가진 유일한 것.** 무속성이 회백이라는
+/// 색 규약 덕에, 금빛 하나만 두면 눈이 갈 곳이 하나로 확정된다.
+function LB2cta(ui,b,s){
+  ui.appendChild(LB2el("div",{position:"relative",height:"60px",display:"flex",
+    alignItems:"center",justifyContent:"center",gap:"10px",flex:"0 0 auto",
+    clipPath:LB2CUT,
+    background:"linear-gradient(180deg,rgba(255,210,122,.20),rgba(255,210,122,.05))",
+    border:"1px solid rgba(255,210,122,.55)",
+    boxShadow:"0 0 34px -12px rgba(255,210,122,.85),inset 0 1px 0 rgba(255,255,255,.34)"},
+    `<span style="font-size:17px;font-weight:700;color:${LB2T.goldInk};`+
+    `letter-spacing:.04em">${b}</span>`+
+    (s?`<span style="font-size:11px;color:rgba(255,233,198,.62)">${s}</span>`:"")));}
+function LB2sub2(ui,html){ui.appendChild(LB2el("div",{textAlign:"center",
+  fontSize:"11.5px",color:"#7E7E8C",padding:"9px 0 2px",flex:"0 0 auto",
+  minHeight:"20px"},html));}
+function LB2home(ui){ui.appendChild(LB2el("div",{width:"118px",height:"4px",
+  borderRadius:"99px",background:"rgba(237,237,242,.32)",margin:"6px auto 0",
+  flex:"0 0 auto"}));}
+const LB2UNDO=`<u style="text-decoration:none;color:#A6A6B4;`+
+  `border-bottom:1px solid rgba(166,166,180,.3)">처음부터</u>`;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// L1 격납 格納 — 정비하는 곳
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **게임 화면이 아니라 작업대로 보여야 한다.** 그 차이는 색이 아니라 **줄**에서
+// 난다: 항목을 상자로 두르면 게임 UI 가 되고, 가로선만 그으면 작업 지시서가
+// 된다. 그래서 점검표는 칸이 아니라 **줄** 다섯이고, 번호 칸(01~05)과 오른쪽
+// 상태 칸이 세로로 정렬돼 눈이 표를 읽듯 아래로 훑는다.
+//
+// **미비가 남아 있어도 출격을 막지 않는다.** 막으면 잔소리가 되고, 잔소리는 두
+// 판이면 안 읽는 글이 된다. 대신 경고를 **주 버튼에 붙여** 둔다 — 떨어뜨려 놓으면
+// 별개의 알림이 되어 버튼과 같이 안 읽힌다.
+
+/// 상태 표식 — **색이 아니라 형태다.** 0 준비됨(채움) / 1 미비(윤곽) / 2 잠김(줄).
+function LB2mark(s){
+  if(s===2)return `<div style="width:9px;height:1.5px;background:rgba(150,150,175,.45)"></div>`;
+  return `<div style="width:9px;height:9px;box-sizing:border-box;transform:rotate(45deg);`+
+    (s===0?`background:#C6C6D2;border:1px solid #C6C6D2`
+          :`background:transparent;border:1px solid rgba(198,198,214,.66)`)+`"></div>`;}
+/// 점검 한 줄. 강조는 **밝기로** 준다 — 미비는 밝은 잉크, 준비됨은 가라앉은 회색,
+/// 잠김은 더 어두운 회색. 새 색을 하나도 안 쓰고 위계가 세 단으로 갈린다.
+function LB2entry(host,i,o){
+  const wrap=LB2el("div",{padding:"9px 0 "+(o.pad==null?9:o.pad)+"px",
+    borderTop:i?"1px solid "+LB2T.rule:"0"});
+  const line=LB2el("div",{display:"flex",alignItems:"center",gap:"9px"});
+  line.innerHTML=
+    `<div style="width:17px;flex:0 0 17px;font-size:9.5px;color:#55555F;`+
+    `font-variant-numeric:tabular-nums;letter-spacing:.04em">${String(i+1).padStart(2,"0")}</div>`+
+    `<div style="width:14px;flex:0 0 14px;display:flex;align-items:center;`+
+    `justify-content:center">${LB2mark(o.s)}</div>`+
+    `<div style="flex:1 1 auto;min-width:0">`+
+      `<div style="font-size:12.5px;font-weight:600;letter-spacing:-.01em;`+
+      `color:${o.s===2?"#7C7C88":LB2T.ink}">${o.nm}</div>`+
+      `<div style="font-size:10.5px;color:#8B8B99;margin-top:1px;white-space:nowrap;`+
+      `overflow:hidden;text-overflow:ellipsis">${o.v}</div></div>`;
+  if(o.right)line.appendChild(o.right);
+  line.appendChild(LB2el("div",{fontSize:"10px",letterSpacing:".14em",flex:"0 0 auto",
+    color:[LB2T.dim,LB2T.attn,LB2T.lock][o.s]},["준비됨","미비","잠김"][o.s]));
+  wrap.appendChild(line);host.appendChild(wrap);return wrap;}
+
+/// 성좌 3칸 — 로비에서 3칸에 끼우는 그 슬롯이다. 그림은 **`stConDraw` 그대로**라
+/// 성좌 페이지(mockup-meta)와 같은 별자리가 나온다. 빈 칸은 회색으로 채우지
+/// 않는다 — **비어 있는 것이 곧 「아직」**이고, 채우면 「고장」으로 읽힌다.
+function LB2stars(host,keys){
+  const row=LB2el("div",{display:"flex",gap:"7px",marginTop:"9px",alignItems:"center"});
+  for(let i=0;i<3;i++){
+    const d=keys[i];
+    const sl=LB2el("div",{width:"42px",height:"42px",flex:"0 0 42px",background:"#0C0C12",
+      border:"1px "+(d?"solid rgba(198,198,214,.26)":"dashed rgba(150,150,175,.36)"),
+      overflow:"hidden",boxSizing:"border-box",display:"flex",
+      alignItems:"center",justifyContent:"center"});
+    if(d){const cv=LB2el("canvas",{width:"40px",height:"40px",display:"block"});
+      sl.appendChild(cv);mk(cv,[40,40],(c,t)=>stConDraw(c,20,20,16,t,d));}
+    row.appendChild(sl);}
+  // ⚠️ 이 문구는 아래 경고 줄과 **같은 말을 하면 안 된다**(첫 렌더에서 두 줄이
+  // 토씨까지 같았다). 여기는 「무엇이 비었나」, 아래 경고는 「그래도 나가도 되나」다.
+  row.appendChild(LB2el("div",{flex:"1 1 auto",fontSize:"10px",color:"#7C7C88",
+    lineHeight:"1.4",paddingLeft:"2px"},
+    keys[2]?"세 칸이 다 찼다":"빈 칸 하나<br>도감에서 고른다"));
+  host.appendChild(row);}
+
+function LB2hangar(host,v){
+  const done=!!v.done, live=!!v.live;
+  const ui=LB2phone(host,{bg:LB2bgLive,nm:v.nm,ds:v.ds}).ui;
+  LB2sys(ui);LB2top(ui,"격납고","도감 · 설정");
+  ui.appendChild(LB2el("div",{display:"flex",alignItems:"baseline",
+    justifyContent:"space-between",margin:"10px 0 0",flex:"0 0 auto"},
+    `<div style="font-size:15px;font-weight:600;letter-spacing:.02em;color:${LB2T.ink}">출격 점검</div>`+
+    `<div style="font-size:10.5px;letter-spacing:.1em;color:${done?LB2T.dim:LB2T.attn};`+
+    `font-variant-numeric:tabular-nums">${done?"준비 4 · 잠김 1":"미비 1 · 준비 3 · 잠김 1"}</div>`));
+  const bd=LB2panel(ui,{margin:"9px 0 0",padding:"2px 13px 8px"});
+
+  // 01 발현 — **몸은 게임의 그 몸**(hero)이다. 정체를 로비에서 다시 그리지 않는다.
+  // ⚠️ **둥글게 자른다.** `hero` 의 후광 반지름은 몸의 2.7배(46 vs 17)라 어떤
+  // 작은 정사각 칸에 넣어도 후광이 칸을 꽉 채워 **빛나는 네모**가 된다(첫 렌더
+  // 판정: 줄 오른쪽에 회색 사각형 하나가 떠 있었다). 원으로 자르면 같은 후광이
+  // 「빛이 앉은 자리」로 읽힌다 — 크기를 줄여 몸을 죽이는 것보다 낫다.
+  {const cv=LB2el("canvas",{width:"34px",height:"34px",display:"block",flex:"0 0 34px",
+     borderRadius:"50%"});
+   LB2entry(bd,0,{nm:"발현",v:"무속성 · 빛 — 아직 색이 없다",s:0,right:cv});
+   mk(cv,[34,34],(c,t,dt,W,H)=>hero(c,t,W/2,H/2,"gold",.60));}
+  // 02 덱 — **구성만.** 편집은 한 단 뒤(도감). 20칸을 여기서 고르게 하면
+  //    출격 화면이 편집기가 된다.
+  {const e=LB2entry(bd,1,{nm:"덱 · 성흔",v:"20 / 20 · 무기 8 · 마법 9 · 방어 3",s:0,pad:8});
+   const cv=LB2el("canvas",{width:"100%",height:"24px",display:"block",marginTop:"8px"});
+   e.appendChild(cv);mk(cv,[308,24],lobbyDeck);}
+  // 03 성좌 — 이 안에서 **유일하게 미비가 날 수 있는 줄**이다.
+  {const e=LB2entry(bd,2,{nm:"성좌",v:done?"3 / 3 — 다 끼웠다":"2 / 3 — 한 칸이 비었다",
+     s:done?0:1,pad:9});
+   LB2stars(e,[STCON[0],STCON[7],done?STCON[6]:null]);}
+  LB2entry(bd,3,{nm:"항로",v:"3장 · 덮쳐오는 어둠 — 앞의 둘은 지났다",s:0});
+  LB2entry(bd,4,{nm:"무한 · 표류",v:"3장 클리어로 해금",s:2});
+
+  LB2grow(ui);
+  // 경고 — **막지 않는다.** 버튼 바로 위에 붙여 버튼과 한 덩어리로 읽히게 한다.
+  if(!done)ui.appendChild(LB2el("div",{flex:"0 0 auto",margin:"0 0 9px",
+    padding:"7px 0 7px 11px",borderLeft:"2px solid rgba(255,210,122,.55)",
+    fontSize:"11.5px",lineHeight:"1.45",color:"rgba(255,233,198,.82)"},
+    `성좌 한 칸이 비어 있다 — <span style="color:rgba(255,233,198,.55)">그대로 나가도 된다</span>`));
+  if(live){LB2cta(ui,"이어하기","3장 · 4:12");
+    LB2sub2(ui,`진행 중인 판을 버리고 `+LB2UNDO);}
+  else{LB2cta(ui,"출격","3장 · 덮쳐오는 어둠");
+    // 진행 중인 판이 **없으면** 새로하기 항목은 사라진다. 없는 선택지를 회색으로
+    // 남겨두지 않는다.
+    LB2sub2(ui,"");}
+  LB2home(ui);}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// L2 항해일지 航海日誌 — 돌아온 곳
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **기록이 주인공이다.** 최고 기록 · 죽은 자리 · 처치 수가 먼저 보이고 출격은 그
+// 아래다 — 「다시 한다」의 동기를 버튼이 아니라 **기록이** 만든다.
+//
+// ── 이 안의 최대 위험은 빈 일지다 ─────────────────────────────────────────
+// 기록이 주인공인 화면은 **첫 판에 주인공이 없다.** 답은 「기록 없음」이라고 쓰는
+// 것이 아니라 **골격을 그대로 두는 것**이다: 같은 세 칸, 같은 줄자, 같은 가로선을
+// 두고 **잉크만 없다.** 그러면 빈 화면이 「고장」이 아니라 **아직 안 쓴 종이**가
+// 되고, 첫 판을 돌기 전에 이미 「여기에 무엇이 적힐지」를 배운다. 회색 상자에
+// 「기록이 없습니다」를 적는 것과 정확히 반대다 — 그 문장은 화면의 절반을 **설명에**
+// 쓰고, 설명은 한 번 읽으면 다시는 안 읽는다.
+const LB2LOG=[
+  ["어제 21:40","2장 · 갈라지는 어둠","9:03","214","전멸",0],
+  ["어제 20:12","3장 · 덮쳐오는 어둠","12:47","302","전멸",1],
+  ["어제 19:31","2장 · 갈라지는 어둠","7:18","171","전멸",0],
+  ["그제 23:05","1장 · 스며드는 어둠","5:02","96","클리어",0],
+  ["그제 22:14","1장 · 스며드는 어둠","3:41","62","전멸",0]];
+
+/// 지난 판 한 줄 — **일지는 지도가 아니라 시간이다.** 성도(기존 C안)는 공간을
+/// 그리고 여기는 **한 줄의 시간**을 그린다. 그래서 같은 데이터를 줘도 두 안이
+/// 절대 같은 그림이 안 된다 — 하나는 지도이고 하나는 줄자다.
+///
+/// 그리는 것 셋: ① 지나온 시간(굵은 실선) ② 죽은 자리(각진 별 + 고리)
+/// ③ **최고 기록의 자리**(옅은 세로 점선). ③ 이 이 안의 심장이다 — 「다시 한다」의
+/// 이유는 「지난번보다」에서 나오므로, 죽은 자리와 최고 기록 **사이의 빈 칸**이
+/// 곧 버튼을 누를 이유가 된다.
+///
+/// ⚠️ 최고 기록을 **별로 한 번 더 찍지 않는다.** 같은 도형을 두 번 쓰면 죽은
+/// 자리와 안 갈린다 — 하나는 점, 하나는 선이어야 한 눈에 갈린다.
+const LB2timelineOf=(o)=>function LB2timelineDraw(c,t,dt,W,H,st){
+  const x0=11,x1=W-11,y=46,span=x1-x0;
+  c.textBaseline="alphabetic";c.textAlign="center";
+  // 줄자 — 세 장이 같은 폭이다. 눈금이 있어야 「어디까지」가 수치 없이 읽힌다.
+  c.strokeStyle="rgba(180,185,210,.16)";c.lineWidth=1;
+  c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();
+  for(let i=0;i<=3;i++){const x=x0+span*i/3;
+    c.beginPath();c.moveTo(x,y-5);c.lineTo(x,y+5);
+    c.strokeStyle="rgba(180,185,210,"+(i===0||i===3?".32":".20")+")";c.stroke();}
+  c.font=LBFONT(500,9);c.fillStyle="rgba(132,132,156,.9)";
+  for(let i=0;i<3;i++)lbText(c,(i+1)+"장",x0+span*(i+.5)/3,y-13);
+  if(o.empty){
+    // 빈 일지 — **줄자는 남는다.** 눈금이 그대로 있으니 「아직 안 갔다」로 읽히고,
+    // 「기록 없음」이라는 문장을 쓸 필요가 없다.
+    fillPoly(c,jagPoly(x0,y,3.6,4,1.1,1.3),"rgba(160,160,186,.60)");
+    c.textAlign="left";c.font=LBFONT(600,11);c.fillStyle="rgba(150,150,175,.92)";
+    lbText(c,"첫 줄이 아직 비어 있다",x0+9,y+21);
+    c.font=LBFONT(500,9.5);c.fillStyle="rgba(110,110,132,.95)";
+    lbText(c,"어디서 끝났는지가 여기 찍힌다",x0+9,y+35);
+    return;}
+  const xd=x0+span*o.dead, xb=x0+span*o.best;
+  // 지나온 시간
+  c.strokeStyle="rgba(214,214,228,.46)";c.lineWidth=2.6;
+  c.beginPath();c.moveTo(x0,y);c.lineTo(xd,y);c.stroke();
+  fillPoly(c,jagPoly(x0,y,3.8,4,1.1,1.3),"rgba(198,198,214,.80)");
+  // 최고 기록의 자리 — **세로 점선.**
+  c.save();c.setLineDash([2,4]);c.strokeStyle="rgba(198,198,214,.55)";c.lineWidth=1;
+  c.beginPath();c.moveTo(xb,y-9);c.lineTo(xb,y+36);c.stroke();c.restore();
+  c.textAlign="center";c.font=LBFONT(600,9.5);c.fillStyle="rgba(206,206,222,.95)";
+  lbText(c,"최고 12:47",xb,y+50);
+  // 죽은 자리 — 각진 별. 캐릭터 코어와 **같은 도형**이라 지도·로비와 한 언어다.
+  // ⚠️ 크기를 한 번 키웠다. r 5.8 로는 무속성 회백 팔레트(T[1] = #73737F)가 너무
+  // 어두워 **작은 얼룩**으로 보였다(첫 렌더 판정) — 이 안에서 제일 중요한 한 점이
+  // 제일 안 보이면 안 된다. 밝기를 못 올리므로(회백은 규약) **면적으로** 산다.
+  const pu=.92+.08*Math.sin(t*1.7);
+  LB2hoop(c,xd,y,15*pu,1,t*.4,1.9,"gold",.40);
+  celSplash(c,xd,y,8*pu,5,3.1,"gold",.98);
+  c.textAlign="left";c.font=LBFONT(600,11);c.fillStyle="#E9E9F0";
+  lbText(c,"여기서 끝났다",xd+17,y+22);
+  c.font=LBFONT(500,9.5);c.fillStyle="rgba(150,150,175,.95)";
+  lbText(c,"9:03 · 처치 214",xd+17,y+36);};
+
+function LB2logScreen(host,v){
+  const empty=!!v.empty;
+  const ui=LB2phone(host,{bg:LB2bgLive,nm:v.nm,ds:v.ds}).ui;
+  LB2sys(ui);LB2top(ui,"항해일지","도감 · 설정");
+  // 큰 것 셋 — 기록이 먼저 말을 건다. 숫자는 tabular 라 자리가 안 흔들린다.
+  {const r=LB2el("div",{display:"flex",gap:"7px",margin:"11px 0 0",flex:"0 0 auto"});
+   [["최고 기록",empty?"—":"3장 12:47",17],["처치 누계",empty?"—":"1,284",21],
+    ["돌아온 판",empty?"—":"17",21]].forEach(([l,v2,sz])=>{
+     r.appendChild(LB2el("div",{flex:"1 1 0",minWidth:"0",background:LB2T.panel,
+       border:"1px solid "+LB2T.edge2,backdropFilter:"blur(9px)",padding:"10px 10px 11px",
+       clipPath:LB2CUT},
+       `<div style="font-size:9px;letter-spacing:.16em;color:${LB2T.faint};`+
+       `white-space:nowrap">${l}</div>`+
+       `<div style="font-size:${sz}px;font-weight:600;letter-spacing:-.02em;`+
+       `font-variant-numeric:tabular-nums;margin-top:4px;`+
+       `color:${empty?"#4A4A56":LB2T.ink}">${v2}</div>`));});
+   ui.appendChild(r);}
+  // 지난 판 한 줄
+  {const p=LB2panel(ui,{margin:"8px 0 0",padding:"10px 11px 6px"});
+   p.appendChild(LB2el("div",{fontSize:"9.5px",letterSpacing:".2em",color:LB2T.faint,
+     marginBottom:"3px"},empty?"첫 판":"지난 판"));
+   const cv=LB2el("canvas",{width:"100%",height:"104px",display:"block"});
+   p.appendChild(cv);
+   mk(cv,[312,104],LB2timelineOf(empty?{empty:1}:{dead:.51,best:.86}));}
+  // 일지 — **가로선만.** 칸을 두르면 표가 되고, 줄만 그으면 적어 내려간 것이 된다.
+  {const p=LB2panel(ui,{margin:"8px 0 0",padding:"10px 12px 5px"});
+   p.appendChild(LB2el("div",{display:"flex",justifyContent:"space-between",
+     alignItems:"baseline",marginBottom:"5px"},
+     `<div style="font-size:9.5px;letter-spacing:.2em;color:${LB2T.faint}">일지</div>`+
+     `<div style="font-size:10.5px;color:#A6A6B4">${empty?"":"전체 17판 ›"}</div>`));
+   for(let i=0;i<5;i++){
+     const row=LB2el("div",{display:"flex",alignItems:"center",gap:"9px",
+       padding:"8px 0",borderTop:"1px solid "+LB2T.rule});
+     if(empty){
+       // 빈 줄 — **자리는 그대로 남긴다.** 골격이 남아 있어야 「아직」이 된다.
+       row.innerHTML=
+         `<div style="width:9px;flex:0 0 9px;height:1.5px;background:rgba(150,150,175,.20)"></div>`+
+         `<div style="flex:1 1 auto;height:26px"></div>`;
+     }else{
+       const L=LB2LOG[i];
+       row.innerHTML=
+         `<div style="width:9px;flex:0 0 9px;display:flex;align-items:center;`+
+         `justify-content:center">`+
+         (L[5]?`<div style="width:7px;height:7px;background:#C6C6D2;transform:rotate(45deg)"></div>`
+              :`<div style="width:7px;height:1.5px;background:rgba(150,150,175,.34)"></div>`)+`</div>`+
+         `<div style="flex:1 1 auto;min-width:0">`+
+           `<div style="font-size:11.5px;color:${LB2T.ink};white-space:nowrap;`+
+           `overflow:hidden;text-overflow:ellipsis">${L[1]}</div>`+
+           `<div style="font-size:9.5px;color:#6E6E7C;margin-top:2px">${L[0]} · 처치 ${L[3]}</div></div>`+
+         `<div style="flex:0 0 auto;text-align:right">`+
+           `<div style="font-size:12.5px;color:${L[5]?LB2T.ink:LB2T.dim2};font-weight:600;`+
+           `font-variant-numeric:tabular-nums">${L[2]}</div>`+
+           `<div style="font-size:9px;color:#6E6E7C;margin-top:2px">${L[4]}</div></div>`;}
+     p.appendChild(row);}
+   if(empty)p.appendChild(LB2el("div",{fontSize:"11px",color:"#6E6E7C",
+     padding:"11px 0 7px",textAlign:"center",borderTop:"1px solid "+LB2T.rule},
+     "돌아오면 여기에 적힌다"));}
+  LB2grow(ui);
+  if(empty){LB2cta(ui,"첫 출격","1장 · 스며드는 어둠");LB2sub2(ui,"");}
+  else{LB2cta(ui,"이어하기","3장 · 4:12");
+    LB2sub2(ui,`진행 중인 판을 버리고 `+LB2UNDO);}
+  LB2home(ui);}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// L3 관측소 觀測所 — 내다보는 곳
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **배경이 그림이 아니라 맵 그 자체다.** 창 너머로 다음 스테이지가 실시간으로
+// 돌고, 메뉴는 창틀에 붙는다. 로비와 맵이 **한 장면**이 되는 것이 이 안의 정체다.
+//
+// ── scrim 을 안 쓴다. 창틀이 scrim 이다 ───────────────────────────────────
+// 기존 세 안은 글자 대비를 **화면 전체를 덮는 scrim 층**이 책임졌다. 여기서 같은
+// 짓을 하면 **유리에 검은 천을 씌우는 것**이라 「실시간으로 보인다」가 통째로
+// 죽는다. 그래서 대비의 책임을 옮긴다: **글자는 유리 위에 안 놓고 창틀 위에만
+// 놓는다.** 유리에 남는 글자는 이름표 하나뿐이고 그것은 `lbText`(어두운 테를
+// 스스로 두르는 기존 함수)로 그려 **배경이 무엇이든** 읽힌다. 창틀은 불투명하므로
+// 대비가 배경과 무관하게 **구조적으로** 보장된다 — 이 안이 셋 중 유일하게 scrim
+// 없이 서는 이유이고, 「덮개를 걷어도 글자가 사는가」가 이 안의 진짜 판정이다.
+// 창틀 — 위 / 아래 / 옆 두께. 위를 112 → 100 으로 줄였다: 시스템줄 26 + 상단칩
+// 34 + 위 여백 14 = 74 라 112 는 칩 아래가 38px 비어 **메뉴가 창틀에 안 붙어**
+// 보였다(첫 렌더 판정). 창틀은 메뉴가 붙는 만큼만 두꺼워야 창틀이다.
+const LB2WT=100, LB2WB=206, LB2WX=14;
+
+/// 창 너머 — 배경(맵)을 부르고 그 위에 **착륙 예정 지점**만 얹는다. 새로 그리는
+/// 배경 화소는 **0개**다(밝기 예산이 저절로 지켜지는 이유).
+const LB2windowOf=(k)=>function LB2windowDraw(c,t,dt,W,H,st){
+  (LOBBYBG[k]||LOBBYBG.none)(c,t,dt,W,H,st);
+  const gx0=LB2WX,gx1=W-LB2WX,gy0=LB2WT,gy1=H-LB2WB;
+  // 관측 눈금 — 창틀 안쪽에 붙는 계기. 1px 획이라 밝기를 거의 안 먹는다.
+  for(let i=0;i<9;i++){const y=gy0+26+i*((gy1-gy0-52)/8),lg=i%2===0;
+    c.beginPath();c.moveTo(gx0+8,y);c.lineTo(gx0+8+(lg?10:6),y);
+    c.strokeStyle="rgba(200,205,225,"+(lg?".20":".12")+")";c.lineWidth=1;c.stroke();}
+  // 관측 중 — **주기 함수 하나**에서만 파생한다. 누적기나 위상 파생값을 쓰면
+  // 주기 끝과 처음이 달라 툭 끊긴다.
+  const bl=.5-.5*Math.cos(t*2.1);
+  c.beginPath();c.arc(gx0+14,gy0+18,3.2,0,TAU);
+  c.fillStyle=A("#E2E2F0",.28+.58*bl);c.fill();
+  c.textAlign="left";c.textBaseline="alphabetic";
+  c.font=LBFONT(600,9.5);c.fillStyle="rgba(190,190,210,.90)";
+  lbText(c,"관측 중",gx0+23,gy0+21.5);
+  // 착륙 예정 지점 — 창 너머 **저기**가 다음 판이다. 몸은 게임의 그 몸(hero).
+  // ⚠️ 한 번 키웠다. 유리가 336×470 인데 표식이 반지름 30 이면 **창이 비어**
+  // 보이고, 창이 비면 「내다보는 곳」이 「배경이 깔린 곳」으로 내려앉는다
+  // (첫 렌더 판정). 밝기가 아니라 **면적**으로 키운다 — 회백 규약은 그대로다.
+  const x=gx0+(gx1-gx0)*.40, y=gy0+(gy1-gy0)*.50, pu=.92+.08*Math.sin(t*1.5);
+  LB2hoop(c,x,y,38*pu,.44,t*.26,2.2,"gold",.40);
+  LB2hoop(c,x,y,21*pu,.44,-t*.38,1.6,"gold",.32);
+  celSplash(c,x,y,10*pu,7,2.3,"gold",.95);
+  hero(c,t,x,y,"gold",.48);
+  // 이름표 — 지시선으로 붙인다. 떨어뜨려 놓으면 「어느 곳의 이름인가」가 안 붙는다.
+  // ⚠️ 밑줄 길이를 **글자 폭에서 잰다.** 상수로 박았더니 글자 끝을 지나 허공까지
+  // 뻗어 「가리키는 것이 없는 선」이 됐다(첫 렌더 판정).
+  const lx=x+46,ly=y-60;
+  c.font=LBFONT(600,13);
+  const tw=c.measureText("3장 · 덮쳐오는 어둠").width;
+  c.beginPath();c.moveTo(x+16,y-14);c.lineTo(lx-9,ly+8);c.lineTo(lx+tw+4,ly+8);
+  c.strokeStyle="rgba(226,226,240,.34)";c.lineWidth=1;c.stroke();
+  c.font=LBFONT(500,9.5);c.fillStyle="rgba(164,164,188,.95)";
+  lbText(c,"착륙 예정 지점",lx,ly-12);
+  c.font=LBFONT(600,13);c.fillStyle="#EDEDF2";
+  lbText(c,"3장 · 덮쳐오는 어둠",lx,ly+3);};
+
+/// 창틀 — **네 면의 불투명한 실내면 + 안쪽 테 + 모서리 브래킷 + 세로 중간살.**
+/// 유리를 안 덮으므로 실시간이 살고, 글자가 앉을 자리는 전부 이 위다.
+function LB2frame(sc){
+  const surf="rgba(9,9,14,.94)";
+  const add=(css)=>sc.appendChild(LB2el("div",Object.assign({position:"absolute",
+    zIndex:"2",pointerEvents:"none"},css)));
+  add({left:"0",right:"0",top:"0",height:LB2WT+"px",background:surf,
+    borderBottom:"1px solid rgba(214,218,238,.22)"});
+  add({left:"0",right:"0",bottom:"0",height:LB2WB+"px",background:surf,
+    borderTop:"1px solid rgba(214,218,238,.22)"});
+  add({top:LB2WT+"px",bottom:LB2WB+"px",left:"0",width:LB2WX+"px",background:surf,
+    borderRight:"1px solid rgba(214,218,238,.14)"});
+  add({top:LB2WT+"px",bottom:LB2WB+"px",right:"0",width:LB2WX+"px",background:surf,
+    borderLeft:"1px solid rgba(214,218,238,.14)"});
+  // 유리 — 가장자리 비네트(창틀이 드리우는 그늘) + 아주 옅은 반사
+  add({top:LB2WT+"px",bottom:LB2WB+"px",left:LB2WX+"px",right:LB2WX+"px",
+    boxShadow:"inset 0 0 34px 12px rgba(6,6,10,.58)"});
+  add({top:LB2WT+"px",bottom:LB2WB+"px",left:LB2WX+"px",right:LB2WX+"px",
+    background:"linear-gradient(114deg,rgba(226,230,255,.032) 0%,rgba(226,230,255,0) 34%)"});
+  // 세로 중간살 둘 — 유리를 세 쪽으로 나눈다. 이 한 줄이 「배경」을 「창」으로 바꾼다.
+  for(let i=1;i<3;i++)add({top:LB2WT+"px",bottom:LB2WB+"px",
+    left:(LB2WX+(364-LB2WX*2)*i/3)+"px",width:"1px",background:"rgba(214,218,238,.10)"});
+  // 모서리 브래킷 넷 — 구멍이 아니라 **뚫어 놓은 창**으로 읽히게 한다.
+  const B=20,BC="rgba(226,230,255,.30)";
+  [[1,1],[1,0],[0,1],[0,0]].forEach(function(p){
+    const l=p[0],tp=p[1],css={width:B+"px",height:B+"px",
+      left:l?(LB2WX+1)+"px":"auto",right:l?"auto":(LB2WX+1)+"px",
+      top:tp?(LB2WT+1)+"px":"auto",bottom:tp?"auto":(LB2WB+1)+"px"};
+    css[l?"borderLeft":"borderRight"]="1px solid "+BC;
+    css[tp?"borderTop":"borderBottom"]="1px solid "+BC;
+    add(css);});}
+
+function LB2obs(host,v){
+  const ui=LB2phone(host,{bg:LB2windowOf(v.k),scrim:false,deco:LB2frame,pad:"0",
+    nm:v.nm,ds:v.ds}).ui;
+  // 위 창틀 — 시스템줄과 상단 두 칸이 **창틀 위에** 앉는다.
+  const topRail=LB2el("div",{height:LB2WT+"px",flex:"0 0 "+LB2WT+"px",
+    padding:"14px 15px 0",boxSizing:"border-box",display:"flex",flexDirection:"column"});
+  ui.appendChild(topRail);
+  LB2sys(topRail);LB2top(topRail,"관측소","도감 · 설정");
+  LB2grow(ui);
+  // 아래 창틀 — 엄지 존. 덱은 **확인만**, 그리고 주 버튼 하나.
+  const botRail=LB2el("div",{height:LB2WB+"px",flex:"0 0 "+LB2WB+"px",
+    padding:"13px 15px 12px",boxSizing:"border-box",display:"flex",flexDirection:"column"});
+  ui.appendChild(botRail);
+  {const d=LB2el("div",{flex:"0 0 auto",marginBottom:"12px"});
+   d.appendChild(LB2el("div",{display:"flex",justifyContent:"space-between",
+     alignItems:"baseline",marginBottom:"7px"},
+     `<div style="font-size:9.5px;letter-spacing:.22em;color:${LB2T.faint}">덱 · 성흔 20 / 20</div>`+
+     `<div style="font-size:11px;color:#A6A6B4">편집 ›</div>`));
+   const cv=LB2el("canvas",{width:"100%",height:"24px",display:"block"});
+   d.appendChild(cv);mk(cv,[334,24],lobbyDeck);botRail.appendChild(d);}
+  LB2cta(botRail,"이어하기","3장 · 4:12");
+  LB2sub2(botRail,`다른 곳을 관측하면 <u style="text-decoration:none;color:#A6A6B4;`+
+    `border-bottom:1px solid rgba(166,166,180,.3)">새 판</u>이 시작된다`);
+  LB2home(botRail);}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 배치
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **안마다 상태를 둘씩 그린다.** 한 장으로는 「이 안이 상태를 갖는가」를 판정할 수
+// 없다 — 격납은 미비가 있을 때와 없을 때, 일지는 기록이 있을 때와 없을 때,
+// 관측소는 창 너머가 우주일 때와 지면일 때. 그리고 셋 다 **같은 세계 상태**를
+// 그린다(진행 중인 판 3장 4:12 · 덱 20/20 · 무한 잠김). 그래야 비교가 된다.
+{const host=$("lb2a");
+ box(host,{gap:"22px"});
+ // 검증 조작대 — **세 안 공통.** 첫 칸에 둔다(페이지에서 제일 먼저 만나는 칸).
+ const ctl=LB2el("div",{flex:"0 0 100%",width:"100%",display:"flex",gap:"8px",
+   alignItems:"center",flexWrap:"wrap",padding:"11px 13px",background:"#13131A",
+   border:"1px solid #26262F",borderRadius:"4px",boxSizing:"border-box"});
+ const paint=(b,on)=>box(b,{color:on?"#0A0A0E":"#9494A2",
+   background:on?LB2T.gold:"#13131A",borderColor:on?LB2T.gold:"#26262F",
+   fontWeight:on?"700":"400"});
+ const mkBtn=(label,on)=>{const b=LB2el("button",{font:"inherit",fontSize:"11.5px",
+   borderStyle:"solid",borderWidth:"1px",borderRadius:"99px",padding:"6px 13px",
+   cursor:"pointer"},label);paint(b,on);return b;};
+ ctl.appendChild(LB2el("span",{fontSize:"10px",letterSpacing:".2em",color:"#5A5A68"},
+   "배경 · 격납 / 항해일지"));
+ const bgBtns=[];
+ [["space","우주(실물)"],["ground","행성(실물)"],["cosmos","우주(자리표)"],
+  ["none","없음"]].forEach(function(p){
+   const b=mkBtn(p[1],p[0]===LB2BGK);bgBtns.push([b,p[0]]);ctl.appendChild(b);
+   b.addEventListener("click",()=>{LB2BGK=p[0];
+     bgBtns.forEach(q=>paint(q[0],q[1]===p[0]));});});
+ ctl.appendChild(LB2el("span",{display:"inline-block",width:"12px"}));
+ ctl.appendChild(LB2el("span",{fontSize:"10px",letterSpacing:".2em",color:"#5A5A68"},"검증"));
+ {let on=false;const b=mkBtn("엄지 존 표시",false);ctl.appendChild(b);
+  b.addEventListener("click",()=>{on=!on;
+    LB2THUMB.forEach(e=>box(e,{display:on?"block":"none"}));paint(b,on);});}
+ ctl.appendChild(LB2el("span",{flex:"1 1 auto"}));
+ ctl.appendChild(LB2el("span",{fontSize:"10.5px",color:"#5A5A68"},
+   "관측소는 <b style=\"color:#9494A2\">창이 곧 배경</b>이라 우주·지면을 둘 다 고정해 나란히 뒀다"));
+ host.appendChild(ctl);
+
+ LB2hangar(host,{live:1,done:0,nm:"격납 — 미비 1건",
+   ds:"성좌 한 칸이 비었다. 출격은 <b style=\"color:#EDEDF2\">막히지 않고</b> 경고가 버튼에 붙는다. 진행 중인 판이 있어 라벨은 「이어하기」."});
+ LB2hangar(host,{live:0,done:1,nm:"격납 — 전부 준비됨 · 진행 중인 판 없음",
+   ds:"점검이 끝나면 경고 줄이 <b style=\"color:#EDEDF2\">사라진다</b>. 진행 중인 판이 없으면 「처음부터」 줄도 사라지고 버튼은 그냥 「출격」 — 버튼을 늘리지 않고 라벨만 바꾼다."});}
+
+{const host=$("lb2b");box(host,{gap:"22px"});
+ LB2logScreen(host,{empty:0,nm:"항해일지 — 기록 있음",
+   ds:"최고 기록·죽은 자리·처치 수가 <b style=\"color:#EDEDF2\">먼저</b> 보이고 출격은 그 아래. 줄자 위에서 죽은 자리와 최고 기록 사이의 빈 칸이 「다시 한다」의 이유다."});
+ LB2logScreen(host,{empty:1,nm:"항해일지 — 첫 판 (빈 일지)",
+   ds:"이 안의 <b style=\"color:#EDEDF2\">최대 위험</b>. 답은 「기록 없음」이라고 쓰는 게 아니라 골격을 그대로 두는 것 — 같은 칸·같은 줄자·같은 가로선에 잉크만 없다."});}
+
+{const host=$("lb2c");box(host,{gap:"22px"});
+ LB2obs(host,{k:"space",nm:"관측소 — 우주",
+   ds:"창 너머가 <b style=\"color:#EDEDF2\">진짜 맵</b>이다(<code style=\"color:#FFD27A\">LOBBYBG.space</code>). scrim 이 없고 글자는 창틀 위에만 앉는다."});
+ LB2obs(host,{k:"ground",nm:"관측소 — 지면",
+   ds:"UI 는 <b style=\"color:#EDEDF2\">한 줄도 안 바뀌었다</b>. 배경 키만 <code style=\"color:#FFD27A\">ground</code> 로 바꿨다 — 로비가 배경을 모른다는 계약이 이 두 장의 차이다."});}
+
+// ── 남은 판정 ─────────────────────────────────────────────────────────────
+{const host=$("lb2-open");
+ box(host,{display:"flex",flexWrap:"wrap",gap:"9px",alignItems:"flex-start",marginTop:"8px"});
+ [["판정 1","로비를 여는 이유가 무엇인가",
+   "출격 전에 <b>손댈 것이 있으면</b> 격납, 지난 판을 <b>돌아보는 것</b>이면 항해일지, 갈 곳을 <b>먼저 보는 것</b>이면 관측소입니다. 취향이 아니라 <b>덱·성좌가 얼마나 자주 바뀌는가</b>가 정합니다 — 안 바뀌면 격납의 점검표는 매번 같은 다섯 줄이 되고, 다섯 줄짜리 잔소리는 두 판이면 안 읽습니다."],
+  ["판정 2","기록을 실제로 남기는가",
+   "항해일지는 <b>저장 스키마가 늘어야</b> 섭니다(최고 기록·처치 누계·판 수·판별 결과·죽은 지점). 지금 저장에 없는 값이면 이 안은 화면이 아니라 <b>기능 요청</b>입니다. 반대로 이미 있으면 셋 중 <b>제일 싸게</b> 붙습니다 — 캔버스가 줄자 하나뿐입니다."],
+  ["판정 3","맵이 로비에서 돌아도 되는가",
+   "관측소는 로비에서 <b>맵을 매 프레임 돌립니다</b>. 로비는 오래 켜 두는 화면이라 배터리·발열이 그대로 값이 됩니다. 유리를 336×470(화면의 <b>55%</b>)으로 줄인 것이 그 값을 깎는 장치이고, 그래도 모자라면 관측소만 <b>프레임을 제한</b>하거나 창을 정지 화면으로 떨어뜨려야 합니다."]]
+ .forEach(function(p){host.appendChild(LB2el("div",{width:"302px",flex:"0 0 302px",
+   background:"#13131A",border:"1px solid #26262F",borderRadius:"4px",
+   padding:"13px 14px 14px",boxSizing:"border-box"},
+   `<div style="font-size:10px;letter-spacing:.18em;color:#FF8A3D;margin-bottom:6px">${p[0]}</div>`+
+   `<div style="font-size:12.5px;font-weight:600;color:#EDEDF2;margin-bottom:4px">${p[1]}</div>`+
+   `<div style="font-size:11.5px;color:#9494A2;line-height:1.55">${p[2]}</div>`));});
+
+ const warn=LB2el("div",{flex:"1 1 100%"},
+   `<h3>이 셋이 기존 3안과 겹치지 않는 지점</h3>`+
+   `<p><b>격납</b>은 여섯 중 <b>유일하게 점검 결과가 주 버튼의 모양을 바꾸는 안</b>입니다. 「진행 중인 판이 있으면 라벨이 바뀐다」는 여섯 안 <b>전부</b>가 지키는 계약이라 그것으로는 안 갈립니다 — 격납만 <b>버튼에 경고가 붙었다 떨어집니다</b>. 그리고 막지는 않습니다: 막으면 잔소리가 되고, 잔소리는 두 판이면 안 읽는 글이 됩니다.</p>`+
+   `<p><b>항해일지</b>는 셋 중 <b>유일하게 지나간 시간을 그리는 안</b>입니다. 성도(기존 C안)가 공간을 그리므로 같은 데이터를 줘도 두 안은 절대 같은 그림이 안 됩니다 — 하나는 지도, 하나는 줄자입니다.</p>`+
+   `<p><b>관측소</b>는 셋 중 <b>유일하게 scrim 을 안 쓰는 안</b>입니다. 대비의 책임을 화면을 덮는 층에서 <b>창틀</b>로 옮겼고, 그래서 배경이 밝아져도 글자가 안 죽으면서 「실시간으로 보인다」가 삽니다.</p>`);
+ warn.className="warn";host.appendChild(warn);
+ const note=LB2el("div",{flex:"1 1 100%"},
+   `<b>새 색을 하나도 안 만들었습니다.</b> 화면에서 넓은 면적으로 채도를 가진 것은 기존 로비와 똑같이 <b>주 버튼의 금빛 하나</b>뿐이고, 상태는 색이 아니라 <b>형태와 밝기</b>로 말합니다 — 채워진 마름모=준비됨, 빈 윤곽=아직, 짧은 줄=잠김. 「미비」를 주황(<code>#FF8A3D</code> · 24°)으로 칠하면 염 炎(<code>#FF6A1E</code> · 20°)과 <b>4° 차이</b>라 실기에서 속성 표식으로 오독됩니다. 그리고 <b>배경 화소를 하나도 새로 안 그립니다</b> — 세 안 모두 <code>LOBBYBG</code> 에 등록된 것을 부르기만 하므로, 밝기 예산은 배경 담당이 지킨 그대로 유지됩니다.`);
+ note.className="note";host.appendChild(note);}
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// U4 「중력렌즈 重力렌즈」 — 우주 신규 5안 중 넷째
+//
+// **생성 원리 = 왜곡.** 앞의 셋은 화소를 만들어 낸다 — U1 은 밝은 띠에서 빼고,
+// U2 는 받은 빛을 되쏘고, U3 은 커튼을 흘린다. 이 안은 **아무것도 안 만든다.**
+// 별밭은 이미 있는 것이고, 렌즈는 그 별들의 **좌표를 옮길 뿐**이다.
+//
+// ── 이 안의 정체: 밝기 추가가 원리적으로 0 이다 ──────────────────────────
+//
+// 예산 논쟁이 안 생긴다. 다른 안들은 「이 성운의 평균 L 이 .06 아래인가」를
+// 매번 재야 하지만, 이 안은 **잉크의 총량이 처음부터 별밭의 총량**이다:
+//   · 별 하나가 들어가면 별 하나가 나온다. 1:1 사상이라 개수가 안 는다.
+//   · 잉크의 **표면 밝기**(색·알파)를 그대로 물려준다. 늘어난 만큼 넓어지지만,
+//     그 넓이는 렌즈 안쪽에서 **빼앗아 온 것**이다.
+//   · 1차상만 그리므로 상은 언제나 **바깥으로만** 밀린다(θ > β). 그래서
+//     아인슈타인 반지름 안쪽은 **완전히 빈다.**
+//
+// 그래서 화면 전체 잉크 = 별밭 잉크 × (1 − 구멍 넓이 / 화면 넓이) **이하**다.
+// 부등식이 한쪽으로만 열려 있다 — 렌즈를 얹으면 밝아질 수가 없고, 구멍만큼
+// **어두워진다.** 이 주장은 취향이 아니라 사상(map)의 성질이라 렌즈를 몇 개
+// 놓든, 반지름을 얼마로 두든 안 깨진다. (실측: `u-num` 의 두 칸을 비교하라 —
+// 왼쪽이 렌즈를 뺀 같은 별밭이고 오른쪽이 렌즈를 얹은 판이다.)
+//
+// ── 렌즈 공식 — 화면을 재매핑하지 않는다 ────────────────────────────────
+//
+// ⚠️ 픽셀 셰이더도 `getImageData` 도 안 쓴다. 500마리가 도는 화면에서 화면
+// 전체를 재매핑하면 그 한 장이 프레임 예산을 통째로 먹는다. 여기서 도는 것은
+// **화면에 걸친 별 수**뿐이고, 그건 이미 별밭이 내던 비용 그대로다(렌즈 하나당
+// 곱셈 몇 번이 더 붙는다).
+//
+// 얇은 렌즈 방정식(점질량): β = θ − θE²/θ. 원천이 β 에 있을 때 상은
+//   θ± = (β ± √(β² + 4θE²)) / 2
+// 두 개가 생긴다. **1차상(θ+)만 그린다.** 2차상은 θE 안쪽 반대편에 생기는데,
+// 그걸 그리면 ① 별 수가 두 배가 되어 「밝기 추가 0」이 깨지고 ② **구멍이
+// 메워진다.** 구멍이 이 안의 절반이다 — 「빛이 휘어 나갔다」를 말하는 것도,
+// 「저기 무거운 것이 있다」를 말하는 것도 그 빈 자리다.
+//
+// 늘어남은 두 방향이 다르다(이게 「고리」와 「번진 별」을 가른다):
+//   접선 s = θ/β        — θ→θE 에서 발산한다. 호가 여기서 나온다.
+//   반경 f = 1/(1+θE²/θ²) — 0.5~1. **좁아진다.**
+// 그래서 별은 **접선 방향으로 늘어나고 반경 방향으로 눌린 짧은 호**가 된다.
+// 두 방향에 같은 배율을 주면(= 반지름만 키우면) 그건 「번진 별」이고, 이 안이
+// 하면 안 되는 딱 그것이다.
+//
+// ── 렌즈는 원이 아니다 ──────────────────────────────────────────────────
+// 실제 렌즈(은하단)는 타원이라 아인슈타인 링도 눌린다. **넓이 보존 눌림**을
+// 쓴다 — 렌즈 고유 좌표계에서 한 축을 k 배 늘리고 다른 축을 1/k 배 줄인다.
+// 야코비 행렬식이 1 이라 위의 잉크 보존 논증이 **그대로 산다.** 공짜로
+// 「원 필터를 씌운 것」이 아니라 「물체가 있다」로 보이게 만드는 장치다.
+//
+// ── 영향 창(window) ─────────────────────────────────────────────────────
+// 휨은 1/β 로 영영 안 끝난다. 3.6·θE 밖은 아예 손을 안 대되, 1.9~3.6 사이에서
+// smoothstep 으로 **연속하게** 꺼야 한다. 딱 자르면 그 반지름에서 별이 툭
+// 튀고, 카메라가 흐르는 화면에서 그건 바로 눈에 띈다(같은 부류의 사고가 이
+// 레포에서 네 번 났다 — 「주기 경계에서 툭」).
+//
+// ── 안 쓴 것 ────────────────────────────────────────────────────────────
+// **`celHoop` 을 안 쓴다.** 두 가지 이유가 겹친다: ① 마지막 패스가
+// `globalCompositeOperation="lighter"` 라 배경 금지 조항에 걸린다.
+// ② `ring(r-w*.22, ...)` 이 음수 반지름으로 죽는 전례가 있다. 링을 「하나의
+// 도형」으로 그리면 애초에 이 안이 아니다 — 이 안의 고리는 **별 수십 개가
+// 각자 조금씩 늘어난 결과**라야 한다. 그래야 지나갈 때 고리가 별 단위로
+// 태어나고 죽는다.
+// 성운도 안 깐다. 성운은 새 화소이고, 그 순간 이 안은 「A안 + 구멍」이 된다.
+// ══════════════════════════════════════════════════════════════════════════
+
+const MU4D    = .58;          // 렌즈 깊이(시차 배율). 별밭(.05~.30)보다 크니 훑고 지나간다
+const MU4CELL = 460;          // 렌즈 칸 — 320 시안 칸에 하나둘, 980×430 실화면에 서넛
+const MU4P    = .92;          // 칸당 등장 확률
+const MU4RE0  = 68,  MU4RE1 = 44;   // 아인슈타인 반지름 68~112px
+const MU4Q0   = .74, MU4Q1  = .22;  // 렌즈 축비 q = .74~.96 (넓이 보존 눌림)
+const MU4B0   = 1.7, MU4B1  = 3.6;  // 영향 창 — θE 배수. B1 밖은 계산도 안 한다
+const MU4BI   = 1/(MU4B1-MU4B0);
+// 리본 넓이 = MU4ENV × 반폭 × 길이. ribbonPoly 의 끝 봉투
+// `sin(π·min(1,1.06u+.02))^.42` 의 평균이 .7414 라 2×.7414 = 1.4828 이다.
+// **수치로 잰 값이다**(2400점 적분) — 넓이를 잉크에 맞추는 데 이 상수가 필요하다.
+const MU4ENV  = 1.4828;
+const MU4SMIN = 1.34;         // 접선 늘어남이 이 아래면 그냥 점. 34% 늘어난 점은 점이다
+const MU4DMAX = .62;          // 호의 반각 상한(rad) — 별 하나가 고리를 다 두르면 안 된다
+// ⚠️ **반폭에 바닥을 두면 안 된다** — 한 번 .72 로 뒀다가 되돌렸다(2026-08-11).
+// 반경 눌림(f≥.5)으로 호가 1px 아래로 얇아지는 게 보기 싫어서 넓혔더니,
+// 실측에서 **렌즈 얹은 판이 별밭만 그린 판보다 밝아졌다**(p12 .4829 → .5045).
+// 이 안의 유일한 주장이 「더할 수 없다」인데 폭 바닥 한 줄이 그걸 깼다.
+// 게다가 넓혀도 안 밝아 보인다: 같은 잉크를 넓게 펴면 화소당 알파가 오히려
+// 준다. 아래 값은 **다각형이 0 폭으로 무너지는 것만** 막는 하한이다.
+const MU4WMIN = .32;          // 호의 최소 반폭(px)
+const MU4EPS  = .32;          // β=0 나눗셈 방지
+
+/// 렌즈 하나. [ps]=눌림 축의 각, [q]=축비.
+/// k·(1/k) = 1 이라 넓이가 보존된다 — 잉크 보존 논증이 여기 걸려 있다.
+function MU4mk(x,y,re,ps,q){
+  const k=Math.sqrt(1/q);
+  return{x,y,re,cs:Math.cos(ps),sn:Math.sin(ps),k,ik:1/k,reach:re*MU4B1};
+}
+
+/// 화면에 걸친 렌즈만 모은다. 기존 `scatter` 그대로라 이음매도 반복도 없고,
+/// 도는 칸 수가 화면 넓이에만 비례한다. reach(≤295) < 칸(500) 이라 pad 1 로 충분하다.
+function MU4lenses(cx,cy,W,H,out){
+  scatter(cx,cy,W,H,MU4CELL,1,(x,y,i,j,r)=>{
+    if(r>MU4P)return;
+    const re=MU4RE0+h2(i,j,41)*MU4RE1, rc=re*MU4B1;
+    if(x<-rc||x>W+rc||y<-rc||y>H+rc)return;
+    out.push(MU4mk(x,y,re,h2(i,j,42)*Math.PI,MU4Q0+h2(i,j,43)*MU4Q1));
+  });
+}
+
+/// 별 하나를 렌즈를 통과시켜 놓는다. **이 함수가 이 안의 전부다.**
+///
+/// 여러 렌즈가 겹치면 **변위는 전부 더하고**(불연속이 안 생긴다) **호의 기하는
+/// 제일 가까운 렌즈**(β/θE 최소)에서 가져온다. 지배 렌즈만 쓰면 지배가 바뀌는
+/// 경계에서 별이 툭 뛰고, 변위만 더하면 호가 어느 렌즈를 도는지가 안 정해진다.
+///
+/// ── ⚠️ 잉크는 **야코비안을 따라간다** ────────────────────────────────────
+/// 두 번 틀렸고 두 번 다 실측이 잡았다(2026-08-11). 정확한 규칙 하나뿐이다:
+///
+///   **그려지는 넓이 = 원래 별의 넓이 × μ**, 여기서 μ = (접선 s)·(반경 f)
+///
+/// 이걸 **호에만** 적용하고 점으로 남는 별에 안 하면 렌즈가 잉크를 **더한다.**
+/// 이유가 창(window)에 있다: 창이 닫히는 구간(1.8~4.4 θE)에서는 휨이 줄어드는
+/// 중이라 별들이 **반경으로 몰린다**(dθ/dβ < 1, 실측 μ ≈ .8). 몰린 자리에
+/// 별 크기를 그대로 두면 그 고리에서 잉크 밀도가 오른다 — 화면 전체로는
+/// 구멍이 지운 것보다 많아져 「렌즈 얹은 판이 더 밝다」가 됐다(p12 .509→.552).
+/// 그래서 **점도 √μ 로 크기를 바꾼다.** 그러면 화면 잉크가 정확히
+/// `밀도 × 상(像)이 덮는 넓이` 가 되고, 그건 구멍만큼 **화면보다 작다.**
+///
+/// dθ/dβ 는 창까지 포함해 해석적으로 편다(근사하면 또 새어 나간다):
+///   θ  = β + α(β)·w(u),  u = β/R
+///   α  = (√(β²+4R²) − β)/2 ,  α' = (β/√(β²+4R²) − 1)/2
+///   f  = dθ/dβ = 1 + α'·w + α·(dw/du)/R
+function MU4put(c,x,y,r0,col,a,LS){
+  if(!LS||!LS.length){mapStar(c,x,y,r0,col,a);return;}
+  let dx=0,dy=0,du=1e9,DL=null,dph=0,dth=0,ds=1,mu=1,dex=0,dey=0;
+  for(let n=0;n<LS.length;n++){
+    const L=LS[n],ex=x-L.x,ey=y-L.y,rc=L.reach;
+    if(ex<-rc||ex>rc||ey<-rc||ey>rc)continue;
+    // 렌즈 고유 좌표 — 회전한 뒤 넓이 보존 눌림
+    const px=( ex*L.cs+ey*L.sn)*L.ik, py=(ey*L.cs-ex*L.sn)*L.k;
+    let b=Math.hypot(px,py),ux,uy;
+    if(b>1e-6){ux=px/b;uy=py/b;}else{ux=1;uy=0;}
+    if(b<MU4EPS)b=MU4EPS;
+    const u=b/L.re;
+    if(u>=MU4B1)continue;
+    // 창과 그 기울기 — smoothstep. 미분까지 연속이라 별이 안 튄다.
+    let w=1,wu=0;
+    if(u>MU4B0){const k=(MU4B1-u)*MU4BI;w=k*k*(3-2*k);wu=-6*k*(1-k)*MU4BI;}
+    const rt=Math.sqrt(b*b+4*L.re*L.re), al=(rt-b)*.5;
+    const th=b+al*w;                                // θ = β + 휨
+    const qx=ux*th*L.k, qy=uy*th*L.ik;              // 눌림 되돌리기
+    const nx=qx*L.cs-qy*L.sn, ny=qx*L.sn+qy*L.cs;   // 회전 되돌리기
+    dx+=nx-ex; dy+=ny-ey;
+    // ⚠️ **넓이 배율은 걸린 렌즈 전부의 곱**이다. 지배 렌즈 것만 쓰면
+    // 창이 겹치는 자리에서 덜 줄어들어 잉크가 샌다(실측: 구멍 몫 -12% 인
+    // 화면에서 실제 감소가 -4.9% 밖에 안 나왔다, 2026-08-11). 변위를 더하는
+    // 사상의 야코비안은 1차로 각 렌즈 야코비안의 곱이다.
+    let fn=1+(b/rt-1)*.5*w+al*wu/L.re;
+    if(fn<.06)fn=.06;                               // 퇴화 방지
+    mu*=(th/b)*fn;
+    if(u<du){du=u;DL=L;dph=Math.atan2(uy,ux);dth=th;ds=th/b;dex=nx;dey=ny;}
+  }
+  const fx=x+dx, fy=y+dy;
+  // 별의 넓이 — mapStar 가 1.15px 아래는 정사각(4r²), 위는 원(πr²)으로 칠한다.
+  const K=r0<=1.15?4:Math.PI;
+  if(!DL||ds<MU4SMIN){
+    // 점으로 남는 별도 **√μ 로 크기를 바꾼다** — 위 주석의 요지.
+    mapStar(c,fx,fy,mu===1?r0:r0*Math.sqrt(mu),col,a);return;}
+  // ── 호 ────────────────────────────────────────────────────────────────
+  // 반지름 dth 를 **고정하고 각만 훑는다** — 그래서 접선 방향으로만 늘어난다.
+  // (여기서 반지름을 같이 늘리면 그 순간 「번진 별」이 된다.)
+  let dd=r0*ds/dth; if(dd>MU4DMAX)dd=MU4DMAX;
+  const N=dd>.30?9:(dd>.14?6:4);
+  const ox=fx-(DL.x+dex), oy=fy-(DL.y+dey);   // 나머지 렌즈들의 몫
+  const p=[];
+  for(let i=0;i<=N;i++){
+    const ang=dph+dd*(2*i/N-1);
+    const qx=Math.cos(ang)*dth*DL.k, qy=Math.sin(ang)*dth*DL.ik;
+    p.push([DL.x+qx*DL.cs-qy*DL.sn+ox, DL.y+qx*DL.sn+qy*DL.cs+oy]);
+  }
+  // 반폭은 **넓이가 K·r0²·μ 가 되도록** 푼다(잘린 호는 그만큼 잉크를 잃는다 —
+  // 안전한 방향이다). 알파도 색도 별의 것을 그대로 물려받는다: 표면 밝기를
+  // 안 건드리는 것이 「밝기 추가 0」의 실행부다.
+  // 호 길이 S = 2·θ·dd = 2·r0·s. 리본 넓이 = MU4ENV·반폭·S 가 **K·r0²·μ** 가 되게 푼다.
+  //   반폭 = K·r0·μ / (2·MU4ENV·s)
+  // 각(dd)이 상한에 걸려 잘린 호는 그만큼 잉크를 잃는다 — 안전한 방향이다.
+  const w=Math.max(MU4WMIN,K*r0*mu/(2*MU4ENV*ds));
+  fillPoly(c,ribbonPoly(p,w,w),A(col,a));
+}
+
+// 별밭 — **기존 별밭 문법 그대로.** [깊이, 칸, 반지름, 색, 알파, 등장확률, 휘는가]
+//
+// ⚠️ **여기가 이 안의 진짜 설계다.** 첫 렌더에서 구멍이 안 읽혔고(2026-08-11),
+// 원인이 밝기가 아니라 **수**였다: 구멍은 「어두워진 원」이 아니라 **「별이 없는
+// 원」**이라, 지워진 별이 서른 개면 눈이 그걸 원으로 안 묶는다. 그런데 별을
+// 그냥 늘리면 예산(L>.12 ≤ 1%)이 먼저 터진다.
+//
+// 답은 **문턱 아래에 층을 하나 더 까는 것**이다. 합성 명도가
+//   L = .0497(바탕) + α × .216(starD)
+// 이므로 **α ≤ .327 인 별은 L .12 를 원리적으로 못 넘는다** — 예산을 한 톨도
+// 안 쓰면서 개수만 는다. 그리고 구멍과 호를 만드는 것은 밝기가 아니라 그 개수다.
+// 제일 먼 층(칸 22 · α ≤ .33)이 그 층이고, 이 안의 별 대부분이 여기 있다.
+//
+// ⚠️ 그리고 나머지 층은 **적고 굵게**다. 이것도 실측이 뒤집은 것이다: 호의
+// 길이는 `r0 × s / θ` 라 **원래 별 크기에 비례한다.** 잘고 촘촘한 별로 채우면
+// 호의 중앙값이 3px 이 되어 「호」가 아니라 그냥 점이 된다(2026-08-11 실측).
+// 같은 잉크라면 **작은 것 둘보다 큰 것 하나**가 호로는 두 배 길다.
+// 그래서 이 안의 별밭은 「티끌은 아주 많이 · 별은 굵고 성글게」로 갈렸다 —
+// 티끌이 구멍을 만들고, 굵은 별이 고리를 만든다.
+//
+// 마지막 층은 **안 휜다** — 렌즈보다 앞이라 렌즈 앞을 지나간다. 구멍 위를
+// 근경 별이 태연히 가로지르는 것이 「이건 검은 원판이 아니다」의 증거다.
+// [깊이, 칸, 반지름, 색, 알파, 등장확률, 휘는가, 알파 하한비]
+const MU4LAYER=[
+  [.05, 20,0.95,"starD",.30,1  ,1,.90],
+  [.14, 38,1.80,"starD",.72, .80,1,.70],
+  [.30, 66,2.00,"starM",.80, .50,1,.70],
+  [1.0,150,1.90,"starL",1  , .34,0,.68],
+];
+/// ⚠️ **가장자리 pad 는 칸 수가 아니라 아인슈타인 반지름이 정한다.**
+/// 상이 언제나 바깥으로 밀리므로, 화면 밖 최대 θE 만큼 떨어진 별까지가 화면
+/// **안으로 들어올 수 있다**(밀려 들어오는 게 아니라 화면 밖 렌즈에서 멀어지다
+/// 화면에 들어온다). pad 를 1~2 로 두면 화면 밖 렌즈 옆 가장자리에 **별이
+/// 모자란 띠**가 생긴다 — 스크린샷으로는 「그냥 어두운 가장자리」로 보여
+/// 원인을 못 찾는 종류의 결함이다. 칸이 작을수록 pad 칸 수가 커야 한다.
+const MU4pad=cell=>1+Math.ceil((MU4RE0+MU4RE1)/cell);
+/// [lens] 0=렌즈 없음(대조군) · 1=월드에 박힌 렌즈들 · 2=화면 한가운데 큰 렌즈 하나
+function MU4field(c,t,W,H,st,lens){
+  mapFloor(c,W,H);   // 공용 바닥 — 별을 옮겨 낸 구멍이 이 색이다
+  const P=mapCam(t);
+  const LS=st.u4L||(st.u4L=[]);LS.length=0;
+  if(lens===2)LS.push(MU4mk(W*.5,H*.5,Math.min(W,H)*.32,.55,.82));
+  else if(lens)MU4lenses(P[0]*MU4D,P[1]*MU4D,W,H,LS);
+  for(let n=0;n<MU4LAYER.length;n++){
+    const d=MU4LAYER[n],LL=d[6]?LS:null;
+    scatter(P[0]*d[0],P[1]*d[0],W,H,d[1],LL?MU4pad(d[1]):1,(x,y,i,j,r)=>{
+      if(r>d[5])return;
+      // 알파 하한이 층마다 다르다. 티끌 층은 **아주 좁게**(.90~1) 흔든다 —
+      // 반값까지 내려가면 바탕과 구별이 안 돼 **개수가 없는 것과 같아지고**,
+      // 구멍을 만드는 것은 밝기가 아니라 개수다.
+      MU4put(c,x,y,d[2]*(.62+.72*h2(i,j,45)),MAPINK[d[3]],
+        d[4]*(d[7]+(1-d[7])*h2(i,j,46)),LL);});
+  }
+  // 드문 밝은 별. 이게 렌즈에 걸리면 이 안에서 제일 긴 호가 된다 — 「가끔 크게
+  // 한 번」이 있어야 지나가는 동안 볼 것이 생긴다. 수로 갚으므로 면적은 그대로다.
+  scatter(P[0]*.09,P[1]*.09,W,H,280,MU4pad(280),(x,y,i,j,r)=>{
+    if(r>.42)return;MU4put(c,x,y,1.2,MAPINK.starX,.85,LS);});
+}
+
+// ── 자기 미터 — **기존 mapMeter 로는 이 안을 증명할 수 없다** ────────────────
+// mapMeter 는 평균 L 을 소수 셋째 자리까지만 찍는다(.052). 이 안의 주장은
+// 「렌즈를 얹어도 안 밝아진다」이고, 그 차이는 **별 잉크의 몇 %** 단위라
+// 셋째 자리에서 둘 다 .052 로 반올림돼 **두 칸이 똑같아 보인다**(2026-08-11
+// 실제 페이지 렌더에서 그렇게 나왔다). 그래서 자리수를 늘리고, 무엇보다
+// **대조군과의 차이를 직접 찍는다.** 차이가 이 안의 전부다.
+const MU4BGL=(12*.299+12*.587+18*.114)/255;   // 캔버스 바탕 #0C0C12 의 L = .04974
+const MU4Z={};
+function MU4meter(c,t,W,H,st,key){
+  if(!st.u4z&&t>.9){
+    const cv=c.canvas;let d=null;
+    try{d=c.getImageData(0,0,cv.width|0,cv.height|0).data;}catch(e){d=null;}
+    if(!d||!d.length)st.u4z={err:1};
+    else{const n=d.length/4;let s=0,o12=0,o35=0,mx=0;
+      for(let i=0;i<d.length;i+=4){
+        const l=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)/255;
+        s+=l;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+      st.u4z={avg:s/n,p12:o12/n*100,p35:o35/n*100,mx};MU4Z[key]=st.u4z;}
+  }
+  const z=st.u4z;if(!z)return;
+  c.save();
+  c.fillStyle="rgba(5,6,11,.92)";c.fillRect(0,H-23,W,23);
+  c.font="8.5px ui-monospace,SFMono-Regular,Menlo,monospace";
+  c.textAlign="left";c.textBaseline="middle";
+  if(z.err){c.fillStyle="#FF7A6A";c.fillText("측정 불가(getImageData)",6,H-11.5);}
+  else{
+    c.fillStyle="#9AA3BE";
+    c.fillText("평균 L "+z.avg.toFixed(5)+"   L>.12 "+z.p12.toFixed(3)+"%   L>.35 "+
+      z.p35.toFixed(3)+"%   최대 "+z.mx.toFixed(2),6,H-16);
+    const b=MU4Z.plain;
+    if(key==="plain"||!b)c.fillText("대조군 — 렌즈 0",6,H-6);
+    else{
+      // 별 잉크 = 평균 L 에서 바탕을 뺀 것. 배경 밝기의 「추가분」 그 자체다.
+      const d1=(z.avg-MU4BGL)/(b.avg-MU4BGL)-1, d2=z.p12/b.p12-1;
+      c.fillStyle=(d1<=0&&d2<=0)?"#7FE3A0":"#FF7A6A";
+      c.fillText("대조군 대비  별 잉크 "+(d1>=0?"+":"")+(d1*100).toFixed(1)+
+        "%   L>.12 "+(d2>=0?"+":"")+(d2*100).toFixed(1)+"%",6,H-6);
+    }
+  }
+  c.restore();
+}
+
+MAP.u4         =(c,t,dt,W,H,st)=>{MU4field(c,t,W,H,st,1);};
+MAP.u4Plain    =(c,t,dt,W,H,st)=>{MU4field(c,t,W,H,st,0);};
+MAP.u4Solo     =(c,t,dt,W,H,st)=>{MU4field(c,t,W,H,st,2);};
+MAP.u4Pulse    =(c,t,dt,W,H,st)=>{MU4field(c,t,W,H,st,1);mapOver(c,t,dt,W,H,st,"pulse");};
+// ⚠️ 미니맵 칸의 무기를 **빛파동에서 파문으로 바꿨다**(2026-08-11 렌더 판정).
+// 기존 miniA/B/C 는 빛파동을 쓰는데, 시안의 프레임 루프에서 `FX.bolt` 는
+// 시간이 갈수록 화면을 통째로 먹는다 — t=15초에 이미 화면의 23%가 L>.12 다.
+// 실측으로 **기존 안도 같다**: miniB 평균 L .169 / p12 22.9%, voidBolt(검은
+// 배경) .165 / 22.4%, u4Mini .166 / 23.2%. 즉 배경 탓이 아니라 무기 쪽이고,
+// 여기서 고칠 것이 아니다(남의 코드다). 다만 그 칸에서는 **배경이 한 톨도
+// 안 보여** 미니맵 비교라는 이 칸의 목적이 죽는다. 파문은 t 와 무관하게
+// 일정해서(.051 / 0.65%) 배경도 미니맵도 둘 다 읽힌다.
+MAP.u4Mini     =(c,t,dt,W,H,st)=>{MU4field(c,t,W,H,st,1);mapOver(c,t,dt,W,H,st,"pulse");
+                                  bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+MAP.u4Num      =(c,t,dt,W,H,st)=>{MU4field(c,t,W,H,st,1);MU4meter(c,t,W,H,st,"lens");};
+MAP.u4PlainNum =(c,t,dt,W,H,st)=>{MU4field(c,t,W,H,st,0);MU4meter(c,t,W,H,st,"plain");};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+tile($("u4"),MAP,"u4Mini","실화면 비율 980×430","",
+  "렌즈 서넛이 동시에 걸린다. 파문·보스 화살표·미니맵까지 얹은 판 — 구멍이 "+
+  "HUD 를 가리지 않는다(구멍은 <b>덜 그린 자리</b>라 가릴 것이 없다)",980,0,430);
+[["u4","중력렌즈","","별밭이 렌즈 둘레에서 <b>접선 방향 짧은 호</b>로 늘어나고 "+
+  "안쪽은 <b>빈다</b>. 새로 그린 화소가 하나도 없다"],
+ ["u4Plain","대조군 · 같은 별밭 렌즈 0","","렌즈만 뺀 같은 별밭. 두 칸의 밝기 "+
+  "통계를 <code>#s-num</code> 에서 나란히 잰다 — 이 안이 더할 수 있는 밝기는 0 이다"],
+ ["u4Solo","렌즈 하나를 크게","","구조 확인용. 아인슈타인 반지름을 칸의 32% 로 "+
+  "고정했다. 눌린 타원이라 고리도 눌린다"],
+ ["u4Pulse","+ 파문","","최악 대비(mPulse 바깥층 L .181). 배경이 별점뿐이라 "+
+  "고리와 싸울 넓은 면이 애초에 없다"]]
+  .forEach(a=>tile($("u4"),MAP,a[0],a[1],a[2],a[3],MAPS,MAPS));
+
+tile($("u-bg"),MAP,"u4","U4 · 중력렌즈","",
+  "<b>왜곡</b>. 있는 별밭을 휘어 원호로 만든다 — 밝기 추가 0",MAPS,MAPS);
+tile($("u-proof"),MAP,"u4Pulse","U4 · 중력렌즈","",
+  "고리(파문)가 호(렌즈)와 안 섞인다: 파문은 굵고 이어져 있고, 렌즈 호는 "+
+  "1px 폭의 끊긴 조각들이다",MAPS,MAPS);
+tile($("u-mini"),MAP,"u4Mini","U4 · 중력렌즈","",
+  "미니맵은 그대로. 배경이 별점뿐이라 링 계조가 제일 안 흔들린다. 무기는 파문 — "+
+  "빛파동은 t 가 커지면 화면을 먹는다(기존 안도 같다)",MAPS,MAPS);
+
+// 밝기 실측 — **두 칸을 나란히 둔다.** 이 안의 주장(「밝기 추가 0」)은 한 칸의
+// 숫자로는 증명이 안 된다. 렌즈를 뺀 같은 별밭과 **차이**로만 증명된다.
+{const wrap=document.createElement("div");
+ box(wrap,{width:"100%",margin:"18px 0 0"});
+ wrap.insertAdjacentHTML("beforeend",
+   `<div style="font-size:12px;color:#9494A2;line-height:1.6;max-width:78ch;`+
+   `margin:0 0 8px"><b style="color:#EDEDF2">U4 · 중력렌즈</b> — 왼쪽이 렌즈를 `+
+   `뺀 같은 별밭, 오른쪽이 렌즈를 얹은 판입니다. 렌즈는 별을 <b>옮기기만</b> `+
+   `하므로 오른쪽이 왼쪽보다 <b>밝아질 수 없고</b>, 아인슈타인 반지름 안쪽을 `+
+   `비운 만큼 <b>어두워집니다</b>.</div>`);
+ const row=document.createElement("div");wrap.appendChild(row);
+ $("u-num").appendChild(wrap);
+ tile(row,MAP,"u4PlainNum","별밭만 (렌즈 0)","","대조군",MAPS,MAPS);
+ tile(row,MAP,"u4Num","렌즈 얹음","","같은 별밭 + 렌즈",MAPS,MAPS);}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 맵 신규 · P2 사구 砂丘 (MP2) — docs/vfx/mockup-map2.html 전용
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 여러 손이
+// 같은 파일의 다른 자리를 만지므로, **겹치는 자리를 아예 안 만드는 것**이
+// 유일하게 확실한 안전장치다. 최상위 이름은 전부 `MP2` 로 시작하고, 등록은
+// `MAPP.bg.dune` **대입 하나**다(`const`/`let` 재선언 0).
+//
+// ── 이 안이 유일하게 하는 것: 각지지 않는다 ───────────────────────────────
+// 나머지 여덟(균열지·잿바다·이끼밭·경호·동공·암류·잔해대·자기막…)은 전부
+// **각졌거나 점·선**이다. 이 게임의 문법이 뾰족한 윤곽이라 **일부러 어기는
+// 하나**를 두는 것이고, 그래서 이 안은 **어긴 값을 해야** 한다 — 부드러움이
+// 화면에서 확실히 읽혀야 정당화되고, 안 읽히면 그냥 밍숭맹숭한 배경이다.
+//
+// 어긴 값을 하기 위해 지키는 셋. 하나라도 깨지면 이 안의 정체가 사라진다:
+//   ① **다각형 실루엣이 없다.** `jagPoly`·`celSpike`·`celHoop` 을 한 번도 안
+//      쓴다. 화면의 모든 경계는 그라디언트이거나 `ribbonPoly` 의 부드러운 띠다.
+//   ② **계단이 없다.** 「계단이 보이면 실패」인데 이 안은 **구조적으로 계단이
+//      나게 생겼다** — 골 L .029 → 마루 L .098 을 200px 넘는 사면에 펴면
+//      채널값이 14→38, 즉 **8px 마다 한 단**이다. 그래서 결(모래 알갱이)이
+//      장식이 아니라 **디더**를 겸한다(아래 「계단」 절).
+//   ③ **꺾인 능선이 없다.** 능선을 세로 띠로 잘라 그리되 띠마다 **전단
+//      (shear)** 을 먹여, 이웃 띠와 값도 기울기도 잇는다(아래 「띠」 절).
+//
+// ── 생성 원리: 큰 파장의 능선 + 자기 그림자 ───────────────────────────────
+// 지형 골격도(균열지) 입자도(잿바다) 발광체도(이끼밭) 아니다. 한 방향으로
+// 늘어선 **큰 파장** 하나와 그 능선이 자기 자신에게 지는 그림자뿐이다.
+//   · 볕 쪽(윈드워드) — 골에서 마루까지 **완만하게** 밝아진다
+//   · 그늘 쪽(슬립페이스) — 마루를 넘자마자 **짧고 급하게** 어두워진다
+// 실제 사구가 이 비대칭이고, 비대칭 하나가 「빛이 어느 쪽에서 오는가」와
+// 「어느 쪽이 위인가」를 공짜로 준다. 대칭 파도로 두면 골판지가 된다.
+//
+// ── 평균 L 이 여덟 중 제일 위험한 이유, 그리고 셋으로 묶은 방법 ───────────
+// 지면은 화면을 100% 덮는데 이 안은 **능선의 밝은 면이 넓다.** 별은 화면의
+// 1%라 아무리 밝아도 안 싸우지만 사면은 1%만 밝아도 그게 화면 전체에 깔린다.
+//   ① **밝은 면을 능선 폭의 일부로 좁힌다.** 볕 쪽 밝기를 거리에 비례시키지
+//      않고 **2.6~4.1 제곱**으로 준다 — 사면의 대부분은 골 밝기에 가깝게
+//      남고 마루 근처만 밝다. 실측(980×548 · 400프레임): L>.06 **7.6%** ·
+//      L>.102(적 몸 채움) **0.002%** — 마루의 제일 밝은 곳은 화면에 12px
+//      짜리 실선으로만 남는다.
+//   ② **낮은 칸을 자주 낸다.** 칸 높이를 h² 로 뽑아 「사구 사이 평지」가
+//      섞이게 한다. 전부 같은 높이면 화면이 통째로 밝아진다.
+//   ③ **위층은 전부 빼기다.** 대사구(MP2meg)·바람그늘(MP2veil)·결의 그늘이
+//      모두 어둡게만 간다. 잿바다에서 얻은 규칙 — **위층 시차는 밝게가 아니라
+//      어둡게로 준다**. 더하는 것은 결의 볕(+.011)과 디더(+.012)뿐이다.
+// 그 결과가 **평균 L .0373 · 최대 L .1055 · L>.12 0.000% · L>.35 0.000%** 다
+// (PNG 디코드 실측). 3단 계조의 맨 윗단(흰 앞날)은 이 안에 없고, 가산 합성
+// (`globalCompositeOperation="lighter"`)도 한 번도 안 쓴다.
+//
+// ── 「크고 느린 것 위에 작고 빠른 것」 ────────────────────────────────────
+// 능선은 카메라와 **같은 속도로만** 움직인다(지면이니까 당연하다). 그 위를
+// 모래 결이 바람 방향으로 **초당 30px 따로** 흐른다. 이 속도차 하나가
+// 「저 능선은 크다」를 만든다 — 크기는 화소로 못 말하고 **상대 운동**으로만
+// 말할 수 있다. 마루에서 흩날리는 연무(MP2plume)가 같은 말을 한 번 더 한다.
+//
+// ── 띠(strip) — 능선이 안 꺾이게 ─────────────────────────────────────────
+// 능선의 단면은 **v(능선을 가로지르는 축)만의 함수**라 그라디언트 한 벌로
+// 끝난다. 문제는 능선이 곧으면 골판지가 된다는 것 — 굽이(MP2wob)를 줘야 한다.
+// 굽이는 u(능선 방향)마다 단면을 v 로 미는 것이니, u 를 띠로 잘라 띠마다 다르게
+// 밀면 된다. 그런데 그냥 밀면 **띠 경계마다 계단**이 생긴다(굽이 기울기가
+// 0.46 이라 10px 띠에서 4.6px 단차 — 능선에 톱니가 선다).
+//   ⇒ 그래서 **평행이동이 아니라 전단**을 쓴다. 띠 [u0,u0+SU] 에
+//     `transform(1, (w1-w0)/SU, 0, 1, 0, …)` 를 먹이면 띠의 두 끝에서 굽이
+//     값이 **정확히** 이웃과 같다. 남는 것은 기울기 차 0.037rad(2.1°)뿐이고
+//     저대비 그라디언트 위에서는 안 보인다. 띠 114개 × 화면클립 = 화면 1.3장.
+//
+// ── 계단 — 이 안의 진짜 난이도 ───────────────────────────────────────────
+// 「흰 앞날 금지」라 밝은 면조차 L ≤ .124 다. 명암차를 **좁은 구간에서** 만들어야
+// 하니 채널값 폭이 24단밖에 없고, 그걸 200px 사면에 펴면 8px 마다 한 단이 뜬다.
+// 밝기를 올려 해결하는 길은 막혀 있으므로 **양자화를 깨는** 수밖에 없다:
+//   · 디더(MP2dith) — 1px 잡음, 알파 1~4/255. 진폭이 딱 양자화 한 단이라
+//     띠 경계가 흩어진다. **회전·소수점 이동을 안 한다**(패턴이 보간되면
+//     고주파가 뭉개져 디더가 디더를 못 한다). 정수 오프셋 + 스무딩 off.
+//   · 결(MP2rip) — 7.5px 간격의 잔물결. 디더보다 큰 규모에서 같은 일을 한다.
+// 두 겹을 다 빼면 **실제로 띠가 보인다.** 2.6배 확대 + 두 겹 OFF 로 찍어
+// 확인했다(2026-08-11) — 사면 한가운데에 **직선 모서리의 사각 얼룩**이 뜬다.
+// 각지지 않기로 한 안에서 양자화가 각을 만들어 내는 셈이라, 디더는 이 안에서
+// **선택 사양이 아니다.**
+//
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 주 색상각 **333°**(먼지 장밋빛 모래). 속성 팔레트에서 제일 가까운 것이
+// 플라즈마(blast 289°) **44°**, 염(ember 20°) **47°**, 어둠(shade 273°) 60° 다.
+// 289°~380° 는 이 게임이 안 쓰고 비워 둔 **제일 넓은 구간**이라 그 한가운데에
+// 놓았다. 모래를 노란빛(35~45°)으로 두면 뇌(volt 51°)·염(20°)과 10~16° 밖에
+// 안 떨어지는데, 독 130° 와 이끼 162° 가 **32°** 로 붙어 사고가 났던 전례가
+// 있으므로 그 절반은 쓸 수 없다. 기존 행성 3안(균열지 잔불 22° · 잿바다 잉걸
+// 23° · 이끼 162°)과도 안 겹친다.
+//
+// ⚠️ **속성이 아니라 적과 붙는다.** 적 팔레트가 FOEDARK 319° · FOERIM 340° ·
+// FOEEYE 349° 라, 이 안의 333° 는 그 한가운데다(FOEDARK 와 14°). 색상환에서
+// 속성과 적을 동시에 30° 이상 피하는 자리는 90°(카키)와 241°(남색)뿐인데,
+// 전자는 이끼밭과 계열이 겹치고 후자는 P1 경호(하늘을 비추는 물)와 겹친다.
+// 그래서 **면적으로 푼다**: FOEDARK 와 붙는 것은 명도 .102 위쪽인데 이 안이
+// 거기 쓰는 면적이 **0.002%**(12px)다. 지름 40px 짜리 적 실루엣이 12px 짜리
+// 자국에 묻힐 방법이 없고, 적은 그 위에 L .576 짜리 테(FOERIM)를 두르고 있다.
+// 실측 화면(적 8마리 + 미니맵)으로 확인했다.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// 500마리가 도는 화면이라 배경이 프레임 예산을 먹으면 안 된다. 980×548 ·
+// dpr 1 · 소프트웨어 래스터에서 **6.2ms/프레임**(비교: 균열지 5.3 · 이끼밭
+// 0.21 · 잿바다 0.064). 처음엔 **14.1ms** 였고 층별로 재 보니 능선 띠 하나가
+// 13.5ms 였다 — 고친 자리는 아래 「매끄러운 세 겹은 1/3 해상도」 절이다.
+// 능선 그림은 칸 범위가 바뀔 때만 다시 굽는다(30초에 4번 실측).
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 큰 것은 **타일을 안 쓴다.**
+//   · 능선 — v 축을 MP2LV 칸으로 자르고 **칸 번호를 해시**한다(scatter 와 같은
+//     원리를 1차원에). 칸 경계에서 값도 기울기도 0 이 되게 단면을 설계해서,
+//     칸이 무한해도 이어 붙인 자국이 원리적으로 없다.
+//   · 연무 — 능선 좌표계에서 **기존 `scatter()`** 를 부른다. 칸을 MP2LV 로
+//     주면 세로 칸 번호가 곧 능선 번호라 변환 없이 「i번째 자리, k번째 능선」이 나온다.
+//   · 결·디더·바람그늘만 타일이다. 7.5px 무늬의 256 주기와 1px 잡음의 192
+//     주기는 눈이 못 센다 — 반복은 **주기가 화면보다 커야** 보인다.
+const MP2TH=-.30, MP2TH2=-.04;        // 능선 방향 · 대사구 방향(15° 어긋난다)
+const MP2LV=286, MP2LV2=760;          // 능선 파장 · 대사구 파장
+const MP2SU=10;                       // 능선을 따라 자르는 띠 폭
+const MP2RS=3;                        // 저주파 세 겹만 1/3 해상도로 그린다(비용 절)
+// 3단이 아니라 **1단**이다. 넷 다 같은 색상각(333~336°) 위의 명도 점이고,
+// 위층(대사구·바람그늘·결의 그늘)이 빼고 나면 화면 최대가 L .1055 로 떨어진다.
+// 실측한 마루의 색상각은 333.2° 로 설계값과 같다.
+const MP2C_BASE="#0A0206";            // 골·평지        L .0180 — 공용 바닥과 같은 급.
+                                      // 원래 .0292 였는데 「맵이 꺼멓다」 판정 뒤 내렸다:
+                                      // 마루(.1055)와의 대비가 3.6배 → **5.9배**
+const MP2C_CREST="#3A1B28";           // 마루           L .1480 (화면 실측 최대 .1055)
+const MP2C_SHADOW="#070204";          // 슬립페이스 그늘 L .0146
+const MP2C_PLUME="#6A4C58";           // 흩날리는 모래   L .338 (알파 ≤.082 로만 쓴다)
+
+/// 능선 한 칸의 성질 — **1차원 scatter.** 칸 번호가 무한하니 반복이 없고,
+/// 도는 칸 수는 화면 넓이에만 비례한다.
+/// `amp` 를 h² 로 뽑는 이유: 낮은 칸(사구 사이 평지)이 자주 나와야 평균 L 이
+/// 안 오른다. 균등분포로 두면 화면이 통째로 능선이 된다.
+function MP2cell(k){
+  const a=hash(k*13.7+2.3);
+  return{amp:.34+.66*a*a,                     // 능선 높이(=명암 진폭)
+         cp :.54+.20*hash(k*29.1+7.7),        // 마루가 칸의 어디쯤인가
+         sw :.055+.045*hash(k*41.3+1.1),      // 슬립페이스 폭 — 좁아야 마루가 선다
+         ex :3.0+1.6*hash(k*7.9+19.3)};       // 볕 쪽을 얼마나 마루로 몰까
+}
+/// 능선 단면의 밝기. **+ 는 볕, − 는 자기 그림자.**
+/// 칸 경계(p=0,1)에서 값이 0 이고 **기울기도 0** 이라(제곱·smoothstep), 칸을
+/// 이어 붙여도 자국이 안 남는다 — 이 안이 타일 없이 무한히 흐르는 이유다.
+function MP2prof(v){
+  const k=Math.floor(v/MP2LV), p=v/MP2LV-k, P=MP2cell(k);
+  if(p<P.cp)return Math.pow(p/P.cp,P.ex)*P.amp;          // 볕 — 완만
+  const SD=Math.min(1,.50+.50*P.amp);                    // 높은 능선이 깊게 진다
+  const q=(p-P.cp)/P.sw;
+  if(q<1){const s=q*q*(3-2*q);return P.amp+(-SD-P.amp)*s;}  // 그늘 — 짧고 급하게
+  const r=Math.min(1,(p-P.cp-P.sw)/Math.max(1e-3,1-P.cp-P.sw));
+  return -SD+SD*(r*r*(3-2*r));                           // 골로 부드럽게 복귀
+}
+const MP2col=b=>b>=0?mixHex(MP2C_BASE,MP2C_CREST,b):mixHex(MP2C_BASE,MP2C_SHADOW,-b);
+/// 능선의 굽이. **고주파 항을 일부러 안 넣는다** — 굽이의 2계도함수가 커지면
+/// 띠 사이 기울기 차가 커져 능선에 각이 선다(이 안에서 제일 하면 안 되는 것).
+const MP2wob=u=>46*Math.sin(u*.0052+1.7)+21*Math.sin(u*.0109+4.1);
+/// 대사구(draa) — 능선보다 2.7배 긴 파장이 15° 어긋난 방향으로 지난다.
+/// **어둡게만** 간다. 두 방향이 겹쳐야 「평행한 골판지」가 아니라 지형이 된다.
+const MP2meg=v=>{const s=.62*Math.sin(v*(TAU/MP2LV2))+.38*Math.sin(v*(TAU/(MP2LV2*1.62))+2.1);
+  return s<0?Math.pow(-s,1.25):0;};
+
+/// ⚠️ **그라디언트를 fillStyle 로 쓰면 안 된다 — 한 장에 14ms 가 나왔다**
+/// (2026-08-11 실측, 소프트웨어 래스터. 같은 조건에서 잿바다 0.066 · 균열지 5.5).
+/// 띠 114개에 그라디언트를 칠하면 Skia 가 **화소마다 보간식**을 돈다. 500마리가
+/// 도는 화면에서 배경 혼자 프레임 예산을 통째로 먹는 값이다.
+///   ⇒ 같은 그림을 **4×span 캔버스에 한 번 굽고** drawImage 로 늘린다. 텍스처
+///     블릿이라 훨씬 싸고, 세로는 1:1 이라 계조가 그대로다. 굽는 것은 칸 범위가
+///     바뀔 때뿐이다(30초에 4번 실측).
+/// 좌표를 **칸에 못 박아** 두는 것이 요점이다: 그리는 쪽이 `G.base-cv` 만큼
+/// 밀어 쓰므로 카메라가 움직여도 같은 그림을 다시 쓴다.
+function MP2bake(span,fill){
+  const cv=document.createElement("canvas");
+  cv.width=4;cv.height=Math.max(1,Math.ceil(span));
+  const c2=cv.getContext("2d");
+  if(!c2||!c2.createLinearGradient)return null;
+  const g=c2.createLinearGradient(0,0,0,span);
+  if(!g||!g.addColorStop)return null;
+  fill(g);
+  c2.fillStyle=g;c2.fillRect(0,0,4,cv.height);
+  return cv;
+}
+function MP2grad(c,cv,Dv){
+  const k0=Math.floor((cv-Dv)/MP2LV)-1,k1=Math.floor((cv+Dv)/MP2LV)+1;
+  const cache=c.canvas.__mp2a||(c.canvas.__mp2a={});
+  const key=k0+"|"+k1;
+  if(cache.key===key&&cache.im)return cache;
+  const span=(k1-k0+1)*MP2LV,base=k0*MP2LV;
+  const N=Math.max(8,Math.round(span/6)),b=[];
+  for(let i=0;i<=N;i++)b.push(MP2prof(base+i/N*span));
+  const im=MP2bake(span,g=>{
+    // 마루의 꺾임을 **한 번 문지른다.** 볕 쪽은 볼록하게 올라오고 그늘 쪽은
+    // smoothstep 으로 떨어지니 마루에서 기울기가 튄다 — 그대로 두면 능선에
+    // 선이 그어져 「각진」 것으로 읽힌다. ±6px 평균이면 마루가 둥글어진다.
+    for(let i=0;i<=N;i++)
+      g.addColorStop(i/N,MP2col(b[Math.max(0,i-1)]*.25+b[i]*.5+b[Math.min(N,i+1)]*.25));
+  });
+  if(!im)return null;
+  cache.key=key;cache.im=im;cache.base=base;cache.span=span;return cache;
+}
+/// 대사구 — 굽이가 없으니 띠도 필요 없다. 화면 하나에 drawImage 한 번.
+function MP2grad2(c,cv,Dv){
+  const k0=Math.floor((cv-Dv)/MP2LV2)-1,k1=Math.floor((cv+Dv)/MP2LV2)+1;
+  const cache=c.canvas.__mp2b||(c.canvas.__mp2b={});
+  const key=k0+"|"+k1;
+  if(cache.key===key&&cache.im)return cache;
+  const span=(k1-k0+1)*MP2LV2,base=k0*MP2LV2;
+  const N=Math.max(8,Math.round(span/8));
+  const im=MP2bake(span,g=>{for(let i=0;i<=N;i++)
+    g.addColorStop(i/N,"rgba(2,1,3,"+(MP2meg(base+i/N*span)*.34).toFixed(3)+")");});
+  if(!im)return null;
+  cache.key=key;cache.im=im;cache.base=base;cache.span=span;return cache;
+}
+
+/// 모래 결 — 능선 표면을 **따로 흐르는** 것. 능선과 나란한 잔물결이다.
+/// 가로 이음매는 잿바다의 수법 그대로 **정수 파수**로 0 이 되고, 세로는 랩이다.
+/// 볕 줄은 알파 .016 뿐이다(마루 위에서 L .098 → .110, 상한 안).
+const MP2rip=()=>mpTile("mp2rip",256,(c,S)=>{
+  const ROWS=34;
+  for(let r=0;r<ROWS;r++){
+    const sd=r*5.3;
+    if(hash(sd+2.7)<.22)continue;                       // 성긴 자리 — 균등하면 골판지
+    const y0=(r+.5+(hash(sd+1.9)-.5)*.70)/ROWS*S;
+    const amp=0.9+hash(sd)*3.0;
+    const k1=1+Math.floor(hash(sd+3.1)*3),k2=4+Math.floor(hash(sd+4.7)*4);
+    const p1=hash(sd+5.9)*TAU,p2=hash(sd+7.3)*TAU;
+    const yy=x=>y0+amp*Math.sin(TAU*k1*x/S+p1)+amp*.5*Math.sin(TAU*k2*x/S+p2);
+    const draw=(dy,col,w)=>{c.beginPath();
+      for(let i=0;i<=40;i++){const x=i/40*S,y=yy(x)+dy;i?c.lineTo(x,y):c.moveTo(x,y);}
+      c.strokeStyle=col;c.lineWidth=w;c.stroke();};
+    for(let w2=-1;w2<=1;w2++){
+      draw(1.9+w2*S,"rgba(0,0,0,.17)",2.2);             // 결의 그늘 — 빼기
+      draw(w2*S,"rgba(208,186,199,.024)",1.5);}         // 결의 볕 — 유일한 더하기
+  }
+});
+/// 디더 — **장식이 아니라 계조 대책이다.** 1px 잡음의 진폭(알파 1~4/255)이
+/// 딱 양자화 한 단이라 그라디언트의 띠 경계가 흩어진다.
+/// putImageData 로 굽는다(fillRect 4만 번은 첫 프레임을 30ms 잡아먹는다).
+/// 스텁 캔버스(스모크)는 getImageData 가 4바이트라 그냥 빠진다 — 그림은
+/// 검증 대상이 아니므로 맞다.
+const MP2dith=()=>mpTile("mp2dith",192,(c,S)=>{
+  let img=null;try{img=c.getImageData(0,0,S,S);}catch(e){img=null;}
+  if(!img||!img.data||img.data.length!==S*S*4)return;
+  const d=img.data;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    if(h2(x,y,1.3)<.40)continue;                        // 60% 화소에만
+    const i=(y*S+x)*4;
+    d[i]=222;d[i+1]=208;d[i+2]=216;d[i+3]=1+Math.floor(h2(x,y,5.7)*4);
+  }
+  c.putImageData(img,0,0);
+});
+/// 바람그늘 — 능선 방향으로 늘어난 어두운 얼룩이 지면보다 빠르게 흐른다.
+/// 시차를 **어둡게** 주는 층이라 아무리 진해도 이펙트와 안 싸운다.
+const MP2veil=()=>mpTile("mp2veil",384,(c,S)=>{
+  for(let i=0;i<8;i++){
+    const x=hash(i*4.3)*S,y=hash(i*8.1)*S,r=38+hash(i*2.9)*46;
+    const a=(.030+hash(i*6.1)*.060).toFixed(3);
+    mpWrap9(S,(dx,dy)=>{
+      c.save();c.translate(x+dx,y+dy);c.scale(2.4,1);
+      const g=c.createRadialGradient(0,0,0,0,0,r);
+      g.addColorStop(0,"rgba(2,1,3,"+a+")");g.addColorStop(1,"rgba(2,1,3,0)");
+      c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,TAU);c.fill();c.restore();});}
+});
+
+/// 마루에서 흩날리는 모래 — 이 안에서 **유일하게 능선보다 밝은 것**이고,
+/// 밝은 화소가 아니라 **운동**으로 산다(뿌리 알파가 0 이라 밝은 마루와 겹치는
+/// 면적이 거의 없고, 몸통은 어두운 그늘 쪽에 떨어진다).
+///
+/// ⚠️ 처음엔 `ribbonPoly`+`fillPoly` 로 **띠 한 장**을 그렸다가 버렸다
+/// (2026-08-11 헤드리스 눈 판정). 다각형은 알파를 아무리 낮춰도 **가장자리가
+/// 각진 선**이라, 980×548 화면에 회청색 「칼날」 두 개가 박힌 것으로 보였다 —
+/// 여덟 중 유일하게 각지지 않기로 한 안에서 **제일 눈에 띄는 것이 각**이 된
+/// 셈이라 이건 밝기 문제가 아니라 정체성 문제다. 답은 알파를 내리는 게 아니라
+/// **경계를 없애는 것**: 경로를 따라 부드러운 방사 그라디언트를 겹쳐 흘린다.
+/// 겹치는 알파를 감안해 덩어리 하나당 상한을 목표치의 1/3 로 둔다.
+///
+/// 자리는 **기존 `scatter()`** 가 잡는다 — 능선 좌표계에서 부르면 칸 크기를
+/// `MP2LV` 로 준 순간 **세로 칸 번호 j 가 곧 능선 번호 k** 가 된다(같은 축을
+/// 같은 간격으로 자르니까). 그래서 좌표 변환 없이 「i번째 자리, k번째 능선」이
+/// 나오고, 칸 번호가 무한하니 반복도 이음매도 없다. 다만 **세로 자리(sy)는
+/// 안 쓴다** — 연무는 아무 데나 뜨는 것이 아니라 **마루에 붙어야** 한다.
+function MP2plume(c,t,cu,cv,Du,Dv){
+  scatter(cu,cv,Du*2,Dv*2,MP2LV,1,(sx,sy,i,k,r)=>{
+    if(r>.62)return;
+    const P=MP2cell(k);
+    if(P.amp<.46)return;                                // 낮은 능선은 안 날린다
+    const u=sx-Du, uw=u+cu;                             // 화면 좌표 · 월드 u
+    const v=(k+P.cp)*MP2LV+MP2wob(uw)-cv;               // 마루에 붙인다
+    const ph=t*.36+h2(i,k,5.1)*TAU;
+    const life=.5+.5*Math.sin(t*(.42+h2(i,k,7.3)*.30)+h2(i,k,9.7)*TAU);
+    const LEN=76+h2(i,k,11.3)*98, sp=.30+.46*h2(i,k,13.1);
+    const aa=.042+.070*life, wob2=2.2+h2(i,k,15.7)*2.4;
+    let px=u,py=v;
+    for(let s=1;s<=8;s++){
+      const f=s/8;
+      const x=u+f*LEN*sp+Math.sin(ph+f*2.6)*f*13;
+      const y=v+f*LEN*.62+Math.sin(ph*1.3+f*3.1)*f*7;
+      const rr=3.4+f*f*20*wob2/3.4;                     // 뿌리는 가늘고 끝에서 퍼진다
+      // 끝에서 0 이 되는 봉우리 — 뿌리(밝은 마루)와 꼬리에서 둘 다 사라진다
+      const al=aa*Math.sin(Math.PI*Math.min(1,f*1.02+.04));
+      if(!(rr>0)||al<=.0015){px=x;py=y;continue;}
+      c.save();c.translate(x,y);c.rotate(Math.atan2(y-py,x-px));c.scale(1.9,1);
+      const g=c.createRadialGradient(0,0,0,0,0,rr);
+      if(!g||!g.addColorStop){c.restore();return;}
+      g.addColorStop(0,A(MP2C_PLUME,al));
+      g.addColorStop(.55,A(MP2C_PLUME,al*.42));
+      g.addColorStop(1,A(MP2C_PLUME,0));
+      c.fillStyle=g;c.beginPath();c.arc(0,0,rr,0,TAU);c.fill();c.restore();
+      px=x;py=y;
+    }
+  });
+}
+
+MAPP.bg.dune=function MP2dune(c,t,W,H){
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  const cs=Math.cos(MP2TH),sn=Math.sin(MP2TH);
+  const cu=ox*cs+oy*sn, cv=-ox*sn+oy*cs;                // 카메라를 능선 좌표계로
+  const Dv=(Math.abs(W*sn)+Math.abs(H*cs))/2+90;        // 굽이(±67) 여유 포함
+  const Du=(Math.abs(W*cs)+Math.abs(H*sn))/2+24;
+  // ── 매끄러운 세 겹은 1/3 해상도 버퍼에 ──────────────────────────────────
+  // ⚠️ **전단 blit 이 이 안의 유일한 비용이었다.** 층별 실측(2026-08-11,
+  // 소프트웨어 래스터): 전부 13.59ms 인데 능선 띠만 빼면 **0.13ms** 로 떨어졌다.
+  // 띠마다 걸리는 전단은 「일반 변환」이라 Skia 가 제일 느린 표본기로 떨어진다.
+  //   ⇒ 답은 띠를 줄이는 게 아니라 **화소를 줄이는 것**이다. 능선·대사구·
+  //     바람그늘은 이 안에서 **가장 저주파인 세 겹**이라(제일 급한 마루 전이도
+  //     25px) 1/3 해상도로 그려 올려도 잃는 것이 없다 — 오히려 확대 보간이
+  //     매끄러움을 돕는다. 반대로 결·디더·연무는 **고주파가 정체**라 전체
+  //     해상도로 그 위에 얹는다. 비용이 1/9 로 떨어진다.
+  // ⚠️ 버퍼는 **장치 화소**로 잰다. CSS 폭으로 재면 dpr 2 인 화면에서 1/3 이
+  // 아니라 1/6 이 되어 능선이 뭉갠다(레티나에서만 나는 종류의 사고다).
+  const dsc=(c.canvas&&c.canvas.width>1&&W>0)?c.canvas.width/W:1, sc=dsc/MP2RS;
+  const rw=Math.max(1,Math.ceil(W*sc)),rh=Math.max(1,Math.ceil(H*sc));
+  let buf=c.canvas.__mp2r;
+  if(!buf||buf.width!==rw||buf.height!==rh){
+    buf=document.createElement("canvas");buf.width=rw;buf.height=rh;c.canvas.__mp2r=buf;}
+  const bc=buf.getContext("2d");
+  if(!bc){c.fillStyle=MP2C_BASE;c.fillRect(0,0,W,H);return;}
+  bc.setTransform(1,0,0,1,0,0);
+  bc.fillStyle=MP2C_BASE;bc.fillRect(0,0,rw,rh);
+  bc.setTransform(sc,0,0,sc,0,0);                      // 이 아래는 전부 전체 해상도 좌표
+
+  // 능선
+  bc.save();
+  bc.translate(W/2,H/2);bc.rotate(MP2TH);
+  const G=MP2grad(bc,cv,Dv);
+  if(G){
+    const off=G.base-cv;
+    // 굽은 띠가 훑는 그림 안의 구간만 옮긴다 — 화면 밖은 애초에 안 읽는다.
+    const y0=Math.max(0,Math.floor(-Dv-90-off)),y1=Math.min(G.span,Math.ceil(Dv+90-off));
+    const hh=y1-y0;
+    let w0=MP2wob(-Du+cu);
+    for(let u=-Du;u<Du&&hh>0;u+=MP2SU){
+      const w1=MP2wob(u+MP2SU+cu), k=(w1-w0)/MP2SU;
+      bc.save();
+      bc.transform(1,k,0,1,0,off+w0-k*u);              // 평행이동이 아니라 전단
+      bc.drawImage(G.im,1,y0,2,hh,u,y0,MP2SU+.6,hh);
+      bc.restore();
+      w0=w1;
+    }
+  }
+  bc.restore();
+
+  // 대사구
+  const cs2=Math.cos(MP2TH2),sn2=Math.sin(MP2TH2);
+  const cv2=-ox*sn2+oy*cs2;
+  const Dv2=(Math.abs(W*sn2)+Math.abs(H*cs2))/2+10, Du2=(Math.abs(W*cs2)+Math.abs(H*sn2))/2+10;
+  bc.save();
+  bc.translate(W/2,H/2);bc.rotate(MP2TH2);
+  const G2=MP2grad2(bc,cv2,Dv2);
+  if(G2){const o2=G2.base-cv2;
+    const y0=Math.max(0,Math.floor(-Dv2-o2)),y1=Math.min(G2.span,Math.ceil(Dv2-o2)),hh=y1-y0;
+    if(hh>0){bc.save();bc.translate(0,o2);
+      bc.drawImage(G2.im,1,y0,2,hh,-Du2,y0,Du2*2,hh);bc.restore();}}
+  bc.restore();
+
+  // 바람그늘 — 능선 방향으로 늘어난 어두운 얼룩이 지면보다 빠르게 흐른다.
+  // 바람 방향은 능선을 가로지르는 +v 다: 월드로 (-sin, cos)·거리.
+  mpPat(bc,MP2veil(),W,H,ox*1.26-sn*t*15,oy*1.26+cs*t*15,MP2TH);
+
+  c.drawImage(buf,0,0,rw,rh,0,0,W,H);
+  bc.setTransform(1,0,0,1,0,0);
+
+  // ── 결 — 여기부터는 전체 해상도 ────────────────────────────────────────
+  mpPat(c,MP2rip(),W,H,ox-sn*t*30,oy+cs*t*30,MP2TH);
+
+  // ── 연무 ───────────────────────────────────────────────────────────────
+  // 결 **위**에 온다 — 떠 있는 모래니까 지면 질감에 안 덮여야 한다.
+  c.save();
+  c.beginPath();c.rect(0,0,W,H);c.clip();
+  c.translate(W/2,H/2);c.rotate(MP2TH);
+  MP2plume(c,t,cu,cv,Du,Dv);
+  c.restore();
+
+  // ⚠️ 디더만 **안 돌리고 정수로** 민다. 패턴이 보간되면 1px 잡음이 뭉개져
+  // 디더가 디더를 못 한다(끄고 확인함 — 사면에 띠가 다시 보인다).
+  c.save();c.imageSmoothingEnabled=false;
+  mpPat(c,MP2dith(),W,H,Math.round(ox),Math.round(oy),0);
+  c.restore();
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181)을 사구 위에 얹는다.
+function MP2proof(c,t,dt,W,H,st){MAPP.bg.dune(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다(배경만 그린 캔버스를 한 번 읽는다).
+function MP2num(c,t,dt,W,H,st){MAPP.bg.dune(c,t,W,H);mapMeter(c,t,W,H,st);}
+mapTile("p2",MAPP.demo("dune",1,1),"P2 · 사구 砂丘 + 빛파동 + 미니맵",
+  "각지지 않은 유일한 지형. 큰 파장의 능선 + 자기 그림자. 밝은 면을 좁혀 L>.06 이 화면의 7.6%(평균 L .037 · 최대 .106). 능선은 안 움직이고 모래 결만 초당 30px 흐른다.",
+  MAP_W,MAP_H,1);
+mapTile("p-bg",MAPP.demo("dune",0,0),"사구 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("p-proof",MP2proof,"사구 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("p-mini",MAPP.demo("dune",0,1),"사구 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("p-num",MP2num,"사구 · 밝기 실측","평균 L ≤ .06 · L>.12 ≤ 1% · L>.35 ≤ 0.5%.",MAP_S,MAP_S);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 타이틀 · 흐름 · 허브 골격 — mockup-flow.html · 접두 FLW
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 왜 생겼나 — 「정확히 어떤 게 로비고 맵이고 뭔지 흐름이 잘 구별이 안 감」.
+// 답은 화면마다 답하는 질문을 하나로 좁히는 것이다:
+//   타이틀(이 게임이 무엇인가·로딩을 숨긴다) → 로비(다음에 무엇을 하는가) →
+//   항로도(어디로 가는가) → 전투(살아남는가 — 발밑은 유니버스) →
+//   결과(무엇을 얻었나) → 다시 로비. 첫 칸만 편도, 나머지는 닫힌 고리다.
+//
+// ── 허브 골격의 판단 ──────────────────────────────────────────────────────
+// 하단 탭바 5칸 [도감 · 기록 · 홈 · 상점 · 업적]. 홈이 가운데, 왼쪽은 지금
+// 있는 것, 오른쪽은 올 것(윤곽 + 「곧」). 출격은 탭이 아니라 탭바 위의 금빛
+// 주 버튼이다 — 탭은 **장소**, 출격은 **행위**라 섞으면 「화면당 주 버튼
+// 하나」(계약 ⑤)가 깨진다. 데스티니 차일드도 월드맵을 탭에 안 넣었다.
+//
+// ⚠️ **기존 로비 계약 ⑦(하단 탭바 금지)을 여기서 갱신한다.** 근거는 사용자
+// 결정이다: 「현재 기능이 약하다고 허브를 없애버리면 모바일게임에 익숙한
+// 사람들은 인터페이스에 오류가 온다.」 단 ⑦의 핵심(초점 하나)은 지킨다 —
+// 탭바는 무채색 회백이고, 넓은 면적으로 색을 가진 것은 여전히 주 버튼 하나다.
+//
+// ── 곧 열림 ≠ 잠김 ────────────────────────────────────────────────────────
+// 잠김(무한모드)은 **플레이로** 열리므로 조건을 적는다. 곧 열림(상점·업적)은
+// **업데이트로** 오므로 조건을 안 적는다 — 코드에 없는 기능에 해금 조건을
+// 적으면 거짓 약속이 된다. 그림 문법은 둘 다 「윤곽만」(항로도 잠긴 별과 같은
+// 문법)이되, 곧 열림에만 「곧」 배지가 붙는다.
+//
+// 부품은 전부 기존 것이다 — 폰 프레임·칩·주 버튼은 LB2*, 배경은 LOBBYBG 를
+// 키로 읽기만(계약 ③), 몸은 hero/ELEM.goldMani, 덱 띠는 lobbyDeck, 성좌는
+// stConDraw(LB2stars). **새 원시함수 0개.**
+
+// ── 타이틀 화면 ───────────────────────────────────────────────────────────
+// 셋만 있다: 문장(紋章) · 이름 · 「터치해서 시작」. 문장은 발현 전 무속성의
+// 코어(hero — 3겹 각진 별 + 후광)다. 둘레가 비어 있는 것이 시작의 정체이고,
+// 회백인 것도 이야기다 — 이 게임의 빛은 색을 게임 안에서 입는다.
+// 로딩은 맨 아래 한 줄로 숨긴다. 진행바를 채우면 주기 끝(가득)과 처음(빈 것)이
+// 달라 루프가 끊기므로, **왕복하는 불빛**(cos — 주기가 스스로 닫힌다)으로 둔다.
+function FLWtitleBg(c,t,dt,W,H,st){
+  (LOBBYBG.space||LOBBYBG.none)(c,t,dt,W,H,st);
+  // 문장 — 게임의 그 몸. 로고를 위해 새로 그리지 않는다.
+  hero(c,t,W*.5,H*.27,"gold",2.3);
+  // 터치해서 시작 — cos 하나에서만 파생하는 맥동.
+  const pa=.34+.46*(.5-.5*Math.cos(t*2.42));
+  c.textAlign="center";c.textBaseline="middle";
+  c.font=LBFONT(600,14.5);c.fillStyle=A("#EDEDF2",pa);
+  lbText(c,"터치해서 시작",W*.5,H*.655);
+  // 로딩 — 왕복 불빛 + 한 줄. 로딩을 숨기는 자리라는 것만 보이면 된다.
+  const x0=W*.30,x1=W*.70,y=H*.925,p=.5-.5*Math.cos(t*1.15);
+  c.strokeStyle="rgba(180,185,210,.16)";c.lineWidth=1.5;
+  c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();
+  const hx=x0+(x1-x0)*p;
+  c.strokeStyle="rgba(232,234,246,.55)";c.lineWidth=1.5;
+  c.beginPath();c.moveTo(Math.max(x0,hx-17),y);c.lineTo(Math.min(x1,hx+17),y);c.stroke();
+  c.font=LBFONT(500,9);c.fillStyle="rgba(140,140,164,.85)";
+  lbText(c,"우주를 읽는 중",W*.5,H*.905);
+  c.textAlign="right";c.font=LBFONT(500,8.5);c.fillStyle="rgba(110,110,132,.8)";
+  lbText(c,"v0.1.0",W-14,H*.972);
+  c.textAlign="left";c.textBaseline="alphabetic";}
+
+// 워드마크 — 글자는 HTML 이다. 캔버스로 레터링하면 게임에 없는 문법이 하나
+// 생긴다. 3단 계조와 흰 앞날은 세로 그라디언트가 밟는다(흰 앞날 → 회백 → 어둠).
+// ⚠️ 그라디언트를 **줄 높이로 반복**시킨다(background-size 100% 1.22em).
+// 블록에 한 번만 흘리면 두 줄짜리 워드마크에서 윗줄이 흰 앞날을 독식하고
+// 아랫줄은 어둠만 밟는다 — 첫 렌더에서 SURVIVAL 이 실제로 한 단 어두웠다.
+const FLWWORD=(size,gap)=>
+  `<div style="font-size:${size}px;font-weight:800;letter-spacing:${gap}em;`+
+  `line-height:1.22;padding-left:${gap}em;`+
+  `background:linear-gradient(180deg,#FFFFFF 0%,#D6D6E2 30%,#A6A6B2 62%,#73737F 100%);`+
+  `background-size:100% 1.22em;background-repeat:repeat;`+
+  `-webkit-background-clip:text;background-clip:text;color:transparent;`+
+  `filter:drop-shadow(0 0 16px rgba(214,214,228,.26))">LIGHT<br>SURVIVAL</div>`;
+
+function FLWtitle(host,v){
+  const ui=LB2phone(host,{bg:FLWtitleBg,nm:v.nm,ds:v.ds}).ui;
+  ui.appendChild(LB2el("div",{position:"absolute",left:"0",right:"0",top:"40.5%",
+    textAlign:"center",pointerEvents:"none"},FLWWORD(35,.24)));}
+
+function FLWlogoTile(host){
+  const p=LB2el("div",{display:"flex",flexWrap:"wrap",gap:"26px",alignItems:"center",
+    background:"#0C0C12",border:"1px solid #26262F",borderRadius:"4px",
+    padding:"24px 30px",maxWidth:"1000px",boxSizing:"border-box"});
+  const cv=LB2el("canvas",{width:"210px",height:"210px",display:"block",flex:"0 0 210px"});
+  p.appendChild(cv);
+  mk(cv,[210,210],function FLWemblem(c,t,dt,W,H){hero(c,t,W/2,H/2,"gold",2.2);});
+  p.appendChild(LB2el("div",{flex:"1 1 320px",minWidth:"300px"},
+    FLWWORD(44,.22)+
+    `<div style="margin-top:14px;font-size:11.5px;color:#9494A2;line-height:1.7;max-width:56ch">`+
+    `<b style="color:#EDEDF2">각진 윤곽</b> — 문장은 캐릭터 코어와 같은 3겹 각진 별. 게임의 그 몸이 로고다.<br>`+
+    `<b style="color:#EDEDF2">3단 계조 · 흰 앞날</b> — 글자의 세로 그라디언트가 흰 앞날 → 회백 → 어둠을 밟는다.<br>`+
+    `<b style="color:#EDEDF2">회백인 이유</b> — 시작의 빛은 아직 색이 없다. 색은 게임 안에서 입는다.</div>`));
+  host.appendChild(p);}
+
+// ── 탭 문양 — 무채색. 상태는 색이 아니라 밝기와 채움이다 ─────────────────
+// 0 열림(가라앉은 회백) / 1 현재(밝음) / 2 곧 열림(옅음 — 항로도 잠긴 별과
+// 같은 「윤곽만」 문법).
+const FLWINK=["rgba(150,150,166,.72)","#ECECF4","rgba(150,150,175,.30)"];
+const FLWGLYPH={
+  codex(c,W,m){const k=FLWINK[m],cx=W/2,cy=W/2;              // 카드 두 장 — 덱
+    c.save();c.translate(cx-3,cy+1);c.rotate(-.16);
+    c.strokeStyle=k;c.lineWidth=1.4;c.strokeRect(-4.5,-6.5,9,13);c.restore();
+    c.save();c.translate(cx+3,cy+1);c.rotate(.10);
+    if(m===2){c.strokeStyle=k;c.lineWidth=1.4;c.strokeRect(-4.5,-6.5,9,13);}
+    else{c.fillStyle=k;c.fillRect(-4.5,-6.5,9,13);}
+    c.restore();},
+  log(c,W,m){const k=FLWINK[m],cx=W/2,cy=W/2;                // 줄자 + 죽은 자리
+    c.strokeStyle=k;c.lineWidth=1.4;
+    c.beginPath();c.moveTo(4,cy+5);c.lineTo(W-4,cy+5);c.stroke();
+    for(const x of[4,cx,W-4]){c.beginPath();c.moveTo(x,cy+2);c.lineTo(x,cy+8);c.stroke();}
+    fillPoly(c,jagPoly(cx+3.5,cy-3.5,3.6,4,2.2,1.2),k);},
+  home(c,W,m){const cx=W/2,cy=W/2;                           // 캐릭터 코어 3겹
+    if(m===2){fillPoly(c,jagPoly(cx,cy,8,7,3,1.35),FLWINK[2]);return;}
+    c.fillStyle=FLWINK[m];
+    c.globalAlpha=.32;fillPoly(c,jagPoly(cx,cy,8.2,7,3,1.35),FLWINK[m]);
+    c.globalAlpha=.62;fillPoly(c,jagPoly(cx,cy,5.8,7,3.4,1.3),FLWINK[m]);
+    c.globalAlpha=1;  fillPoly(c,jagPoly(cx,cy,3.1,7,4.1,1.2),FLWINK[m]);},
+  shop(c,W,m){const k=FLWINK[m],cx=W/2,cy=W/2;               // 보석 + 받침
+    fillPoly(c,jagPoly(cx,cy-1,6.4,4,1.3,1.15),k);
+    c.strokeStyle=k;c.lineWidth=1.3;
+    c.beginPath();c.moveTo(cx-7,cy+8);c.lineTo(cx+7,cy+8);c.stroke();},
+  feat(c,W,m){const k=FLWINK[m],cx=W/2,cy=W/2;               // 고리 속의 별
+    c.strokeStyle=k;c.lineWidth=1.4;
+    c.beginPath();c.arc(cx,cy,7.4,0,TAU);c.stroke();
+    fillPoly(c,jagPoly(cx,cy,3.4,5,4.4,1.4),k);}};
+
+// ── 탭바 — 장소 5칸. 행위(출격)는 여기 없다 ──────────────────────────────
+// 현재 칸의 표시는 윗줄(회백)이다 — 금빛 밑줄이면 색이 있는 것이 둘이 된다.
+function FLWtabbar(ui,cells,act){
+  const bar=LB2el("div",{display:"flex",alignItems:"stretch",height:"58px",
+    flex:"0 0 auto",margin:"9px -15px 0",background:"rgba(9,9,14,.92)",
+    borderTop:"1px solid rgba(180,180,200,.14)"});
+  cells.forEach((cl,i)=>{
+    const on=i===act,soon=!!cl.soon;
+    const cell=LB2el("div",{flex:"1 1 0",display:"flex",flexDirection:"column",
+      alignItems:"center",justifyContent:"center",gap:"3px",position:"relative",
+      marginTop:"-1px",
+      borderTop:on?"2px solid rgba(237,237,242,.85)":"2px solid transparent"});
+    const cv=LB2el("canvas",{width:"26px",height:"26px",display:"block"});
+    cell.appendChild(cv);
+    mk(cv,[26,26],function FLWtabGlyph(c){FLWGLYPH[cl.k](c,26,soon?2:(on?1:0));});
+    cell.appendChild(LB2el("div",{fontSize:"9.5px",letterSpacing:".06em",
+      fontWeight:on?"600":"400",
+      color:soon?"rgba(150,150,175,.42)":(on?"#EDEDF2":"#8B8B99")},cl.nm));
+    if(soon)cell.appendChild(LB2el("div",{position:"absolute",top:"7px",left:"50%",
+      marginLeft:"9px",fontSize:"7.5px",letterSpacing:".08em",
+      color:"rgba(150,150,175,.55)",border:"1px solid rgba(150,150,175,.28)",
+      padding:"0 3px",borderRadius:"2px",lineHeight:"1.5"},"곧"));
+    bar.appendChild(cell);});
+  ui.appendChild(bar);}
+
+// ── 로비 한 대 — 골격이 주제다. 가운데 층은 A안(제단)의 축소판만 얹는다 ──
+// 네 대가 같은 세계 상태를 그린다(진행 중 3장 4:12 · 덱 20/20 · 성좌 3/3).
+// 다른 것은 탭바뿐 — 그래야 비교가 골격만 잰다.
+function FLWlobby(host,v){
+  const ui=LB2phone(host,{bg:LB2bgLive,nm:v.nm,ds:v.ds}).ui;
+  LB2sys(ui);LB2top(ui,"빛 · 무속성","설정");
+  {const w=LB2el("div",{flex:"0 0 auto",display:"flex",flexDirection:"column",
+     alignItems:"center",margin:"2px 0 0"});
+   const cv=LB2el("canvas",{width:"150px",height:"150px",display:"block"});
+   w.appendChild(cv);mk(cv,[150,150],ELEM.goldMani);
+   w.appendChild(LB2el("div",{fontSize:"19px",fontWeight:"600",letterSpacing:".3em",
+     paddingLeft:".3em",color:"#E8E8F0",marginTop:"-7px"},"빛"));
+   ui.appendChild(w);}
+  {const p=LB2panel(ui,{margin:"9px 0 0",padding:"10px 13px"});
+   p.innerHTML=
+     `<div style="display:flex;justify-content:space-between;align-items:center">`+
+     `<div><div style="font-size:9.5px;letter-spacing:.22em;color:#6E6E7C">진행 중</div>`+
+     `<div style="font-size:13px;font-weight:600;margin-top:2px">3장 · 덮쳐오는 어둠</div></div>`+
+     `<div style="text-align:right">`+
+     `<div style="font-size:9.5px;letter-spacing:.22em;color:#6E6E7C">경과</div>`+
+     `<div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;`+
+     `margin-top:2px">4:12</div></div></div>`;}
+  {const p=LB2panel(ui,{margin:"8px 0 0",padding:"9px 13px 10px"});
+   p.appendChild(LB2el("div",{display:"flex",justifyContent:"space-between",
+     marginBottom:"5px"},
+     `<div style="font-size:9.5px;letter-spacing:.22em;color:#6E6E7C">덱 · 성흔 20 / 20</div>`+
+     `<div style="font-size:11px;color:#A6A6B4">도감에서 편집 ›</div>`));
+   const cv=LB2el("canvas",{width:"100%",height:"22px",display:"block"});
+   p.appendChild(cv);mk(cv,[306,22],lobbyDeck);
+   p.appendChild(LB2el("div",{fontSize:"9.5px",letterSpacing:".22em",color:"#6E6E7C",
+     margin:"9px 0 0"},"성좌 3 / 3"));
+   LB2stars(p,[STCON[0],STCON[7],STCON[6]]);}
+  LB2grow(ui);
+  LB2cta(ui,"이어하기","3장 · 4:12");
+  LB2sub2(ui,"진행 중인 판을 버리고 "+LB2UNDO);
+  FLWtabbar(ui,v.tabs,v.act);
+  LB2home(ui);}
+
+// ── 흐름도 — 한 판이 한 바퀴다 ────────────────────────────────────────────
+// 실선 = 매판 도는 닫힌 고리(로비→항로도→전투→결과→로비), 점선 = 처음 한 번
+// (타이틀→로비). 도는 점의 자리는 위상(saw 9s) 하나에서만 파생하고, 경로가
+// 닫혀 있어 주기 끝과 처음의 좌표가 같다 — 이음새가 구조적으로 없다.
+const FLWPATH=[[.27,.40],[.475,.40],[.675,.40],[.865,.40],[.878,.615],[.81,.783],
+  [.653,.849],[.48,.853],[.337,.749],[.287,.557],[.27,.40]];
+function FLWflow(c,t,dt,W,H,st){
+  lbStars(c,t,W,H,80,.8);
+  const X={t:.065,l:.27,r:.475,b:.675,g:.865},Y=H*.40;
+  const px=f=>f*W;
+  const edge=(x0,x1,y,dash)=>{c.save();if(dash)c.setLineDash([3,6]);
+    c.strokeStyle=dash?"rgba(180,185,210,.28)":"rgba(214,214,228,.34)";
+    c.lineWidth=dash?1.2:1.6;
+    c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();c.restore();};
+  const chev=(x,y,ang)=>{c.save();c.translate(x,y);c.rotate(ang);
+    c.strokeStyle="rgba(214,214,228,.5)";c.lineWidth=1.6;
+    c.beginPath();c.moveTo(-7,-4.5);c.lineTo(0,0);c.lineTo(-7,4.5);c.stroke();c.restore();};
+  // 본선
+  edge(px(X.t)+14,px(X.l)-27,Y,1);              chev(px(X.l)-27,Y,0);
+  edge(px(X.l)+27,px(X.r)-15,Y,0);              chev(px(X.r)-15,Y,0);
+  edge(px(X.r)+15,px(X.b)-15,Y,0);              chev(px(X.b)-15,Y,0);
+  edge(px(X.b)+15,px(X.g)-15,Y,0);              chev(px(X.g)-15,Y,0);
+  // 귀환 곡선 — 결과에서 로비로. 고리가 닫히는 자리다.
+  c.strokeStyle="rgba(214,214,228,.30)";c.lineWidth=1.6;
+  c.beginPath();c.moveTo(px(X.g),Y+14);
+  c.bezierCurveTo(px(.898),H*.62,px(.80),H*.80,px(.60),H*.85);
+  c.bezierCurveTo(px(.43),H*.885,px(.30),H*.75,px(X.l)+3,Y+28);
+  c.stroke();
+  chev(px(X.l)+6,Y+34,-1.83);
+  // 곁가지 — 위는 열린 곳, 아래는 올 곳(윤곽 + 「곧」)
+  const spoke=(fx,fy,dash)=>{c.save();if(dash)c.setLineDash([2,5]);
+    c.strokeStyle="rgba(180,185,210,.15)";c.lineWidth=1;
+    c.beginPath();c.moveTo(px(X.l),Y);c.lineTo(px(fx),fy*H);c.stroke();c.restore();};
+  spoke(.205,.135,0);spoke(.325,.135,0);spoke(.115,.19,0);
+  spoke(.205,.62,1);spoke(.325,.62,1);
+  // 마디들
+  c.textBaseline="middle";
+  const nm=(x,y,s,f,col)=>{c.font=LBFONT(600,f);c.fillStyle=col||"#EDEDF2";
+    c.textAlign="center";lbText(c,s,x,y);};
+  const qq=(x,y,s)=>{c.font=LBFONT(500,9.5);c.fillStyle="rgba(150,150,175,.95)";
+    c.textAlign="center";lbText(c,s,x,y);};
+  // 타이틀 — 문장의 축소판(둘레 빈 각진 별)
+  {const x=px(X.t);
+   fillPoly(c,jagPoly(x,Y,9,7,3,1.35),A(TONE.gold[0],.95));
+   fillPoly(c,jagPoly(x,Y,6.4,7,3.4,1.3),A(TONE.gold[1],1));
+   fillPoly(c,jagPoly(x,Y,3.4,7,4.1,1.2),A(TONE.gold[2],1));
+   nm(x,Y+24,"타이틀",12);qq(x,Y+38,"이 게임이 무엇인가");
+   c.font=LBFONT(500,8.5);c.fillStyle="rgba(122,122,146,.9)";
+   lbText(c,"터치 · 처음 한 번",(px(X.t)+px(X.l))/2,Y-11);}
+  // 로비 — 허브. 게임의 그 몸이 앉아 있다.
+  {const x=px(X.l);
+   LB2hoop(c,x,Y,26,1,t*.3,2,"gold",.38);
+   hero(c,t,x,Y,"gold",.5);
+   nm(x,Y+44,"로비",12.5);qq(x,Y+58,"다음에 무엇을 하는가");}
+  // 항로도 — 곁에 옅은 별 둘. 「여러 별 중 하나를 고른다」가 마디의 정체다.
+  {const x=px(X.r);
+   celSplash(c,x,Y,8,5,2.1,"gold",.85);
+   celSplash(c,x-17,Y-13,3,5,1.4,"gold",.35);
+   celSplash(c,x+15,Y+11,2.6,5,3.6,"gold",.30);
+   nm(x,Y+24,"항로도",12);qq(x,Y+38,"어디로 가는가");
+   c.font=LBFONT(500,8.5);c.fillStyle="rgba(122,122,146,.9)";
+   lbText(c,"출격",(px(X.l)+px(X.r))/2,Y-11);}
+  // 전투 — 발밑은 유니버스, 둘레는 적 떼
+  {const x=px(X.b);
+   celSplash(c,x,Y,8,7,3.3,"gold",.9);
+   for(let i=0;i<6;i++){const a=t*.45+i/6*TAU;
+     c.beginPath();c.arc(x+Math.cos(a)*17,Y+Math.sin(a)*17*.6,1.9,0,TAU);
+     c.fillStyle="rgba(150,150,175,.4)";c.fill();}
+   nm(x,Y+24,"전투",12);qq(x,Y+38,"살아남는가 · 발밑은 유니버스");
+   c.font=LBFONT(500,8.5);c.fillStyle="rgba(122,122,146,.9)";
+   lbText(c,"강하",(px(X.r)+px(X.b))/2,Y-11);}
+  // 결과 — 별을 얻는 자리
+  {const x=px(X.g);
+   celSplash(c,x,Y,8,5,4.6,"gold",.9);
+   celSplash(c,x-13,Y-19,3,5,1.2,"gold",.7);
+   celSplash(c,x,Y-24,3.4,5,2.2,"gold",.8);
+   celSplash(c,x+13,Y-19,3,5,3.2,"gold",.7);
+   nm(x,Y+24,"결과",12);qq(x,Y+38,"무엇을 얻었나");
+   c.font=LBFONT(500,8.5);c.fillStyle="rgba(122,122,146,.9)";
+   lbText(c,"끝",(px(X.b)+px(X.g))/2,Y-11);}
+  c.font=LBFONT(500,9);c.fillStyle="rgba(150,150,175,.9)";
+  lbText(c,"별 · 해금을 안고 돌아온다",px(.545),H*.905);
+  // 곁가지 마디 — 위 둘은 열림, 왼쪽 하나는 설정(칩), 아래 둘은 곧 열림
+  {const d=(fx,s)=>{const x=px(fx),y=H*.135;
+     celSplash(c,x,y,5.5,5,fx*7,"gold",.55);
+     c.font=LBFONT(500,10);c.fillStyle="rgba(198,198,214,.95)";
+     c.textAlign="center";lbText(c,s,x,y-15);};
+   d(.205,"도감");d(.325,"기록");}
+  {const x=px(.115),y=H*.19;
+   c.beginPath();c.arc(x,y,2.2,0,TAU);c.fillStyle="rgba(150,150,175,.5)";c.fill();
+   c.font=LBFONT(500,8.5);c.fillStyle="rgba(122,122,146,.9)";
+   c.textAlign="center";lbText(c,"설정 — 상단 칩",x,y-11);}
+  {const s=(fx,nm2)=>{const x=px(fx),y=H*.62;
+     fillPoly(c,jagPoly(x,y,6,5,fx*9,1.5),"rgba(122,122,148,.20)");
+     c.font=LBFONT(500,10);c.fillStyle="rgba(140,140,164,.85)";
+     c.textAlign="center";lbText(c,nm2+" · 곧",x,y+17);};
+   s(.205,"상점");s(.325,"업적");}
+  // 도는 점 — 위상 하나에서만 파생한다. 경로가 닫혀 있어 이음새가 없다.
+  {const P=FLWPATH.map(p=>[p[0]*W,p[1]*H]);
+   const L=[];let tot=0;
+   for(let i=0;i<P.length-1;i++){const dx=P[i+1][0]-P[i][0],dy=P[i+1][1]-P[i][1];
+     const l=Math.sqrt(dx*dx+dy*dy);L.push(l);tot+=l;}
+   const at=(u)=>{let d=u*tot;
+     for(let i=0;i<L.length;i++){if(d<=L[i]){const s=d/L[i];
+       return[P[i][0]+(P[i+1][0]-P[i][0])*s,P[i][1]+(P[i+1][1]-P[i][1])*s];}
+       d-=L[i];}
+     return P[P.length-1];};
+   const u=saw(t,9);
+   // 꼬리 — 간격 .011 은 구슬 목걸이로 읽혔다(첫 렌더 판정). 혜성이 되려면
+   // 점 사이가 점 크기와 비슷해야 한다.
+   for(let k=5;k>=0;k--){const q=at((u-k*.005+1)%1);
+     c.beginPath();c.arc(q[0],q[1],2.8-k*.34,0,TAU);
+     c.fillStyle=A("#F2F2FA",.95*(1-k/6.5));c.fill();}}
+  c.textAlign="left";c.textBaseline="alphabetic";}
+
+// ── 탭 한 칸의 문법 견본 ──────────────────────────────────────────────────
+function FLWtabgram(host){
+  box(host,{display:"flex",flexWrap:"wrap",gap:"9px",alignItems:"stretch",
+    marginTop:"6px"});
+  const cell=(draw,nm,ds)=>{
+    const d=LB2el("div",{width:"226px",flex:"0 0 226px",background:"#13131A",
+      border:"1px solid #26262F",borderRadius:"4px",padding:"13px 14px",
+      boxSizing:"border-box",display:"flex",gap:"11px",alignItems:"flex-start"});
+    const cv=LB2el("canvas",{width:"26px",height:"26px",display:"block",
+      flex:"0 0 26px",marginTop:"2px"});
+    d.appendChild(cv);mk(cv,[26,26],draw);
+    d.appendChild(LB2el("div",{flex:"1 1 auto"},
+      `<div style="font-size:12px;font-weight:600;color:#EDEDF2">${nm}</div>`+
+      `<div style="font-size:10.5px;color:#9494A2;line-height:1.5;margin-top:2px">${ds}</div>`));
+    host.appendChild(d);};
+  cell(function FLWgOn(c){FLWGLYPH.home(c,26,1);},"현재",
+    "밝음 + 윗줄. 금빛이 아니다 — 색은 주 버튼 하나뿐이라는 규약.");
+  cell(function FLWgOpen(c){FLWGLYPH.codex(c,26,0);},"열림",
+    "가라앉은 회백의 채운 문양. 눌러서 간다.");
+  cell(function FLWgSoon(c){FLWGLYPH.shop(c,26,2);},"곧 열림",
+    "옅은 문양 + 「곧」. 조건을 안 적는다 — 업데이트로 온다.");
+  cell(function FLWgLock(c){fillPoly(c,jagPoly(13,13,8,5,4.4,1.5),
+    "rgba(122,122,148,.20)");},"잠김 (참고 — 항로도의 문법)",
+    "같은 윤곽이되 조건을 적는다 — 「3장 클리어로 해금」. 플레이로 연다.");}
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+{const host=$("flw-title");box(host,{gap:"22px"});
+ FLWtitle(host,{nm:"타이틀 — 로고 + 터치해서 시작",
+   ds:"문장은 게임의 그 몸(무속성 코어) — 둘레가 비어 있는 것이 시작의 정체다. 로딩은 아래 한 줄로 숨긴다. 아무 데나 터치하면 로비."});}
+FLWlogoTile($("flw-logo"));
+mk($("flw-flow-cv"),[980,470],FLWflow);
+{const host=$("flw-hub");box(host,{gap:"22px"});
+ const T5=[{k:"codex",nm:"도감"},{k:"log",nm:"기록"},{k:"home",nm:"홈"},
+   {k:"shop",nm:"상점",soon:1},{k:"feat",nm:"업적",soon:1}];
+ const T5o=[{k:"codex",nm:"도감"},{k:"log",nm:"기록"},{k:"home",nm:"홈"},
+   {k:"shop",nm:"상점"},{k:"feat",nm:"업적"}];
+ const T3=[{k:"codex",nm:"도감"},{k:"home",nm:"홈"},{k:"log",nm:"기록"}];
+ FLWlobby(host,{tabs:T5,act:2,nm:"골격안 · 발매 — 5칸, 오른쪽 둘은 「곧」",
+   ds:"자리를 지금 확정한다. 왼쪽 = 지금 있는 것, 오른쪽 = 올 것. 빈 칸이 오른쪽 끝에 몰려 「아직」이 한 덩어리로 읽힌다."});
+ FLWlobby(host,{tabs:T5o,act:2,nm:"골격안 · 반년 뒤 — 전부 열림",
+   ds:"<b style=\"color:#EDEDF2\">자리 이동 0.</b> 상점이 열리는 날 바뀌는 것은 문양의 채움뿐이다 — 자리는 한 번만 배운다."});
+ FLWlobby(host,{tabs:T3,act:1,nm:"숨김안 · 발매 — 지금 있는 3칸만",
+   ds:"발매 시점이 제일 깨끗하다 — 죽은 탭 0. 대신 골격이 안 보여 「모바일 게임의 로비」로 읽히지 않는다."});
+ FLWlobby(host,{tabs:T5o,act:2,nm:"숨김안 · 반년 뒤 — 세 칸이 움직였다",
+   ds:"상점·업적이 끼며 <b style=\"color:#EDEDF2\">기록이 홈의 반대편으로 건너가고 홈이 한 칸 밀렸다.</b> 자리를 두 번 배우게 하는 값이다."});}
+FLWtabgram($("flw-tabgram"));
+
+// ══════════════════════════════════════════════════════════════════════════
+// NB5 「충돌 은하 衝突銀河」 — 심우주 3차 다섯 중 **사건이 있는** 유일한 안
+//                                          (docs/vfx/mockup-map.html · nb5)
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 다른
+// 손들이 같은 파일에 nb1~nb4 를 붙이고 있으므로, 최상위 이름은 전부 `NB5`
+// 로 시작하고 등록은 `MAP` 에 **대입만** 한다.
+//
+// ── 이 안의 자기검사: 「유일하게 ~한 안」 ─────────────────────────────────
+// 다섯 중 **무슨 일이 벌어지는 중**인 것은 이것뿐이다. 회랑(지나가는 곳)·
+// 조우(알아보는 곳)·기둥(서 있는 것)·산광(깔린 것)은 전부 **상태**고,
+// 이것만 **사건**이다 — 두 은하가 서로에게 무너지는 중이고, 조석 꼬리
+// 두 벌이 화면을 서로 다른 대각으로 가르며, 얽힌 자리마다 별이 태어난다.
+//
+// ⚠️ **잔광(U5)과 갈리는 지점 — 시간이 없다.** 잔광은 판이 갈수록 팽창한다
+// (시간축). 이 안은 `t` 를 **카메라 위치(mapCam) 말고는 한 곳도 안 쓴다** —
+// 꼬리·매듭·두 핵 전부 월드에 못 박힌 **정지한 한 장면**(공간축)이고,
+// 움직임은 전부 내가 지나가는 데서 나온다. 충돌은 수억 년짜리 사건이라
+// 정지가 물리적으로도 맞다 — 「스냅사진 속의 물보라」가 이 안의 정체다.
+//
+// ── 구도: 사건의 한가운데서 본다 ─────────────────────────────────────────
+// 충돌을 밖에서 본 그림(원반 두 장이 겹친 도장)은 「표지물」이 되어 조우(nb2)
+// 와 겹친다. 여기서는 **충돌 지대 안**에 서 있다:
+//   · 은하 알파의 조석 꼬리들 — 별 물살. 대각 −20.6° 로 흐른다 (색상각 ≈232°)
+//   · 은하 베타의 조석 꼬리들 — 먼지 물살. 대각 +29.8° 로 교차 (색상각 ≈255°)
+//   · **매듭** — 두 물살이 얽히는 자리. 압축된 가스가 별을 낳는 자리라
+//     여기에만 불티(별 탄생 영역)를 얹는다. 기하에서 계산되는 위치라
+//     장식이 아니라 **사건의 증거**다.
+//   · **두 핵** — 월드 한 자리에만 있는 랜드마크. 뜯긴 원반 + 동반은하
+//     쪽으로 번진 스미어 + 먼지 호 + 둘을 잇는 다리. 조우의 은하가
+//     「멀쩡한 나선」이라면 이 둘은 **부서지는 중**이다.
+// 꼬리 두 벌은 월드 전체에 깔린다(무한 평행류 + 줄마다 다른 굽이/폭) —
+// 어느 월드 좌표에서 재도 중간 톤 예산이 성립해야 하기 때문이다(아래 실측).
+//
+// ── 개정 예산(2026-08-11)을 어떻게 채우나 ────────────────────────────────
+// 「보인다」의 정의가 중간 톤(L .05~.15) 면적 15~30% 다. 이 안의 중간 톤은
+// **꼬리의 몸**이 채운다: 막(tone0, 겹침 2~3장에서 L .059~.068) + 결(tone1,
+// 몸 위에서 .095~.10) + 마루(tone2 .142~.161, 좁은 심만). 한 장짜리 자락
+// (L ≈ .044)은 일부러 문턱 아래 둔다 — 가장자리가 부드러워지는 값이지 예산을
+// 먹는 값이 아니다. 봉우리 상한 .17 아래(면적 있는 최댓값 = tone2 원색 .161),
+// L>.35 는 매듭 불티·핵·드문 밝은 별의 점들뿐이다(전부 반경 ≤1.6px).
+//
+//   실측(브라우저 실캔버스 · 헤드리스 크롬 · 강제 래스터, getImageData):
+//     중간 톤(.05~.15)  980×430 · 월드 12자리: 최소 15.87 / 평균 23.43 / 최대 28.78 %
+//                       → **열두 자리 전부 예산(15~30%) 안.**
+//     ⚠️ 320² 는 같은 자리들에서 6.7~35.6% 로 널뛴다 — 안이 흔들리는 게
+//       아니라 표본 창이 작은 것이다(자기막 320² 11.7~43.0% 과 같은 성질).
+//       예산이 묶는 것은 실화면 비율이라 아래 수치 칸도 980×430 으로 잰다.
+//     평균 L            .0312~.0418 (≤ .075)    L>.35 최대 .030% (≤ .5%)
+//     최대(별·불티 점)   .894        L>.12 는 .12~3.81% (결·마루·매듭 — 상한 없음)
+//     비용(강제 래스터)  980×430 에서 2.51ms · 320² 에서 1.08ms
+//                       (A안 심연 2.25ms 와 같은 급, MU2 잔해대 5.75ms 의 절반)
+//
+// ── 앞 손들의 함정, 밟지 않은 것 ─────────────────────────────────────────
+// · **칠하는 차례**: 막 전부 → 먼지골 전부 → 결 전부 → 마루 전부. 두 물살을
+//   번갈아 완성하면 베타의 막이 알파의 마루를 덮는다(자기막의 사고 그대로).
+// · **α 문턱**: 막 한 장(.46)은 일부러 문턱 아래, 겹침(2장~)부터 예산을 먹는다.
+//   「티끌 층으로 개수만 늘리는 수법」이 아니라 가장자리 연화가 목적이고,
+//   중간 톤은 겹침·결·마루가 실측으로 채운다(위 표).
+// · **방사 그라디언트 0장.** 전부 다각형 채움 + 점이다. 굽는 것도 없다.
+// · **celHoop 안 쓴다.** 가산 합성(`lighter`) 0회, 흰 앞날 0개 —
+//   이 안의 면적 있는 최댓값(.161)은 무기 바깥층 실최솟값(.181)보다도 어둡다.
+// · **이음매**: 꼬리는 칸 없는 연속 기하(굽이가 k 마다 다른 위상), 알갱이·
+//   원경 별·근경 먼지는 전부 `scatter()`(칸 번호 해시) — 반복이 원리적으로 없다.
+//
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 두 물살을 **색상 두 각**으로 가른다: 알파 229~233°(청람) / 베타 259~261°(청자).
+// 렌더된 화소에서 면적 가중으로 잰 주 색상각은 **247.4°** — 최근접 속성은
+// 어둠(273.0°)과 25.6°, 빙(198.6°)과 48.8°, 적 몸(318.8°)과는 71.4°.
+// 어느 각이든 20~30° 안에 뭔가 있는 색상환이라 진짜 방어는 저채도·저명도다:
+// 이 안의 면적 있는 것 전부가 L ≤ .161 로, 어둠 속성 가운데층(#2E1840)과도
+// 명도·채도로 갈린다. 두 물살의 30° 차이는 「서로 다른 은하의 것」이라는
+// 정보를 주는 최소값으로만 쓴다(나란히 두면 갈리는 최소치가 30°).
+
+// ── 두 물살의 기하 ────────────────────────────────────────────────────────
+// 충돌면은 깊이 .34 한 장이다 — 꼬리도 핵도 매듭도 같은 판에 산다(조석
+// 꼬리는 궤도면을 따라 눕는다). 시차는 판 밖의 두 층이 준다: 원경 별 .05 ·
+// 근경 먼지 실루엣 1.05.
+const NB5DEP=.34;
+// [th]꼬리 방향 · [D]줄 간격 · [s]해시 시드 · [ph]굽이 위상 · [T]3단 사다리
+//   알파(별 물살)  T: L .0741 / .1177 / .1607 · 229~233°  ← 결 촘촘, 골 가끔
+//   베타(먼지 물살) T: L .0769 / .1148 / .1589 · 259~261°  ← 골(먼지띠) 상시
+// ⚠️ 첫 실측에서 중간 톤이 10.7~42.5% 로 널뛰었다(예산 15~30%). 원인은 폭이
+// 아니라 **분산**이었다 — 간격 330/362 에 굽이 ±104·치우침 ±65 를 얹으니
+// 자리마다 걸리는 줄 수가 1~3 으로 출렁였다. 간격을 296/324 로 좁혀 줄 수를
+// 고르게 하고 치우침을 ±36, 굽이를 ±97 로 눌러 12자리 15.9~28.8% 에 넣었다.
+// ⚠️ 첫 렌더 눈 판정(2026-08-12): 화면이 「국수 다발」이었다 — 몸(tone0)의
+// 리본 셋이 서로 어긋나 얇은 가닥 셋으로 보이고, 그 위의 결(tone1)이 제 몸보다
+// 밝고 또렷해 **위계가 뒤집혔다.** 몸의 등뼈들을 폭보다 좁게 모아 한 덩어리로
+// 붙이고, 결은 몸 안(±30)에 가두고 α 를 .80→.66 으로 낮췄다.
+const NB5A={th:-.36,D:296,s:11,ph:0  ,T:["#10121F","#181D33","#212843"]};
+const NB5B={th: .52,D:324,s:77,ph:2.1,T:["#160F25","#211639","#2E1F4B"]};
+NB5A.cs=Math.cos(NB5A.th);NB5A.sn=Math.sin(NB5A.th);
+NB5B.cs=Math.cos(NB5B.th);NB5B.sn=Math.sin(NB5B.th);
+
+/// 줄 k 의 중심선(수직 좌표 v). 줄마다 치우침(±65)과 굽이 두 겹(±104)이
+/// 다르다 — 같은 굽이를 폭만 바꿔 겹치면 평행 테두리가 동심 줄무늬로 보인다
+/// (U1 이 실측한 마하 밴딩). 위상에 k 가 들어가므로 반복이 없다.
+// 세 번째 항(파장 ≈1000px·진폭 9)은 눈 판정에서 넣었다 — 굽이 두 개는 파장이
+// 화면보다 길어 한 화면 안에서는 「자로 그은 사선」으로 보였다.
+const NB5cl=(F,k,u)=>k*F.D+(h2(k,F.s,11)-.5)*72
+  +Math.sin(u*.0009+k*2.3+F.ph)*62+Math.sin(u*.0027+k*.9+F.ph*1.7)*26
+  +Math.sin(u*.0063+k*1.7+F.ph*.6)*9;
+
+/// 중심선 위의 판 좌표 점 — 핵·다리를 꼬리 **위에** 앉히는 데 쓴다.
+function NB5P(F,k,u){const v=NB5cl(F,k,u);
+  return [F.cs*u-F.sn*v, F.sn*u+F.cs*v];}
+
+/// 꼬리 등뼈 폴리라인. 표본 구간을 화면보다 훨씬 길게 잡아(1.35×(W+H))
+/// ribbonPoly 의 종형 테이퍼가 화면 밖에서만 일어나게 한다 — 화면 안은
+/// 언제나 평평한 가운데다(U1 이 실측으로 확정한 수).
+///   [off] 이 리본만의 수직 치우침 · [ex] 큰 굽이 · [hi] 잔물결(곧은 변 제거)
+function NB5sp(F,k,cx,cy,W,H,off,ex,hi,hs){
+  const u0=F.cs*cx+F.sn*cy, L=(W+H)*1.35, p=[];
+  for(let i=0;i<=64;i++){
+    const u=u0-L+2*L*i/64;
+    const v=NB5cl(F,k,u)+off+Math.sin(u*.0052+hs)*ex
+      +(hi?Math.sin(u*.0161+hs*1.3)*hi+Math.sin(u*.0088+hs*2.1)*hi*.7:0);
+    p.push([F.cs*u-F.sn*v-cx+W/2, F.sn*u+F.cs*v-cy+H/2]);
+  }
+  return p;
+}
+
+/// 화면에 걸치는 줄 번호 범위 — 도는 줄 수가 화면 크기에만 비례한다.
+function NB5ks(F,cx,cy,W,H){
+  const vc=-F.sn*cx+F.cs*cy;
+  const span=(Math.abs(W*F.sn)+Math.abs(H*F.cs))/2+250;
+  return [Math.ceil((vc-span)/F.D),Math.floor((vc+span)/F.D)];
+}
+
+/// 꼬리 한 벌 — pass 하나만 칠한다. **패스를 밖에서 가르는** 이유는 자기막의
+/// 실측 교훈이다: 줄마다 막→결→마루를 이어 칠하면 다음 줄의 막이 앞 줄의
+/// 마루를 덮는다. 여기서는 두 물살의 모든 줄이 막을 다 깐 뒤에야 결이 온다.
+///   pass 0 막   — 같은 톤 리본 셋을 어긋난 등뼈로 겹친다. 한 장(α.46)은
+///                 L .045 로 문턱 아래(부드러운 자락), 두 장부터 .059(중간 톤).
+///                 겹침 수가 등뼈들의 교차에 따라 출렁여 뭉침·끊김이 저절로 생긴다.
+///   pass 1 골   — 먼지골. 잉크(#05060B)로 몸을 **깎는다** — 조석 꼬리의
+///                 어두운 먼지띠. 베타(먼지 물살)는 항상, 알파는 가끔.
+///   pass 2 결   — tone1 필라멘트. 알파 3가닥 / 베타 2가닥.
+///   pass 3 마루 — tone2 심. 줄의 62%만 갖는다(전부 가지면 「자로 그은 사선」).
+function NB5str(c,cx,cy,W,H,F,pass){
+  const[k0,k1]=NB5ks(F,cx,cy,W,H);
+  for(let k=k0;k<=k1;k++){
+    const q=n=>h2(k,F.s,n);
+    if(pass===0){
+      for(let i=0;i<3;i++){
+        const off=(i-1)*(9+5*q(21+i))+(q(24+i)-.5)*8;
+        fillPoly(c,ribbonPoly(NB5sp(F,k,cx,cy,W,H,off,10+10*q(27+i),9+8*q(30+i),
+          k*3.1+i*7.7+F.ph),18+8*q(33+i),18+8*q(33+i)),A(F.T[0],.46));
+      }
+    }else if(pass===1){
+      const nl=(F===NB5B)?1+(q(41)<.5?1:0):(q(41)<.35?1:0);
+      for(let i=0;i<nl;i++){
+        const off=(q(43+i)-.5)*26;
+        fillPoly(c,ribbonPoly(NB5sp(F,k,cx,cy,W,H,off,8+8*q(45+i),6+5*q(47+i),
+          k*5.3+i*2.9+F.ph),5.5+3*q(49+i),5.5+3*q(49+i)),A(MAPINK.ink,.72));
+      }
+    }else if(pass===2){
+      const nf=2;
+      for(let i=0;i<nf;i++){
+        const off=(q(51+i)-.5)*30;
+        fillPoly(c,ribbonPoly(NB5sp(F,k,cx,cy,W,H,off,6+8*q(54+i),4+4*q(57+i),
+          k*7.9+i*4.3+F.ph),3+2.6*q(60+i),3+2.6*q(60+i)),A(F.T[1],.66));
+      }
+    }else{
+      if(q(61)>.58)return;
+      fillPoly(c,ribbonPoly(NB5sp(F,k,cx,cy,W,H,(q(63)-.5)*14,10*q(64),4,
+        k*9.7+F.ph),2.6+1.1*q(66),2.6+1.1*q(66)),A(F.T[2],.85));
+    }
+  }
+}
+
+/// 꼬리 속 별 알갱이 — 「별 물살」이라는 증거. 칸 해시 산포를 중심선 거리로
+/// 걸러 꼬리 안에서만 태어난다. 밝기는 점(≤1.5px)으로만 낸다.
+/// ⚠️ k=round(v/D) 하나만 보면 굽이(±169)가 간격의 절반(165)을 넘는 자리에서
+/// 알갱이가 직선으로 뚝 끊긴다 — 이웃 줄까지 세 개를 보고 최근접을 쓴다.
+function NB5grain(c,cx,cy,W,H,F){
+  scatter(cx,cy,W,H,26,1,(x,y,i,j,r)=>{
+    const px=x-W/2+cx,py=y-H/2+cy;
+    const u=F.cs*px+F.sn*py,v=-F.sn*px+F.cs*py;
+    const k0=Math.round(v/F.D);let dv=1e9;
+    for(let k=k0-1;k<=k0+1;k++){
+      const d0=Math.abs(v-NB5cl(F,k,u));if(d0<dv)dv=d0;}
+    const g=1-dv/46;if(g<=0||r>.60*g+.04)return;
+    const q=h2(i,j,F.s+40);
+    mapStar(c,x,y,.65+q*.85,q>.8?MAPINK.starM:MAPINK.starD,
+      (.30+.55*h2(i,j,F.s+41))*Math.min(1,g*1.6));
+  });
+  // 젊은 별 — 꼬리 안에서만, 드물게 또렷한 점 하나.
+  scatter(cx,cy,W,H,240,1,(x,y,i,j,r)=>{
+    if(r>.34)return;
+    const px=x-W/2+cx,py=y-H/2+cy;
+    const u=F.cs*px+F.sn*py,v=-F.sn*px+F.cs*py;
+    const k=Math.round(v/F.D);
+    if(Math.abs(v-NB5cl(F,k,u))>38)return;
+    mapStar(c,x,y,1.0,MAPINK.starL,.85);
+  });
+}
+
+// ── 매듭 — 사건의 증거 ───────────────────────────────────────────────────
+// 두 물살의 중심선 교점을 **프레임마다 풀어서** 얹는다(2×2 선형계 + 굽이
+// 보정 1회). 기하가 자리를 정하므로 매듭은 언제나 두 물살이 실제로 얽힌
+// 자리에 있다 — 장식으로 뿌린 반짝이가 아니다. 압축 후광은 두 물살의
+// tone1 을 반씩 쓴 각진 다각형(폭발 문법 puffPoly 는 금지 — U1 의 브로콜리).
+function NB5knots(c,cx,cy,W,H){
+  const Fa=NB5A,Fb=NB5B,det=Fa.cs*Fb.sn-Fa.sn*Fb.cs;   // sin(θB−θA) ≈ .77
+  const[a0,a1]=NB5ks(Fa,cx,cy,W,H),[b0,b1]=NB5ks(Fb,cx,cy,W,H);
+  for(let ka=a0;ka<=a1;ka++)for(let kb=b0;kb<=b1;kb++){
+    if(h2(ka,kb,5)>.52)continue;                        // 모든 교차가 불붙지는 않는다
+    let va=ka*Fa.D+(h2(ka,Fa.s,11)-.5)*130;
+    let vb=kb*Fb.D+(h2(kb,Fb.s,11)-.5)*130;
+    let x=(va*Fb.cs-Fa.cs*vb)/det,y=(Fb.sn*va-Fa.sn*vb)/det;
+    va=NB5cl(Fa,ka,Fa.cs*x+Fa.sn*y);vb=NB5cl(Fb,kb,Fb.cs*x+Fb.sn*y);
+    x=(va*Fb.cs-Fa.cs*vb)/det;y=(Fb.sn*va-Fa.sn*vb)/det;
+    const sx=x-cx+W/2,sy=y-cy+H/2;
+    if(sx<-90||sx>W+90||sy<-90||sy>H+90)continue;
+    if(Math.hypot(x-NB5CA[0],y-NB5CA[1])<150)continue;  // 핵 위에는 안 얹는다
+    if(Math.hypot(x-NB5CB[0],y-NB5CB[1])<150)continue;
+    const s=ka*13.7+kb*5.3,R=17+12*h2(ka,kb,6);
+    fillPoly(c,jagPoly(sx+3,sy-2,R*1.18,7,s+1.1,1.3),A(Fa.T[1],.30));
+    fillPoly(c,jagPoly(sx-2,sy+2,R*.95,6,s+2.3,1.35),A(Fb.T[1],.30));
+    fillPoly(c,jagPoly(sx,sy,R*.52,6,s+3.7,1.4),A(Fa.T[2],.60));
+    for(let n=0;n<9;n++){
+      const qa=h2(ka*7+n,kb,8),qb=h2(ka,kb*9+n,9);
+      mapStar(c,sx+(qa-.5)*R*1.7,sy+(qb-.5)*R*1.6,.7+qa*.8,
+        qa>.62?MAPINK.starL:MAPINK.starM,.55+.4*qb);
+    }
+    mapStar(c,sx+(h2(ka,kb,10)-.5)*R,sy+(h2(ka,kb,12)-.5)*R,1.15,MAPINK.starX,.95);
+    mapStar(c,sx+(h2(ka,kb,14)-.5)*R*1.3,sy+(h2(ka,kb,16)-.5)*R*1.2,1.0,MAPINK.starX,.9);
+  }
+}
+
+// ── 두 핵 — 사건의 심장 ──────────────────────────────────────────────────
+// 월드 한 자리에만 있는 랜드마크. **각자 자기 물살의 중심선 위에** 앉아
+// 있어(NB5P) 꼬리가 정말로 이 둘에게서 흘러나온 것이 된다.
+// 거리 257(판px) — 두 핵이 302² 칸에도 실화면에도 **같이** 들어오는 값이다.
+// 처음 458 로 두니 391 이 되어 심장 칸(302²)에서 둘 다 모서리에 걸렸다.
+const NB5CA=NB5P(NB5A,0,70), NB5CB=NB5P(NB5B,0,320);
+
+/// 핵에서 꼬리로 이어지는 밑동 한 가닥 — 국지 리본. 시작은 핵 가장자리,
+/// 끝은 자기 물살의 방향에 눕는다.
+function NB5stub(c,sx,sy,F,a0,len,sd,w){
+  const p=[];
+  for(let i=0;i<=10;i++){
+    const e=i/10,a=a0+(F.th-a0)*e*e*(3-2*e);   // 핵의 각도에서 물살의 각도로
+    const d=len*e;
+    p.push([sx+Math.cos(a)*d+Math.sin(e*9+sd)*4,
+            sy+Math.sin(a)*d+Math.cos(e*7+sd)*4]);
+  }
+  fillPoly(c,ribbonPoly(p,w,w*.25),A(F.T[1],.45));
+}
+
+/// 핵 하나. 조우(nb2)의 「멀쩡한 나선」과 갈리는 지점이 전부 여기 있다 —
+/// 원반이 뜯겨 각지고(jagPoly · squash), 같은 실루엣을 동반은하 쪽으로 민
+/// 스미어가 「끌려가는 중」을 말하고, 먼지 호가 얼굴을 어지럽힌다.
+/// ⚠️ 첫 판은 「소용돌이 낙서」로 반려됐다(눈 판정) — 가는 먼지 호 2~3개가
+/// 저알파 스미어와 겹쳐 철사 올가미처럼 보였다. 호를 다 버리고 **먼지 그늘
+/// 한 덩어리**(잉크 jag, 동반은하 반대쪽)로 바꿨다. 원반→속→심의 세 단은
+/// α 를 올려 또렷하게 — 핵은 이 안에서 유일하게 「덩어리」로 서야 하는 물건이다.
+function NB5core(c,sx,sy,F,sd,tx,ty,R){
+  // ⚠️ 밑동의 휘는 각이 2.5rad(143°)면 갈고리 올가미가 된다(눈 판정 2회차,
+  // 「게 집게」). 1.3rad 안쪽 + 가늘게 — 밑동은 팔이 아니라 흘러나온 자국이다.
+  NB5stub(c,sx,sy,F,F.th+1.35,120,sd+1.1,11);           // 밑동이 원반 밑에 깔린다
+  NB5stub(c,sx,sy,F,F.th-1.15,95,sd+2.3,9);
+  c.save();c.translate(sx,sy);c.rotate(F.th);
+  const ux=tx*F.cs+ty*F.sn, uy=-tx*F.sn+ty*F.cs;       // 동반은하 방향(국지)
+  fillPoly(c,jagPoly(ux*R*.5,uy*R*.32,R*.76,8,sd,1.18,.58),A(F.T[0],.6));
+  fillPoly(c,jagPoly(0,0,R,8,sd,1.18,.60),A(F.T[0],.95));
+  fillPoly(c,jagPoly(-ux*R*.34,-uy*R*.22,R*.62,7,sd+5.1,1.25,.6),A(MAPINK.ink,.6));
+  fillPoly(c,jagPoly(0,0,R*.56,7,sd+1.7,1.22,.62),A(F.T[1],.92));
+  fillPoly(c,jagPoly(0,0,R*.30,6,sd+3.9,1.3,.72),A(F.T[2],.95));
+  for(let i=0;i<4;i++)
+    mapStar(c,(h2(i,sd,7)-.5)*R*.5,(h2(i,sd,8)-.5)*R*.3,.9,MAPINK.starL,.85);
+  mapStar(c,0,0,1.6,MAPINK.starX,.95);
+  c.restore();
+}
+
+/// 두 핵 + 다리. 화면 근처일 때만 돈다 — 먼 월드 좌표에서 비용 0.
+function NB5heart(c,cx,cy,W,H){
+  const ax=NB5CA[0]-cx+W/2,ay=NB5CA[1]-cy+H/2;
+  const bx=NB5CB[0]-cx+W/2,by=NB5CB[1]-cy+H/2;
+  const m=280;
+  const aIn=ax>-m&&ax<W+m&&ay>-m&&ay<H+m, bIn=bx>-m&&bx<W+m&&by>-m&&by<H+m;
+  if(!aIn&&!bIn)return;
+  const dx=bx-ax,dy=by-ay,dl=Math.hypot(dx,dy)||1;
+  const nx=-dy/dl,ny=dx/dl,p=[],p2=[];
+  for(let i=0;i<=20;i++){                                // 다리 — 물질이 건너가는 중
+    const e=i/20,sag=Math.sin(Math.PI*e)*30+Math.sin(e*7.3+1.3)*6;
+    p.push([ax+dx*e+nx*sag,ay+dy*e+ny*sag]);
+    p2.push([ax+dx*e+nx*(sag-9+Math.sin(e*11+4)*5),ay+dy*e+ny*(sag-9)]);
+  }
+  // ⚠️ 첫 판의 다리(tone0 α.5 = 합성 L .046)는 문턱 아래라 **안 보였다.**
+  // 몸은 겹으로 중간 톤에 올리고, 심줄은 tone1 로 또렷하게.
+  fillPoly(c,ribbonPoly(p,15,15),A(NB5A.T[0],.6));
+  fillPoly(c,ribbonPoly(p2,9,9),A(NB5B.T[0],.6));
+  fillPoly(c,ribbonPoly(p,4.5,4.5),A(NB5A.T[1],.7));
+  for(let i=0;i<18;i++){                                 // 다리 위의 별 알갱이
+    const e=.08+.84*h2(i,3,201),sag=Math.sin(Math.PI*e)*30;
+    mapStar(c,ax+dx*e+nx*(sag+(h2(i,7,202)-.5)*20),
+      ay+dy*e+ny*(sag+(h2(i,9,203)-.5)*20),.7+h2(i,11,204)*.7,
+      h2(i,13,205)>.6?MAPINK.starM:MAPINK.starD,.7);
+  }
+  mapStar(c,ax+dx*.44+nx*31,ay+dy*.44+ny*31,1.05,MAPINK.starX,.9);
+  mapStar(c,ax+dx*.62+nx*26,ay+dy*.62+ny*26,.95,MAPINK.starL,.9);
+  if(aIn)NB5core(c,ax,ay,NB5A,3.1,dx/dl,dy/dl,70);
+  if(bIn)NB5core(c,bx,by,NB5B,7.7,-dx/dl,-dy/dl,60);
+}
+
+/// 원경 별 — 깊이 .05. 여기가 우주라는 것, 그리고 근경 먼지가 가릴 밝은 것.
+function NB5stars(c,px,py,W,H){
+  scatter(px,py,W,H,46,1,(x,y,i,j,r)=>{
+    if(r>.60)return;
+    mapStar(c,x,y,r<.09?1.1:.8,r<.09?MAPINK.starM:MAPINK.starD,r<.09?.5:.2+.4*r);});
+  scatter(px,py,W,H,520,0,(x,y,i,j,r)=>{
+    if(r>.38)return;mapStar(c,x,y,1,MAPINK.starX,.9);});
+}
+
+/// 근경 먼지 실루엣 — 깊이 1.05 의 가리는 층. 알파 물살의 방향으로 누워
+/// 흐름과 한 몸으로 읽히고, 별과 꼬리를 실제로 먹는다(가릴 것이 깔려 있다).
+function NB5wisp(c,px,py,W,H){
+  scatter(px,py,W,H,470,1,(x,y,i,j,r)=>{
+    if(r>.44)return;
+    const q=h2(i,j,301),rr=58+96*q;
+    c.save();c.translate(x,y);c.rotate(NB5A.th+(q-.5)*.7);
+    fillPoly(c,jagPoly(0,0,rr,6,i*3.1+j*7.7,1.6,.40),A(MAPINK.ink,.34+.22*h2(i,j,302)));
+    fillPoly(c,jagPoly(rr*.3,rr*.1,rr*.55,5,i*5.3+j*2.9,1.7,.38),A(MAPINK.ink,.30));
+    c.restore();
+  });
+}
+
+/// 장면 전체 — 월드 카메라 하나로 결정된다. `t` 가 없다는 것이 이 안의 계약.
+function NB5at(c,wx,wy,W,H){
+  mapFloor(c,W,H);                       // 공용 바닥 .0184 — 배경의 첫 줄
+  NB5stars(c,wx*.05,wy*.05,W,H);
+  const cx=wx*NB5DEP,cy=wy*NB5DEP;
+  NB5str(c,cx,cy,W,H,NB5A,0);NB5str(c,cx,cy,W,H,NB5B,0);   // 막 전부
+  NB5str(c,cx,cy,W,H,NB5A,1);NB5str(c,cx,cy,W,H,NB5B,1);   // 골 전부
+  NB5str(c,cx,cy,W,H,NB5A,2);NB5str(c,cx,cy,W,H,NB5B,2);   // 결 전부
+  NB5str(c,cx,cy,W,H,NB5A,3);NB5str(c,cx,cy,W,H,NB5B,3);   // 마루 전부
+  NB5grain(c,cx,cy,W,H,NB5A);NB5grain(c,cx,cy,W,H,NB5B);
+  NB5knots(c,cx,cy,W,H);
+  NB5heart(c,cx,cy,W,H);
+  NB5wisp(c,wx*1.05,wy*1.05,W,H);
+}
+function NB5bg(c,t,W,H){const p=mapCam(t);NB5at(c,p[0],p[1],W,H);}
+
+// ── 등록 — **대입만.** ────────────────────────────────────────────────────
+MAP.nb5     =function NB5tl (c,t,dt,W,H,st){NB5bg(c,t,W,H);};
+MAP.nb5Num  =function NB5nm (c,t,dt,W,H,st){NB5bg(c,t,W,H);mapMeter(c,t,W,H,st);};
+MAP.nb5Pulse=function NB5pf (c,t,dt,W,H,st){NB5bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");};
+MAP.nb5Mini =function NB5mm (c,t,dt,W,H,st){NB5bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"bolt");
+  minimap(c,t,W,H,st);};
+// 사건의 심장 — 카메라를 두 핵 사이에 묶고 천천히 흐르게만 둔다.
+// 장면은 그대로다(공간축) — 움직이는 것은 카메라뿐이다.
+const NB5MID=[(NB5CA[0]+NB5CB[0])/2/NB5DEP,(NB5CA[1]+NB5CB[1])/2/NB5DEP];
+MAP.nb5Heart=function NB5ht (c,t,dt,W,H,st){
+  NB5at(c,NB5MID[0]+Math.sin(t*.21)*48,NB5MID[1]+Math.cos(t*.17)*36,W,H);};
+// 적 8 — 기본형(grunt)을 꼬리 위 여덟 자리에. 골든비 산포라 안 뭉친다.
+MAP.nb5Foe  =function NB5fo (c,t,dt,W,H,st){
+  NB5bg(c,t,W,H);
+  for(let i=0;i<8;i++){
+    const fx=W*(.10+.80*((i*.618+.07)%1)),fy=H*(.12+.76*((i*.381+.33)%1));
+    const r=15+h2(i,3,97)*5,a=h2(i,5,98)*TAU;
+    FOEART.grunt(c,fx,fy,r,a,t);
+    foeEyes(c,fx,fy,r*.8,1,fx+Math.cos(a)*40,fy+Math.sin(a)*40,.17);
+  }};
+
+// ── 수치 칸 — 페이지가 스스로 잰다. **월드 5자리**에서 ────────────────────
+// 「한 자리에서 잰 값은 측정이 아니다」(동공의 실측 교훈). 같은 캔버스에
+// 다섯 월드 좌표의 장면을 차례로 그려 각각 읽고, 중간 톤의 최소·평균·최대를
+// 예산과 나란히 적는다. 잰 뒤에는 살아 있는 그림으로 되돌린다.
+const NB5POS=[[0,0],[1700,-600],[-1300,900],[4200,2600],[900,-3600]];
+function NB5meas(c){
+  const cv=c.canvas,w=cv.width|0,h=cv.height|0;let d=null;
+  try{d=c.getImageData(0,0,w,h).data;}catch(e){return null;}
+  if(!d||d.length<4000)return null;      // 스모크 스텁(4바이트) — 측정 없음
+  const n=d.length/4;let sum=0,mid=0,o12=0,o35=0,mx=0;
+  for(let i=0;i<d.length;i+=4){
+    const l=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)/255;
+    sum+=l;if(l>=.05&&l<=.15)mid++;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+  return {avg:sum/n,mid:mid/n*100,p12:o12/n*100,p35:o35/n*100,mx};
+}
+function NB5nums(host){
+  const wrap=document.createElement("div");
+  box(wrap,{display:"flex",flexWrap:"wrap",gap:"14px",alignItems:"flex-start",
+    margin:"12px 0 0",padding:"13px 15px",background:"#13131A",
+    border:"1px solid #26262F",borderRadius:"4px",maxWidth:"1000px"});
+  const cv=document.createElement("canvas");
+  box(cv,{width:"302px",height:"302px",display:"block",background:"#0C0C12",
+    border:"1px solid #26262F",borderRadius:"3px",flex:"0 0 302px"});
+  const txt=document.createElement("div");
+  box(txt,{flex:"1 1 340px",minWidth:"300px",fontSize:"12px",color:"#9494A2",
+    lineHeight:"1.75"});
+  txt.innerHTML='<b style="color:#EDEDF2">NB5 충돌 은하</b> — 재는 중…';
+  wrap.appendChild(cv);wrap.appendChild(txt);host.appendChild(wrap);
+  mk(cv,[302,302],(c,t,dt,W,H,st)=>{
+    st.f=(st.f||0)+1;
+    if(!st.nb&&st.f>=2){                  // 그린 횟수로 잰다 — t 를 기다리면 굳는다
+      // ⚠️ 302² 로 재면 표본 창이 작아 6~35% 로 널뛴다(자기막 320² 실측과 같은
+      // 성질). 예산이 묶는 것은 **실화면 비율**이라 980×430 뒷캔버스에서 잰다.
+      const bk=document.createElement("canvas");bk.width=980;bk.height=430;
+      const bc=bk.getContext("2d");
+      const res=[];
+      for(const p of NB5POS){
+        NB5at(bc,p[0],p[1],980,430);
+        const m=NB5meas(bc);if(!m){res.length=0;break;}
+        res.push(m);
+      }
+      st.nb=res.length?res:"err";
+      if(res.length){
+        const f=(v,n)=>v.toFixed(n===undefined?3:n);
+        const mn=Math.min(...res.map(r=>r.mid)),mxm=Math.max(...res.map(r=>r.mid));
+        const av=res.reduce((s,r)=>s+r.mid,0)/res.length;
+        const aL=res.reduce((s,r)=>s+r.avg,0)/res.length;
+        const p35=Math.max(...res.map(r=>r.p35)),MX=Math.max(...res.map(r=>r.mx));
+        const ok=b=>b?'<b style="color:#8FD9A0">지킴</b>':'<b style="color:#FF7A6A">못 지킴</b>';
+        txt.innerHTML=
+          '<b style="color:#EDEDF2">NB5 충돌 은하 衝突銀河</b> — 980×430(실화면 비율) '+
+          '뒷캔버스에 <b style="color:#EDEDF2">월드 5자리</b>를 차례로 그려 '+
+          '<code style="color:#FFD27A">getImageData</code> 로 직접 잼<br>'+
+          '<span style="color:#5A5A68">'+NB5POS.map(p=>'('+p[0]+','+p[1]+')').join(' · ')+'</span><br>'+
+          '중간 톤(L .05~.15) &nbsp;최소 <b style="color:#EDEDF2">'+f(mn,1)+'%</b>'+
+          ' · 평균 <b style="color:#EDEDF2">'+f(av,1)+'%</b>'+
+          ' · 최대 <b style="color:#EDEDF2">'+f(mxm,1)+'%</b>'+
+          ' &nbsp;<span style="color:#5A5A68">예산 15~30%</span> '+ok(mn>=15&&mxm<=30)+'<br>'+
+          '평균 L <b style="color:#EDEDF2">'+f(aL)+'</b> <span style="color:#5A5A68">≤ .075</span> '+
+          ok(aL<=.075)+
+          ' &nbsp;L&gt;.35 최대 '+f(p35,3)+'% <span style="color:#5A5A68">≤ .5%</span> '+ok(p35<=.5)+
+          ' &nbsp;최대 '+f(MX,2)+' <span style="color:#5A5A68">(별·불티 점)</span><br>'+
+          '<span style="color:#5A5A68">면적 봉우리는 마루 tone2 = L .161 (≤ .17) — '+
+          '점(별·불티·핵)만 그 위로 넘고 전부 반경 ≤ 1.6px 다.</span>';
+      }
+    }
+    NB5bg(c,t,W,H);
+  });
+}
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+mapTile("nb-bg",MAP.nb5,"충돌 은하 衝突銀河",
+  "<b>사건이 있는</b> 유일한 안. 두 은하의 조석 꼬리가 서로 다른 대각으로 화면을 가르고, 얽힌 자리마다 별이 태어난다.",MAP_S,MAP_S);
+mapTile("nb5",MAP.nb5Heart,"① 사건의 심장 — 두 핵",
+  "뜯긴 원반 둘이 서로에게 무너진다. 다리가 잇고, 꼬리가 화면 밖까지 흘러나간다. 월드에 한 자리뿐인 랜드마크.",MAP_S,MAP_S);
+mapTile("nb5",MAP.nb5Foe,"② 적 8 — 묻히는가",
+  "꼬리 위에 기본형 여덟. 적 몸 L .102 가 꼬리 몸통(≤ .075)보다 밝고, 마루(.16)와는 림·눈이 가른다.",MAP_S,MAP_S);
+mapTile("nb5",MAP.nb5,"충돌 은하 — 실제 화면 비율(980×430)",
+  "꼬리 두 벌이 <b>대각으로</b> 가로지르는지, 매듭 불티가 과하지 않은지는 이 비율에서만 판정된다.",980,430,1);
+mapTile("nb-proof",MAP.nb5Pulse,"충돌 은하 위에서",
+  "파문 — 바깥층 L .181, 얇은 고리. 꼬리 마루(.161) 바로 위에서 겨룬다.",MAP_S,MAP_S);
+mapTile("nb-mini",MAP.nb5Mini,"충돌 은하 + 빛파동 + 미니맵",
+  "어두운 꼬리 위에서 HUD 계조 2단이 그대로 읽히는가.",MAP_S,MAP_S);
+NB5nums($("nb-num"));
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 심우주 3차 · NB4 「산광 散光」 — docs/vfx/mockup-map.html 전용
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 최상위 이름은 전부
+// `NB4` 로 시작하고, 등록은 `MAP.nb4` **대입 하나**다(`const`/`let` 재선언 0).
+//
+// ── 이 안이 유일하게 하는 것: 형태가 없다 ────────────────────────────────
+// 회랑·기둥·은하 같은 「무엇」이 없다. 별 사이 전체가 은은하게 빛나는
+// 확산광뿐이고, 중간 톤(.05~.15)을 **순수하게 면적으로만** 채운다.
+// 형태가 없으니 볼 맛은 두 가지가 전부고, 그 둘이 이 블록의 전부다:
+//   ① **색의 흐름** — 청록(208°)→남보라(266°) 여덟 단 사다리를 월드 저주파
+//      필드(파장 1150px)가 고른다. 얼룩 하나가 화면보다 크고, 경계가 없다.
+//   ② **아주 느린 맥동** — 주기 15.7s 진행파(파장 560px)가 가스를 훑는다.
+//      개체가 따로 깜빡이는 게 아니라 **밝음의 파도가 지나가는** 그림이다.
+// 「균일한 회색 안개」가 되지 않는 장치는 **농담 필드**다 — 파장 1500px 의
+// 저주파가 알파를 .40~1.0 으로 갈라, 짙은 구름과 거의 빈 하늘이 화면 규모로
+// 섞인다. 얼룩이 크고, 경계는 1/3 해상도 확대 보간이 마저 뭉갠다.
+//
+// ── 예산(개정판)을 지키는 구조 ───────────────────────────────────────────
+// · **봉우리 상한이 구조다.** 근막 스프라이트 여덟 색이 전부 luma ≈ .150 이고
+//   source-over 는 같은 색을 아무리 겹쳐도 그 색을 못 넘는다 — 면적을 가진
+//   것의 최댓값이 .150(예산 .17 아래)으로 **원리적으로** 막힌다. 이 위로
+//   가는 것은 점(별 starD/M/X)뿐이다.
+// · 가산 합성 0회 · 흰 앞날 0 — 이 블록에 `lighter` 가 한 번도 안 나온다.
+// · 바닥: `mapFloor` 가 배경의 첫 줄이다.
+// · 비용: 가스는 전부 1/3 해상도 버퍼에 **구운 스프라이트**로 찍는다 — 방사
+//   그라디언트를 프레임마다 만들지 않는다(반지름 제곱 비용의 교훈).
+//
+// ── 색 ───────────────────────────────────────────────────────────────────
+// 잉크 평균 색상각 ≈ 237° — 빙(198.6°)과 어둠(273.0°) 사이 가장 넓은 틈의
+// 한가운데다(각각 38.4° · 36.0°). 다만 사다리의 **끝단**은 어쩔 수 없이
+// 붙는다(208°→빙 9.4° · 266°→어둠 7.0°). 실제 방어는 각이 아니라 저채도·
+// 저휘도다: S≈.42 에 luma ≤ .150 — 속성 이펙트(빙 #4FC3F7 luma .67)의
+// 1/4 밝기라 배경이 속성으로 오독될 여지가 없다. 적 몸(#24141F 318.8°)과는
+// 사다리 끝에서도 52.8° 떨어진다.
+//
+// ── 실측 (실캔버스 · dt=1/60 고정 구동기 900프레임 · 월드 자리 5 × 위상 3) ──
+//                        980×430(실화면 비율)   320²        예산
+//   중간 톤(.05~.15)     20.0 / 25.1 / 29.9 %   26.2/46.8/83.5   15~30  (최소/평균/최대)
+//   평균 L               .0425                  .0518            ≤ .075
+//   L>.12                0.02 %                 0.02 %
+//   L>.35                .0004 %                .0002 %          ≤ .5
+//   최대(별 포함)         .793 (starX 점)        .357
+//   가스만의 봉우리       .108                                   ≤ .17 (상한 .150 은 구조)
+//   비용(강제 래스터)     p50 5.0 · p95 5.3 ms (헤드리스 SW 래스터 · 980×430)
+//   ⚠️ 320² 창은 26~84% 로 흔들린다 — 안이 아니라 **표본 창이 얼룩(화면 절반
+//      크기)보다 작은 것**이다(자기막 320² 11.7~43% 와 같은 현상). 실화면
+//      비율에서는 열다섯 표본 전부 예산 안이다.
+//   층 분해(자리 5): 근막 홀로 중간 톤 9.5~15.4%(안정) · 원막 홀로 ~0%(설계대로)
+const NB4RS=3;                       // 저주파 가스는 1/3 해상도 버퍼에
+/// 근막 8색 — 전부 luma .149~.152 로 등화했다. 색상만 바뀌고 밝기는 안
+/// 바뀌어, 흐름이 「밝은 데」가 아니라 **「색이 다른 데」**로 읽힌다.
+const NB4NEAR=["#172A3A","#1A283E","#1B2643","#1E234A",
+               "#212150","#261F4C","#2A1E48","#2E1D46"];
+/// 원막 8색 — luma .104~.107. 시차 .45 로 뒤에서 흐른다.
+const NB4FARC=["#111E28","#131C2B","#141B2E","#161932",
+               "#171736","#1B1633","#1E1531","#20142F"];
+
+/// 깃털 원반 — 한 번 굽는다(mpTile 캐시). 경계가 없는 유일한 붓.
+function NB4disc(key,col){
+  return mpTile(key,96,(c,S)=>{
+    const g=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+    g.addColorStop(0,A(col,1));g.addColorStop(.35,A(col,.80));
+    g.addColorStop(.62,A(col,.45));g.addColorStop(.85,A(col,.16));
+    g.addColorStop(1,A(col,0));
+    c.fillStyle=g;c.fillRect(0,0,S,S);});
+}
+/// 색 흐름 — 어느 단을 쓰나. 월드 저주파 두 성분 + 아주 느린 시간 표류.
+/// 이득 .65(>.5)는 눈 판정의 산물이다: .5 로는 합이 가운데 단(남색)에 몰려
+/// 화면이 온통 보라 한 벌로 읽혔다. 끝단을 일부러 두껍게 잘라야 청록↔남보라
+/// 의 「흐름」이 실제로 보인다.
+function NB4hue(wx,wy,t){
+  const v=Math.sin((wx*.851+wy*.526)*(TAU/1150)+t*.045)*.62
+         +Math.sin((wx*.622-wy*.783)*(TAU/640)+1.7+t*.03)*.38;
+  const k=Math.round((v*.65+.5)*7);
+  return k<0?0:(k>7?7:k);
+}
+/// 농담 — 짙은 구름 ↔ 거의 빈 하늘. 얼룩의 「크기」가 여기서 난다.
+/// 원시 필드 0~1 을 돌려주고, **막마다 다르게 깎는다**(NB4gasL 의 dmin/dpw) —
+/// 첫 실측에서 중간 톤이 58.8%(예산 15~30)로 넘쳤다. 원인은 밝기가 아니라
+/// **덮는 면적**이었다(자기막의 교훈 그대로): 겹침 18배의 은은한 세례가 화면을
+/// 통째로 중간 톤에 담갔다. 답은 알파를 올리고 면적을 깎는 것 — 거듭제곱이
+/// 필드의 골을 진짜 빈 하늘로 만든다.
+/// ⚠️ 파장이 화면보다 크면 안 된다(2차 실측): 1500px 파장에서는 **화면 전체가
+/// 골에 앉는 자리**가 생겨 중간 톤 최소가 0.0% 로 떨어졌다(예산 최소 15%).
+/// 주 성분을 x 우세 방향·파장 780px 로 두면 폭 980 화면이 언제나 마루 하나를
+/// 품는다 — 얼룩은 여전히 화면 절반 크기다.
+/// ⚠️ 두 파를 **가중합하면 안 된다**(층 분해 실측): 마루 높이가 두 파의 우연한
+/// 일치에 달려, 일치점이 없는 창은 근막이 통째로 꺼졌다(다섯 자리 중 셋이
+/// 중간 톤 0.0%). 둘째 파는 **지수**로만 쓴다 — 1^x=1 이라 마루 높이는 어느
+/// 창에서나 1 이고, 둘째 파는 마루의 「폭」만 물결치게 한다(줄무늬 방지).
+function NB4dens(wx,wy,t){
+  const v=Math.sin((wx*.978+wy*.208)*(TAU/780)+t*.020+2.6)*.5+.5;
+  const w=Math.sin((wx*.500-wy*.866)*(TAU/520)+1.1)*.5+.5;
+  return Math.pow(v,1.35-.65*w);
+}
+/// 맥동 — ω .40(주기 15.7s) 진행파. 위상이 월드 좌표에서 파생돼 밝음의
+/// 파도가 파장 560px 로 가스를 지나간다. ph 는 개체 위상 지터.
+function NB4pulse(wx,wy,t,ph){
+  return .82+.18*Math.sin(t*.40+(wx*.406+wy*.914)*(TAU/560)+ph*TAU);
+}
+/// 가스 한 막 — 1/3 해상도 버퍼(bc)에 전해상도 좌표로 찍는다.
+/// 이음매는 scatter(칸 번호 해시)가 없앤다 — 텍스처+모듈로를 안 쓴다.
+function NB4gasL(bc,t,W,H,ox0,oy0,d){
+  const ox=ox0*d.par+t*d.dx, oy=oy0*d.par+t*d.dy;   // 가스는 별과 달리 흐른다
+  scatter(ox,oy,W,H,d.cell,d.pad,(x,y,i,j,rr)=>{
+    if(rr>d.prob)return;
+    const wx=x+ox-W/2, wy=y+oy-H/2, g=NB4dens(wx,wy,t);
+    const m=d.dmin+(1-d.dmin)*Math.pow(g,d.dpw);
+    // 막마다 흔드는 폭이 다르다 — 세례(원막)는 좁게 흔들어야 통계가 서고
+    // (자기 하한의 교훈), 얼룩(근막)은 넓게 흔들어야 덩어리가 산다.
+    const p=1-d.pj+d.pj*NB4pulse(wx,wy,t,h2(i,j,9));
+    const a=d.a*m*p*(d.j0+d.jw*h2(i,j,11));
+    if(a<.02)return;                     // 빈 하늘 — 안 그리는 것이 그리는 것이다
+    const hi=NB4hue(wx,wy,t);
+    // 크기도 농담을 따른다 — 짙은 데는 크게, 옅은 데는 작게. 알파 하나만
+    // 내리면 「같은 크기의 연한 원」이 남아 안개가 된다.
+    const r=(d.r0+(d.r1-d.r0)*h2(i,j,7))*(d.sz0+d.szg*g);
+    bc.globalAlpha=a>1?1:a;
+    bc.drawImage(NB4disc(d.key+hi,d.cols[hi]),x-r,y-r,r*2,r*2);
+  });
+  bc.globalAlpha=1;
+}
+/// 역할 분업(3~13차 실측의 답): **원막 = 세례 洗禮, 근막 = 얼룩.**
+/// 한 막이 「어디서나 15%」와 「마루 ≤30%」를 동시에 만족할 수 없었고(4배 격차),
+/// 문턱(.05)에 계단식 코어를 걸치는 수법은 창마다 켜졌다 꺼졌다 했다(중간 톤
+/// 1.4%~64.5%). 그래서 원막은 **겹침 5~8겹의 촘촘한 세례** — 중심극한이 매끈한
+/// 바닥을 만들고, 그 평균이 문턱 「바로 아래」(홀로 재면 중간 톤 ~0%)라
+/// 윗자락만 결·근막과 겹쳐 문턱을 넘는다. 분포가 정상(定常)이라 어느 창이든
+/// 비슷한 몫이 걸린다.
+/// ⚠️ 근막을 「큰 원반 몇 개」로 만들면 안 된다(12차 층 분해): 마루 띠에 닻이
+/// 창당 4개꼴이라 창마다 잉크가 4.7배 널뛰었다(다섯 자리 중 둘이 중간 톤 ~0%).
+/// **작은 원반을 촘촘히**(칸 75) 깔고 알파를 g^2.5 로 깎으면, 마루 띠가 지나가는
+/// 자리마다 수십 개가 겹쳐 얼룩이 되고 — 얼룩의 크기는 원반이 아니라 **필드의
+/// 마루 폭**(150~300px)이 정한다. 형태 없는 안에 맞는 구조이기도 하다.
+const NB4L_FAR ={par:.45,dx:2.2,dy:.9, cell:110,pad:2,prob:.80,r0:130,r1:190,a:.195,
+                 dmin:.45,dpw:1,pj:.45,j0:.78,jw:.44,sz0:.92,szg:.15,cols:NB4FARC,key:"nb4f"};
+const NB4L_NEAR={par:1,  dx:4.5,dy:1.8,cell:75, pad:2,prob:.60,r0:55, r1:95, a:.46,
+                 dmin:.04,dpw:2.5,pj:1,j0:.70,jw:.60,sz0:.70,szg:.55,cols:NB4NEAR,key:"nb4n"};
+
+function NB4field(c,t,W,H,ox,oy){
+  mapFloor(c,W,H);                     // 배경의 첫 줄 — 공용 바닥 .0184
+  const rw=Math.ceil(W/NB4RS)||1,rh=Math.ceil(H/NB4RS)||1,sc2=rw/W;
+  let buf=c.canvas.__nb4r;
+  if(!buf||buf.width!==rw||buf.height!==rh){
+    buf=document.createElement("canvas");buf.width=rw;buf.height=rh;c.canvas.__nb4r=buf;}
+  const bc=buf.getContext("2d");
+  if(bc){
+    bc.setTransform(1,0,0,1,0,0);
+    bc.fillStyle=MAPFLOOR;bc.fillRect(0,0,rw,rh);
+    bc.setTransform(sc2,0,0,sc2,0,0);  // 이 아래는 전부 전해상도 좌표
+    NB4gasL(bc,t,W,H,ox,oy,NB4L_FAR);
+    NB4gasL(bc,t,W,H,ox,oy,NB4L_NEAR);
+    c.drawImage(buf,0,0,rw,rh,0,0,W,H);// 확대 보간이 경계를 마저 지운다
+  }
+  // 결 — 전해상도 알갱이. 근막과 같은 좌표계로 흘러 가스의 질감이 된다.
+  // 큰 얼룩만 있으면 스크롤이 「미끄러지는 종이」로 보인다(사구의 교훈).
+  // ⚠️ 문턱(.05) 넘기를 **결이 맡는다**(11차 실측): 매끈한 세례는 평균이
+  // 문턱 근처라 창마다 넘는 면적이 널뛰었다. 정상(定常) 고주파를 얹으면
+  // 분포가 넓어져 「넘는 몫」이 어느 창에서나 비슷해진다 — 사구의 디더와
+  // 같은 역할이고, 여기서는 그것이 그대로 산광의 잔반짝임이 된다.
+  const gx=ox+t*4.5, gy=oy+t*1.8;
+  scatter(gx,gy,W,H,14,1,(x,y,i,j,rr)=>{
+    if(rr>.62)return;
+    const wx=x+gx-W/2,wy=y+gy-H/2;
+    c.fillStyle=A(NB4NEAR[NB4hue(wx,wy,t)],
+      (.10+.16*h2(i,j,21))*(.25+.75*NB4dens(wx,wy,t)));
+    const s=.9+.9*h2(i,j,22);
+    c.fillRect(x-s*.5,y-s*.5,s,s);
+  });
+  // 별 — 산광의 「사이」를 말하는 점. 가스보다 멀어 시차가 느리다.
+  scatter(ox*.30,oy*.30,W,H,74,1,(x,y,i,j,rr)=>{
+    if(rr>.30)return;
+    mapStar(c,x,y,.7+.7*h2(i,j,31),MAPINK.starD,.38+.30*h2(i,j,32));});
+  scatter(ox*.55,oy*.55,W,H,205,1,(x,y,i,j,rr)=>{
+    if(rr>.40)return;
+    mapStar(c,x,y,.8+.6*h2(i,j,33),MAPINK.starM,.45+.30*h2(i,j,34));});
+  scatter(ox*.42,oy*.42,W,H,760,1,(x,y,i,j,rr)=>{
+    if(rr>.22)return;
+    mapStar(c,x,y,1.15,MAPINK.starX,.85);});
+}
+function NB4bg(c,t,W,H){const P=mapCam(t);NB4field(c,t,W,H,P[0],P[1]);}
+
+// ── 조립 ─────────────────────────────────────────────────────────────────
+function NB4bgTile(c,t,dt,W,H,st){NB4bg(c,t,W,H);}
+function NB4proof(c,t,dt,W,H,st){NB4bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+function NB4miniT(c,t,dt,W,H,st){NB4bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");
+  bossEdge(c,t,W,H);minimap(c,t,W,H,st);}
+/// 적 8마리 — 가독 판정용. 몸(#24141F L .1021)은 근막 봉우리(.150)보다
+/// 어둡지만 림(분홍 318.8°)이 배경 사다리(208~266°)와 색상으로 갈린다.
+function NB4foes(c,t,dt,W,H,st){
+  NB4bg(c,t,W,H);
+  for(let i=0;i<8;i++){
+    const x=W*(.10+.80*hash(i*3.71+.6)), y=H*(.12+.76*hash(i*5.13+.9));
+    const a=Math.atan2(H/2-y,W/2-x);
+    FOEART.grunt(c,x,y,11,a+Math.sin(t*.6+i)*.2,t);
+  }
+}
+/// 맥동 미리보기 — 주기 15.7s 는 기다려야 보인다. 이 칸만 시간을 6배로.
+function NB4quick(c,t,dt,W,H,st){NB4bg(c,t*6,W,H);}
+
+MAP.nb4=(c,t,dt,W,H,st)=>{NB4bg(c,t,W,H);};
+
+mapTile("nb4",NB4miniT,"NB4 · 산광 + 파문 + 미니맵",
+  "형태가 없는 유일한 안. 중간 톤을 순수하게 면적으로 채우고, 볼 맛은 색의 "+
+  "흐름(208→266° 사다리)과 15.7s 맥동 진행파가 만든다.",MAP_W,MAP_H,1);
+mapTile("nb4",NB4bgTile,"배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("nb4",NB4foes,"적 8마리","몸은 봉우리보다 어둡고 림은 색상으로 갈린다.",MAP_S,MAP_S);
+mapTile("nb4",NB4quick,"맥동 ×6","아주 느린 맥동의 빨리감기 — 파도가 지나간다.",MAP_S,MAP_S);
+mapTile("nb-bg",NB4bgTile,"NB4 · 산광 散光",
+  "확산광뿐 — 얼룩이 크고 경계가 없다.",MAP_S,MAP_S);
+mapTile("nb-proof",NB4proof,"NB4 · 산광",
+  "파문(바깥층 L .181)은 봉우리(.150) 위에서도 1.2배, 빈 하늘 위에서는 10배.",MAP_S,MAP_S);
+mapTile("nb-mini",NB4miniT,"NB4 · 산광","가스가 저주파뿐이라 미니맵 계조가 안 흔들린다.",MAP_S,MAP_S);
+
+// ── 밝기 실측 — 페이지가 스스로, **월드 자리 넷 × 맥동 위상 셋**에서 잰다 ──
+// 한 자리에서 잰 값은 측정이 아니다(동공의 교훈 — 최소 1.19% 사고).
+// 표본 12의 최소·평균·최대를 다 적는다. 창은 **실화면 비율 980×430** — 이 안은
+// 얼룩이 화면 절반 크기라 320² 창은 얼룩 하나에 통째로 들어가 26~84% 로
+// 흔들린다(자기막의 「표본 창이 작은 것」과 같은 현상, 아래 각주로 남긴다).
+(function(){
+  const host=$("nb-num");
+  if(!host.isConnected)return;         // 이 페이지가 아니면 재지 않는다
+  const POS=[[0,0],[1531,-887],[-2260,1414],[3847,2903]];
+  const TS=[1.4,6.9,12.3];
+  let z=null,sw=null;
+  try{
+    const cv=document.createElement("canvas");cv.width=980;cv.height=430;
+    const c=cv.getContext&&cv.getContext("2d");
+    if(c){
+      const mids=[];let sum=0,o12=0,o35=0,mx=0,ns=0;
+      for(const p of POS)for(const tt of TS){
+        NB4field(c,tt,980,430,p[0],p[1]);
+        const d=c.getImageData(0,0,980,430).data,n=d.length/4;
+        if(n<=16)throw 0;              // 스텁 캔버스
+        let mid=0;
+        for(let q=0;q<d.length;q+=4){
+          const l=(d[q]*.299+d[q+1]*.587+d[q+2]*.114)/255;
+          sum+=l;if(l>=.05&&l<=.15)mid++;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+        mids.push(mid/n*100);ns+=n;
+      }
+      let mn=mids[0],mxm=mids[0],s2=0;
+      for(const m of mids){if(m<mn)mn=m;if(m>mxm)mxm=m;s2+=m;}
+      z={mn,av:s2/mids.length,mxm,avg:sum/ns,p12:o12/ns*100,p35:o35/ns*100,mx};
+      // 각주용 — 320² 창의 흔들림을 숨기지 않는다.
+      const k=document.createElement("canvas");k.width=320;k.height=320;
+      const kc=k.getContext&&k.getContext("2d");
+      if(kc){let a=1e9,b=-1e9;
+        for(const p of POS){
+          NB4field(kc,6.9,320,320,p[0],p[1]);
+          const d=kc.getImageData(0,0,320,320).data;let mid=0;
+          for(let q=0;q<d.length;q+=4){
+            const l=(d[q]*.299+d[q+1]*.587+d[q+2]*.114)/255;
+            if(l>=.05&&l<=.15)mid++;}
+          const v=mid/(d.length/4)*100;if(v<a)a=v;if(v>b)b=v;}
+        sw=[a,b];}
+    }
+  }catch(e){z=null;}
+  const ok=v=>v?"#7ED08A":"#FF7A6A";
+  const row=document.createElement("div");
+  box(row,{border:"1px solid #26262F",borderRadius:"4px",background:"#13131A",
+    padding:"9px 12px",marginTop:"6px",fontSize:"11.5px",color:"#9494A2",
+    fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",lineHeight:"1.7"});
+  row.innerHTML=z
+    ?`<b style="color:#EDEDF2">NB4 산광</b>　중간 톤(980×430 · 자리4×위상3) `+
+     `<b style="color:${ok(z.mn>=15&&z.mxm<=30)}">${z.mn.toFixed(1)} / ${z.av.toFixed(1)} / ${z.mxm.toFixed(1)}%</b>`+
+     `(최소/평균/최대)/15~30%　평균 L <b style="color:${ok(z.avg<=.075)}">${z.avg.toFixed(4)}</b>/.075　`+
+     `L&gt;.12 ${z.p12.toFixed(2)}%　L&gt;.35 <b style="color:${ok(z.p35<=.5)}">${z.p35.toFixed(3)}%</b>/.5%　최대 ${z.mx.toFixed(3)}(별점)`+
+     `　<span style="color:#5A5A68">가스 봉우리 실측 .108 · 상한 .150(구조적)/.17 · 잉크 색상각 237°(사다리 208~266°) · 가산 0 · 흰 앞날 0`+
+     (sw?` · 320² 창은 ${sw[0].toFixed(0)}~${sw[1].toFixed(0)}% — 얼룩(화면 절반 크기)에 창이 통째로 들어가는 표본 문제`:``)+`</span>`
+    :`<b style="color:#EDEDF2">NB4 산광</b>　측정 불가(getImageData)`;
+  host.appendChild(row);
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 회복 5번째 「맥박 脈搏」 — mockup-heal.html · 접두 HL1
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 축은 **언제**다. 기존 넷(여명·수확·정화·공물)은 「무엇을 회복으로 바꾸는가」
+// (시간·죽음·오염·자원)이고, 맥박은 새로 바꾸는 무엇이 없다 — 대신 **회복이
+// 오는 시각을 박자에 묶는다.** 일정 박자마다 맥동이 한 번 크게 돌고, 그 순간
+// 맥동에 닿은 적 수만큼 걷혀 온다. 박 사이엔 아무것도 안 흐른다.
+//
+// ⚠️ 잔불 원칙(offers.dart 「라서 유일의 자동 재생원」)을 안 깬다 — 입력은
+// **박이 칠 때 곁에 있는 적**이다. 도망 다니면 맥동이 빈 채로 돌아 0 이고,
+// 박에 맞춰 무리 곁에 붙어야 찬다. 「박 사이에 빠지고 박에 맞춰 붙는」
+// 드나듦이 실력이 된다 — 여명(떨어져라)과 정확히 직교하는 요구다.
+//
+// 색 — 등나무 남보라 265°. 회복 4 색상각이 28/95/195/320 이라 가장 넓은 빈
+// 자리(195↔320)의 가운데다. 심장의 붉은색을 일부러 안 쓴다: 이 화면에서
+// 붉은 것은 언제나 「나를 해치는 쪽」(HURT 규약)이라 붉은 회복은 피격 번쩍임과
+// 섞인다. 밤새 뛰는 고동이니 밤의 색 — 앞날은 거의 흰색(회복 온도 규약).
+// 뇌광(mArc 262°)과 각이 가깝지만 채도가 반대다(전기 보라 ↔ 창백 라일락)
+// — 분류 온도가 가르는 것이 이 팔레트 규약의 전제라 같은 판정을 따른다.
+//
+// 상태이상 — **안 쓴다.** 확정 8종을 걸지도 지우지도 않는다(pvMark 호출 0,
+// 새 상태 0). L4 의 밀어냄은 상태가 아니라 넉백(hitFoe 와 같은 kx/ky)이다.
+TONE.HL1beat=["#221543","#A78AE6","#F1EBFF"];
+WTONE.HL1beat="HL1beat";   // tile()/성장표가 이 한 줄로 "gold" 를 통째로 물들인다
+
+FX.HL1beat=function HL1beat(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2;
+  st.F=st.F||mkFoesZ([[88,-48,10],[-94,-36,10],[30,-98,9],[-52,76,10],[78,60,10]],SC);
+  // GR(문자판·게이지 반경 54)은 물어뜯는 적의 자리(40*SC)보다 **바깥**이다 —
+  // 42 로 두었더니 적 다섯이 게이지 위에 앉아 구슬 목걸이가 됐다(렌더 판정).
+  const BP=1.4,FT=.5,R0=14,R1=88,GR=54,GAIN=.08,CRHP=.45,
+        DOUBLE=atL(2),FAST=atL(3),KNOCK=atL(4),RET=atL(5);
+  if(st.hp===undefined){st.hp=.55;st.ph=BP*.35;st.rg=[];}
+  st.hurt=Math.max(0,(st.hurt||0)-dt*2.6);
+  // 무는 쪽 — 다른 회복 타일과 같은 문법. 붙어 있으면 깎인다.
+  for(const f of st.F){f.cd=Math.max(0,(f.cd||0)-dt);
+    const d=Math.hypot(f.ox,f.oy)||1;
+    if(d>30*SC+f.r){f.ox-=f.ox/d*28*SC*dt;f.oy-=f.oy/d*28*SC*dt;}
+    else if(f.cd<=0){f.cd=.7;st.hp=Math.max(.1,st.hp-.034);st.hurt=1;}}
+  // 박 — 게이지가 차면 친다. 빠른맥(L3)은 위기에 축적을 두 배로 돌린다:
+  // 주기 값을 바꾸는 게 아니라 **차오르는 속도**를 바꿔야 게이지가 그 배속을
+  // 그대로 보여준다(위기의 심장은 빨리 뛴다).
+  const crisis=FAST&&st.hp<CRHP;
+  st.ph+=dt*(crisis?2:1);
+  if(st.ph>=BP){st.ph-=BP;st.rg.push({u:0,dir:1,done:{}});if(DOUBLE)st.dbl=.24;}
+  // 겹박(L2) — 두근. 반 박 어긋난 둘째 맥동은 작고 얇고 걷는 몫도 절반이다.
+  if(st.dbl>0){st.dbl-=dt;if(st.dbl<=0)st.rg.push({u:0,dir:1,sub:1,done:{}});}
+  const HL1rr=g=>(R0+(R1*(g.sub?.82:1)-R0)*g.u)*SC;
+  st.ab=Math.max(0,(st.ab||0)-dt);
+  for(let i=st.rg.length-1;i>=0;i--){const g=st.rg[i];
+    const r0=HL1rr(g);
+    // 되돌이는 나갈 때의 2배로 돌아온다 — 1.25배로 두었더니 위기 배속에서
+    // 이전 되돌이와 다음 맥동이 겹쳐 **동심원 셋 = 파문의 문법**이 됐다(렌더 판정).
+    g.u+=dt/FT*(g.dir<0?2:1)*g.dir;
+    if(g.dir>0&&g.u>=1){
+      // 되돌이(L5) — 본박만 돌아온다. 걷은 목록을 비워 한 번 더 걷는다.
+      if(RET&&!g.sub){g.dir=-1;g.u=1;g.done={};}
+      else{st.rg.splice(i,1);continue;}}
+    if(g.dir<0&&g.u<=0){st.rg.splice(i,1);st.ab=.25;continue;}
+    const r1=HL1rr(g);
+    // 맥동이 지나는 순간이 곧 걷는 순간 — 프레임 사이를 부호로 잡는다.
+    for(let j=0;j<st.F.length;j++){const f=st.F[j];
+      if(g.done[j])continue;
+      const d=Math.hypot(f.ox+f.kx,f.oy+f.ky);
+      if((d-r0)*(d-r1)<=0){g.done[j]=1;
+        const x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+        f.hit=1;
+        // 파편은 줄인다 — 다섯 알을 뿌렸더니 피격 백광과 겹쳐 꽃으로 읽혔다(렌더 판정).
+        emit(st,x,y,3,{k:"HL1beat",sp:60*SC,r:1.9*SC,life:.28,spikeP:.4});
+        inflow(st,x,y,"HL1beat");
+        st.pend=(st.pend||0)+GAIN*(g.sub?.5:1);
+        // 울림(L4) — 민다. 박이 곧 숨 돌릴 틈이 된다.
+        if(KNOCK){const dd=Math.hypot(f.ox,f.oy)||1;
+          f.kx+=f.ox/dd*24*SC;f.ky+=f.oy/dd*24*SC;}}}}
+  const MO=stepInflow(st,cx,cy,dt,210*SC);
+  // 이삭이 몸에 닿을 때 차오른다(수확·공물과 같은 규약) — 미리 채우면
+  // 날아오는 그림이 장식이 된다.
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){
+    st.hp=Math.min(1,st.hp+st.pend);st.pend=0;}
+  st.moN=MO.length;
+  stepFoes(st.F,dt);stepP(st,dt);
+  // 문자판 — 4분 눈금. 12시(박이 떨어지는 자리)만 밝다: 강박과 약박.
+  // 박자를 게이지 배속만으로 보여주면 정지 화면에서 리듬이 안 남는다 —
+  // 눈금이 있어야 「이건 시계다」가 멎은 그림에서도 읽힌다.
+  //
+  // **레벨이 문자판에 쌓인다** — 링은 주기의 1/3만 떠 있어 정지 화면 대부분이
+  // 링 없는 순간이고, 그때 L1~L5 가 같은 그림이었다(렌더 판정). 수확이 연쇄
+  // 눈금을 빈 칸까지 항상 그리는 근거 그대로, 상태 표식을 순간에 안 묶는다:
+  //   L2 강박이 둘(두근) · L4 약박이 바깥 창끝(민다) · L5 6시가 안쪽 갈퀴(돌아온다)
+  const HL1q=st.ph/BP>.8?(st.ph/BP-.8)/.2:0;   // 예비박 — 마지막 20%
+  for(let i=0;i<4;i++){const a=-Math.PI/2+i/4*TAU;
+    if(i===0)for(const o of(DOUBLE?[-.058,.058]:[0]))
+      celStroke(c,[[cx+Math.cos(a+o)*(GR-4)*SC,cy+Math.sin(a+o)*(GR-4)*SC],
+        [cx+Math.cos(a+o)*(GR+6)*SC,cy+Math.sin(a+o)*(GR+6)*SC]],
+        2.2*SC,"gold",.6+.4*HL1q);
+    else if(RET&&i===2)
+      celSpike(c,cx,cy+(GR+2)*SC,-Math.PI/2,12*SC,3.2*SC,"gold",.85);
+    else if(KNOCK)
+      celSpike(c,cx+Math.cos(a)*(GR-3)*SC,cy+Math.sin(a)*(GR-3)*SC,a,11*SC,3*SC,"gold",.8);
+    else celStroke(c,[[cx+Math.cos(a)*(GR-4)*SC,cy+Math.sin(a)*(GR-4)*SC],
+      [cx+Math.cos(a)*(GR+3)*SC,cy+Math.sin(a)*(GR+3)*SC]],1.5*SC,"shade",.8);}
+  drawFoes(c,t,cx,cy,st.F);
+  // 맥동 — 굵기를 반지름에 묶는다(celHoop 의 r-w*.22 음수 함정).
+  for(const g of st.rg){
+    const rr=Math.max(1,HL1rr(g));
+    const w=Math.max(1,Math.min((g.sub?3.8:5.4)*SC*(1-.4*g.u),rr*.6));
+    const al=g.dir<0?.95:(g.u<.8?.92:Math.max(.15,.92*(1-(g.u-.8)*2.2)));
+    celHoop(c,cx,cy,rr,1,0,w,"gold",al);
+    // 되돌이의 갈퀴 — 각성은 갈퀴를 세운다(빛파동·공전 L5 와 같은 문법).
+    // 안쪽을 향해야 「걷으러 돌아온다」로 읽힌다.
+    if(g.dir<0)for(let i=0;i<7;i++){const a=t*.7+i/7*TAU;
+      celSpike(c,cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,a+Math.PI,12*SC,3.4*SC,"gold",.9);}}
+  if(st.ab>0)celSplash(c,cx,cy,Math.max(1,13*SC*(st.ab/.25)),7,9,"gold",st.ab/.25);
+  drawInflow(c,MO,3.6*SC);
+  hpRing(c,cx,cy,34*SC,st.hp,"gold");
+  // 빠른맥(L3)의 문턱을 HP 링에 박는다 — 여명·공물과 같은 규약:
+  // 「위기」가 어디부터인지 화면에 없으면 아무 때나 빨라지는 것처럼 보인다.
+  if(FAST){const a=-Math.PI/2+TAU*CRHP;
+    celSpike(c,cx+Math.cos(a)*34*SC,cy+Math.sin(a)*34*SC,a,11*SC,3.4*SC,"gold",.9);}
+  // 박자 게이지 — 응보의 저장·여명의 기다림과 같은 한 벌. 차오르는 것은 언제나 이것.
+  // 예비박은 새 링이 아니라 **이 게이지가 부푸는 것**이다 — 조여드는 링을 하나
+  // 더 뒀더니 링 넷이 겹쳐 무엇이 맥동인지 안 갈렸다(렌더 판정). 같은 원 위에서
+  // 굵기와 밝기가 차오르면 원 개수를 안 늘리고도 「숨을 들이쉰다」가 보인다.
+  celGauge(c,cx,cy,GR*SC,Math.min(1,st.ph/BP),
+    (2.6+(crisis?1:0)+2.2*HL1q)*SC,"gold",.85+.15*HL1q);
+  if(st.hurt>0)hurtFlash(c,cx,cy,Math.max(1,18*SC*st.hurt),st.hurt);
+  drawP(c,st);hero(c,t,cx,cy);};
+
+// 아이콘 — 뛰는 줄 하나. 해돋이·이삭·물방울·젬 곁에서 실루엣만으로 갈리고,
+// 동심원(파문 아이콘)·시계(봉인 아이콘)와도 안 겹치는 자리가 이 줄이다.
+// 지그재그(뇌광 아이콘)와는 기울기로 갈린다 — 저쪽은 내리꽂히고 이쪽은
+// 평평한 줄 위에 박동 하나가 선다.
+HICON.HL1beat=function(c,S){
+  const y=S*.54,P=[[S*.10,y],[S*.32,y],[S*.40,S*.62],[S*.48,S*.20],
+    [S*.56,S*.76],[S*.63,y],[S*.90,y]];
+  c.beginPath();P.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));
+  c.strokeStyle=IC.d;c.lineWidth=S*.15;c.lineJoin="round";c.lineCap="round";c.stroke();
+  c.strokeStyle=IC.b;c.lineWidth=S*.075;c.stroke();
+  c.strokeStyle=IC.l;c.lineWidth=S*.028;c.stroke();};
+
+// ── 배치 — 타일 · 성장표 줄 · 아이콘 ────────────────────────────────────
+{tile($("heal"),FX,"HL1beat","맥박","PULSE",
+  "박자마다 맥동이 한 번 크게 돈다 — 그때 닿은 적만큼 걷혀 온다. 박 사이엔 아무것도 안 흐른다",S);
+ iconTile(HICON,"HL1beat","맥박","회복");
+ // 성장표 한 줄 — LVW 의 줄과 같은 골격. 순수 수치 칸 0: 넷 다 개수(겹박) ·
+ // 성질(빠른맥·울림) · 형태(되돌이)가 눈으로 바뀐다.
+ const HL1LVT=["겹박 — 한 박이 두 번 친다(두근). 맥동이 두 겹으로 나간다",
+   "빠른맥 — 위기(HP 45% 이하)엔 박자가 두 배로 뛴다",
+   "울림 — 맥동이 닿은 적을 밀어낸다. 박이 곧 숨 돌릴 틈이다",
+   "각성 — 되돌이. 맥동이 갈퀴를 세우고 돌아오며 한 번 더 걷는다"];
+ const HL1host=$("levelsh");
+ const HL1row=document.createElement("div");
+ HL1row.className="lvblock";
+ HL1row.insertAdjacentHTML("beforeend",
+   `<div class="hd"><b style="font-size:13px;color:#EDEDF2">맥박</b>`+
+   `<span style="font-size:10px;color:#5A5A68">회복</span></div>`);
+ const HL1cells=document.createElement("div");
+ HL1cells.className="cells";HL1cells.style.setProperty("--n",5);
+ for(let L=1;L<=5;L++){
+   const cell=document.createElement("div");
+   cell.className="cell";
+   const cv=document.createElement("canvas");
+   box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
+   cell.appendChild(cv);
+   const txt=L===1?"기준 디자인":HL1LVT[L-2];
+   cell.insertAdjacentHTML("beforeend",
+     `<div class="lb">`+
+     `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
+     `color:${L===1?"#9494A2":"#FFA83C"}">L${L}</div>`+
+     `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
+     `min-height:3.6em">${txt}</div></div>`);
+   HL1cells.appendChild(cell);
+   mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV,sr=RECOLOR;LV=L;RECOLOR="HL1beat";
+     try{FX.HL1beat(c,t,dt,W,H,st);}finally{LV=sl;RECOLOR=sr;}});}
+ HL1row.appendChild(HL1cells);HL1host.appendChild(HL1row);}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// NB1 · 성운 회랑 星雲回廊 — 심우주 3차 「통로」 (docs/vfx/mockup-map.html)
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 다섯 손이
+// 같은 파일을 만지므로 겹치는 자리를 아예 안 만든다. 새 최상위 이름은 전부
+// `NB1` 로 시작하고, 등록은 `MAP.nb1*` · `TONE.nb1Wall` 에 **대입만** 한다.
+// 새 그리기 원시함수 0개 — scatter · h2 · hash · fillPoly · ribbonPoly ·
+// jagPoly · mapStar · mapFloor · mapCam · A 의 조합만 쓴다.
+//
+// ── 생성 원리: 통로 ──────────────────────────────────────────────────────
+// 성운이 **배경이 아니라 지나가는 곳**이다. 다섯 안 중 유일하게 화면에
+// **안/밖 경계**가 있다: 가운데는 빛나는 가스가 차 있고(개정 예산의 중간 톤이
+// 전부 여기서 나온다), 위아래는 **어두운 성운 절벽**이 회랑을 닫고, 절벽 너머는
+// 트인 우주다. 절벽은 밝게 그리지 않는다 — 회랑이 「밝은 강」이고 벽은 그 강을
+// 담는 **어두운 둑**이다(별이 지워지는 것과 둑 안쪽 테의 빛만이 벽의 증거다.
+// U1 이 실측한 「가리는 층은 가릴 밝은 것이 있어야 보인다」 그대로 — 이 안은
+// 가릴 것(속가스·별밭)을 먼저 만들고 벽으로 가린다).
+//
+// 「안에 있다」는 말이 아니라 **시차 여섯 층의 속도비**가 한다:
+//   바깥 별 .06 < 속가스 .26 < 티끌 .55 < 흐름결 .72 < **벽 1.18** < 파편 1.55
+// 벽이 월드(1.0)보다 **빨리** 흐른다 — 코앞의 것만 그렇게 흐른다. 그것이
+// 「벽 옆을 지나가는 중」의 정의다. 카메라의 회랑 내 좌표(NB1qc)도 유계로
+// 흔들려 한쪽 벽에 다가갔다 멀어진다 — 통로는 지나가도 계속 통로여야 하므로
+// 수직 이탈은 묶고(회랑을 따라 난다는 전제), 축 방향은 무한히 흐른다.
+//
+// ── 개정 예산을 어떻게 갚나 ──────────────────────────────────────────────
+// 중간 톤(15~30%)의 **면적**은 속가스의 단면 그라디언트 + 가스 뭉치 + 둑 안쪽
+// 테가 채우고, **눈에 보이는 「빛나는 강」은 별강(칸 15 별밭)이 진다** — 이
+// 팔레트의 꼭대기(.124)와 바탕(.07)이 .05 폭 안이라 가스 대 가스로는 대비가
+// 원리적으로 안 나서, 3차 렌더까지 「균일한 어스름」이었다. U1 은하수의 실측
+// 그대로 강의 낟알은 별 밀도다. 절벽은 일부러 중간 톤 아래(합성 L ≈ .04)에
+// 둔다 — 안 그러면 벽+속이 함께 예산을 먹어 30% 위로 뚫는다(첫 산정 45%,
+// 4차 실측 35% 를 거쳐 바탕을 두 번 눌러서야 들어왔다).
+// L>.35 는 회랑 안 불티(starX 1px 급 대여섯)뿐이다.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// 저주파 세 층(단면 그라디언트 · 가스 뭉치 · 절벽 몸통)은 **1/3 해상도 버퍼**에
+// 그려 올린다(사구 MP2 의 선례 — 방사 그라디언트 비용은 반지름의 제곱이라
+// 화소를 줄이는 것이 유일한 답이다. 버퍼는 장치 화소로 잰다). 고주파(별 ·
+// 별강 · 티끌 · 결 · 절벽 덩이 · 테 · 파편)는 전체 해상도로 그 위에 얹는다.
+//
+// ── 검증 실측 (2026-08-12 · 헤드리스 크롬 SW 래스터 · dt=1/60 고정) ──────
+// · 중간 톤(.05~.15) — **월드 5자리 × 8프레임**(980×430):
+//     최소 24.7 / 평균 27.2 / 최대 29.2 %   (자리별 평균 28.2/28.2/28.0/26.6/25.3)
+// · 평균 L .0415~.0443 (≤.075) · L>.12 .36~.65% · L>.35 ≤.0057% (≤.5%)
+// · 최대 L .8188 — starX 불티 **점**(1px 급, 면적 예산 안)
+// · 실캔버스 900프레임 × 6타일 예외 0 (30프레임마다 getImageData 로 래스터 강제)
+// · 비용 **4.08ms**(980×430 · 120프레임 · 매 프레임 강제 래스터) — 크롬은 기록만
+//   하고 나중에 래스터하므로 getImageData 없이 재면 0 이 나온다. B안 성계
+//   4.80 · U2 잔해대 5.75 와 같은 급이고, 실기는 GPU 라 이보다 싸다.
+// · 적 8마리(몸 채움 L .1021) — 깔린 배경 대비 **1.28~5.45배**(8자리 실측):
+//   트인 우주 5.45 · 절벽 몸통 2.4~2.7 · 속가스 1.56~2.51 · **최악 = 둑 안쪽
+//   테 위 1.28배** — 몸 대비는 얇아지지만 분홍 림(#E86892)과 눈이 져서 렌더
+//   에서는 읽힌다(foe8 칸). 지킨 척 없이 그대로 적어 둔다.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 배치는 전부 `scatter()`(칸 번호 해시)다 — 반복도 이음매도 원리적으로 없다.
+// 구운 타일·모듈로 패턴은 0장. 가산 합성(`lighter`) 0회 · 흰 앞날 0 ·
+// celHoop 0회(브라우저에서만 죽는 전례 다섯 번 — 호출부를 아예 안 만든다) ·
+// puffPoly 0회(배경에서는 폭발의 문법이라는 U1 판정을 따른다).
+//
+// ── 색 ───────────────────────────────────────────────────────────────────
+// 속가스 = 기존 TONE.mapCloud(청람 ≈223°) 재사용, 절벽 = nb1Wall(≈234°).
+// 색상환이 꽉 차서 어느 각도 최근접 속성과 20~30° 안이다 — 여기는 빙(198.6°)
+// 과 24~35°, 어둠(273°)과 39~50°. 실제 방어는 각이 아니라 **저채도 + 명도**다:
+// 이 안의 제일 밝은 넓은 면적(합성 ≈.11)과 빙 팔레트 가운데층은 4배 넘게
+// 갈린다. 적 몸(318.8°)과는 84° 이상.
+
+TONE.nb1Wall=["#0D0D1E","#171A36","#202748"]; // 절벽 L .059/.111/.159 · H ≈234° · 채도 ≈.55
+const NB1TH=-.201, NB1CA=Math.cos(NB1TH), NB1SA=Math.sin(NB1TH);
+const NB1HW=96;                    // 회랑 안폭(반) — 월드px
+const NB1LQ=620;                   // scatter 가 훑는 수직 구간(회전 좌표)
+// 깊이 여섯 — 이 표가 곧 이 안의 정체다.
+const NB1DO=.06, NB1DF=.26, NB1DM=.55, NB1DWI=.72, NB1DW=1.18, NB1DS=1.55;
+
+/// 카메라의 회랑 내 수직 좌표 — **유계**다(±55). 회랑을 따라 난다는 전제라
+/// 축 좌표(cu)가 주로 몰고, 수직 성분(cv)은 양념만 준다. 주기 24s/164s/82s
+/// 를 섞어 「한쪽 벽에 붙었다 떨어지는」 호흡을 만든다.
+function NB1qc(cu,cv){
+  return 26*Math.sin(cu*.0031+1.2)+17*Math.sin(cu*.00046+3.1)+12*Math.sin(cv*.0043+.9);
+}
+/// 절벽 안쪽 가장자리의 굽이. 위/아래 벽의 위상이 달라야 회랑 폭이 살아 숨쉰다.
+function NB1ein(u,s){
+  return s<0
+    ?16*Math.sin(u*.0093+0.7)+9*Math.sin(u*.0241+2.9)+5*Math.sin(u*.051+1.3)
+    :16*Math.sin(u*.0087+3.4)+9*Math.sin(u*.0227+0.6)+5*Math.sin(u*.047+4.1);
+}
+/// 회랑 단면 밀도 0~1 — 가장자리를 smoothstep 으로 눕혀 테두리 선이 안 생긴다.
+function NB1g(q){
+  const v=1-Math.abs(q)/(NB1HW+34);
+  return v<=0?0:v>=1?1:v*v*(3-2*v);
+}
+/// 축 방향 농도 — 지나가면서 짙은 구간·옅은 구간이 번갈아 온다(MU2 뭉침 수법:
+/// 같은 h2 를 굵은 격자에서 읽어 쌍삼차로 섞는다). **하한 .55** — 옅은 구간도
+/// 빈 화면은 안 된다(중간 톤 최소가 예산의 머릿수라는 P3 의 교훈).
+function NB1den(u){
+  const g=u/420, x0=Math.floor(g), f=g-x0, sm=f*f*(3-2*f);
+  const a=h2(x0,0,97), b=h2(x0+1,0,97);
+  return .55+.80*(a+(b-a)*sm);
+}
+
+/// 속가스 — 회랑을 채우는 빛나는 가스. **1/3 버퍼 안**에서만 불린다.
+/// ① 단면 그라디언트(중간 톤의 본체) ② 가스 뭉치(변화) ③ 어둠 고랑(구조).
+function NB1haze(c,t,cu,qc,LX){
+  // ⚠️ 첫 렌더 판정(2026-08-11): 중간 톤 32% 인데 화면은 「균일하게 어스름」
+  // 이었다 — 전부 .05~.08 하한에 깔려 봉우리가 전무했다(L>.12 = 0.02%).
+  // 답은 밝기 총량이 아니라 **분포**다: 바탕을 좁히고, 뭉치·고랑의 대비를
+  // 키워 같은 예산을 구조에 몰아준다.
+  // 바탕은 얇게 — 어스름 자체가 아니라 별강·뭉치·테가 질감을 진다. 4차 실측
+  // 에서 바탕을 .74 로 두니 중간 톤이 35% 로 상한을 뚫었다(넓은 면적이 제일
+  // 비싼 예산이다). 플래토를 좁히고 어깨를 .05 아래로 떨어뜨린다.
+  const T=TONE.mapCloud, off=-qc*NB1DF, hw=NB1HW+34;
+  const g=c.createLinearGradient(0,off-hw,0,off+hw);
+  g.addColorStop(0,A(T[0],0));   g.addColorStop(.26,A(T[0],.13));
+  g.addColorStop(.47,A(T[1],.52));g.addColorStop(.53,A(T[1],.52));
+  g.addColorStop(.74,A(T[0],.13));g.addColorStop(1,A(T[0],0));
+  c.fillStyle=g;c.fillRect(-LX/2,off-hw,LX,hw*2);
+  // 가스 뭉치 — 축으로 길쭉한 타원 후광. 농도(NB1den)가 알파를 몰고 다닌다.
+  scatter(cu*NB1DF+t*9,qc*NB1DF,LX,NB1LQ,230,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DF, gg=NB1g(q);
+    if(gg<=0||r>.62)return;
+    const den=NB1den(x-LX/2+cu*NB1DF+t*9);
+    const rr=76+h2(i,j,11)*104, al=Math.min(.56,(.22+.31*h2(i,j,12))*gg*den);
+    c.save();c.translate(x-LX/2,Y);c.rotate((h2(i,j,14)-.5)*.34);
+    c.scale(1,.34+h2(i,j,15)*.20);
+    const gr=c.createRadialGradient(0,0,0,0,0,rr);
+    const col=h2(i,j,13)<.55?T[1]:T[2];
+    gr.addColorStop(0,A(col,al));gr.addColorStop(.38,A(col,al*.72));
+    gr.addColorStop(.68,A(T[0],al*.5));gr.addColorStop(1,A(T[0],0));
+    c.fillStyle=gr;c.beginPath();c.arc(0,0,rr,0,TAU);c.fill();c.restore();});
+  // 어둠 고랑 — 가스 속을 흐르는 검은 물길. 바닥색이라 지우개다(구멍이 안 난다).
+  scatter(cu*NB1DF*1.06+t*5,qc*NB1DF,LX,NB1LQ,300,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DF, gg=NB1g(q);
+    if(gg<=0||r>.5)return;
+    c.save();c.translate(x-LX/2,Y);c.rotate((h2(i,j,21)-.5)*.4);c.scale(1.9,1);
+    fillPoly(c,jagPoly(0,0,40+h2(i,j,22)*70,9+((h2(i,j,23)*4)|0),i*3.1+j*7.7,1.15,.6),
+      A(MAPFLOOR,(.34+.34*h2(i,j,24))*gg));
+    c.restore();});
+}
+
+/// 절벽 몸통 — **어두운 둑.** 안쪽 가장자리는 굽이치고 바깥은 빈 우주로
+/// 사그라든다. 1/3 버퍼 안에서만 불린다(저주파).
+function NB1bank(c,cu,qc,LX,s){
+  const T=TONE.nb1Wall, off=-qc*NB1DW, uw0=cu*NB1DW;
+  const out0=NB1HW+76, x0=-LX/2, n=Math.ceil(LX/56);
+  const P=[];
+  for(let k=0;k<=n;k++){const X=x0+LX*k/n, u=X+uw0;
+    P.push([X, s*(NB1HW-4+NB1ein(u,s))+off]);}
+  for(let k=n;k>=0;k--){const X=x0+LX*k/n, u=X+uw0;
+    P.push([X, s*(out0+10*Math.sin(u*.006+(s<0?2.2:5.0)))+off]);}
+  // 첫 렌더에서 .52 로는 둑이 안 보여 「능선 선 두 줄」이 됐다 — 둑은 덩어리다.
+  const g=c.createLinearGradient(0,s*NB1HW+off,0,s*(out0+8)+off);
+  g.addColorStop(0,A(T[0],.74));g.addColorStop(.55,A(T[0],.52));g.addColorStop(1,A(T[0],0));
+  c.fillStyle=g;c.beginPath();
+  P.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));
+  c.closePath();c.fill();
+}
+
+/// 절벽 덩이 — 둑에 얹히는 각진 성운 덩어리. **패스를 가른다**(몸통 전부 →
+/// 초승달 전부): 자기막이 실측으로 배운 함정 — 이어 칠하면 다음 덩이의 몸통이
+/// 앞 덩이의 밝은 면을 도로 덮는다.
+function NB1clumps(c,cu,qc,LX,s,pass){
+  const T=TONE.nb1Wall;
+  scatter(cu*NB1DW,qc*NB1DW,LX,NB1LQ,74,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DW, dq=s*q-NB1HW;
+    if(dq<-14||dq>86||r>.66)return;
+    const near=1-Math.min(1,Math.abs(dq)/86);          // 안쪽 가장자리일수록 1
+    const rr=26+h2(i,j,51)*34, sd=i*4.3+j*8.1;
+    c.save();c.translate(x-LX/2,Y);c.rotate((h2(i,j,52)-.5)*.3);c.scale(1.65,1);
+    if(!pass){
+      fillPoly(c,jagPoly(0,0,rr,5+((h2(i,j,53)*3)|0),sd,1.12,.62),
+        A(T[0],.50+.26*h2(i,j,54)));
+    }else{
+      // 초승달 — 회랑 쪽 면만 빛을 받는다(광원 = 회랑 속가스).
+      fillPoly(c,jagPoly(0,-s*rr*.36,rr*(.62-.16*(1-near)),4+((h2(i,j,56)*2)|0),sd+1.7,1.1,.58),
+        A(T[1],(.26+.26*near)*(.7+.3*h2(i,j,57))));
+      if(near>.55&&h2(i,j,58)<.5)
+        fillPoly(c,jagPoly(0,-s*rr*.44,rr*.28,4,sd+3.1,1.05,.55),A(T[2],.28*near));
+    }
+    c.restore();});
+}
+
+/// 둑 안쪽 테 — 회랑 빛이 벽 가장자리를 핥는 줄. 덩이 몸통 뒤 · 초승달 앞에
+/// 깔려 덩이 실루엣이 테를 물어뜯는다(자 대신 너덜너덜한 가장자리).
+function NB1rim(c,cu,qc,LX,s){
+  const T=TONE.nb1Wall, off=-qc*NB1DW, uw0=cu*NB1DW;
+  const x0=-LX/2, n=Math.ceil(LX/48), P=[], P2=[], P0=[];
+  for(let k=0;k<=n;k++){const X=x0+LX*k/n, u=X+uw0;
+    const e=NB1ein(u,s)+(h2(Math.floor(u/37),s,61)-.5)*7;
+    P0.push([X, s*(NB1HW+e-9)+off]);
+    P.push([X, s*(NB1HW+e)+off]);
+    P2.push([X, s*(NB1HW+e+7)+off]);}
+  // 벽빛이 회랑 안쪽 가스로 번지는 띠 → 테 → 심. 셋 다 상한(.17) 아래다.
+  fillPoly(c,ribbonPoly(P0,16,16),A(T[1],.22));
+  fillPoly(c,ribbonPoly(P,10,10),A(T[1],.48));
+  fillPoly(c,ribbonPoly(P2,4.5,4.5),A(T[2],.46));
+}
+
+/// 벽 돌기 — 회랑 안으로 뻗는 성운 버트레스. 성긴 간격 · 다 다른 길이/굽음.
+/// 벽이 흐를 때 제일 크게 읽히는 시차 표지다.
+function NB1fingers(c,cu,qc,LX,s){
+  // ⚠️ 2차 렌더에서 「철조망 가시」가 됐다 — 가늘고 수직이고 등간격이었다.
+  // 굵고 짧게, **하류로 눕히고**, 더 성글게. 길이·굽음·폭이 다 달라야 지형이다.
+  const T=TONE.nb1Wall, off=-qc*NB1DW, u0=cu*NB1DW;
+  const i0=Math.floor((u0-LX/2)/430)-1, i1=Math.floor((u0+LX/2)/430)+1;
+  for(let i=i0;i<=i1;i++){
+    if(h2(i,s,71)>.45)continue;
+    const u=(i+.18+.64*h2(i,s,72))*430, X=u-u0;
+    const len=30+h2(i,s,73)*46, lean=len*(.5+.6*h2(i,s,76)), w0=20+h2(i,s,75)*14;
+    const wob=(h2(i,s,74)-.5)*18;
+    const yb=s*(NB1HW+NB1ein(u,s)+8)+off;
+    const pts=[[X,yb],[X+lean*.5+wob,yb-s*len*.6],[X+lean,yb-s*len]];
+    fillPoly(c,ribbonPoly(pts,w0,3),A(T[0],.62));
+    fillPoly(c,ribbonPoly(pts,w0*.55,2),A(T[1],.44));
+    // 빛 받는 옆면 — 돌기도 회랑 빛을 한쪽으로만 받는다(덩이 초승달과 같은 광원).
+    fillPoly(c,ribbonPoly(pts.map(p=>[p[0]+w0*.2,p[1]]),w0*.24,1),A(T[2],.36));
+  }
+}
+
+/// 배경 한 장. [bare]=1 이면 벽 층(둑·덩이·테·돌기·파편)을 통째로 끈다 —
+/// 「벽이 없으면 그냥 띠다」를 옆에 세우는 대조군이다.
+function NB1bg(c,t,W,H,bare){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
+  const p=mapCam(t);
+  const cu=NB1CA*p[0]+NB1SA*p[1], cv=-NB1SA*p[0]+NB1CA*p[1];
+  const qc=NB1qc(cu,cv);
+  const LX=Math.abs(W*NB1CA)+Math.abs(H*NB1SA)+140;
+  // ① 트인 우주 — 회랑 밖에만 별을 깐다. 벽이 지우는 「별밭」이 곧 벽의 증거다.
+  c.save();c.translate(W/2,H/2);c.rotate(NB1TH);
+  scatter(cu*NB1DO,qc*NB1DO,LX,NB1LQ,30,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DO;
+    if(Math.abs(q)<NB1HW+20||r>.5)return;
+    mapStar(c,x-LX/2,Y,r<.06?1.2:.8,r<.06?MAPINK.starM:MAPINK.starD,.32+.50*r);});
+  c.restore();
+  // ② 저주파 세 층 — 1/3 해상도 버퍼(장치 화소 기준 — dpr 2 에서 1/6 이 되는
+  //    사고를 사구가 겪었다). 그라디언트 비용이 1/9 로 떨어진다.
+  const dsc=(c.canvas&&c.canvas.width>1&&W>0)?c.canvas.width/W:1, sc=dsc/3;
+  const rw=Math.max(1,Math.ceil(W*sc)), rh=Math.max(1,Math.ceil(H*sc));
+  let buf=c.canvas.__nb1r;
+  if(!buf||buf.width!==rw||buf.height!==rh){
+    buf=document.createElement("canvas");buf.width=rw;buf.height=rh;c.canvas.__nb1r=buf;}
+  const bc=buf.getContext("2d");
+  if(bc){
+    bc.setTransform(1,0,0,1,0,0);bc.clearRect(0,0,rw,rh);
+    bc.setTransform(sc,0,0,sc,0,0);
+    bc.translate(W/2,H/2);bc.rotate(NB1TH);
+    NB1haze(bc,t,cu,qc,LX);
+    if(!bare){NB1bank(bc,cu,qc,LX,-1);NB1bank(bc,cu,qc,LX,1);}
+    c.drawImage(buf,0,0,rw,rh,0,0,W,H);
+  }
+  // ③ 고주파 — 전체 해상도.
+  c.save();c.translate(W/2,H/2);c.rotate(NB1TH);
+  // 별강 — **「빛나는 강」을 실제로 지는 층.** 3차 렌더까지 가스 톤으로만
+  // 밝히려다 실패했다: 이 팔레트의 꼭대기(.124)와 바탕(.07)이 .05 폭 안이라
+  // 가스 대 가스로는 대비가 원리적으로 안 난다. U1 은하수가 실측으로 증명한
+  // 길을 쓴다 — 강의 낟알은 가스가 아니라 **별 밀도**다(저쪽은 칸 13, 여기는
+  // 15). 밀도는 단면(NB1g)과 농도(NB1den)가 같이 몰고, 굵은 격자를 한 번 더
+  // 해시해 성단/암흑 틈을 만든다(고르게 뿌리면 모래종이라는 그쪽 판정 그대로).
+  scatter(cu*NB1DF+t*9,qc*NB1DF,LX,NB1LQ,15,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DF;
+    if(Math.abs(q)>NB1HW+30)return;                       // 해시 전에 싸게 버린다
+    const gg=NB1g(q);
+    const den=NB1den(x-LX/2+cu*NB1DF+t*9);
+    if(r>(.06+.72*gg)*(.42+.78*h2(i>>5,j>>5,70))*Math.min(1,den))return;
+    mapStar(c,x-LX/2,Y,.55+.42*h2(i,j,58),
+      h2(i,j,57)<.8?MAPINK.starD:MAPINK.starM,(.38+.52*h2(i,j,59))*(.36+.64*gg));});
+  // 가스 몸통 — 뭉치 후광과 **같은 칸·같은 해시**라 후광 위에 정확히 앉는다.
+  // 2차 렌더에서 후광만으로는 「균일한 어스름」이었다 — 구조는 각진 실루엣이
+  // 진다(B안 성운의 재배치 그대로: 어두운 층=후광 바깥 · 중간=몸통 · 밝음=심.
+  // 몸통이 후광보다 어두우면 구멍으로 읽힌다는 그 함정을 그대로 피한다).
+  scatter(cu*NB1DF+t*9,qc*NB1DF,LX,NB1LQ,230,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DF, gg=NB1g(q);
+    if(gg<=0||r>.62||h2(i,j,16)>.8)return;
+    const den=NB1den(x-LX/2+cu*NB1DF+t*9);
+    const TC=TONE.mapCloud;
+    const rr=(76+h2(i,j,11)*104)*.46, sd=i*7.9+j*3.3, aa=gg*Math.min(1,den);
+    c.save();c.translate(x-LX/2,Y);c.rotate((h2(i,j,14)-.5)*.34);
+    c.scale(1.6,.62+h2(i,j,15)*.2);
+    fillPoly(c,jagPoly(0,0,rr,7+((h2(i,j,17)*4)|0),sd,1.14,.72),A(TC[1],.34*aa));
+    fillPoly(c,jagPoly(rr*.06,-rr*.08,rr*.5,5+((h2(i,j,18)*3)|0),sd+1.7,1.1,.7),
+      A(TC[2],.30*aa));
+    c.restore();});
+  // 티끌 — 회랑 안의 잔별. 회랑 밖 별과 깊이가 달라 속이 「차 있다」로 읽힌다.
+  scatter(cu*NB1DM+t*14,qc*NB1DM,LX,NB1LQ,64,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DM, gg=NB1g(q);
+    if(gg<=0||r>.6*gg)return;
+    mapStar(c,x-LX/2,Y,.8+.6*h2(i,j,31),h2(i,j,32)<.75?MAPINK.starD:MAPINK.starM,
+      (.34+.56*h2(i,j,33))*gg);});
+  // 불티 — 회랑 안 밝은 점 대여섯. L>.35 예산을 여기서만 쓴다(면적 ~0.01%).
+  scatter(cu*NB1DM+t*14,qc*NB1DM,LX,NB1LQ,300,0,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DM;
+    if(NB1g(q)<.25||r>.5)return;
+    mapStar(c,x-LX/2,Y,1.05,MAPINK.starX,.88);});
+  // 흐름결 — 축을 따라 늘어난 가는 리본. 가스가 회랑을 따라 흐르는 결이다.
+  scatter(cu*NB1DWI+t*26,qc*NB1DWI,LX,NB1LQ,190,1,(x,y,i,j,r)=>{
+    const Y=y-NB1LQ/2, q=Y+qc*NB1DWI, gg=NB1g(q);
+    if(gg<=0||r>.62)return;
+    const ln=60+h2(i,j,41)*110, bow=(h2(i,j,42)-.5)*14, X=x-LX/2;
+    fillPoly(c,ribbonPoly([[X-ln,Y-bow],[X,Y+bow],[X+ln,Y-bow*.6]],
+      3.4+h2(i,j,43)*4.0,.8),A(TONE.mapCloud[2],(.16+.20*h2(i,j,44))*gg));});
+  if(!bare){
+    NB1clumps(c,cu,qc,LX,-1,0);NB1clumps(c,cu,qc,LX,1,0);   // 몸통 전부
+    NB1rim(c,cu,qc,LX,-1);     NB1rim(c,cu,qc,LX,1);        // 테
+    NB1clumps(c,cu,qc,LX,-1,1);NB1clumps(c,cu,qc,LX,1,1);   // 초승달 전부
+    NB1fingers(c,cu,qc,LX,-1); NB1fingers(c,cu,qc,LX,1);
+    // 파편 — 카메라 코앞(1.55)을 스치는 검은 조각. 속가스를 실제로 가린다.
+    scatter(cu*NB1DS,qc*NB1DS,LX,NB1LQ,470,1,(x,y,i,j,r)=>{
+      const Y=y-NB1LQ/2, q=Y+qc*NB1DS;
+      if(Math.abs(q)>NB1HW+70||r>.34)return;
+      const rr=24+h2(i,j,81)*34;
+      c.save();c.translate(x-LX/2,Y);c.rotate((h2(i,j,82)-.5)*.5);c.scale(2.5,1);
+      fillPoly(c,jagPoly(0,0,rr,7+((h2(i,j,83)*4)|0),i*5.9+j*2.3,1.2,.55),
+        A(MAPINK.ink,.42+.22*h2(i,j,84)));
+      c.restore();});
+  }
+  c.restore();
+}
+
+/// 적 8마리 얹은 판 — 시안의 정직성 검증. 회랑 속·절벽 위·테 근처에 나눠 놓는다.
+function NB1foe8(c,t,dt,W,H,st){
+  NB1bg(c,t,W,H);
+  const px=W/2, py=H/2;
+  const POS=[[.18,.30],[.38,.62],[.55,.24],[.72,.70],[.86,.42],[.30,.88],[.62,.92],[.80,.10]];
+  for(let i=0;i<8;i++){
+    const x=POS[i][0]*W, y=POS[i][1]*H, r=11+hash(i*7.3)*5;
+    const ang=Math.atan2(py-y,px-x);
+    FOEART.grunt(c,x,y,r,ang,t);
+    foeEyes(c,x,y,r*.8,1,px,py,.17);
+  }
+}
+
+// ── 등록 — **대입만** ─────────────────────────────────────────────────────
+MAP.nb1     =(c,t,dt,W,H,st)=>{NB1bg(c,t,W,H);};
+MAP.nb1Bare =(c,t,dt,W,H,st)=>{NB1bg(c,t,W,H,1);};
+MAP.nb1Foe8 =NB1foe8;
+MAP.nb1Pulse=(c,t,dt,W,H,st)=>{NB1bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");};
+MAP.nb1Mini =(c,t,dt,W,H,st)=>{NB1bg(c,t,W,H);mapOver(c,t,dt,W,H,st,"bolt");
+                               bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+
+// ── 마운트 — HTML 은 한 글자도 안 건드린다 ────────────────────────────────
+mapTile("nb1",MAP.nb1,"성운 회랑 — 실화면 비율(980×430)",
+  "안/밖이 있는 유일한 안. 벽(깊이 1.18)이 월드보다 빨리 흐른다 — 코앞의 것만 그렇게 흐른다.",980,430,1);
+mapTile("nb1",MAP.nb1Bare,"대조군 — 벽 층을 껐다",
+  "벽이 없으면 그냥 띠다. 통로가 벽에서 나온다는 주장의 반증 가능한 형태.",MAP_S,MAP_S);
+mapTile("nb1",MAP.nb1Foe8,"적 8마리",
+  "몸/배경 1.3~5.5배(8자리 실측). 최악은 둑 안쪽 테 위 1.28배 — 림과 눈이 진다.",MAP_S,MAP_S);
+mapTile("nb-bg",MAP.nb1,"성운 회랑 · 배경만",
+  "가운데 빛나는 가스, 위아래 어두운 절벽, 그 너머 트인 우주.",MAP_S,MAP_S);
+mapTile("nb-proof",MAP.nb1Pulse,"성운 회랑 + 파문",
+  "최악 조건 — 바깥층 L .181 얇은 고리. 속가스 위에서도 명도로 갈린다.",MAP_S,MAP_S);
+mapTile("nb-mini",MAP.nb1Mini,"성운 회랑 + 빛파동 + 미니맵",
+  "HUD 는 그대로. 절벽은 미니맵 판 밑으로 지나간다.",MAP_S,MAP_S);
+
+// 밝기 실측 — **월드 4자리**에서 재고 최소·평균·최대를 다 적는다. 한 자리
+// 측정은 시안의 자기소개지 측정이 아니다(P3 가 실측으로 배운 것).
+(function(){
+  const host=$("nb-num");
+  const TS=[2.2,41.5,87.3,139.7]; let zs=[];
+  try{
+    const cv=document.createElement("canvas");cv.width=980;cv.height=430;
+    const c=cv.getContext&&cv.getContext("2d");
+    if(c){
+      for(const tt of TS){
+        c.setTransform(1,0,0,1,0,0);
+        NB1bg(c,tt,980,430);
+        const d=c.getImageData(0,0,980,430).data, n=d.length/4;
+        if(n<=16){zs=[];break;}
+        let sum=0,mid=0,o12=0,o35=0,mx=0;
+        for(let q=0;q<d.length;q+=4){
+          const l=(d[q]*.299+d[q+1]*.587+d[q+2]*.114)/255;
+          sum+=l;if(l>=.05&&l<=.15)mid++;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+        zs.push({avg:sum/n,mid:mid/n*100,p12:o12/n*100,p35:o35/n*100,mx:mx});
+      }
+    }
+  }catch(e){zs=[];}
+  const ok=v=>v?"#7ED08A":"#FF7A6A";
+  const row=document.createElement("div");
+  box(row,{flex:"1 1 100%",width:"100%",border:"1px solid #26262F",borderRadius:"4px",
+    background:"#13131A",padding:"9px 12px",marginTop:"6px",fontSize:"11.5px",
+    color:"#9494A2",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",
+    lineHeight:"1.7",boxSizing:"border-box"});
+  if(zs.length===4){
+    const mids=zs.map(z=>z.mid), avgs=zs.map(z=>z.avg);
+    const mmin=Math.min(...mids), mmax=Math.max(...mids),
+          mavg=mids.reduce((a,b)=>a+b,0)/4,
+          amax=Math.max(...avgs), p35=Math.max(...zs.map(z=>z.p35)),
+          mx=Math.max(...zs.map(z=>z.mx)), p12=Math.max(...zs.map(z=>z.p12));
+    row.innerHTML=
+      `<b style="color:#EDEDF2">NB1 성운 회랑</b>　월드 4자리(980×430)　`+
+      `중간 톤 <b style="color:${ok(mmin>=15&&mmax<=30)}">${mmin.toFixed(1)} / ${mavg.toFixed(1)} / ${mmax.toFixed(1)}%</b>`+
+      `<span style="color:#5A5A68">(최소/평균/최대 · 15~30%)</span>　`+
+      `평균 L ≤ <b style="color:${ok(amax<=.075)}">${amax.toFixed(4)}</b>/.075　`+
+      `L&gt;.12 ≤ ${p12.toFixed(2)}%　L&gt;.35 ≤ <b style="color:${ok(p35<=.5)}">${p35.toFixed(3)}%</b>/.5%　`+
+      `최대 ${mx.toFixed(3)}　`+
+      `<span style="color:#5A5A68">주 색상각 223~234° 청람(빙 198.6° 과 24~35°, 명도로 갈린다) · 가산 합성 0 · 흰 앞날 0</span>`;
+  }else{
+    row.innerHTML=`<b style="color:#EDEDF2">NB1 성운 회랑</b>　측정 불가(getImageData)`;
+  }
+  host.appendChild(row);
+})();
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 심우주 3차 · NB2 「은하 조우 銀河遭遇」 — docs/vfx/mockup-map.html 전용
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 최상위 이름은 전부
+// `NB2` 로 시작하고, 등록은 `MAP.nb2*` **대입뿐**이다(`const`/`let` 재선언 0).
+//
+// ── 이 안이 유일하게 하는 것: **알아볼 수 있는 곳** ───────────────────────
+// 다섯 중 랜드마크를 주는 것은 이것뿐이다(회랑=통로 · 기둥=세로 형태 ·
+// 산광=무형태 · 충돌=사건). 나선 은하 하나가 표지물이고, 회전각·기울기·
+// 동반 은하 배치가 칸 해시로 galaxy 마다 달라 「아까 그 은하」가 성립한다.
+// 기존 B안(성계)과의 거리: 그쪽은 성운 여럿 사이에 작은 은하가 **끼어** 있고
+// 옛 예산(평균 ≤.06)에 묶여 있다. 이 안은 은하가 **주인공**이고(반지름
+// 150~225px + 헤일로 둥지) 개정 예산의 중간 톤 15~30% 를 **은하 곁 헤일로**가
+// 채운다 — 은하 본체를 키우는 게 아니라 그 둘레를 채우는 것이 설계의 핵이다.
+//
+// ── 깊이 .85 — 지나갈 수 있어야 지나온 것이 된다 ─────────────────────────
+// 은하는 물리적으로는 깊이 ≈0 이 맞지만 그러면 절대 지나칠 수 없어 표지물이
+// 아니라 **벽지**가 된다(기존 B안이 판정). 랜드마크 층 전체(은하·헤일로·
+// 별 헤일로)를 .85 에 두고, 원경 별을 .06 에 두어 움직이는 쪽이 랜드마크로
+// 읽히게 한다. 칸 1500px · 확률 .62 — 데모 경로 실측으로 t≈3~20s 에 한 번
+// 조우하고 t≈60s 부근은 빈 하늘이다(만남 ↔ 지나옴의 리듬).
+//
+// ── 예산 배분 (개정판) ────────────────────────────────────────────────────
+//   · 중간 톤(.05~.15) 15~30% ← **헤일로 막**이 채운다. 은하가 화면 밖이어도
+//     최저선이 깨지면 안 되므로 막은 온 월드에 깔리되(기본 성운 막) 은하
+//     곁에서만 짙어진다(거리 가중). 측정은 월드 5자리에서 한다(아래 실측 칸).
+//   · 코어는 밝다(선례 L .86) → **면적으로 갚는다**: 핵점 1.7px + 작은 벌지
+//     글로우뿐. L>.35 는 별점+핵을 다 합쳐 0.5% 아래.
+//   · 넓은 면적의 천장 = 헤일로 잉크 #141C30 L .109 (source-over 라 겹쳐도
+//     이 값을 못 넘는다) · 팔 마루 #1E2A47 L .164 ≤ 봉우리 예산 .17.
+//   · 가산 합성 0 · 흰 앞날 0. 바닥은 mapFloor(.0184) — 배경의 첫 줄.
+//
+// ── 비용 — 방사 그라디언트는 반지름 제곱이다 ─────────────────────────────
+//   · 헤일로 방울은 **한 번 굽고**(mpTile 스프라이트) drawImage 로만 찍는다.
+//     그라디언트 평가가 프레임에서 사라진다.
+//   · 저주파 층(헤일로 전부)은 **1/3 해상도 버퍼**에 그려 올린다(사구 선례).
+//     확대 보간이 오히려 부드러움을 돕는다. 버퍼는 장치 화소로 잰다(dpr 함정).
+//   · 은하 본체는 칸마다 **스프라이트로 한 번 굽고** 캐시한다(전체 해상도 —
+//     먼지 띠·별 매듭은 중주파라 1/3 로 뭉개면 아깝다). 캐시는 그 프레임에
+//     안 쓰인 키를 지워 카메라가 아무리 흘러도 8장을 안 넘는다.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 전 층이 기존 scatter()(칸 번호 해시)다. 은하 닻만 scatter 의 내부 공식
+// (i+.12+.76·h2)을 그대로 밖에서 계산한다 — 헤일로 방울이 「가장 가까운
+// 은하까지의 거리」를 알아야 곁에서 짙어질 수 있어서다. 공식이 같으니
+// 반복도 이음매도 scatter 와 동일하게 없다.
+//
+// ── 색 ───────────────────────────────────────────────────────────────────
+// 주 색상각 — 렌더 실측(채도 가중 평균) **≈229°(청람)**. 헤일로 #141C30(223°)
+// 에 자람 변주 #171531(244°)이 1/3 섞여 설계값보다 6° 보라 쪽이다. 최근접
+// 속성은 빙 198.6° 로 **30°**, 어둠 273° 로 44°. 색상환이 꽉 차 어느 각도
+// 20~30° 안에 걸리므로(다섯 손 공통 확인) 실제 방어는 저채도·저명도다:
+// 빙 몸통 L .67 대 이 안의 넓은 면적 ≤ .109 로 6배 어둡다.
+// 적 몸 318.8° 와는 90° 떨어진다.
+const NB2D=.85;                     // 랜드마크 깊이 — 지나갈 수 있는 은하
+const NB2GC=1500, NB2GP=.62;       // 은하 칸 · 존재 확률 (t≈12s 첫 조우 실측)
+const NB2RS=3;                     // 헤일로는 1/3 해상도 버퍼에
+const NB2C_HB="#0B101E";           // 헤일로 바탕   L .063
+const NB2C_HM="#141C30";           // 헤일로 잉크   L .109 — 넓은 면적의 천장
+const NB2C_HV="#171531";           // 자람 변주     L .097 (244°, 1/3 만)
+const NB2C_AR="#1C2740";           // 나선팔       L .151
+const NB2C_RG="#1E2A47";           // 팔 마루      L .164 ≤ 봉우리 .17
+
+/// 은하 닻 — scatter 내부 공식 그대로. 칸에 은하가 없으면 null.
+function NB2gp(i,j){
+  if(h2(i,j,3)>NB2GP)return null;
+  return{ax:(i+.12+.76*h2(i,j,1))*NB2GC, ay:(j+.12+.76*h2(i,j,2))*NB2GC,
+         RR:150+h2(i,j,64)*75, rot:h2(i,j,65)*TAU, sq:.40+h2(i,j,66)*.22,
+         wind:2.35+h2(i,j,67)*.7, nc:h2(i,j,68)<.75?(h2(i,j,68)<.30?2:1):0,
+         key:i+"|"+j, sd:i*7.7+j*3.9};
+}
+/// 화면(중심 cx,cy · 여유 M)에 걸린 은하들을 순회한다.
+function NB2each(cx,cy,W,H,M,fn){
+  const i0=Math.floor((cx-W/2-M)/NB2GC),i1=Math.floor((cx+W/2+M)/NB2GC);
+  const j0=Math.floor((cy-H/2-M)/NB2GC),j1=Math.floor((cy+H/2+M)/NB2GC);
+  for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){
+    const P=NB2gp(i,j);if(P)fn(P);}
+}
+/// 월드 (wx,wy) 에서 가장 가까운 은하까지의 거리와 그 반지름. 없으면 d=1e9.
+function NB2near(wx,wy){
+  const gi=Math.floor(wx/NB2GC),gj=Math.floor(wy/NB2GC);
+  let d=1e9,RR=180;
+  for(let i=gi-1;i<=gi+1;i++)for(let j=gj-1;j<=gj+1;j++){
+    const P=NB2gp(i,j);if(!P)continue;
+    const dd=Math.hypot(P.ax-wx,P.ay-wy);
+    if(dd<d){d=dd;RR=P.RR;}}
+  return[d,RR];
+}
+// 구운 방울 셋 — 그라디언트는 여기서 한 번만 평가된다.
+// ⚠️ 봉우리가 아니라 **어깨**가 예산을 산다(첫 실측: 중간 톤 최소 0.7%).
+// 가운데만 뾰족한 종형은 α 문턱(.35)을 넘는 면적이 반지름의 절반도 안 돼
+// 아무리 찍어도 중간 톤이 안 쌓였다 — 그래서 **고원형**이다: 반지름 45% 까지
+// α .8 을 유지하고 그 밖에서 빠르게 죽는다.
+const NB2ha=()=>mpTile("nb2ha",128,(c,S)=>{
+  const g=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S*.48);
+  g.addColorStop(0,A(NB2C_HM,.92));g.addColorStop(.45,A(NB2C_HM,.78));
+  g.addColorStop(.74,A(NB2C_HB,.30));g.addColorStop(1,A(NB2C_HB,0));
+  c.fillStyle=g;c.fillRect(0,0,S,S);});
+const NB2hv=()=>mpTile("nb2hv",128,(c,S)=>{
+  const g=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S*.48);
+  g.addColorStop(0,A(NB2C_HV,.90));g.addColorStop(.45,A(NB2C_HV,.72));
+  g.addColorStop(.74,A(NB2C_HB,.26));g.addColorStop(1,A(NB2C_HB,0));
+  c.fillStyle=g;c.fillRect(0,0,S,S);});
+const NB2ink=()=>mpTile("nb2ink",96,(c,S)=>{
+  const g=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S*.48);
+  g.addColorStop(0,A(MAPINK.ink,.88));g.addColorStop(.55,A(MAPINK.ink,.46));
+  g.addColorStop(1,A(MAPINK.ink,0));
+  c.fillStyle=g;c.fillRect(0,0,S,S);});
+/// 방울 도장 — 회전·눌림을 걸어 drawImage 한 번.
+function NB2st(c,im,x,y,r,al,sx,sy,rot){
+  if(!(r>1)||!(al>0))return;
+  c.save();c.translate(x,y);if(rot)c.rotate(rot);c.scale(sx||1,sy||1);
+  c.globalAlpha=Math.min(1,al);c.drawImage(im,-r,-r,r*2,r*2);c.restore();
+}
+
+/// 은하 본체 스프라이트를 굽는다 — 칸마다 한 번, 전체 해상도.
+/// 계조는 B안 은하의 재배치 그대로: 후광(어두움) → 팔(중간) → 심(밝음).
+/// 안드로메다의 정체성 셋 — 기운 디스크 · 팔 바깥의 **먼지 띠**(바탕색
+/// 지우개라 빈 우주보다 어두워지지 않는다) · 곁의 동반 은하.
+function NB2bake(P){
+  const SZ=Math.ceil(P.RR*3.6),m=SZ/2;
+  const cv=document.createElement("canvas");cv.width=SZ;cv.height=SZ;
+  const b=cv.getContext("2d");if(!b)return null;
+  b.lineJoin="round";
+  b.save();b.translate(m,m);b.rotate(P.rot);b.scale(1,P.sq);
+  // 디스크 후광
+  const g=b.createRadialGradient(0,0,0,0,0,P.RR*1.28);
+  if(g&&g.addColorStop){
+    g.addColorStop(0,A(NB2C_HM,.46));g.addColorStop(.42,A(NB2C_HB,.36));
+    g.addColorStop(1,A(NB2C_HB,0));
+    b.fillStyle=g;b.beginPath();b.arc(0,0,P.RR*1.28,0,TAU);b.fill();}
+  // 디스크 가장자리 별 부스러기 — 헤일로와 팔 사이의 결
+  for(let s=0;s<44;s++){
+    const a=hash(P.sd+s*2.3)*TAU,rr=P.RR*(.55+.6*hash(P.sd+s*5.1));
+    mapStar(b,Math.cos(a)*rr,Math.sin(a)*rr,.8,MAPINK.starD,.16+.22*hash(P.sd+s*7.7));}
+  // 나선팔 둘 + 마루 + 먼지 띠 + 별 매듭
+  for(let k=0;k<2;k++){
+    const pts=[];
+    for(let s=0;s<=22;s++){const u=s/22;
+      const a=k*Math.PI+u*P.wind+Math.sin(u*9.3+P.sd)*0.05;
+      const r2=P.RR*(.14+.86*Math.pow(u,.94));
+      pts.push([Math.cos(a)*r2,Math.sin(a)*r2]);}
+    // 밑빛 → 팔 → 마루의 세 겹 — 얇은 리본 하나면 팔이 **철사**로 보인다
+    // (첫 렌더 눈 판정). 넓고 흐린 밑빛이 팔을 살로 감싼다.
+    fillPoly(b,ribbonPoly(pts,P.RR*.24,P.RR*.05),A(NB2C_HM,.42));
+    fillPoly(b,ribbonPoly(pts,P.RR*.15,P.RR*.028),A(NB2C_AR,.62));
+    fillPoly(b,ribbonPoly(pts,P.RR*.066,P.RR*.012),A(NB2C_RG,.78));
+    // 먼지 띠 — 팔 바깥 가장자리. 바탕색 지우개라 빈 우주보다 어두워지지 않는다.
+    fillPoly(b,ribbonPoly(pts.map(q=>[q[0]*1.10,q[1]*1.10]),P.RR*.06,P.RR*.014),
+      A(MAPINK.base,.9));
+    for(let s=5;s<=21;s+=2){
+      if(hash(P.sd+k*31+s*1.7)>.55)continue;
+      const q=pts[s];
+      mapStar(b,q[0],q[1],.9+hash(P.sd+s*3.3)*.7,MAPINK.starM,.34+.30*hash(P.sd+s*9.1));}
+  }
+  // 벌지 — 핵은 굽지 않는다(살아 있는 쪽이 전체 해상도로 찍는다)
+  const bg2=b.createRadialGradient(0,0,0,0,0,P.RR*.28);
+  if(bg2&&bg2.addColorStop){
+    bg2.addColorStop(0,A(MAPINK.starM,.42));bg2.addColorStop(.5,A(NB2C_RG,.4));
+    bg2.addColorStop(1,A(NB2C_RG,0));
+    b.fillStyle=bg2;b.beginPath();b.arc(0,0,P.RR*.28,0,TAU);b.fill();}
+  b.restore();
+  // 동반 은하 — 궤도면 밖이라 액자 평면에. 왜소 타원은하라 살짝 눌린 타원.
+  for(let k=0;k<P.nc;k++){
+    const a=h2(0,0,P.sd+70+k)*TAU,dd=P.RR*(1.15+.45*h2(0,0,P.sd+72+k));
+    const cxk=m+Math.cos(a)*dd,cyk=m+Math.sin(a)*dd,cr=P.RR*(.13+.08*h2(0,0,P.sd+74+k));
+    b.save();b.translate(cxk,cyk);b.rotate(h2(0,0,P.sd+76+k)*TAU);
+    b.scale(1,.60+.30*h2(0,0,P.sd+78+k));
+    const cg=b.createRadialGradient(0,0,0,0,0,cr);
+    if(cg&&cg.addColorStop){
+      cg.addColorStop(0,A(NB2C_AR,.62));cg.addColorStop(.5,A(NB2C_HM,.38));
+      cg.addColorStop(1,A(NB2C_HM,0));
+      b.fillStyle=cg;b.beginPath();b.arc(0,0,cr,0,TAU);b.fill();}
+    b.restore();
+  }
+  return cv;
+}
+/// 스프라이트 캐시 — 캔버스마다 한 통. 그 프레임에 안 쓰인 키는 지운다.
+function NB2sprite(c,P,used){
+  const cache=c.canvas.__nb2g||(c.canvas.__nb2g={});
+  used[P.key]=1;
+  if(!cache[P.key])cache[P.key]=NB2bake(P);
+  return cache[P.key];
+}
+
+/// 배경 본체. [ox,oy] 를 주면 카메라를 그 월드 좌표에 고정한다(조우 칸·실측용).
+/// [noGal] 은 은하 본체만 뺀다 — 「중간 톤은 헤일로가 채운다」의 증명 칸.
+function NB2bg(c,t,W,H,ox,oy,noGal){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 혼자 뿌옇다
+  const p0=(ox===undefined)?mapCam(t):[ox,oy];
+  const cx=p0[0]*NB2D, cy=p0[1]*NB2D;          // 랜드마크 깊이의 카메라
+  // ① 원경 별 — 깊이 .06. 거의 멈춰 있어야 은하가 움직이는 쪽으로 읽힌다.
+  scatter(p0[0]*.06,p0[1]*.06,W,H,30,1,(x,y,i,j,r)=>{
+    if(r>.78)return;
+    mapStar(c,x,y,r<.09?1.25:.85,r<.09?MAPINK.starM:MAPINK.starD,.38+.5*r);});
+  // ② 중경 별 — 깊이 .38. 원경과 랜드마크 사이 한 단.
+  scatter(p0[0]*.38,p0[1]*.38,W,H,84,1,(x,y,i,j,r)=>{
+    if(r>.5)return;mapStar(c,x,y,1.0,MAPINK.starD,.32+.4*h2(i,j,4));});
+  // ③ 헤일로 — 1/3 해상도 버퍼. 투명하게 비워 별이 비쳐 보인다.
+  const dsc=(c.canvas&&c.canvas.width>1&&W>0)?c.canvas.width/W:1, sc=dsc/NB2RS;
+  const rw=Math.max(1,Math.ceil(W*sc)),rh=Math.max(1,Math.ceil(H*sc));
+  let buf=c.canvas.__nb2r;
+  if(!buf||buf.width!==rw||buf.height!==rh){
+    buf=document.createElement("canvas");buf.width=rw;buf.height=rh;c.canvas.__nb2r=buf;}
+  const bc=buf.getContext&&buf.getContext("2d");
+  if(bc){
+    bc.setTransform(1,0,0,1,0,0);bc.clearRect(0,0,rw,rh);
+    bc.setTransform(sc,0,0,sc,0,0);
+    // ③-a 성운 막 — 온 월드에 고르게 깔린다. 이 층이 중간 톤의 최저선이다:
+    //      은하가 화면 밖인 자리에서도 15% 아래로 안 내려가게 한다.
+    // 확률 문을 안 둔다(층화). 칸마다 방울 하나가 **반드시** 있고 세기만 해시로
+    // 흔들린다 — 있고 없음으로 흔들면 월드 자리마다 중간 톤이 5.7~32% 로 널뛰어
+    // 15~30% 띠를 못 지킨다(실측). 어두운 구멍은 약한 방울(문턱 아래)과 암진이 낸다.
+    //
+    // **두 척도 두 겹이다.** 한 겹이면 화면에 실제로 걸리는 방울이 열 개 남짓이라
+    // 그 개수 요동만으로 중간 톤이 ±5%p 널뛰었다(실측 12.4~23.2%). 독립한 두
+    // 겹은 요동이 제곱합으로 줄고, 큰 너울 + 중간 결이 겹쳐 그림도 성운답다.
+    // 알파 바닥 .58 — 고원 유효 α ≈.45(L .059). 바닥을 .42 로 두면 방울 절반이
+    // 문턱(.05) 아래로 통째로 떨어져 예산을 한 톨도 못 산다(실측).
+    // ⚠️ 거리 보정을 **안 건다** — 곁 보정 ×1.1 조차 은하 자리를 30% 위로
+    // 밀었고(실측 31.9%), 「곁에서 짙다」는 이 막이 아니라 둥지(③-b)의 몫이다.
+    // 늘림·눌림·회전 — 동그라미가 남으면 성운이 아니라 **보케**로 읽힌다
+    // (첫 렌더 눈 판정: 성긴 자리의 방울이 원으로 남았다).
+    // 이음 겹 — 문턱(.05) **아래**의 큰 너울. 혼자서는 예산을 안 사고, 방울들
+    // 어깨에 겹쳐 이웃을 대륙으로 잇는다 — 칸마다 하나씩 서는 층화 방울이
+    // 격자처럼 읽히는 것(눈 판정)을 이것이 깬다.
+    scatter(cx,cy,W,H,640,1,(x,y,i,j,r)=>{
+      NB2st(bc,NB2ha(),x,y,230+h2(i,j,84)*120,.20+.08*h2(i,j,85),
+        1.4+.5*h2(i,j,86),.75,h2(i,j,87)*TAU);});
+    scatter(cx,cy,W,H,300,1,(x,y,i,j,r)=>{
+      const R=72+h2(i,j,72)*55, al=.585+.16*h2(i,j,73);
+      const im=h2(i,j,74)<.32?NB2hv():NB2ha();
+      NB2st(bc,im,x,y,R,al,1+.55*h2(i,j,76),.62+.5*h2(i,j,82),h2(i,j,77)*TAU);
+      // 엽(葉) 겹침 — 위치가 어긋난 둘째 방울. 원이 원으로 남으면 성운이 아니라
+      // 보케다(mapNebula 가 만두에서 배운 그 수법 그대로).
+      if(h2(i,j,88)<.45){
+        const a2=h2(i,j,89)*TAU,d2=R*(.55+.25*h2(i,j,91));
+        NB2st(bc,im,x+Math.cos(a2)*d2,y+Math.sin(a2)*d2*.8,R*.55,al*.8,
+          1+.4*h2(i,j,83),.7,a2);}
+      // 각진 결 — 흐릿한 에어브러시로 흘러가지 않게, 이 레포의 문법을 한 겹.
+      if(h2(i,j,75)<.30)
+        fillPoly(bc,puffPoly(x,y,R*.5,9,i*3.1+j*7.7,.8),A(NB2C_HM,.13));
+    });
+    scatter(cx,cy,W,H,190,1,(x,y,i,j,r)=>{
+      const R=43+h2(i,j,92)*33, al=.58+.16*h2(i,j,93);
+      const im=h2(i,j,94)<.32?NB2hv():NB2ha();
+      NB2st(bc,im,x,y,R,al,1+.5*h2(i,j,96),.66+.44*h2(i,j,98),h2(i,j,97)*TAU);
+    });
+    // ③-b 은하의 둥지 — 닻마다 디스크 축에 정렬된 큰 타원 헤일로 + 덩이들.
+    NB2each(cx,cy,W,H,900,(P)=>{
+      const gx=P.ax-cx+W/2, gy=P.ay-cy+H/2;
+      NB2st(bc,NB2ha(),gx,gy,P.RR*2.5,.11,1,.62+P.sq*.5,P.rot);
+      for(let k=0;k<7;k++){
+        const a=k/7*TAU+h2(0,0,P.sd+80+k)*.9;
+        const dd=P.RR*(1.25+.6*h2(0,0,P.sd+82+k));
+        const R=P.RR*(.5+.38*h2(0,0,P.sd+84+k));
+        const im=k%3===2?NB2hv():NB2ha();
+        NB2st(bc,im,gx+Math.cos(a)*dd,gy+Math.sin(a)*dd*.8,R,
+          .07+.09*h2(0,0,P.sd+86+k),1.25,1,a);}
+      fillPoly(bc,puffPoly(gx,gy,P.RR*1.5,10,P.sd,.7),A(NB2C_HM,.10));
+    });
+    c.drawImage(buf,0,0,rw,rh,0,0,W,H);
+    bc.setTransform(1,0,0,1,0,0);
+  }
+  // ④ 은하 본체 — 전체 해상도 스프라이트 + 살아 있는 핵.
+  if(!noGal){
+    const used={};
+    NB2each(cx,cy,W,H,820,(P)=>{
+      const gx=P.ax-cx+W/2, gy=P.ay-cy+H/2;
+      const im=NB2sprite(c,P,used);
+      if(im&&im.width>1)c.drawImage(im,gx-im.width/2,gy-im.height/2);
+      // 핵 — 화면에서 유일하게 밝은 넓이 없는 것. 지름 3px 급 + 작은 글로우.
+      const cg=c.createRadialGradient(gx,gy,0,gx,gy,11);
+      if(cg&&cg.addColorStop){
+        cg.addColorStop(0,A(MAPINK.starL,.38));cg.addColorStop(1,A(MAPINK.starL,0));
+        c.fillStyle=cg;c.beginPath();c.arc(gx,gy,11,0,TAU);c.fill();}
+      mapStar(c,gx,gy,1.7,MAPINK.starX,.95);
+      for(let k=0;k<P.nc;k++){
+        const a=h2(0,0,P.sd+70+k)*TAU,dd=P.RR*(1.15+.45*h2(0,0,P.sd+72+k));
+        mapStar(c,gx+Math.cos(a)*dd,gy+Math.sin(a)*dd,1.05,MAPINK.starM,.6);}
+    });
+    // 걸린 닻은 많아야 서너 개 — 4장을 넘으면 이번 프레임에 안 쓴 것부터 놓는다
+    // (스프라이트 한 장이 최대 810² ≈ 2.6MB 라 캐시가 자라게 두면 안 된다).
+    const cache=c.canvas.__nb2g;
+    if(cache){const ks=Object.keys(cache);
+      if(ks.length>4)for(const k of ks)if(!used[k])delete cache[k];}
+    // 별 헤일로 — 은하를 두르는 잔별. 밝기가 아니라 밀도가 「둘레」를 만든다.
+    scatter(cx,cy,W,H,56,0,(x,y,i,j,r)=>{
+      if(r>.5)return;
+      const nr=NB2near(x+cx-W/2,y+cy-H/2);
+      if(nr[0]>nr[1]*2.3)return;
+      mapStar(c,x,y,.85,MAPINK.starD,.24+.3*h2(i,j,5));});
+  }
+  // ⑤ 암진 暗塵 — 깊이 1.15. 월드보다 빨리 흘러 「카메라 코앞」이 된다.
+  //    가리는 층은 가릴 밝은 것이 있어야 보인다 — 이 안은 헤일로가 그 밝은
+  //    것이라 실제로 먹힌다(A안에서 죽고 B안에서 산 그 규칙의 산 쪽).
+  scatter(p0[0]*1.15,p0[1]*1.15,W,H,520,1,(x,y,i,j,r)=>{
+    if(r>.30)return;
+    NB2st(c,NB2ink(),x,y,80+h2(i,j,78)*100,.32+.22*h2(i,j,79),
+      1.7,1,h2(i,j,81)*TAU);});
+  // ⑥ 근경 불티 — 깊이 1.0. 밝은 것은 크기를 안 키우고 수만 줄인다.
+  scatter(p0[0],p0[1],W,H,300,0,(x,y,i,j,r)=>{
+    if(r>.38)return;mapStar(c,x,y,1.05,MAPINK.starM,.5+.4*h2(i,j,9));});
+  scatter(p0[0],p0[1],W,H,390,0,(x,y,i,j,r)=>{
+    if(r>.28)return;mapStar(c,x,y,1.1,MAPINK.starX,.85);});
+}
+
+// ── 등록 — **대입만.** ────────────────────────────────────────────────────
+MAP.nb2     =function NB2plain(c,t,dt,W,H,st){NB2bg(c,t,W,H);};
+MAP.nb2run  =function NB2run  (c,t,dt,W,H,st){NB2bg(c,t,W,H);
+  mapOver(c,t,dt,W,H,st,"pulse");bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+MAP.nb2num  =function NB2num  (c,t,dt,W,H,st){NB2bg(c,t,W,H);mapMeter(c,t,W,H,st);};
+MAP.nb2pulse=function NB2proof(c,t,dt,W,H,st){NB2bg(c,t,W,H);
+  mapOver(c,t,dt,W,H,st,"pulse");};
+MAP.nb2mini =function NB2mini (c,t,dt,W,H,st){NB2bg(c,t,W,H);
+  mapOver(c,t,dt,W,H,st,"pulse");bossEdge(c,t,W,H);minimap(c,t,W,H,st);};
+MAP.nb2halo =function NB2halo (c,t,dt,W,H,st){NB2bg(c,t,W,H,undefined,undefined,1);};
+/// 조우 칸 — 첫 조우 은하(칸 0,-1 실측 확인) 곁을 도는 고정 카메라.
+MAP.nb2fix  =function NB2fix  (c,t,dt,W,H,st){
+  const P=NB2gp(0,-1)||NB2gp(1,-1)||NB2gp(5,-3);
+  if(!P){NB2bg(c,t,W,H);return;}
+  NB2bg(c,t,W,H,P.ax/NB2D+Math.sin(t*.13)*90,P.ay/NB2D+Math.cos(t*.11)*70);};
+/// 적 8마리 — 몸 L .102 가 헤일로(≤.109) 위에서 읽히는지의 증명 칸.
+MAP.nb2foes =function NB2foes (c,t,dt,W,H,st){
+  NB2bg(c,t,W,H);
+  for(let k=0;k<8;k++){
+    const x=W*(.12+.76*hash(k*11.7+3.1))+Math.sin(t*.31+k*2.1)*13;
+    const y=H*(.12+.76*hash(k*5.3+7.7))+Math.cos(t*.27+k*1.3)*11;
+    const a=Math.sin(t*.45+k)*1.1-Math.PI/2;
+    FOEART.grunt(c,x,y,19,a,t+k*.7);
+    foeEyes(c,x,y,19*.8,1,W/2,H/2,.17);}};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+mapTile("nb-bg",MAP.nb2,"은하 조우 銀河遭遇",
+  "<b>알아볼 수 있는 곳</b>. 나선 은하 하나(깊이 .85)가 랜드마크 — 중간 톤은 은하가 아니라 곁의 성운 헤일로가 채운다.",MAP_S,MAP_S);
+mapTile("nb2",MAP.nb2run,"은하 조우 + 파문 + 미니맵",
+  "칸 1500px · 확률 .62 — t≈12s 에 처음 만나고 t≈60s 부근은 빈 하늘이다. 지나갈 수 있어야 지나온 것이 된다.",MAP_W,MAP_H,1);
+mapTile("nb2",MAP.nb2fix,"조우의 순간 — 랜드마크 고정",
+  "기운 디스크 · 팔 바깥 먼지 띠 · 동반 은하 · 별 헤일로. 회전각·기울기·동반 배치가 칸 해시라 은하마다 다르다 — 「아까 그 은하」가 성립한다.",MAP_S,MAP_S);
+mapTile("nb2",MAP.nb2halo,"헤일로만 — 은하를 빼면",
+  "설계의 핵 증명 — 중간 톤 15~30% 는 이 층이 채운다. 은하 본체는 랜드마크지 면적 예산이 아니다.",MAP_S,MAP_S);
+mapTile("nb2",MAP.nb2foes,"적 8마리 — 묻히는가",
+  "적 몸 L .102 대 헤일로 천장 .109(잉크 원색, 실화면 대부분은 그 아래). 읽기는 밝은 림(L .577)이 진다.",MAP_S,MAP_S);
+mapTile("nb2",MAP.nb2num,"실화면 980×430 · 실측 띠",
+  "mapMeter 가 t≈.9 에 배경만 읽는다. 자리별 분포는 아래 #s-num 표(월드 5자리).",980,430,1);
+mapTile("nb-proof",MAP.nb2pulse,"은하 조우 위에서",
+  "파문 — 바깥층 L .181 · 같은 청람 계열 · 얇은 고리. 헤일로 천장(.109)보다 밝고, 고리는 이어져 있어 방울 무늬와 안 섞인다.",MAP_S,MAP_S);
+mapTile("nb-mini",MAP.nb2mini,"은하 조우 + 파문 + 미니맵",
+  "미니맵은 적 밀도 한 겹. 헤일로는 우하단에서도 낮아(≤.109) 링 계조가 안 흔들린다.",MAP_S,MAP_S);
+
+// ── 밝기 실측 — 월드 5자리. 한 자리에서 잰 값은 측정이 아니다. ────────────
+(function(){
+  const host=$("nb-num");let Z=null;
+  try{
+    const cv=document.createElement("canvas");cv.width=980;cv.height=430;
+    const c=cv.getContext&&cv.getContext("2d");
+    if(c){
+      const TS=[.9,61.3,147.7,233.9,321.4],out=[];
+      for(const T of TS){
+        c.setTransform(1,0,0,1,0,0);
+        NB2bg(c,T,980,430);
+        const d=c.getImageData(0,0,980,430).data,n=d.length/4;
+        if(n<=16){out.length=0;break;}
+        let sum=0,mid=0,o12=0,o35=0,mx=0;
+        for(let q=0;q<d.length;q+=4){
+          const l=(d[q]*.299+d[q+1]*.587+d[q+2]*.114)/255;
+          sum+=l;if(l>=.05&&l<=.15)mid++;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+        out.push({avg:sum/n,mid:mid/n*100,p12:o12/n*100,p35:o35/n*100,mx:mx});}
+      if(out.length){
+        const mi=Math.min(...out.map(z=>z.mid)),ma=Math.max(...out.map(z=>z.mid));
+        Z={mi,ma,md:out.reduce((s,z)=>s+z.mid,0)/out.length,
+           avg:Math.max(...out.map(z=>z.avg)),p12:Math.max(...out.map(z=>z.p12)),
+           p35:Math.max(...out.map(z=>z.p35)),mx:Math.max(...out.map(z=>z.mx))};}}
+  }catch(e){Z=null;}
+  const ok=v=>v?"#7ED08A":"#FF7A6A";
+  const row=document.createElement("div");
+  box(row,{border:"1px solid #26262F",borderRadius:"4px",background:"#13131A",
+    padding:"9px 12px",marginTop:"6px",fontSize:"11.5px",color:"#9494A2",
+    fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",lineHeight:"1.7"});
+  row.innerHTML=Z
+    ?`<b style="color:#EDEDF2">NB2 은하 조우</b>　중간 톤(월드 5자리) `+
+     `<b style="color:${ok(Z.mi>=15&&Z.ma<=30)}">${Z.mi.toFixed(1)}~${Z.ma.toFixed(1)}%</b>`+
+     `(평균 ${Z.md.toFixed(1)})/15~30%　평균 L(최악) <b style="color:${ok(Z.avg<=.075)}">`+
+     `${Z.avg.toFixed(4)}</b>/.075　L&gt;.12 ${Z.p12.toFixed(2)}%　`+
+     `L&gt;.35(최악) <b style="color:${ok(Z.p35<=.5)}">${Z.p35.toFixed(3)}%</b>/.5%　`+
+     `최대 ${Z.mx.toFixed(3)}`+
+     `　<span style="color:#5A5A68">넓은 면적 천장 .109(잉크 원색) · 팔 마루 .164/.17 · `+
+     `주 색상각 실측 ≈229°(빙 199 와 30° — 방어는 저채도·6배 어두운 명도) · 가산 0 · 흰 앞날 0 · 은하 깊이 .85</span>`
+    :`<b style="color:#EDEDF2">NB2 은하 조우</b>　측정 불가(getImageData)`;
+  host.appendChild(row);
+})();
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// NB3 「성운 기둥 星雲柱」 — 심우주 3차 (mockup-map.html)
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 최상위 이름은 전부
+// `NB3` 로 시작하고, 등록은 `MAP.nb3*` **대입만**이다(`const`/`let` 재선언 0).
+//
+// ── 이 안이 유일하게 하는 것: **세로로 선다** ─────────────────────────────
+// 다른 넷(회랑·은하·산광·충돌)은 흐르거나 퍼진다. 이 안만 수직 구조물이
+// 화면에 선다 — 창조의 기둥. 그리고 이 안은 **빼기로 그리는** 안이라 U1
+// 암류와 한 축을 나눠 쓰는데, 갈리는 지점을 지킨다:
+//   · 암류의 구름은 **형태가 없다** — 어디를 잘라도 같은 얼룩이다.
+//   · 기둥은 **형태가 있다** — 뿌리 · 몸통 · 갈라진 손가락 · 머리 · 그 위로
+//     바스러지는 부스러기. 「저 기둥」이라고 가리킬 수 있는 것이 랜드마크다.
+// 기둥 끝이 바스러져야 「기체」로 읽힌다. 딱딱하게 끝나면 바위 기둥이 된다 —
+// 그래서 모든 머리 위에 축을 따라 성기어지는 부스러기를 얹었다(NB3crumb).
+//
+// ── 밝기의 구조: 뒤가 밝고 몸이 어둡다 ───────────────────────────────────
+// 개정 예산의 「중간 톤 15~30% = 보인다」를 이 안은 **역광**으로 채운다.
+// 발광 장막(중간 톤의 대부분)이 뒤에 깔리고, 기둥은 그 위에 **잉크로** 선다.
+//   · 장막 몸  veil0/veil1 — 합성 L .05~.09. 넓은 면적은 전부 여기
+//   · 이온화 전선 veil2   — 기둥 머리 **바로 위**가 제일 밝다(합성 ≤ .15).
+//     제일 밝은 곳이 「기둥 때문에」 있는 것 — 이게 이 안의 형태 논리다
+//   · 기둥 몸  ink L .0301 — 장막 위에서 실루엣. 대비 1.7~4.4배
+//   · 마루(림) rim L .1744 — 머리 윗변에만 2~3px. 면적 봉우리의 상한
+// U1 이 배운 「가리는 층은 가릴 밝은 것이 있어야 보인다」를 순서로 지킨다:
+// **먼저 장막을 만들고, 그 위에 기둥을 세운다.**
+//
+// ── 세 패스 — 칠하는 차례가 밝기를 먹는다(자기막 실측) ────────────────────
+// 기둥마다 몸→결→마루를 이어 칠하면 다음 기둥의 몸이 앞 기둥의 마루를 덮는다.
+// 그래서 화면의 기둥을 모아 놓고 **몸 전부 → 결 전부 → 마루·부스러기 전부**
+// 로 가른다(NB3draw). 칠 횟수·면적은 그대로다.
+//
+// ── 비용 — 화면을 덮는 성운은 1/3 해상도 버퍼에 ──────────────────────────
+// 방사 그라디언트는 반지름의 제곱에 비례한다. 저주파(장막·역광)는 1/3 해상도
+// 버퍼에 그리고 drawImage 로 늘린다(사구 MP2 의 그 구조. 14.09→6.2ms 선례).
+// 고주파(별·기둥 윤곽·림)는 전체 해상도다 — 실루엣 가장자리가 뭉개지면
+// 「형태가 있다」가 죽는다. 이음매는 전부 scatter(칸 해시)라 반복이 없다 —
+// 굽는 것은 **해상도**지 타일이 아니다(텍스처+모듈로는 반복 자국이 남는다).
+//
+// ── 색 — 주 색상각 152° · 채도 .29 ───────────────────────────────────────
+// 색상환이 꽉 차서 어디를 골라도 20~30° 안에 속성이 있다. 152° 는 독(129.2°,
+// 22.8°)과 풍(170.7°, 18.7°) 사이의 골이고, 실제 방어는 각이 아니라
+// **저채도**(.29 vs 속성 .5~.6)와 **명도**다(장막 상한 .1557 vs 풍 가운데층
+// .70 = 4.5배). 기둥 몸만 따뜻한 24°(채도 .33, L .0301)다 — 염(20.3°)과
+// 3.7° 지만 L 이 염 가운데층(.47)의 6.4% 라 같은 색으로 읽힐 밝기가 아니고,
+// 이 온도차(차가운 장막 ↔ 따뜻한 먼지 기둥)가 창조의 기둥 그 그림이다.
+// 적 몸 #24141F 는 318.8° — 152°/24° 와 130° 이상 떨어져 색으로는 안 겹친다.
+//
+// ── 금지 둘 ──────────────────────────────────────────────────────────────
+// 가산 합성(`lighter`) 0회 — 전부 source-over 라 겹쳐도 각 색의 L 을 못 넘는다.
+// 흰 앞날 0 — 면적을 가진 것의 최댓값이 rim .1744 이고, 그 위는 점(별)뿐이다.
+// celHoop 안 쓴다(브라우저에서만 다섯 번 죽은 전례).
+//
+// ── 검증 (실캔버스 · dt=1/60 고정 구동기 · 2026-08-12) ───────────────────
+//   중간 톤(.05~.15) — 월드 5자리 × 10프레임 · 980×430:
+//     최소 14.8% · 평균 22.1% · 최대 30.9%  (자리 평균 15.2/19.4/21.1/23.9/30.7)
+//     ⚠️ 예산 15~30 을 두 자리가 각각 **0.2%p 아래 · 0.9%p 위**로 스친다.
+//     장막을 가루받침으로, 발광벽을 상수 반지름으로, 기둥 등장을 .94 로
+//     조여 분산을 26%p(14~40)에서 16%p(15~31)까지 눌렀는데, 남은 것은
+//     장막 밝은 심의 칸 해시 운이다 — 지킨 척하지 않고 적어 둔다.
+//   평균 L .033~.043 (≤.075) · L>.12 ≤.20% · L>.35 ≤.0036% (≤.5%)
+//   면적 봉우리(별 끔) .167 (≤.17) · 최대(별 포함) .79 — starX 점
+//   적 8마리(302²·5프레임): 몸 밑 배경 L .026~.063 · 대비 1.62~4.01배 ·
+//     묻힘(대비<1.15배) 최대 6.4% — 역광 핵을 지나는 순간뿐, 림·눈이 든다
+//   비용(강제 래스터 getImageData(1px) · 980×430): 평균 3.9ms · p95 4.6ms
+//   브라우저 실캔버스 900프레임 예외 0 · 스모크 713타일 240프레임 예외 0
+const NB3={};
+
+NB3.C={
+  veil0:"#0C1611",  // L .0723 · 150° — 장막 자락. 바닥 위 α.62 합성 ≈ .052
+  veil1:"#12211A",  // L .1087 · 152° — 장막 몸
+  veil2:"#1A2F26",  // L .1557 · 154° — 이온화 전선. **면적 봉우리의 상한**
+  ink  :"#0A0705",  // L .0301 ·  24° — 기둥 몸. 유일하게 따뜻한 색
+  grain:"#120E0A",  // L .0578 ·  30° — 기둥 속 결(달궈진 심)
+  rim  :"#1F3429",  // L .1744 · 149° — 머리 윗변의 마루. α.9 로 얹어 합성 ≤ .17
+};
+// 깊이 — 장막 .11 < 먼 기둥 열 .19 < 주 기둥 .34 < 근접 결 1.25.
+// 주 기둥이 카메라보다 느린 .34 인 이유: 랜드마크는 **지나갈 수 있어야**
+// 지나온 것이 된다(성계 B안이 은하를 .85 에 둔 그 논리의 절반 — 기둥은 크다).
+NB3.DV=.11; NB3.DF=.19; NB3.DP=.34; NB3.DN=1.25;
+// ⚠️ 등장률이 .52 였을 때 중간 톤이 자리마다 14~40% 로 널뛰었다 — 역광이
+// 기둥을 따라가니 **기둥 수의 분산이 곧 밝기의 분산**이다. .80 으로도 창에
+// 1~3기가 오가서 ±8%p 가 남았다(실측). 그래서 **거의 결정적**(.94)으로 —
+// 이 안은 외톨이 탑이 아니라 **기둥의 숲**이고, 랜드마크는 「있냐 없냐」가
+// 아니라 「어떤 놈이냐」(키 270~440 · 반폭 44~78 · 갈래 1~2)로 갈린다.
+NB3.CELL=560;        // 주 기둥 칸. 980×430 에 2~4기 — 랜드마크 밀도
+NB3.OCC=.94;         // 주 기둥 등장률
+NB3.FOCC=.70;        // 먼 열 등장률
+NB3.NOSTAR=0;        // 실측용 — 별 층 셋을 끈다(「면적 봉우리」는 점을 빼고 잰다)
+// ── 밝기 예산을 실제로 정하는 손잡이 — 월드 5자리 실측으로 맞췄다 ────────
+// 중간 톤의 **평균**은 장막이 정하고 **자리별 편차**는 역광(=기둥 밀도)이
+// 정한다. 첫 두 실측이 그렇게 나왔다(31~66% → 장막만 줄이면 성긴 자리가
+// 15% 아래로 꺼진다). 그래서 장막은 「작은 블롭을 촘촘히」(균일), 역광은
+// 「코어만 남기고 치마를 접는」(편차 압축) 쪽으로 갔다.
+// 장막 = **가루처럼 고른 받침.** 큰 블롭 소수(.62 × 140~300)로 깔았더니 몇
+// 덩이가 걸리느냐로 자리별 중간 톤이 ±11%p 널뛰었다 — 개수를 늘리고 낱개를
+// 줄이면 평균은 같고 분산만 준다(이항분포 그대로).
+// ⚠️ 그 교체에서 총 잉크(등장률×E[r²])를 40% 흘렸다가 중간 톤이 9% 로
+// 무너졌고, 등식을 맞춰 되돌려도 14% 에 멈췄다(실측 둘). 이유는 암류가 이미
+// 밟은 그 함정이다 — **값이 촘촘한 구간에서는 알파가 아니라 색을 올려야
+// 한다.** veil0(.0723) 몸은 α .60 에서 합성 .0507, 8비트 반올림 한 칸이면
+// 문턱(.05) 밑으로 떨어진다. 즉 예전의 중간 톤은 전부 **겹침 우연**이었다.
+// 몸을 veil1(.1087)로 바꾸면 α .44 로도 합성 .0581 — 홑겹이 스스로 선다.
+NB3.VOCC=.95; NB3.VR0=125; NB3.VR1=115;   // 장막 등장률 · 반지름 125~240
+NB3.VA=[.70,.52,.28];                     // 장막 알파(veil1 기준) — 심/몸/자락
+// 발광벽 반지름 = 200 + 반폭×0.7 — **거의 상수**다. 반폭 배수로 뒀더니 벽
+// 면적이 기둥마다 3.4배까지 벌어져, 굵은 기둥이 모인 자리만 중간 톤이 44%
+// 까지 치솟았다(월드 실측). 벽은 「하늘」이라 기둥 덩치를 따라가면 안 된다.
+NB3.BW0=200; NB3.BW1=.7; NB3.BWA=[.38,.19];
+NB3.BR=2.2;  NB3.BA=[.85,.40,.14];        // 이온화 전선 — 반지름(머리 배)·알파
+NB3.BR2=2.4; NB3.BA2=[.10,.06];           // 기둥광 — 세로 늘임·알파
+NB3.FR=2.6;  NB3.FA=[.16,.08];            // 먼 열 역광 — 반지름(반폭 배)·알파
+
+/// 카메라. [SHIFT]=[Δx,Δy,진폭배율] 은 작은 칸 액자·월드 실측용 —
+/// try/finally 로 반드시 되돌린다(MP3.SHIFT 와 같은 규약).
+NB3.SHIFT=null;
+NB3.cam=function(t){
+  const p=mapCam(t),s=NB3.SHIFT,k=s&&s[2]!=null?s[2]:1;
+  return s?[p[0]*k+s[0],p[1]*k+s[1]]:p;
+};
+
+/// 기둥 명세 — 칸 번호에서 결정적으로. 프레임과 무관하니 랜드마크다.
+/// [x,y] 는 뿌리 앵커(화면 좌표).
+/// ⚠️ 첫 렌더 판정: 반폭 26~52 · 키 300~500 은 기둥이 아니라 **칼**로 보였다.
+/// 창조의 기둥은 키/폭 4~7 의 **덩치**다.
+/// ⚠️ 둘째 렌더 판정: 손가락이 몸통 중턱(u .66)에서 길게 뻗으니 **팔**이 됐고
+/// 기둥 하나가 「등불 든 사람」으로 보였다. 손가락은 팔이 아니라 **갈라진
+/// 왕관**이다 — 머리 옆(u .76~.86)에서 짧게, 굵게.
+NB3.mk=function(x,y,i,j){
+  const R=k=>h2(i,j,k);
+  const h=270+R(11)*170, w=44+R(12)*34, lean=(R(13)-.5)*w*.7;
+  const F=1+Math.floor(R(14)*1.9);              // 곁 갈래 1~2
+  const fg=[];
+  for(let f=0;f<F;f++){
+    const sd=R(15+f*4);
+    fg.push({u:.76+R(16+f*4)*.10,               // 몸통에서 갈라지는 높이
+             dx:(f?-1:1)*(w*(.58+R(17+f*4)*.30)),
+             top:.86+R(18+f*4)*.12,             // 키(몸통 대비) — 머리 곁까지만
+             w:w*(.40+sd*.15)});
+  }
+  return {x,y,h,w,lean,fg,sd:i*7.3+j*3.1,r5:R(19)};
+};
+/// 머리 목록 [x,y,반지름] — 몸통 머리 + 손가락 머리.
+/// 실루엣(body) · 마루(crown) · 역광(backlight)이 **같은 목록**을 본다 —
+/// 셋이 따로 계산하면 역광이 머리를 비켜 서는 순간 이 안의 논리가 죽는다.
+NB3.heads=function(d){
+  const hs=[[d.x+d.lean,d.y-d.h,d.w*.62]];
+  for(const f of d.fg)
+    hs.push([d.x+d.lean+f.dx,d.y-d.h*f.top,f.w*.80]);
+  return hs;
+};
+
+/// 몸통 = **쌓아 올린 돌덩이 일곱.** ribbonPoly 로 두 번 실패했다 —
+/// 종형 폭 때문에 몸통 가운데가 제일 굵어져, 위가 잘리면 **고래**로 보이고
+/// (2차 렌더) 목이 조여 머리가 **막대사탕**이 됐다. 기둥의 폭은 뿌리에서
+/// 머리까지 **단조롭게** 줄어야 하고, jagPoly 를 겹쳐 쌓으면 그 단조 감쇠가
+/// 공짜고 가장자리의 바스러진 결까지 따라온다.
+/// ⚠️ 일곱 덩이 · 눌림 .5 로 쌓았더니 **줄줄이 뜬 바위**가 됐다(3차 렌더).
+/// jagPoly 의 실질 몸통은 r 의 ~.6 이고 눌림이 세로를 또 반 자르니, 덩이
+/// 간격(45px+)을 못 덮었다. 겹침은 **개수·반지름·눌림 셋이 같이** 정한다 —
+/// 열한 덩이 · 눌림 .70~.88 · 반지름을 키워 이웃과 반드시 겹치게 한다.
+NB3.slabs=function(d){
+  const out=[],N=11;
+  for(let s=0;s<N;s++){
+    const u=s/(N-1);                       // 0=뿌리 1=목
+    const yy=d.y-d.h*u*.90;                // 목까지 — 머리가 나머지를 덮는다
+    const xx=d.x+d.lean*u*u+Math.sin(u*2.1+d.sd*.9)*d.w*.22*u;
+    const r=d.w*(1.32-.50*u)*(.95+.10*h2(d.sd,s,61));
+    out.push([xx,yy,r,.70+.18*h2(d.sd,s,62),d.sd+s*3.7]);
+  }
+  return out;
+};
+/// 갈래 = 어깨(u≈.84)에서 솟는 돌덩이 넷. 머리 곁에 붙어 「갈라진 왕관」이
+/// 된다 — 중턱에서 뻗으면 팔이 된다(2차 렌더의 「등불 든 사람」).
+NB3.fslabs=function(d,f){
+  const out=[],bx=d.x+d.lean+f.dx, y0=d.y-d.h*.84, y1=d.y-d.h*f.top;
+  for(let s=0;s<4;s++){
+    const u=s/3;
+    out.push([bx+Math.sin(u*2.4+d.sd)*f.w*.2, y0+(y1-y0)*u,
+              f.w*(1.25-.35*u), .68+.14*h2(d.sd+f.dx,s,63), d.sd+f.dx+s*2.3]);
+  }
+  return out;
+};
+
+/// ── 버퍼 패스: 발광 장막 + 역광 (1/3 해상도) ────────────────────────────
+/// 장막은 엽 셋을 어긋 놓는다(성운 몸통 mapNebula 의 교훈 — 한 덩이는 만두다).
+/// 숨쉬기는 α 에만, **최댓값을 낮추는 쪽으로만** 건다(동공 ②의 규칙 —
+/// 주기를 안 맞춰 화면 전체가 같이 오르내리지 않는다).
+/// ⚠️ 첫 실측에서 중간 톤이 **월드 다섯 자리 31~66%** 로 나왔다 — 예산(15~30%)의
+/// 두 배. 「보인다」를 넘어 장막이 화면의 주인이 됐고, 그 순간 기둥이 아니라
+/// 장막의 안이 된다. 줄인 것은 알파가 아니라 **차지하는 자리**다.
+/// ⚠️ 균일하게 깔았더니 「탁한 물」로 보였다(첫 렌더). 구름은 밝기가 **고르지
+/// 않은 것**이라, 엽의 42% 에만 밝은 심(veil1)을 주고 나머지는 낮게 띄운다 —
+/// 평균은 같고 분산만 커진다. 그게 물과 구름의 차이다.
+NB3.veil=function(bc,x,y,rr,sd,t){
+  const C=NB3.C,VA=NB3.VA;
+  for(let k=0;k<3;k++){
+    const a=sd*1.7+k*2.3, dd=k?rr*(.26+.14*k):0, R2=rr*(1-k*.26);
+    const gx=x+Math.cos(a)*dd, gy=y+Math.sin(a)*dd*.8;
+    const br=.90+.10*Math.sin(t*.21+sd*2.1+k*1.9);   // ≤1 — 낮추는 쪽으로만
+    const core=hash(sd*3.3+k*7.1)<.42;               // 밝은 심이 있는 엽
+    const f=core?1:.78;
+    const g=bc.createRadialGradient(gx,gy,0,gx,gy,R2);
+    g.addColorStop(0,A(C.veil1,VA[0]*f*br));
+    g.addColorStop(.45,A(C.veil1,VA[1]*f*br));
+    g.addColorStop(.75,A(C.veil1,VA[2]*br));
+    g.addColorStop(1,A(C.veil1,0));
+    bc.fillStyle=g;bc.beginPath();bc.arc(gx,gy,R2,0,TAU);bc.fill();
+  }
+};
+/// 기둥의 역광 — **머리를 끌어안는** 이온화 전선 + 몸 뒤의 약한 기둥광.
+/// ⚠️ 처음엔 반지름을 키(d.h)에 묶었다가 두 번 실패했다: ① 전선이 머리에서
+/// 멀어 화면에서 안 보였고 ② 밝기 면적이 키의 제곱을 따라가 **기둥이 많은
+/// 자리만** 중간 톤이 폭등했다(월드 실측 11~55%). 반지름을 **머리 반지름**에
+/// 묶으면 둘 다 풀린다 — 빛이 머리에 정확히 붙고, 면적은 머리 수에 비례한다.
+/// 구조가 셋이다 — ① 넓은 발광벽: 머리 위로 크게, 이웃 기둥의 벽과 **이어져**
+/// 하늘이 된다(등장률 .80 이라 이웃이 거의 언제나 있다). ② 이온화 전선: 머리를
+/// 끌어안는 작은 밝은 핵. ③ 몸 뒤 세로 기둥광(약하게).
+/// ⚠️ 머리 핵만 있던 판은 「가로등」으로 보였다 — 밝음이 점이면 광원으로
+/// 읽히고, **면이어야 배경**으로 읽힌다.
+NB3.backlight=function(bc,d,t){
+  const C=NB3.C, br=.92+.08*Math.sin(t*.19+d.sd);
+  const tipx=d.x+d.lean, tipy=d.y-d.h;
+  bc.save();bc.translate(tipx,tipy-d.w*1.5);bc.scale(1,1.4);   // ① 발광벽
+  const R0=NB3.BW0+d.w*NB3.BW1;
+  const g0=bc.createRadialGradient(0,0,0,0,0,R0);
+  g0.addColorStop(0,A(C.veil1,NB3.BWA[0]*br));
+  g0.addColorStop(.52,A(C.veil0,NB3.BWA[1]*br));
+  g0.addColorStop(1,A(C.veil0,0));
+  bc.fillStyle=g0;bc.beginPath();bc.arc(0,0,R0,0,TAU);bc.fill();
+  bc.restore();
+  for(const hd of NB3.heads(d)){                               // ② 이온화 전선
+    bc.save();bc.translate(hd[0],hd[1]-hd[2]*.9);bc.scale(1,1.3);
+    const R2=hd[2]*NB3.BR;
+    const g=bc.createRadialGradient(0,0,0,0,0,R2);
+    g.addColorStop(0,A(C.veil2,NB3.BA[0]*br));
+    g.addColorStop(.42,A(C.veil1,NB3.BA[1]*br));
+    g.addColorStop(.78,A(C.veil0,NB3.BA[2]*br));
+    g.addColorStop(1,A(C.veil0,0));
+    bc.fillStyle=g;bc.beginPath();bc.arc(0,0,R2,0,TAU);bc.fill();
+    bc.restore();
+  }
+  bc.save();bc.translate(d.x,d.y-d.h*.5);bc.scale(1,NB3.BR2);  // ③ 기둥광
+  const g2=bc.createRadialGradient(0,0,0,0,0,d.w*2.6);
+  g2.addColorStop(0,A(C.veil0,NB3.BA2[0]*br));
+  g2.addColorStop(.6,A(C.veil0,NB3.BA2[1]*br));
+  g2.addColorStop(1,A(C.veil0,0));
+  bc.fillStyle=g2;bc.beginPath();bc.arc(0,0,d.w*2.6,0,TAU);bc.fill();
+  bc.restore();
+};
+
+/// ── 패스 1: 몸(실루엣) — 돌덩이를 아래에서 위로 쌓는다 ──────────────────
+NB3.body=function(c,d){
+  const C=NB3.C;
+  // 밑동 치마 — 반쯤 스민 얼룩 하나. 크면 꼬투리가 된다(2차 렌더의 비행선).
+  fillPoly(c,jagPoly(d.x,d.y+d.w*.05,d.w*1.9,14,d.sd+9.3,1.08,.30),A(C.ink,.30));
+  // 몸통 돌덩이 — 뿌리가 제일 크고 위로 갈수록 준다. 단조 감쇠가 기둥이다.
+  for(const s of NB3.slabs(d))
+    fillPoly(c,jagPoly(s[0],s[1],s[2],11,s[4],.82,s[3]),A(C.ink,.97));
+  for(const f of d.fg)
+    for(const s of NB3.fslabs(d,f))
+      fillPoly(c,jagPoly(s[0],s[1],s[2],9,s[4],.82,s[3]),A(C.ink,.97));
+  // 머리 — 모난 돌덩이(n 10 · spikeMul .8 — 동공 bite 가 찾은 「별도 꽃도
+  // 아닌」 값). 실루엣·마루·역광이 같은 NB3.heads 를 본다. 위에 옹이 둘을
+  // 얹어 매끈한 「사람 머리」가 아니라 **울퉁불퉁한 바위 끝**으로 만든다.
+  for(const hd of NB3.heads(d)){
+    fillPoly(c,jagPoly(hd[0],hd[1],hd[2],10,d.sd+hd[0],.80,.78),A(C.ink,.97));
+    fillPoly(c,jagPoly(hd[0]-hd[2]*.45,hd[1]-hd[2]*.5,hd[2]*.36,7,d.sd+hd[0]+1,.8,.8),A(C.ink,.97));
+    fillPoly(c,jagPoly(hd[0]+hd[2]*.4,hd[1]-hd[2]*.45,hd[2]*.28,7,d.sd+hd[0]+2,.8,.8),A(C.ink,.97));
+  }
+};
+/// ── 패스 2: 결 — 기둥 **속**의 세로 흐름. 이게 기체의 증거다 ─────────────
+/// ⚠️ α .5 는 구리 칼날처럼 보였다 — 속결은 「있는 듯 없는 듯」(.28)까지 내린다.
+NB3.veins=function(c,d){
+  const C=NB3.C, S=NB3.slabs(d);
+  const mid=S.map(s=>[s[0]+d.w*.26,s[1]]), mid2=S.map(s=>[s[0]-d.w*.22,s[1]]);
+  fillPoly(c,ribbonPoly(mid,d.w*.13,d.w*.05),A(C.grain,.28));
+  fillPoly(c,ribbonPoly(mid2,d.w*.09,d.w*.04),A(C.grain,.22));
+  // 달궈진 심 — 머리 밑이 살짝 따뜻하다(림의 예고).
+  // ⚠️ r .34w · α .4 는 2배 확대에서 **둥근 얼룩**으로 떴다 — 반으로.
+  fillPoly(c,jagPoly(d.x+d.lean,d.y-d.h+d.w*.16,d.w*.26,8,d.sd+2.9,.82,.8),A(C.grain,.25));
+};
+/// ── 패스 3: 마루(림) + 바스러지는 부스러기 ──────────────────────────────
+/// 림은 머리 **윗변에만** — 빛이 위(이온화 전선)에서 오기 때문이고, 아래에도
+/// 두르면 「테두리 친 도형」이 된다. α.9 로 얹어 합성이 .17 을 안 넘는다.
+NB3.crown=function(c,d,t){
+  const C=NB3.C, heads=NB3.heads(d);
+  for(let hI=0;hI<heads.length;hI++){
+    const hd=heads[hI], p=[];
+    // 반지름 .88배 · 눌림 .74 — 마루가 머리 윤곽 **안으로 문다.** r+1 로 두면
+    // 각진 머리의 오목한 자리 위에 떠서 「눈썹」이 된다(4차 렌더).
+    for(let s=0;s<=5;s++){
+      const a=-2.45+1.80*(s/5);
+      p.push([hd[0]+Math.cos(a)*hd[2]*.88,hd[1]+Math.sin(a)*hd[2]*.74]);}
+    // α .87 — 림이 이온화 핵(합성 ≈.14) **위**를 지나는 몇 px 가 상한이다:
+    // .87×.1744+.13×.14=.1699. .9 로 두면 그 자리가 .1705 로 상한을 넘는다(실측).
+    fillPoly(c,ribbonPoly(p,3.2,1.1),A(C.rim,.87));
+    // 부스러기 — 축을 따라 위로, 성기어지고 작아지고 옅어진다.
+    // ⚠️ 첫 렌더에서 첫 알이 머리의 34% — 머리 위 「풍선」이 됐다. 16%로.
+    // 위상은 t 하나에서만 파생(주기 경계 없음). 느리게 위로 스민다.
+    const K=4+Math.floor(h2(d.sd,hI,81)*3);
+    for(let k=0;k<K;k++){
+      const g=5+h2(d.sd,hI*7+k,82)*4;
+      const yy=hd[1]-hd[2]-2-k*g-k*k*1.1-Math.sin(t*.5+d.sd+k*1.3)*1.5;
+      const xx=hd[0]+(h2(d.sd,hI*9+k,83)-.5)*(6+k*4.2);
+      const rr=Math.max(.9,(2+hd[2]*.15)*(1-k/K*.66));
+      fillPoly(c,jagPoly(xx,yy,rr,7,d.sd+k*2.3,.85,1),A(C.ink,.85-(k/K)*.5));
+      if(!k)fillPoly(c,ribbonPoly(               // 첫 알만 마루 빛을 받는다
+        [[xx-rr*.8,yy-rr*.5],[xx,yy-rr*1.05],[xx+rr*.8,yy-rr*.45]],1.3,.6),
+        A(C.rim,.7));
+    }
+  }
+};
+
+/// 기둥이 화면과 겹치나 — 프레임당 도는 것은 화면에 걸친 것만(공용 계약).
+/// 여백은 발광벽(반폭 4.4배)까지 잡는다 — 몸만 잡으면 화면 밖 기둥의 벽이
+/// 뚝 끊겨 들어온다(중력렌즈 pad 의 그 사고).
+NB3.vis=function(d,W,H){
+  const m=Math.max(d.w*5,NB3.BW0+d.w*NB3.BW1+30);
+  return d.x>-m&&d.x<W+m&&d.y+m>0&&d.y-d.h-m<H;
+};
+
+/// ── 배경 한 장 ──────────────────────────────────────────────────────────
+NB3.bg=function(c,t,W,H){
+  mapFloor(c,W,H);                 // 공용 바닥 — 배경의 첫 줄
+  const p=NB3.cam(t);
+  // ① 전천 잔별(깊이 .05) — 장막 **뒤**. 장막이 별을 흐리는 것까지가 깊이다.
+  //    NOSTAR 는 별 층 셋을 전부 끈다 — 「면적 봉우리」는 점을 빼고 재야 한다
+  //    (첫 실측에서 starM α.8 점이 .38 로 찍혀 봉우리 측정을 오염시켰다).
+  if(!NB3.NOSTAR)
+  scatter(p[0]*.05,p[1]*.05,W,H,34,1,(x,y,i,j,r)=>{
+    if(r>.42)return;
+    mapStar(c,x,y,r<.05?1.0:.7,r<.05?MAPINK.starM:MAPINK.starD,.22+.38*r);});
+  // ② 장막 + 역광 — 1/3 해상도 버퍼. 기둥과 **같은 칸 해시**를 두 번 돌므로
+  //    역광은 언제나 기둥 위에 정확히 선다(어긋나면 아무 일도 안 하는 층이 된다).
+  const dsc=(c.canvas&&c.canvas.width>1&&W>0)?c.canvas.width/W:1, sc=dsc/3;
+  const rw=Math.max(1,Math.ceil(W*sc)),rh=Math.max(1,Math.ceil(H*sc));
+  let buf=c.canvas.__nb3b;
+  if(!buf||buf.width!==rw||buf.height!==rh){
+    buf=document.createElement("canvas");buf.width=rw;buf.height=rh;c.canvas.__nb3b=buf;}
+  const bc=buf.getContext("2d");
+  if(bc){
+    bc.setTransform(1,0,0,1,0,0);bc.clearRect(0,0,rw,rh);
+    bc.setTransform(sc,0,0,sc,0,0);
+    scatter(p[0]*NB3.DV,p[1]*NB3.DV,W,H,430,1,(x,y,i,j,r)=>{
+      if(r>NB3.VOCC)return;NB3.veil(bc,x,y,NB3.VR0+r/NB3.VOCC*NB3.VR1,i*3.1+j*7.7,t);});
+    scatter(p[0]*NB3.DF,p[1]*NB3.DF,W,H,300,1,(x,y,i,j,r)=>{  // 먼 열의 역광
+      if(r>NB3.FOCC)return;
+      const h=80+h2(i,j,21)*60, w=(14+h2(i,j,22)*9)*NB3.FR;
+      bc.save();bc.translate(x,y-h*.96);bc.scale(1,1.3);
+      const g=bc.createRadialGradient(0,0,0,0,0,w);
+      g.addColorStop(0,A(NB3.C.veil1,NB3.FA[0]));g.addColorStop(.6,A(NB3.C.veil0,NB3.FA[1]));
+      g.addColorStop(1,A(NB3.C.veil0,0));
+      bc.fillStyle=g;bc.beginPath();bc.arc(0,0,w,0,TAU);bc.fill();bc.restore();});
+    scatter(p[0]*NB3.DP,p[1]*NB3.DP,W,H,NB3.CELL,2,(x,y,i,j,r)=>{
+      if(r>NB3.OCC)return;
+      const d=NB3.mk(x,y,i,j);if(NB3.vis(d,W,H))NB3.backlight(bc,d,t);});
+    c.drawImage(buf,0,0,rw,rh,0,0,W,H);
+  }
+  // ③ 중간 별(.16) — 장막 앞. 몇은 밝다(별은 점이라 면적 예산을 안 먹는다).
+  if(!NB3.NOSTAR)
+  scatter(p[0]*.16,p[1]*.16,W,H,120,1,(x,y,i,j,r)=>{
+    if(r>.4)return;mapStar(c,x,y,.8+h2(i,j,31)*.5,MAPINK.starM,.4+.4*h2(i,j,32));});
+  if(!NB3.NOSTAR)
+    scatter(p[0]*.16,p[1]*.16,W,H,330,0,(x,y,i,j,r)=>{
+      if(r>.3)return;
+      mapStar(c,x,y,r<.09?1.15:.95,r<.09?MAPINK.starX:MAPINK.starL,.85);});
+  // ④ 먼 기둥 열(.19) — 주 기둥과 같은 문법(돌덩이 쌓기)의 축소판.
+  //    리본+머리알은 **체스 폰**, 성긴 덩이는 **말줄임표**, 반투명 덩이는
+  //    겹친 자리마다 어두워져 **팬케이크 층**이 됐다(렌더 셋). 원근의 옅음은
+  //    알파가 아니라 **섞은 색 불투명**으로 준다 — 겹침이 안 보인다.
+  const fcol=mixHex(MAPINK.ink,NB3.C.veil1,.15);   // L .037 — 잉크와 장막 사이
+  scatter(p[0]*NB3.DF,p[1]*NB3.DF,W,H,300,1,(x,y,i,j,r)=>{
+    if(r>NB3.FOCC)return;
+    const h=80+h2(i,j,21)*60, w=14+h2(i,j,22)*9, ln=(h2(i,j,23)-.5)*w*.7;
+    for(let s=0;s<9;s++){const u=s/8;
+      fillPoly(c,jagPoly(x+ln*u*u,y-h*u,w*(1.7-.60*u),9,i*3.3+j*5.9+s*2.7,
+        .82,.75+.15*u),fcol);}});
+  // ⑤ 주 기둥(.34) — 모아서 세 패스.
+  const L=[];
+  scatter(p[0]*NB3.DP,p[1]*NB3.DP,W,H,NB3.CELL,2,(x,y,i,j,r)=>{
+    if(r>NB3.OCC)return;
+    const d=NB3.mk(x,y,i,j);if(NB3.vis(d,W,H))L.push(d);});
+  for(const d of L)NB3.body(c,d);
+  for(const d of L)NB3.veins(c,d);
+  for(const d of L)NB3.crown(c,d,t);
+  // ⑥ 근접 세로 결(1.25) — 위로 스미는 잉크 자락. 이 안의 「빠른 층」까지
+  //    세로다. 카메라보다 빠르고, 그와 별개로 초당 12px 위로 오른다.
+  scatter(p[0]*NB3.DN,p[1]*NB3.DN+t*12,W,H,320,1,(x,y,i,j,r)=>{
+    if(r>.4)return;
+    const l=40+h2(i,j,41)*70, wd=3.5+h2(i,j,42)*4, cv=(h2(i,j,43)-.5)*14;
+    fillPoly(c,ribbonPoly([[x,y],[x+cv,y-l*.5],[x-cv*.4,y-l]],wd,wd*.3),
+      A(MAPINK.ink,.42+.28*h2(i,j,44)));});
+};
+
+/// 명도 분포 — 중간 톤(.05~.15)이 항목에 있다(개정 예산의 「보인다」).
+NB3.meas=function(c){
+  const cv=c.canvas,w=cv.width|0,h=cv.height|0;
+  let d=null;try{d=c.getImageData(0,0,w,h).data;}catch(e){return null;}
+  if(!d||d.length<64)return null;
+  const n=d.length/4;let s=0,md=0,o12=0,o35=0,mx=0;
+  for(let i=0;i<d.length;i+=4){
+    const l=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)/255;
+    s+=l;if(l>=.05&&l<=.15)md++;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+  return{avg:s/n,mid:md/n*100,p12:o12/n*100,p35:o35/n*100,mx};
+};
+/// 실측 자리 다섯 — **월드의 아무 자리**다(동공의 교훈: 한 자리에서 잰 값은
+/// 시안의 자기소개지 측정이 아니다). 액자(SPOT)와 겹치는 자리가 없다.
+NB3.ANCH=[[0,0,1],[1130,-620,1],[-940,1370,1],[2570,880,1],[-1780,-1490,1]];
+NB3.meter=function nb3_num(c,t,dt,W,H,st){
+  // ⚠️ 460×258 창으로 직접 재면 **작은 창의 분산**을 잰다(실측 12.9~44.2% —
+  // 자기막이 320² 에서 밟은 그 함정). 실화면 통계는 실화면 폭으로 재야 하므로,
+  // 980px 월드 창을 **축소해** 그린다 — 이 칸의 수치가 곧 980 폭의 수치다.
+  const k=W/980, HH=H/k;
+  const draw=()=>{c.save();c.scale(k,k);NB3.bg(c,t,980,HH);c.restore();};
+  if(!st.nb3z&&t>.9){
+    const zz=[];
+    for(const s of NB3.ANCH){
+      NB3.SHIFT=s;
+      try{draw();}finally{NB3.SHIFT=null;}
+      const m=NB3.meas(c);if(m)zz.push(m);
+    }
+    if(!zz.length)st.nb3z={err:1};
+    else{
+      const mid=zz.map(z=>z.mid);
+      st.nb3z={n:zz.length,
+        mn:Math.min.apply(0,mid),mxm:Math.max.apply(0,mid),
+        av:mid.reduce((a,b)=>a+b,0)/zz.length,
+        avg:zz.reduce((a,z)=>a+z.avg,0)/zz.length,
+        p12:Math.max.apply(0,zz.map(z=>z.p12)),
+        p35:Math.max.apply(0,zz.map(z=>z.p35)),
+        mx:Math.max.apply(0,zz.map(z=>z.mx))};
+    }
+  }
+  draw();
+  const z=st.nb3z;if(!z)return;
+  c.save();
+  c.fillStyle="rgba(5,6,11,.9)";c.fillRect(0,H-26,W,26);
+  c.font="8.5px ui-monospace,SFMono-Regular,Menlo,monospace";
+  c.textAlign="left";c.textBaseline="middle";
+  if(z.err){c.fillStyle="#FF7A6A";c.fillText("측정 불가(getImageData)",6,H-13);}
+  else{
+    c.fillStyle=(z.mn>=15&&z.mxm<=30)?"#7FE3A0":"#E8C06A";
+    c.fillText("중간톤 .05~.15  최소 "+z.mn.toFixed(1)+"% · 평균 "+z.av.toFixed(1)
+      +"% · 최대 "+z.mxm.toFixed(1)+"%   (월드 "+z.n+"자리)",6,H-18);
+    c.fillStyle="#9AA3BE";
+    c.fillText("평균 L "+z.avg.toFixed(4)+"   L>.12 "+z.p12.toFixed(2)
+      +"%   L>.35 "+z.p35.toFixed(3)+"%   최대 "+z.mx.toFixed(2),6,H-7);
+  }
+  c.restore();
+};
+
+/// 적 여덟 — **이 안이 지는 자리를 재는 칸이다.** 넷은 장막 위, 둘은 역광
+/// 핵 근처, 둘은 빈 하늘. 실측(5프레임): 대비 1.62~4.01배, 대비가 1.15배
+/// 아래로 떨어지는 몸 화소는 **역광 핵을 지나는 순간의 ≤6.4%** — 그때 적을
+/// 들고 있는 것은 림(#FF 계열 .95)과 눈이다. 동공(25~34% 묻힘)보다 낫다.
+NB3.foe8=function nb3_foe8(c,t,dt,W,H,st){
+  NB3.bg(c,t,W,H);
+  const P=[[.15,.20],[.50,.16],[.85,.24],[.30,.50],[.70,.46],[.14,.80],[.50,.82],[.86,.78]];
+  for(let i=0;i<8;i++){
+    const x=P[i][0]*W,y=P[i][1]*H,ang=t*.35+i*.9;
+    FOEART.grunt(c,x,y,15,ang,t);
+    foeEyes(c,x,y,15*.8,1,W/2,H/2,.17);
+  }
+};
+
+/// 액자 — 302px 칸 전용. 칸이 기둥 칸(520)보다 작아 액자 없이는 기둥
+/// **사이**만 보는 프레임이 생긴다. 자리는 「기둥 하나(칸 0,0 · 월드 118,272 ·
+/// 키 331 · 반폭 72)가 머리까지 걸려 있는」 곳으로 계산해 골랐고, 진폭 .30 은
+/// 동공 액자의 그 값이다 — 밝은 자리가 아니라 **안 비는 자리**를 고른 것이다.
+NB3.SPOT=[309,35,.30];
+NB3.demo=function(fx,mini,spot){
+  const f=function(c,t,dt,W,H,st){
+    const sv=NB3.SHIFT;if(spot)NB3.SHIFT=NB3.SPOT;
+    try{
+      NB3.bg(c,t,W,H);
+      if(fx)mapOver(c,t,dt,W,H,st,"pulse");
+      if(mini){bossEdge(c,t,W,H);minimap(c,t,W,H,st);}
+    }finally{NB3.SHIFT=sv;}};
+  try{Object.defineProperty(f,"name",
+    {value:"nb3_"+(fx?"fx":"bg")+(mini?"_mini":"")+(spot?"_spot":"")});}catch(e){}
+  return f;
+};
+/// 2배 확대 — 머리의 부스러기와 림은 302px 칸에서 안 읽힌다.
+NB3.zoom=function nb3_zoom(c,t,dt,W,H,st){
+  const sv=NB3.SHIFT;NB3.SHIFT=[335,-141,.12];   // 칸(0,0) 기둥의 머리를 가운데로
+  try{c.save();c.scale(2,2);NB3.bg(c,t,W/2,H/2);c.restore();}
+  finally{NB3.SHIFT=sv;}
+};
+
+// ── 등록 — 대입만 ─────────────────────────────────────────────────────────
+MAP.nb3     =NB3.demo(0,0);
+MAP.nb3Pulse=NB3.demo(1,0);
+MAP.nb3Mini =NB3.demo(1,1);
+MAP.nb3Foe8 =NB3.foe8;
+MAP.nb3Num  =NB3.meter;
+MAP.nb3Zoom =NB3.zoom;
+
+// ── 배치 — 자기 칸 + 공용 칸에 하나씩 ────────────────────────────────────
+mapTile("nb3",NB3.demo(0,0),"성운 기둥 — 실화면 비율 980×430",
+  "역광이 먼저다: 발광 장막(중간 톤)이 깔리고 기둥이 그 위에 잉크로 선다. 제일 밝은 곳(이온화 전선)이 언제나 기둥 머리 바로 위 — 밝음의 이유가 형태다.",
+  980,430,1);
+mapTile("nb3",NB3.foe8,"적 여덟을 얹은 판",
+  "여덟 밑의 배경 L .026~.063 — 몸(.102)이 1.62~4.01배로 갈린다(실측). 역광 핵을 지나는 순간만 몸 화소의 ≤6.4% 가 묻히고, 그때는 림·눈이 든다.",
+  302,302);
+mapTile("nb3",NB3.demo(1,0,1),"+ 파문",
+  "최악 대비(mPulse 바깥층 L .181) — 얇은 고리가 장막(≤ .1557)보다 언제나 밝다.",
+  302,302);
+mapTile("nb3",NB3.zoom,"기둥 머리 · 2배",
+  "끝이 바스러져야 기체다 — 부스러기가 축을 따라 성기어지고, 마루(림)는 빛이 오는 윗변에만 있다.",
+  302,302);
+mapTile("nb-bg",NB3.demo(0,0,1),"NB3 · 성운 기둥 星雲柱",
+  "<b>세로로 서는</b> 유일한 안. 암류와 갈리는 지점 — 기둥은 뿌리·몸통·손가락·머리가 있는 <b>형태</b>다.",
+  302,302);
+mapTile("nb-proof",NB3.demo(1,0,1),"NB3 · 기둥 위에서",
+  "같은 파문, 같은 시각. 실루엣(L .03)과 고리(.181)는 6배 — 배경이 어두운 쪽으로 그려서 얻는 여유다.",
+  302,302);
+mapTile("nb-mini",NB3.demo(1,1,1),"NB3 · 기둥 + 미니맵",
+  "HUD 는 그대로. 기둥은 미니맵 판 밑으로 지나간다.",
+  302,302);
+mapTile("nb-num",NB3.meter,"NB3 · 밝기 실측 460×258",
+  "<b>월드 5자리</b>에서 잰 중간 톤(.05~.15)의 최소·평균·최대 — 한 자리에서 잰 값은 측정이 아니다.",
+  460,258);
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 유니버스 「폐허 廢墟」 — PL03
+// ══════════════════════════════════════════════════════════════════════════
+//
+// 최상위 이름은 전부 `PL03` 로 시작한다. 등록은 `MAPP.bg.ruin` **대입 하나**다
+// (`const`/`let` 재선언 0 · HTML 무수정 · 새 원시함수 0개 — 그리는 것은 전부
+// 기존 `fillPoly`/`scatter`/`mixHex`/`mpTile`/`mpPat`/`mpWrap9`/`mapFloor` 다).
+//
+// ── 이 안이 유일하게 하는 것: 인공물이 있다 ───────────────────────────────
+// 스물한 안 중 **직선과 반복이 정당한 유일한 곳**이다. 나머지는 자연이라
+// 직선이 보이면 그 자체로 실패였다(사구는 「자로 그은 사선」으로 반려됐고,
+// 잔해대는 「생선가시」였다). 여기서는 거꾸로 **직선이 안 보이면 실패**다.
+//
+// ⚠️ 그래서 위험도 정확히 거기다. 두 가지 실패가 서로 반대쪽에 있다:
+//   ① 직선이 **격자**가 되면 C안 성좌(mapLattice)와 겹친다. 성좌는 112px
+//      등간격 · 화면축 정렬 · **끊기지 않는 실선** · 교차점마다 마디 별과
+//      좌표 라벨이다. 그래서 이 안은 그 넷을 **전부** 안 한다:
+//        · 등간격 아님 — 판 크기가 .50~.92칸이고 15%는 2.2~3.4배로 길다
+//        · 화면축 아님 — 직선은 **구획 방위**에만 속한다(화면축과 무관)
+//        · 실선 아님 — 그려지는 것은 선이 아니라 **면**이고, 38%의 칸이 비었다
+//        · 마디 없음 — 교차점도 라벨도 0. 판끼리는 만나면 **겹친다**(포개진다)
+//   ② 너무 많으면 「도시」가 되어 우주 생존물이 아니게 된다. 판+틈이 화면의
+//      3분의 1(≈31%)이고 나머지는 맨땅이다. 도로도 블록도 반복 건물도 없다.
+//      **이 값은 눈으로 두 번 되돌려 잡은 것이다** — 게이트 .68 은 도시였고
+//      .52 는 예산 바닥이었다(아래 `PL03_GATE` 주석).
+//
+// ── 「부서진 것이지 서 있는 것이 아니다」 ─────────────────────────────────
+// 이 안에 **서 있는 것은 하나도 없다.** 서 있는 것을 위에서 내려다보면 지붕과
+// 그림자 기둥이 나오는데, 그건 배경이 아니라 **장애물**이라 500마리가 도는
+// 화면에서 캐릭터를 가린다. 여기 있는 것은 셋뿐이고 전부 납작하다:
+//   · **깨진 판** — 모서리가 잘려 나갔다. 온전한 직사각형은 「스티커」로 보인다
+//     (앞 손들이 눈 판정에서 잡은 실패 이름). 네 모서리 중 평균 1.6개를 깎는다.
+//   · **누운 벽** — 판의 15%가 2.2~3.4배로 긴 막대다. 화면에서 제일 긴 직선이
+//     이것이고, 구획 각을 따르므로 **서로 나란하다**. 세워 두지 않는다.
+//   · **기둥 밑동** — 윗면과 부러진 속만 보인다. 높이가 없다.
+//
+// ── 반복이 정당한 자리는 딱 한 군데다: 주랑(柱廊) ────────────────────────
+// 「인공」을 눈에 못박는 것은 직선이 아니라 **고른 간격**이다. 구획의 55%에
+// 기둥 밑동 한 줄을 놓는다 — 6~10개, 간격이 정확히 같고, **셋에 하나는 없다.**
+// 줄이 온전하면 도시가 되고, 간격이 흐트러지면 그냥 돌무더기다. 줄은 하나뿐이라
+// 2차원 배열(=격자)이 절대 안 만들어진다.
+//
+// ── 구획(district) — 방위가 화면에 두셋만 있어야 한다 ────────────────────
+// 방위가 하나면 격자고, 판마다 다르면 자갈밭이다. 판 칸 8×8(416px)을 한 구획으로
+// 묶어 **구획 번호를 해시**해 방위 하나를 준다. 980×548 화면에 구획이 여섯쯤
+// 걸리므로 화면에는 방위가 두셋 산다. 판마다 ±3.7° 를 더 흔드는데, 완전히
+// 평행하면 인쇄물이 되기 때문이다.
+//
+// ── 예산 — 「보인다」를 판이 혼자 짊어진다 ────────────────────────────────
+// 개정 예산의 첫 줄은 **중간 톤(L .05~.15)이 화면의 15~30%** 다. 이 안에서 그
+// 면적을 대는 것은 **밝은 판 하나뿐**이고, 맨땅은 공용 바닥(.0184) 바로 위에
+// 눕혀 둔다 — 동공이 증명한 대로 답은 평균을 올리는 게 아니라 **국소 대비**다.
+//   · 판의 80% 는 L .037~.125 (밝은 판) · 20% 는 L .014~.037 (삭은 판)
+//   · 맨땅은 L .033 — 밝은 판과 **3.8배**, 판이 없는 곳은 바닥(.0184)까지 내려간다
+//   · 봉우리는 기둥 단면·드러난 속면뿐이고 면적이 1% 대다
+// 실측(980×548 · 월드 여덟 자리 · dt=1/60 로 400프레임 뒤 동결, 2026-08-12):
+//   **중간 톤 최소 21.93% · 평균 24.40% · 최대 27.31%** · 평균 L .0423~.0450 ·
+//   L>.12 0.86~2.24% · **L>.35 0.000%** · 최대 L .1454~.1505 · 색상각 90.0~91.4°.
+// 가산 합성(`lighter`)은 한 번도 안 쓰고, 3단 계조의 흰 앞날도 이 안에 없다.
+//
+// ── 칠하는 차례 — 자기막이 밝기를 잃은 그 자리 ────────────────────────────
+// ⚠️ 자기막은 발마다 막→결→마루를 이어 칠해서 **다음 발의 막이 앞 발의 마루를
+// 덮었다.** 알파를 1.9배 올려도 안 고쳐졌고 세 패스로 가르니 0.2%→0.68% 가 됐다.
+// 이 안은 판이 서로 겹치므로 **똑같은 함정이 구조적으로 있다.** 그래서 처음부터
+// 판 하나씩이 아니라 **화면 전체를 세 패스**로 칠한다:
+//     ① 틈(어두운 테) 전부 → ② 판 몸 전부 → ③ 드러난 속면 전부
+// 이러면 어떤 판의 속면도 이웃의 어두운 테에 안 먹힌다. 칠 횟수도 면적도 그대로다.
+// (기둥은 판 위에 얹힌 물건이라 판 뒤에 오는 게 맞고, 자기 안에서 또 두 패스다.)
+//
+// ── 스티커 방지 ──────────────────────────────────────────────────────────
+// ⚠️ 납작한 다각형을 배경에 얹으면 **붙여 놓은 종이**로 보인다. 막는 것 셋:
+//   ① 모서리를 깎아 온전한 직사각형을 없앤다.
+//   ② **자갈·부스러기 한 겹을 판 위로 지나가게** 깐다 — 같은 알갱이가 판과
+//      맨땅을 똑같이 덮어야 두 재질이 한 장의 땅으로 묶인다.
+//   ③ **먼지 한 겹을 그 위로** 흘린다. 판 가장자리가 군데군데 묻혀 윤곽이 끊긴다.
+// ②③ 은 밝기 예산에도 쓸모가 있다 — ②는 유일한 더하기(맨땅 +.004), ③은 순수
+// 빼기라 아무리 진해도 이펙트와 안 싸운다(잿바다에서 얻은 규칙).
+//
+// ── 이 안은 빛나지 않는다 ────────────────────────────────────────────────
+// 폐허에 아직 켜져 있는 등을 하나 두고 싶은 유혹이 있는데 **안 둔다.** 배경이
+// 광채를 쓰면 이펙트의 문법과 겹쳐 「작은 이펙트」나 「주울 것」으로 오독된다
+// (빛폭탄이 화염 색이라 속성이 붙은 걸로 읽혔던 사고와 같은 종류). 스스로 빛나는
+// 안은 용암지 하나로 족하다. 여기서 밝은 것은 전부 **반사광**이다.
+//
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 주 색상각 **90.0°**(먼지 낀 콘크리트). 색상환에서 속성이 비워 둔 **제일 넓은
+// 구간(뇌 50.6 ~ 독 129.2, 78.6°)의 정확한 한가운데**라, 최근접 속성이 양쪽
+// 다 **39.3°** 다 — 스물한 안이 고를 수 있는 각 중 최대치다. 적(FOEDARK 318.8°)
+// 과는 128.8° 로 정반대다(지면형은 속성보다 적과 붙기 쉬운데 이 안은 아니다).
+// 그래도 **실제 방어는 채도**다: 판 13.3% · 단면 13.5% 라 화면에 칠해지는 값은
+// 채널차 8/255 이고, 눈에는 「올리브」가 아니라 **먼지 회색**으로 온다.
+// 실측 색상각은 월드 여덟 자리에서 **90.0~91.4°** 로 설계값과 같다.
+// 기존 안과도 안 겹친다(균열지 22 · 잿바다 23 · 경호 땅 40 · 이끼 162 ·
+// 동공 240 · 사구 333).
+const PL03_SL   =58;                  // 판 칸
+const PL03_DC   =13;                  // 구획 = 판 칸 13×13
+const PL03_DCELL=PL03_SL*PL03_DC;     // 754px — 화면에 방위가 두셋만 살게 하는 크기
+const PL03_CCELL=PL03_SL*9;           // 522px — 주랑 자리. 구획보다 잘아야 화면에 걸린다
+// ⚠️ 게이트는 **「도시」와 「빈 벌판」 사이의 유일한 손잡이**다. .68 로 뒀다가
+// 두 번째 렌더에서 판이 화면을 거의 다 덮어 **도시가 됐다**(2026-08-12 눈 판정).
+// 판 커버리지 40% → **31%** 로 내려 맨땅이 화면의 3분의 2를 되찾게 한다.
+// 중간 톤 예산도 같은 손잡이다 — .52 → .58 로 되올리며 중간 톤을 18.3% → **24.4%**
+// 로 맞췄다(대역 15~30 의 한가운데. 상한 쪽 여유가 2.7%p 뿐이라 더 못 올린다).
+const PL03_GATE =.58;                 // 판이 남아 있을 확률. 나머지는 맨땅이다
+// 삭은 판(바닥보다 어두운 판)의 몫. .30 이었는데 **뭉치면 그 자리가 통째로
+// 어두워져** 302px 칸의 중간 톤 최소를 만들었다. 어두운 판은 대비를 위해 꼭
+// 필요하지만 다섯에 하나면 족하다.
+const PL03_DARK =.20;                 // 이 아래는 **삭은 판**(바닥보다 어둡다)
+const PL03_WIND =-1.02;               // 먼지가 부는 각 — **구획과 무관한 유일한 방향**
+const PL03_GTH  =.83;                 // 자갈 타일 각 — 아무것과도 안 맞게 비틀어 둔다
+
+// ⚠️ **맨땅 한 겹이 이 안에서 제일 늦게 발견된 필수품이다.** 처음엔 공용 바닥
+// (`#04040A`)을 그대로 맨땅으로 썼는데, 첫 렌더에서 화면이 「**남색 물 위에 뜬
+// 카키 종잇조각**」으로 보였다(2026-08-12 눈 판정). 바닥은 심우주용이라 청색 기가
+// 있고 판은 90° 라, 둘이 보색으로 붙어 **군용 위장 무늬**가 됐다. 폐허는 자기 흙을
+// 가진 행성이므로 바닥 위에 **흙 한 겹**을 덮어 색을 자기 계열로 끌어온다.
+// 알파 .72 로 합성하면 rgb(8,9,8) — 청색 기가 죽고 L 은 .0332 로 바닥 바로 위다.
+const PL03_C_SOIL="#090B07";          // 맨땅            L .0390  90° · 알파 .72 로만
+const PL03_C_GAP ="#030402";          // 틈·기둥 그림자   L .0136  90°
+const PL03_C_LO  ="#090A08";          // 흙에 삭은 판     L .0371  90°
+// ⚠️ 처음 #1C1F19(L .1154)로 뒀더니 월드 여덟 자리 중간 톤이 **16.6~20.4%** 로
+// 대역(15~30%)의 바닥에 붙었다. 사용자 판정이 「맵이 꺼멓다」였으니 하단에 붙는
+// 것은 지킨 게 아니다 — 봉우리(상한 .17)는 아직 절반이 비어 있으므로 **여기서
+// 올린다**. 색상각 90.0° 는 그대로 두고(G 최대·R−B=Δ/2 를 유지) 명도만 8.4% 올렸다.
+const PL03_C_HI  ="#1E221A";          // 마른 판          L .1251  90° · 채도 13.3%
+const PL03_C_RIM ="#252A20";          // 깨진 단면        L .1544  90° · 채도 13.5%
+const PL03_C_CHIP="#333A2B";          // 부스러기         L .2165 — **1px 점으로만**
+
+/// 구획의 방위. 판·벽·주랑이 **전부 이 하나**를 본다 — 그래야 화면의 직선들이
+/// 「같은 구조물의 잔해」로 읽힌다. 직사각형은 π 주기라 0~π 면 다 나온다.
+function PL03th(di,dj){return h2(di,dj,3.7)*Math.PI;}
+
+/// 판 하나의 윤곽. **직사각형인데 모서리가 깨져 있다.**
+///
+/// ⚠️ 처음엔 네 모서리를 각각 40% 확률로 최대 46% 까지 잘랐다가 **판이 자갈이
+/// 됐다**(2026-08-12 눈 판정: 화면에 직각이 거의 안 남아 「부서진 인공물」이 아니라
+/// 「둥근 돌덩이 밭」으로 보였다). 이 안의 정체는 **직각**이고 깨짐은 그 위의 사고라,
+/// 깨짐이 직각을 다 먹으면 정체가 사라진다. 그래서 확률 24% · 깊이 최대 30% ·
+/// **한 판에 두 모서리까지**로 묶는다 — 판마다 온전한 직각이 최소 둘은 남는다.
+function PL03slab(cx,cy,w,h,th,seed){
+  const hw=w*.5,hh=h*.5,cs=Math.cos(th),sn=Math.sin(th);
+  const C=[[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]],p=[];
+  let cut=0;
+  for(let k=0;k<4;k++){
+    const a=C[k];
+    if(cut<2&&hash(seed+k*5.3)<.24){
+      cut++;
+      const pv=C[(k+3)%4],nx=C[(k+1)%4],f=.10+.20*hash(seed+k*9.1);
+      p.push([a[0]+(pv[0]-a[0])*f,a[1]+(pv[1]-a[1])*f],
+             [a[0]+(nx[0]-a[0])*f,a[1]+(nx[1]-a[1])*f]);
+    }else p.push(a);
+  }
+  return p.map(v=>[cx+v[0]*cs-v[1]*sn,cy+v[0]*sn+v[1]*cs]);
+}
+
+/// 판 한 칸의 성질. **세 패스가 정확히 같은 값을 봐야** 하므로 한 곳에서만 뽑는다.
+/// 칸 번호를 해시하니 월드가 무한해도 반복도 이음매도 없다(scatter 와 같은 원리).
+function PL03cell(i,j){
+  if(h2(i,j,3)>PL03_GATE)return null;               // 48% 는 판이 아예 없다 = 맨땅
+  const th=PL03th(Math.floor(i/PL03_DC),Math.floor(j/PL03_DC))
+          +(h2(i,j,11)-.5)*.13;                     // ±3.7° — 완전 평행은 인쇄물이다
+  let w=PL03_SL*(.48+.42*h2(i,j,12));
+  const hh=PL03_SL*(.42+.44*h2(i,j,13));
+  // 누운 벽 — 판의 28%. 화면에서 제일 긴 직선이고, 구획 각을 따르니 서로 나란하다.
+  // ⚠️ 첫 렌더에서 **구조가 하나도 안 읽혔다** — 조각이 다 고만고만해 「직선」이
+  // 없었다. 이 안은 직선이 안 보이면 실패라 길이를 키웠는데, 이번엔 2.6~4.4배가
+  // **너무 굵은 표본**이라(면적이 보통 판의 3.5배) 있고 없고가 302px 칸의 커버리지를
+  // 통째로 흔들었다. ⇒ **길이를 2.0~3.3배로 줄이고 빈도를 .20→.28 로 올린다** —
+  // 평균 기여는 그대로인데 분산만 준다. 「긴 것 몇 개」가 아니라 「좀 긴 것 여럿」이다.
+  if(h2(i,j,17)<.28)w*=2.0+1.3*h2(i,j,18);
+  return{th,w,h:hh,br:h2(i,j,14),sd:i*7.13+j*3.31};
+}
+/// 판의 밝기. 30% 는 바닥보다 어둡게(삭았거나 그늘에 잠긴 판), 70% 는 중간 톤.
+/// ⚠️ 밝은 쪽에 `pow(k,.70)` 을 먹인다 — 균등분포로 두면 절반이 문턱(.05) 아래로
+/// 떨어져 **예산을 한 톨도 안 쓰는 판**이 된다(α ≤ .327 은 예산을 안 쓴다던 그 함정의
+/// 면적판이다). 지수를 먹이면 같은 개수·같은 면적으로 중간 톤이 늘어난다.
+const PL03tone=br=>br<PL03_DARK?mixHex(PL03_C_GAP,PL03_C_LO,br/PL03_DARK)
+  :mixHex(PL03_C_LO,PL03_C_HI,Math.pow((br-PL03_DARK)/(1-PL03_DARK),.70));
+
+/// 판밭 — **세 패스.** 한 판씩 [틈→몸→속면] 을 이어 칠하면 다음 판의 틈이 앞 판의
+/// 속면을 덮는다(자기막이 실측으로 당한 그것). 화면 전체를 패스로 가르면 안 당한다.
+/// [pad] 는 4 다 — 누운 벽이 최대 235px 라 세 칸 밖에서도 화면으로 뻗어 들어온다.
+function PL03field(c,ox,oy,W,H){
+  scatter(ox,oy,W,H,PL03_SL,4,(x,y,i,j)=>{      // ① 틈 — 판이 땅에 박힌 자국
+    const S=PL03cell(i,j);if(!S)return;
+    fillPoly(c,PL03slab(x,y,S.w+2.8,S.h+2.8,S.th,S.sd),PL03_C_GAP);});
+  scatter(ox,oy,W,H,PL03_SL,4,(x,y,i,j)=>{      // ② 판 몸
+    const S=PL03cell(i,j);if(!S)return;
+    fillPoly(c,PL03slab(x,y,S.w,S.h,S.th,S.sd),PL03tone(S.br));});
+  scatter(ox,oy,W,H,PL03_SL,4,(x,y,i,j)=>{      // ③ 드러난 속면 — 봉우리를 여기서만 낸다
+    // ⚠️ 확률 .52 로 뒀다가 밝은 작은 사각이 화면에 흩뿌려져 **포스트잇**으로
+    // 보였고, 기둥 밑동과도 헷갈렸다(2026-08-12 눈 판정). 밝은 판의 3분의 1로만.
+    const S=PL03cell(i,j);if(!S||S.br<.66||h2(i,j,41)>.34)return;
+    const f=.26+.24*h2(i,j,43),cs=Math.cos(S.th),sn=Math.sin(S.th);
+    const dx=(h2(i,j,45)-.5)*S.w*.34,dy=(h2(i,j,47)-.5)*S.h*.34;
+    fillPoly(c,PL03slab(x+dx*cs-dy*sn,y+dx*sn+dy*cs,S.w*f,S.h*f,S.th,S.sd+3.9),
+      mixHex(PL03_C_HI,PL03_C_RIM,.60));});
+}
+
+/// 주랑 — **이 안에서 반복이 정당한 유일한 자리.** 구획의 42% 에 한 줄.
+/// 간격은 정확히 같고 넷에 하나가 없다. 줄이 하나뿐이라 2차원 배열이 안 된다.
+/// [dark] 는 패스 가름이다(그림자 전부 → 밑동 전부).
+///
+/// ⚠️ 첫 렌더에서 이게 **제일 크게 실패했다** — 밝은 사각 링 마흔 개가 화면에
+/// 흩뿌려져 「주랑」이 아니라 **스티커**로 보였다(2026-08-12 눈 판정). 원인 셋을
+/// 다 고쳤다:
+///   ① **구획이 잘아 줄이 여럿이었다.** 구획을 416→754px 로 키우고 게이트를
+///      .55→.42 로 내려 화면에 줄이 하나나 둘만 살게 했다.
+///   ② **간격이 넓어 「줄」로 안 묶였다.** 게슈탈트는 간격이 요소 크기의 서너 배를
+///      넘으면 근접성을 못 준다. 간격을 1.15~1.70칸 → **0.62~0.86칸**(36~50px)으로
+///      좁히니 비로소 한 줄로 읽힌다.
+///   ③ **링이 두꺼워 「도넛」이었다.** 속을 .48→.68 로 키워 테를 반지름의 16% 로
+///      얇게 만든다 — 두꺼운 링은 물건이고 얇은 테라야 「부러진 단면」이다.
+function PL03colon(c,ox,oy,W,H,dark){
+  // ⚠️ 주랑을 **구획 칸(754px)에 하나씩** 뿌렸더니 화면에 0.4개꼴이라 대부분의
+  // 화면에서 아예 안 보였다 — 「반복이 정당한 유일한 자리」가 화면에 없으면 이 안의
+  // 정체가 절반 사라진다. 자리는 잘게(522px) 뿌리되 **방위는 자기가 선 구획**을
+  // 따른다: 주랑은 그 건물의 일부라 옆 판들과 각이 같아야 한다.
+  scatter(ox,oy,W,H,PL03_CCELL,2,(x,y,ci,cj,r)=>{
+    if(r>.50)return;
+    const wx=x-W/2+ox,wy=y-H/2+oy;
+    const di=Math.floor(wx/PL03_DCELL),dj=Math.floor(wy/PL03_DCELL);
+    const th=PL03th(di,dj),cs=Math.cos(th),sn=Math.sin(th);
+    const N=7+Math.floor(h2(ci,cj,31)*5);
+    const sp=PL03_SL*(.62+.24*h2(ci,cj,33));
+    const rr=PL03_SL*(.140+.050*h2(ci,cj,35));
+    for(let k=0;k<N;k++){
+      if(h2(ci*31.7+k,cj,37)<.26)continue;          // 무너져 없는 기둥
+      const u=(k-(N-1)*.5)*sp,px=x+cs*u,py=y+sn*u,sd=ci*11.3+cj*5.7+k*2.9;
+      if(dark){
+        // ⚠️ 기단 — **기둥이 떠 있지 않게 하는 유일한 장치.** 기단 없이 밝은 테만
+        // 놓으면 맨땅 위에 링을 얹은 꼴이라 어김없이 스티커로 보인다(3차 렌더에서
+        // 확인). 기단은 기둥보다 **살짝 어긋나게** 얹는다 — 정확히 겹치면 동심
+        // 사각형이 되어 이번엔 「과녁」으로 보인다.
+        const ba=h2(ci,cj,43+k)*TAU,bo=rr*.42;
+        fillPoly(c,PL03slab(px+Math.cos(ba)*bo,py+Math.sin(ba)*bo,rr*3.1,rr*2.8,
+          th,sd+5.1),mixHex(PL03_C_LO,PL03_C_HI,.34));
+        fillPoly(c,PL03slab(px,py,rr*2+3.0,rr*2+3.0,th,sd),PL03_C_GAP);continue;}
+      fillPoly(c,PL03slab(px,py,rr*2,rr*2,th,sd),mixHex(PL03_C_HI,PL03_C_RIM,.62));
+      // 부러진 속 — 안이 비어 있다. 이게 「밑동」과 「상자」를 가른다.
+      // ⚠️ 속을 **정확히 가운데** 파면 테 두께가 균일해져 「흰 액자」가 된다
+      // (2.6배 확대 판정에서 잡았다 — 화면에서 제일 인쇄물 같은 것이 이거였다).
+      // 어긋나게 파면 한쪽이 두껍고 한쪽이 얇아 **부러진 단면**이 된다.
+      const ia=h2(ci,cj,51+k)*TAU,io=rr*.30;
+      fillPoly(c,PL03slab(px+Math.cos(ia)*io,py+Math.sin(ia)*io,rr*1.30,rr*1.18,
+        th,sd+2.3),mixHex(PL03_C_GAP,PL03_C_LO,.35));
+    }});
+}
+
+/// 자갈·부스러기 — **판과 맨땅을 한 장의 땅으로 묶는 겹.** 지면에 못 박혀 있으므로
+/// 카메라 속도 그대로 흐른다. 어두운 알갱이가 주고 밝은 부스러기는 1px 점뿐이다
+/// (맨땅에서 L .044 · 판 위에서 .128 — 둘 다 상한 안).
+const PL03grit=()=>mpTile("pl03grit",256,(c,S)=>{
+  for(let i=0;i<520;i++){
+    const x=hash(i*2.7)*S,y=hash(i*6.1)*S,r=.5+hash(i*8.9)*1.4;
+    c.fillStyle=A(PL03_C_GAP,.16+hash(i*4.4)*.30);
+    mpWrap9(S,(dx,dy)=>{c.beginPath();c.arc(x+dx,y+dy,r,0,TAU);c.fill();});}
+  for(let i=0;i<300;i++){
+    const x=hash(i*3.3+91)*S,y=hash(i*7.7+13)*S,r=.45+hash(i*5.5)*1.1;
+    c.fillStyle=A(PL03_C_CHIP,.05+hash(i*9.9)*.08);
+    mpWrap9(S,(dx,dy)=>{c.beginPath();c.arc(x+dx,y+dy,r,0,TAU);c.fill();});}
+});
+/// 날린 먼지 — **순수 빼기.** 시차를 밝게가 아니라 어둡게로 주면 아무리 진해도
+/// 이펙트와 안 싸운다. 바람 방향으로 2.8배 늘여 놓아 **구획 각과 다른 유일한 방향**을
+/// 만든다 — 이 한 겹이 없으면 화면의 모든 방향이 인공물의 방향이라 자연이 사라진다.
+/// ⚠️ 얼룩이 **잘고 많아야 한다.** 처음 반경 44~100px 짜리 열 개로 뒀더니 늘인
+/// 얼룩 하나가 302px 시안 칸을 통째로 덮어, 월드 자리에 따라 중간 톤이
+/// **9.7% ~ 26.9%** 로 흔들렸다(2026-08-12 실측, 자리 여덟). 동공이 배운 것과 같은
+/// 문제다 — 사용자가 「꺼멓다」고 한 화면은 평균이 아니라 **그 9.7% 쪽**이다.
+/// 반경을 28~58px 로 줄이고 개수를 22 로 올리면 같은 평균에서 분산만 죽는다.
+const PL03dust=()=>mpTile("pl03dust",384,(c,S)=>{
+  for(let i=0;i<22;i++){
+    const x=hash(i*4.3)*S,y=hash(i*8.1)*S,r=28+hash(i*2.9)*30;
+    const a=(.045+hash(i*6.1)*.075).toFixed(3);
+    mpWrap9(S,(dx,dy)=>{c.save();c.translate(x+dx,y+dy);c.scale(2.8,1);
+      const g=c.createRadialGradient(0,0,0,0,0,r);
+      if(!g||!g.addColorStop){c.restore();return;}
+      g.addColorStop(0,"rgba(2,3,2,"+a+")");g.addColorStop(1,"rgba(2,3,2,0)");
+      c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,TAU);c.fill();c.restore();});}
+});
+
+MAPP.bg.ruin=function PL03ruin(c,t,W,H){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 혼자 뿌옇다
+  // 맨땅 — 바닥의 청색 기를 자기 계열로 끌어온다(위 PL03_C_SOIL 주석).
+  c.fillStyle=A(PL03_C_SOIL,.72);c.fillRect(0,0,W,H);
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  PL03field(c,ox,oy,W,H);
+  PL03colon(c,ox,oy,W,H,1);
+  PL03colon(c,ox,oy,W,H,0);
+  // 자갈은 지면에 못 박혀 있다 — 판 위를 **지나가야** 두 재질이 한 장으로 묶인다.
+  // 고주파가 정체인 겹이라 **전체 해상도**로 둔다(내리면 디더를 못 한다).
+  mpPat(c,PL03grit(),W,H,ox,oy,PL03_GTH);
+  // 먼지만 지면보다 빠르고(1.18배) 바람으로 따로 흐른다 — 「크고 느린 것 위에
+  // 작고 빠른 것」. 폐허는 안 움직이므로 이 화면에서 시간을 말하는 것은 이것뿐이다.
+  //
+  // ── 비용 ─────────────────────────────────────────────────────────────
+  // **화면을 덮는 패턴 한 겹이 1.9~2.0ms 다**(980×548 · dpr 1 · 소프트웨어 래스터).
+  // 층별 실측(2026-08-12, 강제 래스터): 바닥 .05 → 판밭 1.39 → 주랑 1.95 →
+  // 자갈 4.06 → 먼지 **5.95**. 두 패턴 겹이 전체의 65% 다(비교: 사구 6.2 ·
+  // 균열지 5.3 · 이끼밭 0.21).
+  //
+  // ⚠️ **사구의 「1/3 해상도 버퍼」를 여기 그대로 옮겼다가 되돌렸다.** 먼지는
+  // 이 안에서 가장 저주파인 겹이라 후보로 맞았는데, 실측하니 1.912ms → **2.028ms**
+  // 로 오히려 **나빠졌다**(2026-08-12). 이유는 분명하다: 사구는 저주파 **세 겹**을
+  // 한 버퍼에 모아 blit 을 **한 번**만 했지만, 여기서 내릴 겹은 하나뿐이라
+  // 확대 blit(537k 화소 보간) 비용이 패턴 절감분(1.9→0.2)을 통째로 먹는다.
+  // ⇒ **한 겹짜리에 저해상도 버퍼는 손해다.** 지킨 척하지 않고 되돌린다.
+  mpPat(c,PL03dust(),W,H,ox*1.18+Math.cos(PL03_WIND)*t*17,
+                         oy*1.18+Math.sin(PL03_WIND)*t*17,PL03_WIND);
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181)을 폐허 위에 얹는다.
+function PL03proof(c,t,dt,W,H,st){MAPP.bg.ruin(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다(배경만 그린 캔버스를 한 번 읽는다).
+function PL03num(c,t,dt,W,H,st){MAPP.bg.ruin(c,t,W,H);mapMeter(c,t,W,H,st);}
+mapTile("pl03",MAPP.demo("ruin",1,1),"폐허 廢墟 + 빛파동 + 미니맵",
+  "인공물이 있는 유일한 안. 깨진 판·누운 벽·기둥 밑동뿐이고 서 있는 것은 0. 직선은 구획 방위 두셋에만 속하고, 반복은 주랑 한 줄뿐인데 셋에 하나가 없다.",
+  MAP_W,MAP_H,1);
+mapTile("pl-bg",MAPP.demo("ruin",0,0),"폐허 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL03proof,"폐허 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("ruin",0,1),"폐허 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("pl-num",PL03num,"폐허 · 밝기 실측",
+  "중간 톤(L .05~.15) 15~30% · 평균 L ≤ .075 · 봉우리 ≤ .17 · L&gt;.35 ≤ 0.5%.",MAP_S,MAP_S);
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 유니버스 · PL04 용암지 熔岩地 — docs/vfx/mockup-map2.html 전용
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 최상위 이름은 전부
+// `PL04` 로 시작하고, 등록은 `MAPP.bg.lava` **대입 하나**다(`const` 재선언 0).
+//
+// ── 이 안이 유일하게 하는 것: 지면이 스스로 빛난다 ────────────────────────
+// 열다섯 중 광원이 화면 안에 있는 유일한 안이다. 그래서 **예산 위반이 제일
+// 쉽다** — 별은 화면의 1%라 아무리 밝아도 안 싸우지만 지면은 100%를 덮는다.
+//
+// ⚠️ 그리고 **염(20.3°)과 정면으로 부딪힌다.** 이 안의 성패가 거기 달렸다.
+//
+// ── 그래서 이 안의 설계 명제 하나 ─────────────────────────────────────────
+//
+//     **지면의 밝기는 회색이 낸다. 붉은 것은 실금뿐이다.**
+//
+// 개정 예산은 중간 톤(L .05~.15)을 화면의 15~30% 요구한다. 「보인다」의 정의다.
+// 그 면적을 **붉은색으로 채우면 이 안은 죽는다** — 화면의 20%가 염 계열이면
+// 그건 배경이 아니라 「전 화면 화염 이펙트」고, 염 속성 무기는 그 위에서
+// 색으로도 밝기로도 안 갈린다.
+//   ⇒ 중간 톤은 **식은 현무암**(청회색)이 전부 낸다. 실측 색상각 **229.3°**,
+//     채도폭이 255 중 **7.0**(2.7%)이라 실제로는 「회색」으로 읽힌다(예산 문서가
+//     말한 "저채도가 실제 방어"). 제일 가까운 속성 빙(198.6°)과 **30.7°** 다.
+//   ⇒ 붉은 것은 **실금**뿐이고, 실측 면적이 화면의 **0.129%**(월드 6자리 평균)다.
+// 「지면이 밝다」가 아니라 **「검은 지면에 실금이 있다」**여야 한다.
+//
+// ── 붉은 것의 색상각 — 재서 골랐다 ────────────────────────────────────────
+// 염 20.3° 와 적 몸(FOEDARK #24141F) 318.8° **사이**가 이 안이 설 자리다.
+// 둘에서 동시에 제일 먼 각은 (318.8+380.3)/2 = **349.6°** 이고 그때 양쪽과
+// 30.8° 다. 붉은 것 셋을 전부 그 언저리에 못 박았다:
+//   · 온기 #43101A 348.2° · 실금 #C0223A 350.9° · 분출 #E23A55 350.4°
+// **실측 349.1°** — 염과 31.2° · 적 몸과 30.3°. 주황(잔불색 #FF7A2C 26°)으로
+// 가면 염과 6° 밖에 안 떨어져 **못 쓴다.** 균열지의 잔불이 그 색인데 저쪽은
+// 화면당 3.2개 **점**이라 면적으로 갚고, 이쪽은 화면을 가로지르는 **선**이라
+// 못 갚는다. 같은 색이라도 형태가 다르면 쓸 수 있는 각이 다르다.
+//
+// ── 중간 톤이 월드 자리마다 널뛴 것 — 세 번 오진하고 네 번째에 잡았다 ─────
+// 첫 판은 월드 여섯 자리에서 **9.01% ~ 22.85%** 로 흔들렸다. 고친 순서가 곧
+// 이 절의 값이다. **앞의 둘은 진짜 원인이 아니었다.**
+//
+//   1차 오진 「표본 수」 — 중간 톤을 판 모자이크가 내고 있었고 화면에 판이
+//     60개뿐이니 이항분포 2σ 가 ±9% 다. 맞는 말이지만 이게 다가 아니었다.
+//   2차 오진 「분포가 문턱에 붙어 있다」 — 값을 밴드 아래끝(.05)에서 .008 위에
+//     두었더니 위층이 조금만 덮어도 화소가 밖으로 떨어졌다. 이것도 맞는 말이라
+//     고쳤더니 8.14% → 13.79% 로 **올라가긴 했는데 여전히 8.41~22.46** 이었다.
+//   3차 — 그래서 **층별로 쟀다**(칠하는 층을 하나씩 끄고 중간 톤을 비교). 그때
+//     숫자가 말했다: 껍질 타일의 기여가 자리마다 **+12.21%p / +5.62%p / +0.00%p**
+//     였다. 타일은 개수가 고정이라 기여가 자리에 안 휘둘려야 하는데 **0** 이
+//     나왔다 — 「분산이 크다」가 아니라 **「어떤 자리에서는 아예 안 그려진다」**.
+//   4차 진범 — `mpPat` 의 덮는 식이었다. 오프셋만큼 민 뒤 화면의 2.2배 사각형
+//     **한 장**으로 덮는데, 미는 양이 최대 S-1 이라 **S ≤ .6·W+1** 이어야 화면
+//     오른아래까지 닿는다. 1024 타일을 980 화면에 넘겼으니 조건 위반이었고,
+//     오프셋에 따라 화면 오른아래가 **비어 있었다.** (`PL04pat` 절 참고)
+//
+// 고치고 나니 **22.78 ~ 27.19%** 다. 폭이 13.9%p → **4.4%p**.
+//   ⇒ 교훈: 「타일인데 왜 분산이 있나」처럼 **원리상 있을 수 없는 값**이 나오면
+//     그건 튜닝 문제가 아니라 **안 그려지고 있다는 신호**다. 그리고 그 판정은
+//     층을 하나씩 꺼서 **기여도를 직접 재야** 나온다 — 추측 세 번보다 측정 한 번.
+//
+// 구조는 그대로 둔다(1·2차 진단도 옳았으므로): 중간 톤은 **구운 타일의 결정면
+// 모자이크**가 내고, 판 모자이크는 **최대 L 을 .0481 로 낮춰 아예 중간 톤에 못
+// 들어오게** 했다. 판은 밝기를 안 내고 저주파 얼룩만 낸다 — 그 위에 얹히는
+// 결정면·볕이 중간 톤을 내는데 그 값은 판 값에 거의 안 휘둘린다.
+//
+// ── 생성 원리: 흐름은 방향이 있다 ─────────────────────────────────────────
+// 균열지(금 간 흑암반)와 갈리는 자리다. 저쪽은 **등방**이라 168px 다각형이
+// 사방으로 같고, 이쪽은 **흐름 방향으로 늘어난** 232×104 판이다. 가로지르는
+// 금을 절반 가까이 빼서 판이 흐름 방향으로 최대 3칸(≈700px)까지 붙는다 —
+// 「용암이 이쪽으로 흘렀다」가 정지 화면에서도 읽힌다.
+//
+// ⚠️ 흐름 각을 **-26.57°(기울기 -1/2)로 못 박았다.** 예쁜 각이라서가 아니라
+// **비용 때문**이다(아래).
+//
+// ── 비용 — 범인은 회전이 아니라 「소수점 오프셋」이었다 ────────────────────
+// 첫 판이 **17.4ms** 였다. 층별로 재 보니(강제 래스터 240프레임):
+//     전부 17.41 · 결 빼고 12.10 · 자갈 빼고 12.20 · 장막 빼고 12.31
+//     · 패턴 전부 빼고 **2.17**
+// 즉 **패턴 세 겹이 15.2ms** 고 나머지 전부가 2.2ms 였다. 회전 탓인 줄 알고
+// 화면 사각형으로 클립해 봤지만 16.48 → 16.39, **효과 0**(스키아가 이미
+// 버린다). 진짜 원인은 따로 쟀을 때 나왔다:
+//     결 rot=0 **정수** 오프셋 2.09ms / rot=0 **소수** 오프셋 4.78ms
+//     / rot=-.42 소수 오프셋 4.84ms
+// **소수점 오프셋이 2.3배**고 회전은 거의 공짜였다. 카메라 좌표를 그대로 넘기면
+// 화면 전체가 이중선형 재표본되기 때문이다.
+//   ⇒ 그래서 ① 오프셋을 **정수로 반올림**하고 ② 기울기를 **타일에 구워** 회전을
+//     안 쓴다. 기울기 -1/2 은 1024 타일에서 **정확히 감긴다**: x 가 S 늘면 y 가
+//     S/2 내려가고, 밧줄 간격을 S/92 로 두면 그게 **46번째 밧줄**과 정확히
+//     겹친다. 그래서 밧줄 성질을 `r mod 46` 으로 뽑으면 이음매가 없다.
+//   ⇒ ③ 자갈 겹을 따로 안 부르고 크러스트 타일에 **같이 굽는다.**
+//   ⇒ ④ `mpPat` 대신 `PL04pat` 으로 감아 붙인다(그쪽 절 참고 — 정확성 문제였고
+//     겸사겸사 더 싸다).
+// 겹이 셋 → 둘, 소수 → 정수가 되어 **17.41ms → 3.96ms** 다(강제 래스터 900프레임
+// 평균. 비교: 사구 6.2 · 균열지 5.3 · 잿바다 0.064).
+//
+// ── 위층은 전부 빼기다 ────────────────────────────────────────────────────
+// 잿바다가 실측으로 얻은 규칙 — **위층 시차는 밝게가 아니라 어둡게로 준다.**
+// 이 안의 위층은 연기 장막(1.27×) 하나뿐이고 어둡게만 간다. 그 장막이 실금
+// 위를 지나가며 글로우를 **가린다**. 물리에도 맞고 예산에도 맞는다.
+//
+// ── 가산 합성도 흰 앞날도 없다 ────────────────────────────────────────────
+// `globalCompositeOperation="lighter"` 를 한 번도 안 쓴다. 균열지의 잔불은
+// 쓰는데, 그건 「빛이 겹치면 더 밝다」를 점 세 개로 사는 값이고 이 안은
+// 화면을 가로지르는 선이라 겹치는 자리가 계속 생긴다(금이 만나는 꼭짓점).
+// 팔레트 최고값도 분출구(L .436)뿐이고 그건 1.6px 점이다.
+const PL04={SHIFT:null};              // 실측 하네스가 카메라를 월드 저쪽으로 던진다
+const PL04TH=-Math.atan(.5);          // 흐름 방향 -26.57° = 기울기 -1/2 (타일에 구워진 각)
+const PL04CU=232, PL04CV=104;         // 흐름 방향 칸 · 가로지르는 칸(2.2:1)
+const PL04PEX=2;                      // 판 값의 제곱
+const PL04TS=1024;                    // 크러스트 타일 — 화면 너비(980)보다 커야 반복이 안 읽힌다
+const PL04NR=46;                      // 밧줄 감김수. 간격 = TS/(2·NR) = 11.13px
+// 1단이다. 3단 계조의 맨 윗단(흰 앞날)은 이 안에 없다.
+const PL04C_D="#06070C";              // 갓 굳은 판    L .0285 (공용 바닥의 1.6배)
+const PL04C_L="#0B0C11";              // 오래 식은 판  L .0481 — **중간 톤 아래로 눌러 둔다**
+const PL04C_GAP="#020205";            // 틈 어깨       L .0092 — 공용 바닥보다 어둡다
+const PL04C_CRUST="#AAB2C6";          // 크러스트 조각·밧줄 마루 L .690 — 알파로만 쓴다
+const PL04C_LIP="#8C94A6";            // 들린 판의 볕 쪽 L .579 — 알파 .12 이하로만
+const PL04C_WARM="#43101A";           // 실금 둘레 온기 348.2° L .127
+const PL04C_VEIN="#C0223A";           // 실금 본체      350.9° L .329
+const PL04C_VENT="#E23A55";           // 분출구·불티    350.4° L .436
+
+/// 금을 낼까 — 가로지르는 금은 절반쯤만 낸다. 그래야 판이 흐름 방향으로 붙어
+/// 「흘렀다」가 읽힌다. 흐름 금은 거의 다 낸다(그게 이 지형의 골격이다).
+const PL04keepU=(gx,gy)=>h2(gx,gy,9.13)>.47;
+const PL04keepV=(gx,gy)=>h2(gx,gy,12.71)>.12;
+/// 달아오른 금 — **전부 빛나면 그건 그물이지 실금이 아니다.**
+const PL04hotU =(gx,gy)=>h2(gx,gy,23.91)<.16;
+const PL04hotV =(gx,gy)=>h2(gx,gy,31.13)<.46;
+
+/// 판의 값. 왼쪽 금이 없으면 왼쪽 판의 값을 그대로 물려받아 **두세 칸이 한
+/// 판으로 붙는다** — 232px 격자가 그대로 드러나는 것을 막는 유일한 장치다.
+/// 광역 변조(.80~1.02)는 「최근 흐른 자리 ↔ 오래된 자리」인데, 깊게 주면
+/// 월드 어느 자리에서 재느냐로 화면이 무너지므로 얕게만 준다.
+function PL04plate(gx,gy){
+  let k=gx;
+  for(let n=0;n<3;n++){if(PL04keepU(k,gy))break;k--;}
+  const v=h2(k,gy,31.7), wx=(k+.5)*PL04CU, wy=(gy+.5)*PL04CV;
+  const s=.5*Math.sin(wx*.00107+wy*.00231)+.5*Math.sin(-wx*.00061+wy*.00149+2.3);
+  return Math.pow(v,PL04PEX)*(.80+.11*(s+1));
+}
+/// 금 한 줄.
+///
+/// ⚠️ 처음엔 **다섯 점**이었는데 2.6배 확대 판정에서 **「자로 그은 사선」**으로
+/// 걸렸다 — 232px 를 네 토막 내면 한 토막이 58px 라, 그 길이의 직선이 그대로
+/// 보인다. 반대로 점마다 독립으로 흔들면 이번엔 **잡음**이 된다.
+///   ⇒ **두 규모를 겹친다**: 큰 굽이 하나(사인 한 봉우리, 진폭 L·.20)에 잔
+///     꺾임(L·.045)을 얹는다. 아홉 점이면 한 토막이 29px 라 직선이 안 읽힌다.
+///     둘 다 `sin(πu)` 로 감싸 **끝점에서 정확히 0** 이므로, 이웃 판이 같은
+///     줄을 공유해도 꼭짓점이 안 벌어진다.
+const PL04NP=9;
+function PL04crack(a,b,sd){
+  const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,px=-dy/L,py=dx/L,p=[];
+  const bend=(hash(sd)-.5)*L*.20, ph=hash(sd+11.3)*TAU;
+  for(let i=0;i<PL04NP;i++){
+    const u=i/(PL04NP-1),env=Math.sin(Math.PI*u);
+    const k=env*(bend+(hash(sd+i*3.7+ph)-.5)*L*.045);
+    p.push([a[0]+dx*u+px*k, a[1]+dy*u+py*k]);}
+  return p;
+}
+
+/// 크러스트 타일 — **이 안의 중간 톤이 거의 다 여기서 나온다.**
+/// 구운 타일이라 화면 어디를 잘라도 같은 개수가 들어온다(공간 분산 0).
+/// 세 가지를 한 장에 굽는다 — 패턴 한 겹이 2.1ms 라 겹 수가 곧 비용이다.
+///   ① 껍질 조각 — 값 얼룩. 밴드(.05~.15) 안쪽을 넓게 훑도록 알파를 u² 로 뽑는다
+///   ② 승상용암 밧줄 — 기울기 -1/2 을 **구워** 넣어 회전 없이 -26.57° 로 눕는다
+///   ③ 알갱이 — 자갈 겹을 따로 안 부르려고 여기 같이 굽는다
+const PL04crust=()=>mpTile("pl04crust",PL04TS,(c,S)=>{
+  // ① 잔 결정면(facet) 모자이크 — **중간 톤의 주력이자 이 안의 표면 그 자체.**
+  //
+  // ⚠️ 여기까지 두 번 틀렸고 둘 다 2.6배 확대 판정에서 걸렸다:
+  //   · 1차 — 지름 28~72px 짜리 단색 얼룩 120개 → **「스티커」**. 큰 단색
+  //     다각형은 표면이 아니라 **표면에 붙은 것**으로 읽힌다.
+  //   · 2차 — 지름 9~30px 로 줄여 850개 → **「팝콘」**. 규모는 맞췄는데 조각들이
+  //     검은 바탕 위에 **떨어져** 있어서 눈처럼 흩뿌려진 것으로 읽혔다.
+  // 두 번 다 원인이 같다: **낱개가 배경 위에 떠 있었다.**
+  //   ⇒ 답은 크기도 개수도 아니라 **빈틈을 없애는 것**이다. 격자 꼭짓점을 흔들어
+  //     면을 **맞물리게** 깔면(이웃이 같은 꼭짓점을 쓰므로 틈이 원리적으로 0),
+  //     낱개가 안 보이고 **깨진 표면 한 장**으로 읽힌다. 이 안의 큰 판이 금을
+  //     공유해 맞물리는 것과 **같은 문법**을 한 옥타브 아래에서 되풀이하는 것이라,
+  //     두 규모가 같은 지형으로 읽힌다.
+  //   ⇒ 밝기는 **양쪽으로** 간다. 밝은 면만 있으면 다시 얼룩이 되고, 어두운 면이
+  //     섞여야 「깨진 껍질」이다. 밝은 쪽을 3.4제곱으로 눌러 **밴드에 드는 면적을
+  //     상한에 묶는다** — 이 지수가 중간 톤 %의 손잡이다.
+  const NF=68,CF=S/NF;
+  const fv=(i,j)=>{const a=((i%NF)+NF)%NF,b=((j%NF)+NF)%NF;
+    return[i*CF+(hash(a*12.91+b*78.23+1.3)-.5)*CF*.74,
+           j*CF+(hash(a*39.31+b*17.77+5.1)-.5)*CF*.74];};
+  // 면마다 값을 따로 주면 **전부 같은 크기**로 보인다(15px 격자가 그대로
+  // 드러나 위장무늬가 된다). 셋 중 하나는 이웃의 값을 물려받게 해 두세 면이
+  // 한 덩어리로 붙는다 — 크기가 섞이니 격자가 안 읽힌다. 큰 판에서 쓴 수법을
+  // 그대로 한 옥타브 아래에 되풀이한다.
+  const fval=(i,j)=>{
+    let a=((i%NF)+NF)%NF,b=((j%NF)+NF)%NF;
+    if(hash(a*5.31+b*9.13+2.7)<.30)a=((a-1)+NF)%NF;
+    else if(hash(a*11.71+b*4.33+6.1)<.22)b=((b-1)+NF)%NF;
+    return hash(a*7.71+b*3.13+9.9);};
+  for(let j=0;j<NF;j++)for(let i=0;i<NF;i++){
+    const q=[fv(i,j),fv(i+1,j),fv(i+1,j+1),fv(i,j+1)];
+    const v=fval(i,j);
+    let col;
+    if(v<.42)col="rgba(0,0,0,"+(.05+.28*Math.pow(1-v/.42,1.5)).toFixed(3)+")";
+    else col=A(PL04C_CRUST,.010+.118*Math.pow((v-.42)/.58,3.0));
+    fillPoly(c,q,col);}
+  // ② 승상용암 밧줄. y = r·sp − x/2 + 흔들림. x 가 S 늘면 y 가 S/2 = 46·sp
+  //    내려가므로 **46번째 밧줄과 정확히 겹친다** ⇒ 성질을 `r mod 46` 으로 뽑으면
+  //    이음매가 0 이다. 흔들림은 **정수 파수만** 써서 x=0 과 x=S 에서 값이 같다.
+  //
+  // ⚠️ 처음엔 한 줄을 폭 전체로 이어 긋고 알파도 높았다가 **「생선가시」**로
+  // 걸렸다 — 화면을 가로지르는 평행 실선 다발은 결이 아니라 **빗금**이다.
+  //   ⇒ 열여섯 토막으로 끊고 절반을 뺀다. 그리고 **마루보다 골을 세게** 준다:
+  //     밝은 실선은 긁힌 자국으로 읽히지만 어두운 홈은 지형으로 읽힌다. 결의
+  //     몫은 「방향을 말하는 것」이지 「밝기를 내는 것」이 아니다 — 밝기는 ①이 낸다.
+  const sp=S/(2*PL04NR),SEG=16;
+  for(let r=-2;r<=140;r++){
+    const rp=((r%PL04NR)+PL04NR)%PL04NR,sd=rp*3.7+.9;
+    const amp=2.2+hash(sd)*3.4;
+    const k1=2+Math.floor(hash(sd+1.1)*3),k2=6+Math.floor(hash(sd+2.3)*5);
+    const p1=hash(sd+3.5)*TAU,p2=hash(sd+4.9)*TAU;
+    const yy=x=>r*sp-x*.5+amp*Math.sin(TAU*k1*x/S+p1)+amp*.40*Math.sin(TAU*k2*x/S+p2);
+    for(let g=0;g<SEG;g++){
+      const hv=hash(sd+g*13.7+2.9);
+      if(hv<.50)continue;                        // 끊긴 자리 — 절반은 아예 없다
+      const xa=g/SEG*S,xb=(g+1)/SEG*S;
+      const draw=(dy,col,w)=>{c.beginPath();
+        for(let i=0;i<=10;i++){const x=xa+(xb-xa)*i/10,y=yy(x)+dy;
+          i?c.lineTo(x,y):c.moveTo(x,y);}
+        c.strokeStyle=col;c.lineWidth=w;c.stroke();};
+      // ⚠️ 마루(밝은 실선)를 아예 **뺐다.** 알파를 .018 까지 내려도 화면에서
+      // 여전히 **「긁힌 자국」**으로 읽혔다(1:1 판정) — 검은 지면 위의 밝은
+      // 직선은 아무리 흐려도 눈이 「그은 것」으로 집는다. 어두운 홈은 같은
+      // 굵기·같은 길이여도 **지형**으로 읽힌다. 그래서 골만 남긴다.
+      draw(1.7,"rgba(0,0,0,.34)",2.4);}
+  }
+  // ③ 알갱이 — 고주파. 큰 얼룩만 있으면 스크롤이 「미끄러지는 종이」로 보인다.
+  for(let i=0;i<2200;i++){
+    const x=hash(i*2.7+.3)*S,y=hash(i*6.1+1.1)*S,rr=.55+hash(i*8.9)*1.1;
+    c.fillStyle=A(PL04C_CRUST,.040+hash(i*4.4)*.050);
+    mpWrap9(S,(dx,dy)=>{c.beginPath();c.arc(x+dx,y+dy,rr,0,TAU);c.fill();});}
+});
+/// 타일 붓칠. **`mpPat` 을 안 쓴다** — 쓸 수가 없었다.
+///
+/// ⚠️ `mpPat` 은 오프셋만큼 민 뒤 `fillRect(-.6W,-.6H, 2.2W,2.2H)` **한 장**으로
+/// 덮는다. 미는 양이 최대 S-1 이므로 그 사각형이 화면 오른아래를 덮으려면
+/// **S ≤ .6·W+1** 이어야 한다 — 980×548 화면이면 S ≤ 329, 302 칸이면 S ≤ 182.
+/// 1024 타일을 넘겼더니 **자리에 따라 안 그려졌다**: 껍질 층의 중간 톤 기여가
+/// 월드 자리마다 **+12.21%p ↔ +0.00%p** 로 튀었고(층별 실측), 「타일인데 왜
+/// 분산이 있나」를 세 번 오진한 끝에 이 식에서 잡았다. 안 튄 게 아니라 화면
+/// 오른아래가 **비어 있었다.**
+///
+/// 그래서 필요한 만큼만 감아 붙인다. 타일 크기와 무관하게 맞고, 정수 오프셋
+/// 이라 이중선형 재표본도 없다(소수 오프셋 대비 2.3배 싸다 — 층별 실측).
+/// 1024 타일이면 980×548 화면에 **최대 네 번**이다.
+function PL04pat(c,cv,W,H,ox,oy){
+  const S=cv.width||1;
+  const x0=-(((Math.round(ox)%S)+S)%S),y0=-(((Math.round(oy)%S)+S)%S);
+  for(let x=x0;x<W;x+=S)for(let y=y0;y<H;y+=S)c.drawImage(cv,x,y);
+}
+/// 연기 장막 — 이 안의 유일한 위층. **어둡게만** 간다.
+const PL04veil=()=>mpTile("pl04veil",448,(c,S)=>{
+  for(let i=0;i<20;i++){
+    const x=hash(i*4.13)*S,y=hash(i*7.91)*S,r=64+hash(i*2.37)*118;
+    const a=(.045+hash(i*5.53)*.075).toFixed(3);
+    mpWrap9(S,(dx,dy)=>{
+      const g=c.createRadialGradient(x+dx,y+dy,0,x+dx,y+dy,r);
+      g.addColorStop(0,`rgba(3,3,5,${a})`);g.addColorStop(1,"rgba(3,3,5,0)");
+      c.fillStyle=g;c.beginPath();c.arc(x+dx,y+dy,r,0,TAU);c.fill();});}
+});
+
+/// 용암지. **칠하는 차례를 패스로 가른다** — 자기막이 발마다 막→결→마루를
+/// 이어 칠해서 다음 발의 막이 앞 발의 마루를 덮었던 사고(0.2% → 세 패스로
+/// 가르니 0.68%)를 안 밟는다. 여기서는 여덟 패스다:
+///   판 → 껍질 → 어깨 → 볕 → 온기 → 실금 → 분출 → 장막·불티
+/// 같은 알파의 선은 **한 path 에 모아 한 번에** 긋는다. 호출이 줄 뿐 아니라
+/// 금이 만나는 꼭짓점에서 알파가 두 번 얹히지 않는다.
+MAPP.bg.lava=function PL04lava(c,t,W,H){
+  mapFloor(c,W,H);                    // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 뜬다
+  const cm=MAPP.cam(t),sh=PL04.SHIFT;
+  const ox=cm[0]+(sh?sh[0]:0),oy=cm[1]+(sh?sh[1]:0);
+  const cs=Math.cos(PL04TH),sn=Math.sin(PL04TH),sx0=W/2-ox,sy0=H/2-oy;
+  // 꼭짓점은 네 칸이 나눠 쓰므로 한 프레임 안에서 캐시한다.
+  // **흐름 좌표에서 흔들고** 나서 돌린다 — 그래야 흔들림도 흐름을 따라 늘어난다.
+  const VC={};
+  const vert=(gx,gy)=>{const kk=gx+"_"+gy;let p=VC[kk];if(p)return p;
+    const u=gx*PL04CU+(h2(gx,gy,1.73)-.5)*PL04CU*.44;
+    const v=gy*PL04CV+(h2(gx,gy,4.31)-.5)*PL04CV*.56;
+    p=[u*cs-v*sn+sx0,u*sn+v*cs+sy0];VC[kk]=p;return p;};
+  // 화면 사각형을 흐름 좌표로 접어 도는 칸을 정한다. 도는 칸 수가 화면
+  // 넓이에만 비례하고 월드 크기와 무관하다(scatter 와 같은 원리).
+  let u0=1e9,u1=-1e9,v0=1e9,v1=-1e9;
+  for(let i=0;i<4;i++){
+    const wx=ox+((i===1||i===2)?W/2:-W/2),wy=oy+((i>=2)?H/2:-H/2);
+    const u=wx*cs+wy*sn,v=-wx*sn+wy*cs;
+    if(u<u0)u0=u;if(u>u1)u1=u;if(v<v0)v0=v;if(v>v1)v1=v;}
+  const gu0=Math.floor(u0/PL04CU)-1,gu1=Math.floor(u1/PL04CU)+1;
+  const gv0=Math.floor(v0/PL04CV)-1,gv1=Math.floor(v1/PL04CV)+1;
+  // 돌린 격자는 화면 사각형보다 1.9배 넓은 칸 범위를 낸다 — 실제 그리는 것은
+  // 화면에 걸친 칸뿐이라, 네 꼭짓점의 사각 경계로 잘라 낸다(금이 최대 30px
+  // 삐져나오므로 여유 34px).
+  const M=34,cells=[];
+  for(let gy=gv0;gy<=gv1;gy++)for(let gx=gu0;gx<=gu1;gx++){
+    const q=[vert(gx,gy),vert(gx+1,gy),vert(gx+1,gy+1),vert(gx,gy+1)];
+    let x0=q[0][0],x1=x0,y0=q[0][1],y1=y0;
+    for(let i=1;i<4;i++){const p=q[i];
+      if(p[0]<x0)x0=p[0];else if(p[0]>x1)x1=p[0];
+      if(p[1]<y0)y0=p[1];else if(p[1]>y1)y1=p[1];}
+    if(x1<-M||x0>W+M||y1<-M||y0>H+M)continue;
+    cells.push([gx,gy,q,null,null]);}
+  /// 여러 줄을 **한 path 에 모아** 한 번에 긋는다. [pick] 이 그 칸의 어느 금을
+  /// 낼지 고르고, [dx,dy] 는 볕 쪽으로 미는 양이다.
+  const sweep=(pick,col,w,dx,dy)=>{
+    c.beginPath();let any=false;
+    for(let n=0;n<cells.length;n++){const E=cells[n],p=pick(E);
+      if(!p)continue;any=true;
+      for(let i=0;i<p.length;i++){const X=p[i][0]+(dx||0),Y=p[i][1]+(dy||0);
+        i?c.lineTo(X,Y):c.moveTo(X,Y);}}
+    if(!any)return;
+    c.strokeStyle=col;c.lineWidth=w;c.stroke();};
+  /// 마디만 골라 모아 긋는다. [lo,hi) 에 드는 마디만 담으므로, 같은 금이라도
+  /// 마디마다 밝기가 갈리고 **일부는 아예 빠진다** — 「그린 윤곽선」이 안 되는
+  /// 유일한 방법이다(균일한 폭·균일한 알파로 이으면 벡터 선으로 읽힌다).
+  const sweepSeg=(pick,sd,lo,hi,col,w,dx,dy)=>{
+    c.beginPath();let any=false;
+    for(let n=0;n<cells.length;n++){const E=cells[n],p=pick(E);if(!p)continue;
+      for(let i=0;i<p.length-1;i++){
+        const hv=h2(E[0]*5+i,E[1],sd);
+        if(hv<lo||hv>=hi)continue;
+        any=true;
+        c.moveTo(p[i][0]+dx,p[i][1]+dy);c.lineTo(p[i+1][0]+dx,p[i+1][1]+dy);}}
+    if(!any)return;
+    c.strokeStyle=col;c.lineWidth=w;c.stroke();};
+  const pkV=E=>PL04keepV(E[0],E[1])?E[3]:null;
+  const pkU=E=>PL04keepU(E[0],E[1])?E[4]:null;
+
+  // ① 판 — 금과 **같은 폴리라인**을 경계로 쓴다. 두 판이 한 줄을 나눠 쓰므로
+  //    사이가 벌어질 수 없고, 금은 그 위에 얹는 것이라 자리가 정확히 맞는다.
+  //    ⚠️ 판은 이제 **중간 톤을 안 낸다**(최대 L .0442). 저주파 얼룩만 낸다.
+  for(let n=0;n<cells.length;n++){
+    const E=cells[n],gx=E[0],gy=E[1],q=E[2];
+    const tp=PL04crack(q[0],q[1],gx*7.31+gy*3.17+1.9);
+    const rt=PL04crack(q[1],q[2],(gx+1)*5.87+gy*11.29+4.3);
+    const bt=PL04crack(q[3],q[2],gx*7.31+(gy+1)*3.17+1.9);
+    const lf=PL04crack(q[0],q[3],gx*5.87+gy*11.29+4.3);
+    const NP=PL04NP;
+    c.beginPath();
+    for(let i=0;i<NP;i++){const p=tp[i];i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]);}
+    for(let i=1;i<NP;i++)c.lineTo(rt[i][0],rt[i][1]);
+    for(let i=NP-2;i>=0;i--)c.lineTo(bt[i][0],bt[i][1]);
+    for(let i=NP-2;i>=1;i--)c.lineTo(lf[i][0],lf[i][1]);
+    c.closePath();
+    c.fillStyle=mixHex(PL04C_D,PL04C_L,PL04plate(gx,gy));c.fill();
+    E[3]=tp;E[4]=lf;}                 // 금 패스가 다시 안 만들게 들고 있는다
+
+  // ② 껍질 — 기울기가 타일에 구워져 있으니 회전은 안 준다. 오프셋은 정수라
+  //    이중선형 재표본이 없다(소수로 넘기면 2.09ms → 4.78ms — 층별 실측).
+  PL04pat(c,PL04crust(),W,H,ox,oy);
+
+  c.lineCap="round";c.lineJoin="round";
+  // ③ 어깨 — 판 사이가 **파여 들어간다.** 두 단으로 나눠 계단을 없앤다.
+  sweep(pkV,A(PL04C_GAP,.50),8.2);sweep(pkU,A(PL04C_GAP,.50),8.2);
+  sweep(pkV,A(PL04C_GAP,.80),4.4);sweep(pkU,A(PL04C_GAP,.80),4.4);
+  // ④ 볕 — 들린 판의 **오른아래** 면. 빛이 왼위에서 오면 그쪽이 이렇게 걸린다.
+  //
+  // ⚠️ 처음엔 넓은 겹(9px)+좁은 겹(2.2px)을 금 전체에 균일하게 그었다가 2.6배
+  // 확대 판정에서 **「두 겹짜리 테두리」**로 걸렸다 — 굵기도 알파도 일정하니
+  // 릴리프가 아니라 **펜으로 그은 윤곽선**으로 읽혔다. 이 안에서 제일 눈에 띄는
+  // 것이 그 선이었으니, 화면의 정체가 「용암 지면」이 아니라 「검은 다각형 도면」
+  // 이 됐다.
+  //   ⇒ 굵기를 하나로 줄이고 **마디마다 밝기를 가르고 3할은 뺀다.** 끊긴 볕은
+  //     「어떤 모서리는 들렸고 어떤 모서리는 안 들렸다」로 읽힌다.
+  for(const pk of [pkV,pkU]){
+    sweepSeg(pk,17.3,.30,.66,A(PL04C_LIP,.085),3.4,3.0,3.0);
+    sweepSeg(pk,17.3,.66,1.01,A(PL04C_LIP,.150),3.0,2.6,2.6);}
+  // ⑤ 온기 — 실금 둘레 3.6px. **여기가 붉은 면적의 대부분**이라 알파를 낮게
+  //    묶는다(합성 L ≈ .06, 중간 톤 아래쪽 끝). 숨은 칸마다 위상이 다르다.
+  for(let n=0;n<cells.length;n++){const E=cells[n],gx=E[0],gy=E[1];
+    if(PL04keepV(gx,gy)&&PL04hotV(gx,gy)){
+      const b=.52+.48*Math.sin(t*.62+h2(gx,gy,3.31)*TAU);
+      c.beginPath();const p=E[3];
+      for(let i=0;i<PL04NP;i++)i?c.lineTo(p[i][0],p[i][1]):c.moveTo(p[i][0],p[i][1]);
+      c.strokeStyle=A(PL04C_WARM,.30*b);c.lineWidth=3.6;c.stroke();}
+    if(PL04keepU(gx,gy)&&PL04hotU(gx,gy)){
+      const b=.52+.48*Math.sin(t*.62+h2(gx,gy,5.77)*TAU);
+      c.beginPath();const p=E[4];
+      for(let i=0;i<PL04NP;i++)i?c.lineTo(p[i][0],p[i][1]):c.moveTo(p[i][0],p[i][1]);
+      c.strokeStyle=A(PL04C_WARM,.30*b);c.lineWidth=3.6;c.stroke();}}
+  // ⑥ 실금 — **마디마다 따로** 켠다. 한 줄을 통으로 그으면 「그린 윤곽선」이
+  //    되고, 마디의 3~4할이 꺼져 있어야 「식다 만 금」이 된다.
+  for(let n=0;n<cells.length;n++){const E=cells[n],gx=E[0],gy=E[1];
+    const seg=(p,b,sd)=>{for(let i=0;i<PL04NP-1;i++){
+      const g=b*(h2(gx*3+i,gy,sd)*1.5-.32);
+      if(g<.14)continue;
+      c.beginPath();c.moveTo(p[i][0],p[i][1]);c.lineTo(p[i+1][0],p[i+1][1]);
+      c.strokeStyle=A(PL04C_VEIN,Math.min(.86,g));c.lineWidth=1.15;c.stroke();}};
+    if(PL04keepV(gx,gy)&&PL04hotV(gx,gy))
+      seg(E[3],.52+.48*Math.sin(t*.62+h2(gx,gy,3.31)*TAU),7.19);
+    if(PL04keepU(gx,gy)&&PL04hotU(gx,gy))
+      seg(E[4],.52+.48*Math.sin(t*.62+h2(gx,gy,5.77)*TAU),13.41);}
+  // ⑦ 분출구 — 금이 만나는 매듭이 유난히 뜨겁다. 화면당 두셋.
+  //    반경 10px 을 안 넘긴다 — 넘기면 「보케」로 읽힌다(앞 손들이 잡은 것).
+  for(let n=0;n<cells.length;n++){const E=cells[n],gx=E[0],gy=E[1];
+    if(h2(gx,gy,21.73)>.042)continue;
+    const p=E[2][0],b=.45+.55*Math.sin(t*.83+h2(gx,gy,6.61)*TAU);
+    const g=c.createRadialGradient(p[0],p[1],0,p[0],p[1],9.5);
+    g.addColorStop(0,A(PL04C_WARM,.72*b));g.addColorStop(1,A(PL04C_WARM,0));
+    c.fillStyle=g;c.beginPath();c.arc(p[0],p[1],9.5,0,TAU);c.fill();
+    c.fillStyle=A(PL04C_VEIN,.62*b);c.beginPath();c.arc(p[0],p[1],2.6,0,TAU);c.fill();
+    c.fillStyle=A(PL04C_VENT,.92*b);c.beginPath();c.arc(p[0],p[1],1.35,0,TAU);c.fill();}
+
+  // ⑧ 연기 장막(1.27×) — **실금 위를 지나가며 가린다.** 어두운 위층이라
+  //    아무리 진해도 이펙트와 안 싸운다. 그 위로 불티가 1.5× 로 흐른다.
+  PL04pat(c,PL04veil(),W,H,ox*1.27,oy*1.27);
+  scatter(ox*1.5,oy*1.5-t*64,W,H,150,1,(x,y,i,j,r)=>{
+    if(r>.24)return;
+    // 깜빡임은 **하나의 위상**에서 파생한다 — 켜짐/꺼짐을 따로 두면 주기
+    // 끝과 처음이 안 맞아 튄다.
+    const ph=(t*.55+h2(i,j,7.71))%1,a=Math.sin(Math.PI*ph);
+    mapStar(c,x,y,.7+.5*h2(i,j,8.33),PL04C_VENT,.90*a*a);});
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181)을 용암지 위에 얹는다.
+function PL04proof(c,t,dt,W,H,st){MAPP.bg.lava(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다(배경만 그린 캔버스를 한 번 읽는다).
+function PL04num(c,t,dt,W,H,st){MAPP.bg.lava(c,t,W,H);mapMeter(c,t,W,H,st);}
+if(typeof window!=="undefined")window.PL04=PL04;
+mapTile("pl04",MAPP.demo("lava",1,1),"PL04 · 용암지 熔岩地 + 빛파동 + 미니맵",
+  "지면이 스스로 빛나는 유일한 안. 밝기는 식은 현무암(청회색 232°)이 내고 붉은 것은 실금(350.9°)뿐 — 실금 면적을 화면의 0.1%대로 묶어 염 속성과 면적으로 갈린다. 흐름 방향 -26.6° 로 늘어난 판.",
+  MAP_W,MAP_H,1);
+mapTile("pl-bg",MAPP.demo("lava",0,0),"용암지 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL04proof,"용암지 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("lava",0,1),"용암지 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("pl-num",PL04num,"용암지 · 밝기 실측","중간 톤 15~30% · 평균 L ≤ .075 · L>.35 ≤ 0.5%.",MAP_S,MAP_S);
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// P10안 · 유기체 有機 — 살아 있는 지면                          (2026-08-11)
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 한 줄도 안 고친다. 최상위 이름은 전부
+// `PL10` 으로 시작하고, 등록은 `MAPP.bg.organic` **대입 하나**다.
+// 새 그리기 원시함수는 0개다 — `mapFloor`·`scatter`·`h2`·`hash`·`A`·
+// `puffPoly`·`fillPoly`·`ribbonPoly`·`mpTile`·`mpPat`·`mpWrap9` 조합뿐이다.
+//
+// ── 이 안이 유일하게 하는 것: 살아 있다 ──────────────────────────────────
+// 나머지 열은 전부 **죽은 것**이다 — 식은 암반, 쌓인 재, 굳은 결정, 무너진
+// 인공물, 흐르는 모래. 이끼밭조차 「지면 위에 자란 것」이지 지면 자체는 흙이다.
+// 이 안만 **지면이 곧 몸**이다.
+//
+// ⚠️ 그래서 이 안은 「살아 있는 값」을 해야 한다. 안 그러면 그냥 보라색 배경이다.
+//
+// ── ⚠️ 화면 전체가 같이 뛰면 안 된다 — 답은 위상이 아니라 **보존**이다 ────
+// 이끼밭은 군락마다 주기·위상을 달리해 숨을 안 맞췄다. 좋은 답이지만 **통계적**
+// 이다 — 군락 수가 적으면 우연히 겹쳐 화면이 한 번 밝아진다.
+//
+// 이 안은 한 칸 더 간다: **맥동이 광량이 아니라 흐름이다.**
+//   · 혈관의 밝기는 **한 번도 안 변한다.** 변하는 것은 **어느 토막이 밝은가**다.
+//   · 한 혈관에 마루가 `NB` 개, **호길이로 등간격**으로 들어 있다. 하나가 끝에서
+//     나가는 순간 다른 하나가 뿌리로 들어온다 — **밝은 화소의 총량이 시간에
+//     대해 상수**다. 위상이 우연히 겹쳐도 총량이 안 오른다.
+//   · 그 위에 관마다 속도(`sp`)·위상(`ph`)·방향까지 해시로 다르게 줘, 두 겹으로
+//     막는다. 화면에 마루가 350개쯤 흐르므로 큰 수의 법칙이 한 번 더 눌러 준다.
+// **실측으로 증명한다**(아래 「검증」): 900프레임에서 화면 평균 L 의 최대-최소가
+// 얼마인지가 이 안의 합격 조건이고, 보고에 그 수를 적는다.
+//
+// 그리고 「살아 있음」을 밝기가 아니라 **운동**이 말하게 두는 것은 이끼밭 포자가
+// 이미 증명한 규칙이다. 이 안은 그 규칙을 **화면의 주역**으로 삼는다.
+//
+// ── ⚠️ 색 — 살은 붉지만 이 안은 **안 붉다** ───────────────────────────────
+// 팔레트 55벌의 중간 톤 색상각을 전부 재서 빈 구간을 찾았다(유채색만, 채도
+// ≥60/255). 제일 넓은 자리 셋과 그 대가:
+//   · 306° — 이웃 속성과 16.3° 로 제일 넓지만 **적 몸(FOEDARK 318.8°)과 12.6°**.
+//   · 110° — 이웃과 19.4° 로 제일 넓지만 초록이라 이끼밭·독과 계열이 겹친다.
+//   · **243°** — 이웃(mArc 259.5 / magnet 226.2)과 16.5·16.8°, 그리고
+//     **적과 75.8°.** 색상환에서 적에게서 제일 먼 자리다.
+// 지면형은 속성보다 **적과** 부딪히기 쉽다(사구가 14° 로 붙어 면적으로 겨우
+// 막았다). 지면은 화면을 100% 덮으니 적과 붙는 쪽이 훨씬 비싸다. ⇒ **243°.**
+// 여섯 기본 속성과의 거리는 어둠(273.0) **30.0°** · 빙(198.6) 44.4° 이고,
+// 30.0° 는 색상환이 이 정도로 꽉 찬 상태에서 얻을 수 있는 **최댓값 쪽 끝**이다.
+//
+// ⚠️ 그래도 **실제 방어는 저채도다.** 이 안의 최대 채도는 혈관 속 34/255,
+// 불티 60/255 다 — 염 225 · 뇌 197 · 빙 168 의 **1/5 이하**다. 명도로 가른다:
+// 살 .038 → 실핏줄 .083 → 굵은 혈관 .127 → 맥동 마루 .163. 색상각이 같은
+// 한 줄 위의 **명도 점 다섯**이고, 그것이 「저채도로 가고 명도로 갈라라」다.
+// ⚠️ 240°에 무속성(gold)·백광(white)이 있지만 **채도 12·13** 이라 사실상
+// 무채색이고, 명도가 .456/.955 로 이 안의 최대 면적 톤(.127)과 3.6배 이상
+// 떨어진다. 못 지킨 것으로 치지 않되 보고에 적는다.
+//
+// ── ⚠️ 징그러움과 아름다움 — 판단과 근거 ──────────────────────────────────
+// 이 게임은 **빛과 어둠**의 게임이지 호러가 아니다. 유기체는 한 발만 잘못
+// 디디면 바로 호러가 된다. 그래서 「징그러운 쪽 신호」를 **하나씩 지목해 뺐다**:
+//   ✗ **젖은 반사(스페큘러)** — 번들거림이 「생고기」를 만드는 제1신호다.
+//     이 안에 흰 앞날이 없고 하이라이트가 한 점도 없다. 전부 무광이다.
+//   ✗ **붉은 살색** — 위 「색」 절. 243° 는 심해 생물·신경 조직의 색이다.
+//   ✗ **구멍 · 털 · 이빨 · 물집** — 신체 훼손의 어휘다. 하나도 안 그린다.
+//   ✗ **덩어리진 비대칭 혹** — 종양으로 읽힌다. 소엽은 완만하고 규칙적이다.
+//   ✓ **가지치는 관다발** — 잎맥 · 삼각주 · 신경. 사람이 보편적으로 아름답다고
+//     읽는 몇 안 되는 형태다. 이 안의 주역을 여기 뒀다.
+//   ✓ **관 속을 흐르는 빛** — 「피가 돈다」가 아니라 **「빛이 돈다」**로 읽히게
+//     마루를 차가운 저채도로 뒀다. 그래서 이 지면은 게임의 제목과 같은 말을
+//     한 번 더 한다: 살아 있는 행성의 혈관을 도는 것이 **빛**이다.
+// 판정: **아름다움 쪽.** 근거는 위 여섯 항목이고, 렌더를 눈으로 보고 다시 확인했다.
+//
+// ── 밝은 화소의 면적을 어디에 쓰는가 ─────────────────────────────────────
+// 지면은 화면을 100% 덮으므로 「평균을 어둡게」가 아니라 **면적을 묶는** 문제다.
+// 이 안의 배분은 이렇다:
+//   · **살(100%)** — L .038. **중간 톤 띠(.05~.15) 아래**로 일부러 낮춰 둔다.
+//     화면 전체를 덮는 것이 띠에 들어가면 그 순간 예산이 통째로 날아간다.
+//   · **관 주위 조직** — L .053. 띠 면적의 **대부분이 여기다.** 관을 따라
+//     흩어져 깔리는 것이 요점이다 — 같은 면적을 넓은 덩어리로 쓰면 지름 40px
+//     짜리 적이 통째로 묻히지만, 관을 따라 흩어진 면적은 적 실루엣을 못 삼킨다.
+//   · **혈관 속** — L .083(실핏줄) / .127(굵은 혈관). 잘게 흩어진 가는 선이다.
+//   · **맥동 마루** — L .163. 면적 봉우리(.17) 바로 아래.
+//   · **맥동 심지** — L .239. 관 굵기의 45% 짜리 심지에만. 여기만 .17 위다.
+//   · **결절 불티(<0.01%)** — L .375. 화면에 두어 개뿐인 밝은 점.
+// 실측값은 아래 「검증」 절에 있다(월드 여덟 자리 · 400프레임 · PNG 디코드).
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 혈관망은 **타일을 안 쓴다.** 결절 자리를 기존 `scatter()` 의 칸 해시로 잡고
+// (칸 번호가 무한하니 반복이 없다), 이웃 칸 결절까지 관을 놓는다. 두 칸이 같은
+// `PL10nx/ny` 를 부르므로 관이 저절로 이어진다 — 이어 붙이는 코드가 없다.
+// 살결·디더만 타일이다(512·176 주기의 저대비 잡음이라 눈이 못 센다).
+//
+// ── 검증 (2026-08-12 · 980×548 · dpr1 · dt=1/60 고정 구동 400프레임) ──────
+// **월드 여덟 자리**에서 재고 최소·평균·최대를 다 적는다. 한 자리에서 잰 값은
+// 시안의 자기소개지 측정이 아니다(동공이 「웅덩이를 가로지르는 자리」에서만
+// 재다가 최소 1.19% 가 드러난 전례).
+//   중간 톤(.05~.15)  최소 15.55% · 평균 21.52% · 최대 24.89%  [예산 15~30] ✔
+//   넓은 면적 평균 L  최소 .042 · 평균 .048 · 최대 .052        [예산 ≤.075] ✔
+//   L>.35             최대 0.001%                              [예산 ≤0.5]  ✔
+//   최대 L            .237~.355 (결절 불티)
+//   L>.17             0.69~1.06%  ← **아래 「못 지킨 것」 참조**
+// ⚠️ 최소값 15.55% 는 하한(15)에 **0.55%p** 밖에 안 남는다. 제일 성긴 자리
+// (월드 −6050,−2270)가 그렇고, 조율자가 여기를 더 벌리고 싶으면 `PL10edges`
+// 의 `.45+.85*fld` 에서 앞의 .45(성긴 구역 바닥)를 올리는 것이 제일 곧다.
+//
+// ⚠️ **못 지킨 것 — 「면적 봉우리 ≤ .17」을 문자 그대로는 못 지켰다.**
+// 화소의 **0.70~1.07%** 가 .17 을 넘는다(맥동 심지, L .237). 넓은 면적의
+// 봉우리는 맥동 마루 **L .163** 으로 예산 안이고, 넘는 것은 관 굵기의 38% 짜리
+// **1~3px 심지**뿐이다 — 「밝은 불티만」 조항과 같은 성격이라고 보고 남겼다.
+// 근거: 심지를 빼면 맥동이 한 점도 안 보였고(1차 렌더 실측), 맥동은 이 안의
+// 정체다. 대비를 넓은 면적으로 사면 적이 묻히므로 **가늘게 사는 쪽**을 골랐다.
+// 조율자가 문자 그대로를 원하면 `e.w*.38` → 0 하나로 꺼진다.
+//
+// ⚠️ **맥동이 화면을 통째로 흔드는가** — 카메라를 못 박고 900프레임, 프레임마다
+// 화면 평균 L 을 잰 값이다(카메라가 움직이면 지형 변화와 맥동이 안 갈린다):
+//   **유기체 0.000288 (평균의 0.644%)** · 이끼밭 0.000984 (2.214%) ·
+//   사구 0.000499 (1.564%)
+// **맥동을 실은 이 안이 맥동이 없는 사구보다도 평평하다.** 위상만 어긋낸
+// 이끼밭의 **1/3.4** 다. 흐름 보존(마루가 나가면 마루가 들어온다)이 위상
+// 분산보다 강한 방어라는 뜻이고, 그것이 이 안이 ⚠️ 에 내놓는 답이다.
+//
+// ── 비용 — **이 안의 제일 약한 곳이다. 지킨 척 안 한다** ──────────────────
+// 같은 판에서 강제 래스터로 잰 값: **유기체 15.25** · 사구 7.10 · 균열지 5.95 ·
+// 이끼밭 4.91 · 잿바다 4.39 ms/프레임. **다섯 중 제일 비싸다**(사구의 2.1배).
+// 처음엔 **30.01ms** 였고 층별로 줄인 자리가 넷이다:
+//   ① 소엽 그늘 + 관 주위 조직을 **1/2 해상도 버퍼**로 (30.0 → 22.0)
+//   ② 실핏줄 간격 74→86 · 굵기 2.7→3.2 (면적 그대로, 관 개수 0.74배)
+//   ③ 실핏줄 겉막 폐지(1.22배면 양쪽 0.3px — 비용만 내고 안 보였다)
+//   ④ 소엽 반지름·개수 반으로 (방사 그라디언트는 반지름의 **제곱**에 비례)
+//                                                    (22.0 → 16.6 → 15.25)
+// ⚠️ 이 수치는 **다른 에이전트 헤드리스 크롬 스무 개가 같이 도는 부하 15 의
+// 기계**에서 잰 것이라 절대값이 부풀어 있다(같은 판의 이끼밭이 4.84 인데
+// 문서값은 0.21 이다). **믿을 것은 절대값이 아니라 같은 판 안의 비율**이다.
+// 더 줄일 자리: 실핏줄 그물을 통째로 큰 타일(1024)에 구우면 관 관련 획이
+// 사라지지만 **실핏줄이 맥동을 못 한다** — 정체를 깎는 거래라 안 했다.
+const PL10CC=196;      // 굵은 혈관 결절 간격
+// ⚠️ 실핏줄 간격을 74 → 86 으로 **넓히고 굵기를 2.7 → 3.2 로 올렸다.**
+// 덮는 넓이는 `2.3×굵기/간격` 이라 8.4% → 8.6% 로 그대로인데, 관 **개수**는
+// 간격의 제곱에 반비례하므로 (74/86)² = **0.74배**가 된다. 같은 면적을 더 적은
+// 획으로 칠하는 것 — 비용은 개수에 붙고 예산은 면적에 붙으니 둘이 갈린다.
+const PL10FC=86;       // 실핏줄 결절 간격
+const PL10LC=232;      // 소엽 간격
+// 색 — 색상각 242.5~246° 위의 **명도 점 여섯**. 채도는 8~60/255 뿐이다.
+const PL10_SKIN  ="#090814";  // 살 바탕   L .0379  h 245.0  c 12  ← 화면 100%
+const PL10_CREASE="#04040C";  // 주름·소엽 그늘 L .0193 h 240.0 c  8
+const PL10_RISE  ="#0F0E22";  // 소엽 융기 L .0650  h 243.0  c 20
+const PL10_SHEATH="#06050F";  // 혈관 겉막 L .0253  h 246.0  c 10  ← 살보다 어둡다
+const PL10_VEIN  ="#13122A";  // 실핏줄 속 L .0825  h 242.5  c 24
+const PL10_LUMEN ="#1E1C3E";  // 굵은 혈관 속 L .1273 h 243.5 c 34
+const PL10_PULSE ="#262450";  // 맥동 마루 L .1632  h 242.7  c 44
+const PL10_FLOW  ="#39366A";  // 맥동 심지 L .2385  h 243.5  c 52  ← 가늘게만 쓴다
+const PL10_NODE  ="#5B5894";  // 결절 불티 L .3754  h 243.0  c 60
+
+/// 결절 자리 — `scatter()` 와 **정확히 같은 식**이다. 그래야 `scatter` 로 도는
+/// 칸과 그 이웃 칸의 결절이 같은 점을 가리켜 관이 이어진다.
+const PL10nx=(i,j,cell)=>(i+.12+.76*h2(i,j,1))*cell;
+const PL10ny=(i,j,cell)=>(j+.12+.76*h2(i,j,2))*cell;
+/// 결절 굵기. 제곱을 쓰는 이유는 사구가 능선 높이에 쓴 것과 같다 — **가는 것이
+/// 자주 나와야** 굵은 관이 소수의 줄기로 읽힌다. 균등분포로 두면 전부 같은
+/// 굵기가 되어 그물(철망)이 되고, 그러면 관다발이 아니라 인공물이다.
+function PL10cal(i,j,s){const a=h2(i,j,s);return .34+.66*a*a;}
+
+/// 두 결절을 잇는 관 한 줄. **곧으면 배선이고 굽으면 혈관이다.**
+/// 끝에서 정확히 0 이 되는 사인 세 개를 겹쳐 흔든다 — 그래야 양 끝이 결절에
+/// **정확히** 닿아 이음매가 안 생기고, 중간만 제멋대로 굽는다.
+/// (2계도함수를 안 키우려고 3배음까지만 쓴다. 더 넣으면 관에 각이 선다.)
+function PL10run(ax,ay,bx,by,sd,n){
+  const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy)||1,px=-dy/L,py=dx/L;
+  // ⚠️ 진폭을 .36 까지 올렸다가 도로 내렸다(2026-08-12 3차 렌더). 관이 너무
+  // 굽으니 **결절-관의 그물 구조가 사라지고 실타래**가 됐다 — 「어디서 갈라져
+  // 어디로 가는가」가 안 읽히면 관다발이 아니라 국수다. 부드러움은 진폭이
+  // 아니라 **마디 수**가 만든다(위 nseg). 진폭은 구조가 살아 있는 선까지만.
+  const o1=(hash(sd)-.5)*L*.26,o2=(hash(sd+3.1)-.5)*L*.15,o3=(hash(sd+7.7)-.5)*L*.09;
+  const p=[];
+  for(let k=0;k<=n;k++){const u=k/n;
+    const w=Math.sin(Math.PI*u)*o1+Math.sin(TAU*u)*o2+Math.sin(3*Math.PI*u)*o3;
+    p.push([ax+dx*u+px*w,ay+dy*u+py*w]);}
+  return p;
+}
+/// 폴리라인의 [u0,u1] 토막만 잘라 낸다. **맥동이 「관 속을 흐르는 것」으로
+/// 보이려면 떠 있는 점이 아니라 관의 한 토막이 밝아야 한다** — 점을 띄우면
+/// 관과 무관한 보케가 되고, 그건 앞 손들이 눈 판정에서 잡힌 실패다.
+function PL10seg(p,u0,u1){
+  const n=p.length-1,a=Math.max(0,Math.min(1,u0))*n,b=Math.max(0,Math.min(1,u1))*n;
+  if(!(b-a>1e-3))return null;
+  const lp=(q,r,f)=>[q[0]+(r[0]-q[0])*f,q[1]+(r[1]-q[1])*f];
+  const i0=Math.min(n-1,Math.floor(a)),i1=Math.min(n-1,Math.floor(b)),o=[];
+  o.push(lp(p[i0],p[i0+1],a-i0));
+  for(let k=i0+1;k<=i1;k++)o.push(p[k]);
+  o.push(lp(p[i1],p[i1+1],b-i1));
+  return o;
+}
+/// 관 한 줄 긋기. **띠(ribbonPoly)가 아니라 획이다** — 띠는 양 끝을 0 으로
+/// 좁히는 종형이라 결절마다 관이 잘록해지고, 그러면 그물눈이 **생선가시**로
+/// 읽힌다(앞 손이 실제로 잡힌 실패다). 둥근 마감의 획은 결절에서 그대로 이어진다.
+/// 굵기 변화는 관 **한 줄마다** 준다 — 실제 혈관도 굵기는 갈림목에서 바뀌지
+/// 한 줄 안에서 연속으로 안 바뀐다.
+function PL10ink(c,p,w,col){
+  if(!p||p.length<2||!(w>0))return;
+  c.beginPath();
+  for(let i=0;i<p.length;i++)i?c.lineTo(p[i][0],p[i][1]):c.moveTo(p[i][0],p[i][1]);
+  c.strokeStyle=col;c.lineWidth=w;c.stroke();
+}
+
+/// 살결 — 저주파 얼룩 + **소포(vesicle) 알갱이**.
+/// 알갱이가 이 안에서 하는 일이 둘이다: ① 살이 플라스틱으로 안 보이게 하고
+/// ② 저주파 방사 그라디언트의 계조 띠를 흩는다(디더 겸업). 그래서 장식이 아니다.
+/// 알갱이는 **랩을 안 한다** — 1px 이라 타일 경계에서 잘려도 눈에 안 띄고,
+/// 랩하면 굽는 호출이 9배가 된다.
+const PL10skin=()=>mpTile("pl10skin",512,(c,S)=>{
+  for(let i=0;i<46;i++){
+    const x=hash(i*3.3)*S,y=hash(i*7.9)*S,r=34+hash(i*5.1)*96,dk=i%3!==0;
+    mpWrap9(S,(dx,dy)=>{
+      const g=c.createRadialGradient(x+dx,y+dy,0,x+dx,y+dy,r);
+      g.addColorStop(0,dk?"rgba(0,0,0,.40)":"rgba(120,116,190,.030)");
+      g.addColorStop(1,"rgba(0,0,0,0)");
+      c.fillStyle=g;c.beginPath();c.arc(x+dx,y+dy,r,0,TAU);c.fill();});}
+  // 주름 — 살이 접힌 자국. 짧고 어둡고 방향이 제각각이다.
+  for(let i=0;i<58;i++){
+    const x=hash(i*2.3+.7)*S,y=hash(i*6.7+.3)*S,a=hash(i*9.1)*TAU,ln=14+hash(i*4.3)*46;
+    c.strokeStyle="rgba(0,0,0,.22)";c.lineWidth=.8+hash(i*8.3)*1.9;
+    mpWrap9(S,(dx,dy)=>{c.beginPath();
+      c.moveTo(x+dx,y+dy);
+      c.quadraticCurveTo(x+dx+Math.cos(a+.5)*ln*.5,y+dy+Math.sin(a+.5)*ln*.5,
+                         x+dx+Math.cos(a)*ln,   y+dy+Math.sin(a)*ln);
+      c.stroke();});}
+  // 소포 — 1px 알갱이. 밝은 것과 어두운 것을 섞어야 「알갱이」지 「먼지」가 아니다.
+  for(let i=0;i<2300;i++){
+    const x=(hash(i*1.7)*S)|0,y=(hash(i*3.9+1.1)*S)|0,u=hash(i*5.3+.5);
+    c.fillStyle=u<.42?"rgba(0,0,0,.30)":"rgba(146,142,214,"+(.020+u*.048).toFixed(3)+")";
+    c.fillRect(x,y,1,1);}
+});
+/// 디더 — 사구가 쓴 것과 같은 대책. 살결의 방사 그라디언트가 L .019~.048 라는
+/// **좁은 구간**에 8단밖에 못 쓰므로 그냥 두면 큰 얼룩에 동심원 띠가 뜬다.
+/// ⚠️ 회전·소수점 이동을 안 한다 — 보간되면 1px 잡음이 뭉개져 디더를 못 한다.
+const PL10dith=()=>mpTile("pl10dith",176,(c,S)=>{
+  let im=null;try{im=c.getImageData(0,0,S,S);}catch(e){im=null;}
+  if(!im||!im.data||im.data.length!==S*S*4)return;
+  const d=im.data;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    if(h2(x,y,2.7)<.44)continue;
+    const i=(y*S+x)*4;
+    d[i]=150;d[i+1]=146;d[i+2]=214;d[i+3]=1+Math.floor(h2(x,y,6.1)*3);}
+  c.putImageData(im,0,0);
+});
+
+/// 관 하나를 짓는다. 여기서 **그리지는 않는다** — 목록만 만들고 칠은 뒤에서
+/// 층마다 몰아서 한다.
+/// ⚠️ **칠하는 차례가 밝기를 먹는다.** 관마다 겉막→속→마루를 이어 칠하면
+/// 다음 관의 **겉막이 앞 관의 속을 덮는다**(자기막이 알파를 1.9배 올려도 못
+/// 고쳤고 세 패스로 가르니 0.2%→0.68% 가 됐다). 그래서 세 패스로 가른다:
+/// 겉막 전부 → 속 전부 → 마루 전부.
+function PL10edges(cx,cy,W,H,cell,keep,nseg,wmul,list){
+  const sx=W/2-cx,sy=H/2-cy;
+  // 이웃 넷은 **앞쪽만** 본다 — 그래야 한 관이 두 번 안 그려진다.
+  const DIR=[[1,0],[0,1],[1,1],[-1,1]];
+  // pad 는 **1 이면 충분하다.** 관은 이웃 칸까지만 가므로 두 칸 밖 결절끼리의
+  // 관은 화면에 못 들어온다. pad 2 로 두면 도는 칸이 1.5배가 되고 그만큼 그냥 버린다.
+  scatter(cx,cy,W,H,cell,1,(x,y,i,j,r)=>{
+    // 성긴 구역 — 혈관이 균일하면 그물(인공물)이다. 실제 조직에는 **관이
+    // 안 지나는 구역**이 있고, 그 얼룩덜룩함이 「자란 것」의 표시다.
+    // 두 규모의 해시를 겹쳐 「넓게 성긴 곳 안의 좁게 빽빽한 곳」이 나오게 한다.
+    const fld=h2(Math.floor(i/3),Math.floor(j/3),9.1)*.62
+             +h2(Math.floor(i/7),Math.floor(j/7),21.7)*.38;
+    const ax=PL10nx(i,j,cell)+sx,ay=PL10ny(i,j,cell)+sy;
+    const ca=PL10cal(i,j,3.3);
+    for(let d=0;d<4;d++){
+      const sd=h2(i*4+d,j,17.3);
+      if(sd>keep*(.45+.85*fld))continue;
+      const ni=i+DIR[d][0],nj=j+DIR[d][1];
+      const bx=PL10nx(ni,nj,cell)+sx,by=PL10ny(ni,nj,cell)+sy;
+      // 화면 밖 관은 만들지도 않는다.
+      if(Math.max(ax,bx)<-40||Math.min(ax,bx)>W+40)continue;
+      if(Math.max(ay,by)<-40||Math.min(ay,by)>H+40)continue;
+      const cb=PL10cal(ni,nj,3.3);
+      const seed=i*29.7+j*53.1+d*11.9;
+      list.push({p:PL10run(ax,ay,bx,by,seed,nseg),
+                 w:wmul*(.42+.58*(ca+cb)*.5),
+                 sp:.085+.155*hash(seed+1.7),          // 초당 도는 바퀴 수
+                 ph:hash(seed+4.9),
+                 dir:hash(seed+8.3)<.42?-1:1,          // 흐름 방향 — 한쪽으로만
+                 pl:hash(seed+2.1),                     // 맥동을 실을지
+                 sd:seed});
+    }
+  });
+}
+
+MAPP.bg.organic=function PL10organic(c,t,W,H){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  c.lineCap="round";c.lineJoin="round";
+
+  // ── ① 살 — 화면 100%. **중간 톤 띠 아래로 일부러 낮춰 둔다** ─────────────
+  c.fillStyle=PL10_SKIN;c.fillRect(0,0,W,H);
+  mpPat(c,PL10skin(),W,H,ox,oy,.3840);          // 22° — 축에 안 맞춰 격자감을 없앤다
+
+  // ── ② 소엽 — 살에 부피를 준다. **어둡게만** 간다 ────────────────────────
+  // ⚠️ 처음엔 `puffPoly` 두 겹(그늘 + 융기)으로 그렸다가 **통째로 버렸다**
+  // (2026-08-12 헤드리스 눈 판정, 2.6배 확대). 뭉게 실루엣이 화면에 **구름
+  // 모양 스티커**로 박혔다 — 앞 손들이 「팝콘」이라 부른 바로 그것이고, 확대하니
+  // 돌기 사이에 **각진 모서리**까지 보였다. 살은 경계가 있는 것이 아니라
+  // **두께가 있는 것**이라, 실루엣을 그리는 순간 「위에 얹힌 것」이 된다.
+  //   ⇒ 답은 알파를 내리는 게 아니라 **윤곽을 없애는 것**이다. 부드러운 방사
+  //     그라디언트로 **그늘만** 준다. 밝은 쪽은 아래 「관 주위 조직」이 맡는다 —
+  //     그쪽은 혈관을 따라가므로 원리적으로 스티커가 될 수가 없다.
+  //
+  // ── ⚠️ 저주파 두 겹은 **1/2 해상도 버퍼**에 그린다 ───────────────────────
+  // 실측(2026-08-12 · 980×548 · 강제 래스터): 전부 전체 해상도로 그렸더니
+  // **30.01ms/프레임**이었다(같은 판에서 사구 11.98 · 균열지 11.93 · 이끼밭
+  // 10.89). 500마리가 도는 화면에서 배경 혼자 예산을 통째로 먹는 값이다.
+  // 비싼 것은 **개수가 아니라 덮는 화소**였다 — 소엽 그라디언트(반지름 162px
+  // 열 개 = 화면 1.5장)와 관 주위 조직(폭 19px 획을 네 번)이 화면을 여러 겹
+  // 덮는다. 사구가 같은 자리에서 쓴 답을 그대로 쓴다: **이 둘은 이 안에서
+  // 가장 저주파인 층**이라 반해상도로 그려 올려도 잃는 것이 없고, 오히려
+  // 확대 보간이 획의 딱딱한 가장자리를 **대신 뭉개 준다**(위 「자로 그은 띠」
+  // 문제의 두 번째 방어선). 반대로 혈관 속·맥동·디더는 **고주파가 정체**라
+  // 전체 해상도로 그 위에 얹는다.
+  // ⚠️ 버퍼는 **장치 화소**로 잰다 — CSS 폭으로 재면 dpr 2 화면에서 1/2 이
+  // 아니라 1/4 이 되어 관 주위가 뭉갠다(레티나에서만 나는 종류의 사고다).
+  // ⚠️ source-over 는 결합법칙이 성립하므로, 두 겹을 투명 버퍼에 먼저 합성한
+  // 뒤 한 번에 얹은 결과는 살 위에 차례로 얹은 것과 **정확히 같다.**
+  const dsc=(c.canvas&&c.canvas.width>1&&W>0)?c.canvas.width/W:1, bsc=dsc/2;
+  const bw=Math.max(1,Math.ceil(W*bsc)),bh=Math.max(1,Math.ceil(H*bsc));
+  let buf=c.canvas.__pl10b;
+  if(!buf||buf.width!==bw||buf.height!==bh){
+    buf=document.createElement("canvas");buf.width=bw;buf.height=bh;c.canvas.__pl10b=buf;}
+  const bc=buf.getContext("2d");
+  const LO=bc||c;                          // 컨텍스트를 못 얻으면 그냥 본 캔버스에
+  if(bc){bc.setTransform(1,0,0,1,0,0);bc.clearRect(0,0,bw,bh);
+    bc.setTransform(bsc,0,0,bsc,0,0);bc.lineCap="round";bc.lineJoin="round";}
+
+  scatter(ox*.94,oy*.94,W,H,PL10LC,1,(x,y,i,j,r)=>{
+    // ⚠️ 개수·반지름을 반으로 줄였다. 층별로 재 보니 **소엽 그라디언트 하나가
+    // 제일 비쌌다** — 반지름 162px 열 개면 화면 1.5장을 방사 보간으로 칠한다.
+    // 방사 그라디언트는 반지름의 **제곱**에 비례하므로 반지름을 깎는 것이
+    // 개수를 깎는 것보다 두 배로 듣는다.
+    if(r>.40)return;
+    const rr=68+h2(i,j,4.1)*62;
+    if(x<-rr||x>W+rr||y<-rr||y>H+rr)return;
+    const g=LO.createRadialGradient(x,y,0,x,y,rr);
+    if(!g||!g.addColorStop)return;
+    g.addColorStop(0,A(PL10_CREASE,.66));
+    g.addColorStop(.55,A(PL10_CREASE,.40));
+    g.addColorStop(1,A(PL10_CREASE,0));
+    LO.fillStyle=g;LO.beginPath();LO.arc(x,y,rr,0,TAU);LO.fill();
+  });
+
+  // ── ③ 혈관망 ────────────────────────────────────────────────────────────
+  const fine=[],big=[];
+  // ⚠️ 마디 수를 5·8 로 뒀더니 확대 판정에서 **꺾인 각**이 보였다 — 굽이의
+  // 진폭이 길이의 36% 인데 마디가 성기면 이웃 마디의 방향차가 커진다. 관은
+  // 굽는 것이지 꺾이는 것이 아니므로, 진폭이 아니라 **마디를 늘려** 편다.
+  // 굵기 대비를 벌린다 — 셋(굵은 줄기 / 실핏줄 / 곁가지)이 **한눈에 다른
+  // 굵기**라야 관다발이 위계로 읽힌다. 같은 굵기로 깔면 그물(인공물)이다.
+  PL10edges(ox,oy,W,H,PL10FC,.54,9,3.2,fine);
+  PL10edges(ox,oy,W,H,PL10CC,.70,14,7.4,big);
+
+  // 관 주위 조직 — **이 안의 중간 톤 면적 대부분이 여기다.**
+  // ⚠️ 1차 렌더에서 혈관이 살 **위에 얹힌 국수**로 보였다. 원인은 관과 살 사이에
+  // 아무것도 없었던 것 — 실제 조직은 관 둘레가 비쳐 밝다. 넓고 흐린 획 하나를
+  // 관 아래 깔면 ① 관이 살에 **박힌** 것으로 읽히고 ② 밝은 면적이 **혈관을
+  // 따라** 흩어져 깔린다. 넓은 덩어리로 같은 면적을 쓰면 적이 묻히지만,
+  // 관을 따라 흩어진 면적은 적 실루엣을 못 삼킨다.
+  // ⚠️ 한 겹으로 두니 **가장자리가 자로 그은 띠**로 보였다(3배 확대 판정) —
+  // 획은 폭이 일정해서 넓게 칠할수록 경계가 또렷해지고, 그러면 관이 「무늬가
+  // 든 납작한 리본」이 된다. **두 겹으로 계단을 만든다**: 바깥 겹은 띠 아래
+  // (L .046)라 예산을 안 쓰면서 경계를 흩고, 안 겹만 띠 안(L .053)으로 올린다.
+  // ⚠️ 폭을 3.30/3.00 으로 뒀더니 이웃 관의 조직빛이 **서로 붙어** 화면이
+  // 통째로 뿌옇게 뜨고 **어두운 엽육(관 사이 빈 살)이 사라졌다.** 대비는
+  // 밝은 것이 아니라 **어두운 것이 남아야** 생긴다(동공이 증명한 것과 같다).
+  // ⚠️ 실핏줄은 **한 겹으로 줄였다.** 두 겹이 필요했던 이유는 넓은 획의
+  // 딱딱한 가장자리였는데, 실핏줄 조직빛은 폭이 7px 급이라 반해상도 확대
+  // 보간만으로 이미 흐려진다. 굵은 관(19px)만 두 겹을 남긴다 — 거기서만
+  // 경계가 실제로 보인다. 목록을 한 번 덜 도는 만큼 그대로 비용이다.
+  // ⚠️ 알파가 .46 일 때 이 겹의 합성값이 **L .0504** 였다 — 중간 톤 띠의
+  // 아래 끝(.05)에서 천분의 사(四) 위다. 그래서 관이 성긴 자리에서는 디더
+  // 한 톨에도 띠 밖으로 떨어져 **중간 톤이 15.08% 까지 내려앉았다**(예산 하한
+  // 15). 면적을 늘리는 게 아니라 **값을 띠 한가운데로 옮기는** 것이 답이다:
+  // .56 이면 L .0531 이라 아래 끝에서 3배 멀어진다.
+  for(const e of fine)PL10ink(LO,e.p,e.w*2.45,A(PL10_RISE,.56));
+  for(const e of big) PL10ink(LO,e.p,e.w*2.60,A(PL10_RISE,.30));
+  for(const e of big) PL10ink(LO,e.p,e.w*2.10,A(PL10_RISE,.37));
+  // 저주파 두 겹을 한 번에 얹는다 — 여기부터 아래는 전부 전체 해상도다.
+  if(bc)c.drawImage(buf,0,0,bw,bh,0,0,W,H);
+
+  // 겉막 — **살보다 어둡다.** 밝기가 아니라 어둠으로 관의 윤곽을 세운다.
+  // ⚠️ **굵은 관에만 두른다.** 실핏줄에도 두르고 있었는데 1.22배면 양쪽에
+  // 0.3px 씩이라 눈에 안 보이면서 화면 하나치 획을 더 긋고 있었다 —
+  // 비용은 다 내고 그림은 안 바뀌는 층이라 통째로 뺐다(30.0→22.0ms 중 일부).
+  for(const e of big) PL10ink(c,e.p,e.w*1.20,A(PL10_SHEATH,.88));
+  // 속
+  for(const e of fine)PL10ink(c,e.p,e.w,PL10_VEIN);
+  for(const e of big) PL10ink(c,e.p,e.w,PL10_LUMEN);
+  // 말단 팽대 — ⚠️ 확대 판정에서 **잘린 호스**가 보였다. 이어질 이웃이 없는
+  // 관이 둥근 마감으로 끝나는데, 마감이 관과 **같은 굵기**라 「끝」이 아니라
+  // 「잘렸다」로 읽힌다. 실제 모세관은 끝이 살짝 부푼다 — 결절을 관보다 굵게
+  // 찍으면 같은 자리가 「말단」이 된다.
+  // 끝점 한쪽에만 찍는다 — 시작점은 굵은 결절 쪽이라 이미 다른 관이 덮는다.
+  c.fillStyle=A(PL10_VEIN,.95);
+  for(const e of fine){
+    const q=e.p[e.p.length-1];
+    c.beginPath();c.arc(q[0],q[1],e.w*.70,0,TAU);c.fill();
+  }
+
+  // 곁가지 — 막다른 모세관. **여기만 띠(ribbonPoly)를 쓴다**: 끝이 0 으로
+  // 좁아지는 것이 맞는 유일한 자리라서다(막다른 관은 실제로 가늘어져 사라진다).
+  // 뿌리는 어미 관 **안쪽에서** 시작해 종형의 잘록한 시작이 안 보이게 묻는다.
+  for(const e of big){
+    for(let k=0;k<2;k++){
+      const u=.26+.48*hash(e.sd+k*5.3+1.3);
+      if(hash(e.sd+k*9.7)>.72)continue;
+      const n=e.p.length-1,ix=Math.min(n-1,Math.floor(u*n)),f=u*n-ix;
+      const x=e.p[ix][0]+(e.p[ix+1][0]-e.p[ix][0])*f;
+      const y=e.p[ix][1]+(e.p[ix+1][1]-e.p[ix][1])*f;
+      const bd=Math.atan2(e.p[ix+1][1]-e.p[ix][1],e.p[ix+1][0]-e.p[ix][0]);
+      const sg=hash(e.sd+k*3.1+6.1)<.5?-1:1;
+      const a0=bd+sg*(.85+.55*hash(e.sd+k*7.7));
+      const ln=PL10CC*(.20+.20*hash(e.sd+k*2.7));
+      const q=[];
+      for(let s=-1;s<=5;s++){const v=s/5;
+        const aa=a0+Math.sin(v*2.4)*.42*sg;
+        q.push([x+Math.cos(aa)*ln*v,y+Math.sin(aa)*ln*v]);}
+      fillPoly(c,ribbonPoly(q,e.w*.66,e.w*.10),A(PL10_VEIN,.95));
+    }
+  }
+
+  // 결절 — 갈림목의 살짝 부푼 자리. 굵은 결절에만 둔다.
+  scatter(ox,oy,W,H,PL10CC,1,(x,y,i,j,r)=>{
+    const ca=PL10cal(i,j,3.3);
+    if(ca<.72)return;
+    if(x<-20||x>W+20||y<-20||y>H+20)return;
+    fillPoly(c,puffPoly(x,y,6.6*ca*.92,7,i*7.1+j*19.3,.9),A(PL10_LUMEN,.9));
+    // 불티 — 화면에 두어 개뿐이다. 이 안에서 L .35 를 넘는 유일한 것.
+    if(ca<.955)return;
+    c.fillStyle=A(PL10_NODE,.92);
+    c.beginPath();c.arc(x,y,1.7,0,TAU);c.fill();
+  });
+
+  // ── ④ 맥동 — **밝기가 아니라 흐름이다** ─────────────────────────────────
+  // 관마다 마루가 `nb` 개, 호길이로 등간격이다. 하나가 끝에서 나가는 순간
+  // 다른 하나가 뿌리로 들어오므로 **밝은 화소의 총량이 시간에 대해 상수**다.
+  // 봉우리는 `sin(πu)^.5` 로 양 끝에서 사그라진다 — 관 끝에서 마루가 뚝
+  // 끊기면 「깜빡이는 전구」가 되지 흐름으로 안 읽힌다.
+  //
+  // ⚠️ 1차 렌더에서 **맥동이 한 점도 안 보였다.** 마루(L .163)와 관 속(.127)의
+  // 대비가 1.28배뿐이라 「조금 밝은 관」에 머물렀다. 맥동이 이 안의 정체인데
+  // 안 보이면 이 안은 그냥 보라색 그물이다. 고친 방향은 **면적이 아니라 심지**다:
+  //   · 겉(연동) — 관보다 **굵게** 부푼다. 밝기가 아니라 **굵기**가 「지나간다」를
+  //     말하게 두면 예산을 거의 안 쓰고 운동이 읽힌다.
+  //   · 심지 — 관 굵기의 **45%** 짜리 가는 심(L .239)만 예산 위쪽으로 올린다.
+  //     가늘어서 면적은 0.5% 급인데, 대비가 1.9배라 눈에는 확실히 걸린다.
+  //     넓은 면적을 올려 같은 대비를 사면 적이 묻힌다 — **가늘게 사는 것**이 답이다.
+  // [sw] 는 연동(굵기로 부푸는 겹)을 그릴지. 실핏줄에서는 뺀다 — 관이 3px
+  // 인데 1.6배로 부풀어야 5px 이라 눈에 안 들어오고 획만 하나 더 긋는다.
+  const bead=(e,nb,col,hw,sw)=>{
+    for(let k=0;k<nb;k++){
+      let u=(t*e.sp*e.dir+e.ph+k/nb)%1;if(u<0)u+=1;
+      const env=Math.pow(Math.sin(Math.PI*u),.5);
+      if(env<.06)continue;
+      if(sw){const s1=PL10seg(e.p,u-hw*1.8,u+hw*1.8);   // 연동 — 굵기로 말한다
+        if(s1)PL10ink(c,s1,e.w*1.62,A(col,.26*env));}
+      const s2=PL10seg(e.p,u-hw,u+hw);
+      if(s2)PL10ink(c,s2,e.w*1.06,A(col,.95*env));
+      const s3=PL10seg(e.p,u-hw*.46,u+hw*.46);      // 심지 — 유일하게 .17 위
+      if(s3)PL10ink(c,s3,e.w*.38,A(PL10_FLOW,.92*env));
+    }
+  };
+  for(const e of fine)if(e.pl<.52)bead(e,1,PL10_LUMEN,.13,0);
+  for(const e of big) bead(e,2,PL10_PULSE,.10,1);
+
+  // ── ⑤ 디더 — 정수 이동, 보간 없음 ───────────────────────────────────────
+  c.save();c.imageSmoothingEnabled=false;
+  mpPat(c,PL10dith(),W,H,Math.round(ox),Math.round(oy),0);
+  c.restore();
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181)을 유기체 위에 얹는다.
+function PL10proof(c,t,dt,W,H,st){MAPP.bg.organic(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다(배경만 그린 캔버스를 한 번 읽는다).
+function PL10num(c,t,dt,W,H,st){MAPP.bg.organic(c,t,W,H);mapMeter(c,t,W,H,st);}
+mapTile("pl10",MAPP.demo("organic",1,1),"P10 · 유기체 有機 + 빛파동 + 미니맵",
+  "살아 있는 유일한 지면. 맥동이 광량이 아니라 **흐름**이라 화면 밝기가 시간에 대해 상수다 — 관마다 마루가 등간격으로 들어 있어 하나가 나가면 하나가 들어온다. 색상각 243°(적과 75.8°).",
+  MAP_W,MAP_H,1);
+mapTile("pl-bg",MAPP.demo("organic",0,0),"유기체 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL10proof,"유기체 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("organic",0,1),"유기체 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("pl-num",PL10num,"유기체 · 밝기 실측","중간 톤 15~30% · 평균 L ≤ .075 · 봉우리 ≤ .17.",MAP_S,MAP_S);
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// PL09 「부유암 浮遊巖」 — **지면이 끊긴** 안 (docs/vfx/mockup-map2.html)
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 최상위 이름은 전부
+// `PL09` 로 시작하고, 등록은 `MAPP.bg.float` 에 **대입 하나**뿐이다
+// (`const`/`let` 재선언 0 — 같은 파일의 다른 자리를 다른 손이 만진다).
+//
+// ── 이 안이 유일하게 하는 것: 바닥에 **구멍이 있다** ──────────────────────
+// 열한 안 중 나머지 열은 전부 **연속면**이다(협곡은 파였고 결정지는 솟았고
+// 모래폭풍은 가렸지만 **바닥은 끊기지 않았다**). 이 안만 화면의 **13~21%**
+// 가 지면이 아니다(월드 26자리 실측, L≤.03 화소 비율).
+//
+// ⚠️ **구멍 너머로 무엇이 보이는가가 이 안의 설계 전부다.** 그냥 검정으로
+// 두면 그건 구멍이 아니라 **얼룩**이다 — 「어두운 바위」와 「없는 바위」는
+// 명도만 다르면 구별이 안 된다. 그래서 구멍 안에 **세 가지가 반드시** 있다:
+//   ① **벽(두께).** 구멍의 위쪽 테두리 안쪽에 판의 잘린 단면이 18~30px 띠로
+//      보인다. 위에서 살짝 남쪽으로 내려다보는 카메라라 **먼 쪽(위) 벽만**
+//      보인다. 두께가 0 이면 아무리 어둡게 칠해도 종이에 찍은 점이다.
+//      ⚠️ **명도 순서가 뒤집히면 구멍이 솟은 것으로 읽힌다.** 1차 렌더에서
+//      벽(.070)을 갑판(.030)보다 밝게 뒀다가 정확히 그렇게 됐다. 지금은
+//      심연 .0094 < 벽아래 .0206 < 하부갑판 .0255 < 벽위 .0365 < 갑판 .0473 다.
+//   ② **더 먼 층.** 시차 .44 로 흐르는 **하부 갑판**이 같은 문법(같은 모자이크)
+//      으로 깔려 있다. 칸이 70px 로 더 작고(=멀다) 더 어둡고 더 느리고
+//      **격자 각도도 다르다**(-13° 대 +17°) — 넷을 함께 바꿔야 「다른 판」이지
+//      하나만 바꾸면 「같은 판의 다른 부분」으로 읽힌다. 그리고 **성기다**(45%):
+//      촘촘히 깔면 구멍이 「조금 어두운 바닥」이 된다(6차 렌더에서 실패).
+//   ③ **별.** 구멍 안에서만 그린다. 하부 갑판의 빈자리로 보이는 심연에 박혀
+//      「바닥 밑이 우주」라는 말을 한 번만 한다. 화면 면적이 1% 도 안 되므로
+//      **밝기를 아끼지 않는다**(L .28~.47) — 예산은 밝기가 아니라 면적이다.
+// 여기에 하나 더: **빛 자국**. 구멍으로 들어온 빛은 하부 갑판의 **어긋난
+// 자리**에 떨어진다(빛 방향 × 깊이만큼). 구멍과 자국이 같은 자리면 깊이가
+// 0 이라, 이 어긋남 하나가 「저 아래는 멀다」를 공짜로 준다. **알파 .17 로만**
+// 얹는다 — .34 로 뒀더니 구멍의 60% 가 갑판과 같은 밝기(.039)로 차서 구멍이
+// 반쪽만 남았다(6차 렌더).
+//
+// ── 잔해대(U2)와 갈리는 지점 ─────────────────────────────────────────────
+// 저쪽은 **떠다니는 파편**(어디서 왔는지 물을 수 없는 것)이고 이건 **바닥의
+// 일부가 뜬 것**이다. 「원래 이어져 있었다」를 **말이 아니라 기하로** 보증한다:
+//   · 갑판 전체가 **꼭짓점을 공유하는 모자이크** 한 장이다. 이웃 칸이 같은
+//     `PL09v/PL09eh/PL09ev` 를 부르므로 판들이 빈틈 없이 맞물린다 — 구멍은
+//     **그 모자이크에서 판 하나가 없는 것**이지 뚫어 낸 구멍이 아니다.
+//   · 뜬 조각은 **자기 구멍에서 나온 그 판**이다. 구멍(1.20배로 부스러진 자리)
+//     안에 **더 작은 조각**(1.00배)이 26~60px 위로 떠 있어서, 구멍의 검정이
+//     조각의 아래·좌·우에 **테처럼** 남는다. 눈이 두 윤곽을 맞춰 보는 순간
+//     「저기서 떠올랐다」가 끝난다 — 열쇠구멍에 열쇠를 대 보는 것과 같다.
+//     ⚠️ 조각을 구멍 하나만큼(92~154px) 띄웠더니 갑판의 다른 판들 사이로
+//     섞여 들어가 **그냥 밝은 판**이 됐다(6차 렌더). 이 게임의 카메라에는
+//     시차가 없어 **높이는 「무엇에 걸쳐 있는가」로만** 읽힌다.
+//   · 조각의 **아래쪽에 옆면 띠**(6~11px)가 붙는다. 남쪽에서 내려다보니 뜬
+//     판은 윗면과 **아래쪽 옆면**이 같이 보인다 — 갑판에는 없고 조각에만
+//     있는 유일한 부위라, 「이건 떠 있다」가 정지 화면에서도 읽힌다.
+//
+// ── 구멍은 **언제나 판 하나**다 ──────────────────────────────────────────
+// 구멍 확률을 저주파 뭉침으로 흔들면 구멍이 서로 붙어 큰 균열대가 되는데,
+// 그러면 붙은 자리의 **안쪽 경계에도 벽이 서서** 「빈 공간 한가운데에 벽이
+// 떠 있는」 그림이 된다. 그래서 구멍은 **자기 해시가 이웃 넷보다 작을 때만**
+// 뚫는다(국소 최소). 이 규칙은 국소적이고 결정적이라 이음매가 없고,
+// **4-이웃 두 칸이 동시에 구멍일 수 없음**이 수학적으로 보장된다.
+// 대각선으로만 붙을 수 있는데 그건 꼭짓점 하나만 공유하므로 벽이 안 깨진다.
+// 덤으로 「구멍 하나 = 없어진 판 하나」가 되어 위 ①·②의 이야기가 또렷해진다.
+// ⚠️ **게임에서 구멍은 못 지나가는 곳으로 읽힌다**(잔해대가 큰 바위로 겪은
+// 것과 같은 종류). 이 안은 그걸 **못 없앤다** — 구멍이 정체이기 때문이다.
+// 대신 4-이웃 규칙이 「구멍이 이어져 길을 막는 일」을 원리적으로 막아, 어떤
+// 화면에서도 구멍 사이로 지나가는 길이 남는다.
+//
+// ── 예산 — 「밝은 화소의 면적을 상한으로 묶는 것」 ────────────────────────
+// 지면은 화면을 100% 덮으니 평균을 낮추는 것으로는 안 된다:
+//   · **갑판의 바탕은 L .0473 로 중간 톤(.05) 바로 아래**다. 화면의 절반을
+//     차지하는 층이 중간 톤에 들어가면 그것만으로 60~80% 가 되어 상한 30% 를
+//     즉시 깬다. 실제로 화소의 **45~59%** 가 .045~.05 구간에 몰려 있다.
+//   · 판마다 **그늘 여백 + 안쪽 밝은 면** 두 단이다(잔해대의 문법). 밝은 면은
+//     빛 쪽으로 민 축소 다각형이라 **그늘 여백이 빛 반대쪽에만 두껍다**
+//     (빛 쪽 .12·g·r, 그늘 쪽 2.12·g·r) — 사방이 같은 여백이면 「타일 줄눈」이다.
+//     밝은 면의 넓이는 판의 **17%** 이고, 그 17% 가 중간 톤 면적의 3분의 2다.
+//   · **「밝은 면이 생기는가」와 「얼마나 밝은가」를 갈라 놓는다**(아래 갑판 절).
+//   · 구멍은 **벽 윗단을 빼면 전부 L .009~.041** 이라, 구멍이 넓은 화면일수록
+//     중간 톤이 **내려간다** — 이 안에서만 성립하는 성질이고, 그래서 중간 톤의
+//     최소·최대가 구멍 면적의 최대·최소와 짝을 이룬다.
+// 실측(980×548 · dt 1/60 고정 · **월드 26자리**): 중간 톤 **16.1 / 23.4 /
+// 29.8%**(최소/평균/최대) · 평균 L **.0473~.0557** · L>.12 평균 4.7% ·
+// L>.35 **0.004%** · 면적 봉우리 **.1449**(뜬 조각의 밝은 면).
+// ⚠️ 최댓값 29.8% 는 상한 30% 에 **0.2 포인트**밖에 안 남는다. 화면 하나에
+// 판이 서른 장뿐이라 화면마다 표본이 작고, 그래서 폭이 13 포인트나 된다.
+// 「지켰다」가 아니라 **「스물여섯 자리에서 다 안쪽이었다」**가 맞는 말이다.
+//
+// ⚠️ **가산 합성(`lighter`) 0회 · 흰 앞날 0회 · `celHoop` 0회.** 그라디언트도
+// 한 번도 안 만든다(`createLinearGradient`/`createRadialGradient` 0회) —
+// 사구가 띠마다 그라디언트를 칠해 14ms 를 먹었던 자리를 애초에 안 밟는다.
+// 이 안은 **평면 채우기 · 선 · evenodd 빼기**만으로 그려진다.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// 980×548 · dpr 1 · 헤드리스 소프트웨어 래스터에서 **6.26ms/프레임**
+// (매 프레임 `getImageData(0,0,1,1)` 로 래스터를 강제해 잰 값. 비교: 사구 6.2 ·
+// 잔해대 5.75 · 균열지 5.3 · 이끼밭 0.21). 처음엔 **7.95ms** 였고 셋을 고쳤다:
+//   ① 판 몸통 마흔 번 칠하기 → **fillRect 한 번**(판이 빈틈 없이 맞물리므로
+//      「모든 판을 그 색으로」와 「화면을 그 색으로」가 같은 그림이다). −0.4ms
+//   ② 단차 그림자를 evenodd 초승달 **채우기** → 아래 변만 **긋기**. −0.7ms
+//   ③ 구멍 판정 표로 미리 계산(용접이 칸마다 다섯 번 물어봤다) + 하부 갑판은
+//      다각형을 **만들기 전에** 구멍 근처인지 본다. −0.6ms
+//
+// ── 격자가 안 보이게 ─────────────────────────────────────────────────────
+// 1·2차 렌더가 **욕실 타일**이었다. 원인 넷을 한꺼번에 고쳤다:
+//   ① 격자가 화면 축과 나란했다 → 갑판 격자를 **+17°**, 하부 갑판을 **-13°**
+//      돌린다. 격자 좌표계에서 다각형을 만들고 점만 돌려 화면에 놓는다
+//      (캔버스를 안 돌린다 — 벽은 화면 세로로 파여야 한다).
+//   ② 판이 전부 같은 크기였다 → 이웃한 두 칸을 **용접**해 한 판으로 만든다
+//      (가로쌍·세로쌍, 12각형). 판의 셋 중 하나가 두 칸짜리라 크기가 갈린다.
+//   ③ 흔들림이 작았다 → 꼭짓점 ±.40칸, 변 중점 ±.30칸.
+//   ④ **금이 없었다.** 톤만으로는 밝기가 비슷한 이웃 판끼리 한 덩어리로
+//      뭉쳐 「어두운 들판」이 됐다. 어두운 선은 밝기 예산을 한 톨도 안 쓰면서
+//      모자이크를 세운다 — 3차 렌더에서 이것 하나가 제일 크게 바꿨다.
+// 그리고 **단차**(판이 이웃 위로 지는 그림자)가 「한 장의 바닥」을 「살짝살짝
+// 어긋난 판들의 뗏목」으로 만든다 — 중력이 약하다는 말을 구멍 없는 자리에서도
+// 하게 하는 층이다.
+//
+// ── 색 ───────────────────────────────────────────────────────────────────
+// 주 색상각 **227.6°**(면적 봉우리 기준, 찬 청보라 슬레이트). 6속성과의 거리:
+// **빙 198.6 → 29.0° · 어둠 273 → 45.4° · 풍 170.7 → 56.9° · 적 몸 318.8 →
+// 91.2°**. 여섯 속성 사이 최대 빈칸이 198.6~273 의 74.4° 이고 그 한가운데가
+// 235.8° 다(89.9° 카키도 같은 급이지만 이끼밭·유기체와 계열이 겹친다).
+// ⚠️ **속성이 아니라 자(磁)·무속성과 가깝다는 것은 숨기지 않는다**: 자 磁
+// (magnet 226.2~229.4°)와 **1~2°**, 무속성 gold(240°)와 **12°** 다.
+// 갈리는 축은 색상이 아니라 **명도**다 — magnet 가운데층 L .550 · 무속성
+// 가운데층 L .456 대 이 안의 면적 봉우리 L .145 로 3.8~3.2배 벌어져 있고,
+// 화면에서 L>.15 인 화소는 **0.0%** 다(별 제외). 다섯 손이 독립적으로 확인한
+// 대로 색상환은 이미 꽉 차 있어 **명도와 저채도가 실제 방어**다.
+const PL09S=116;                   // 갑판 판 한 칸 — 플레이어 몸(28px)의 4.1배
+                                   // (용접 때문에 실제 판은 평균 1.3칸 = 150px)
+const PL09S2=70;                   // 하부 갑판 — **작아야 멀다**
+const PL09TH=.30, PL09TH2=-.22;    // 갑판 · 하부 갑판 격자 각도
+const PL09P2=.44;                  // 하부 갑판 시차
+const PL09PS=.12;                  // 별 시차
+const PL09LA=.62;                  // 빛이 **나아가는** 방향(좌상 → 우하)
+const PL09LX=Math.cos(PL09LA), PL09LY=Math.sin(PL09LA);
+const PL09CH=.46;                  // 구멍 중 뜬 조각이 남아 있는 비율
+
+// 1단이 아니라 **두 단**이다(잔해대와 같은 문법). 한 판은 언제나 그늘 한 단 +
+// 밝은 면 한 단만 쓰고, 어느 두 단인지가 판마다 다르다. 3단 계조의 맨 윗단
+// (흰 앞날)은 이 안에 없다 — 눈이 그 단을 「이펙트」의 표식으로 배웠다.
+//
+// **명도 순서가 이 안의 문법 전부다**(어긋나면 구멍이 안 읽힌다):
+//   심연 .0094 < 벽아래 .0206 < 하부갑판 .0255 < 벽위 .0365 < 갑판 .0473
+//   < 판 밝은면 .055~.137 < 조각 .068~.145 < 립(선) .1645 < 별(점) .28~.47
+const PL09C_ABYSS="#010208";       // 심연             L .0094 — **공용 바닥보다 어둡다**
+const PL09C_DECK ="#0A0B17";       // 판 그늘          L .0473 — 중간 톤 **바로 아래**
+const PL09C_FAC0 ="#0A0B17";       // 판 밝은 면 최저  L .0473 — 그늘과 같다.
+                                   // 최저를 .05 위에 두면 판 전부가 중간 톤이다
+const PL09C_FAC1 ="#1C2239";       // 판 밝은 면 최고  L .1366
+const PL09C_WALL0="#04050B";       // 벽 아래          L .0206
+const PL09C_WALL1="#070911";       // 벽 위(립 아래)   L .0365
+const PL09C_LIP  ="#232941";       // 깨진 모서리      L .1645 — **선으로만** 쓴다
+                                   // (2.6px 를 클립이 반으로 잘라 1.3px)
+const PL09C_SHAFT="#141828";       // 구멍으로 든 빛   L .0966 — **알파 .17 로만**.
+                                   // .34 로 뒀더니 구멍의 60% 가 갑판과 같은
+                                   // 밝기(.039)로 차 구멍이 반쪽만 보였다
+const PL09C_LOW  ="#05060D";       // 하부 갑판 몸통   L .0255
+const PL09C_LOWF ="#070813";       // 하부 갑판 면     L .0351
+const PL09C_STEP ="rgba(1,1,4,.42)";  // 판이 이웃 위로 진 그림자(단차)
+const PL09C_CH   ="#0E1121";       // 뜬 조각 그늘     L .0680 — 갑판보다 한 단 위
+const PL09C_CHF0 ="#12162C";       // 뜬 조각 면 최저  L .0914
+const PL09C_CHF1 ="#1E243C";       // 뜬 조각 면 최고  L .1449 — **면적 봉우리**
+const PL09C_SIDE0="#030409";       // 조각 옆면 위     L .0157 — 제 그늘, 갑판보다 어둡다
+const PL09C_SIDE1="#06070E";       // 조각 옆면 아래   L .0294 — 심연이 되비친 모서리
+const PL09C_CRACK="rgba(1,1,5,.45)";  // 판과 판 사이의 금
+const PL09C_PIT  ="rgba(2,2,7,.55)";  // 판 위의 잔금
+
+/// 격자 꼭짓점. **이웃 칸이 같은 함수를 부른다** — 그래서 판이 빈틈 없이
+/// 맞물리고 「원래 한 장이었다」가 코드로 보장된다. 칸 번호가 무한하니
+/// 반복도 이음매도 없다(텍스처+모듈로가 아니라 `scatter` 와 같은 원리).
+function PL09v(i,j,S,sd){const J=S*.40;
+  return[i*S+(h2(i,j,sd)-.5)*J, j*S+(h2(i,j,sd+1.9)-.5)*J];}
+/// 가로변 (i,j)-(i+1,j) 의 중점. 위아래 두 칸이 같은 값을 받는다.
+function PL09eh(i,j,S,sd){const a=PL09v(i,j,S,sd),b=PL09v(i+1,j,S,sd),J=S*.30;
+  return[(a[0]+b[0])*.5+(h2(i,j,sd+5.3)-.5)*J,(a[1]+b[1])*.5+(h2(i,j,sd+7.1)-.5)*J];}
+/// 세로변 (i,j)-(i,j+1) 의 중점. 좌우 두 칸이 같은 값을 받는다.
+function PL09ev(i,j,S,sd){const a=PL09v(i,j,S,sd),b=PL09v(i,j+1,S,sd),J=S*.30;
+  return[(a[0]+b[0])*.5+(h2(i,j,sd+9.7)-.5)*J,(a[1]+b[1])*.5+(h2(i,j,sd+11.3)-.5)*J];}
+/// 판 하나. [ty] 0=한 칸(8각) · 1=가로쌍 · 2=세로쌍(둘 다 12각).
+/// **용접한 자리의 변 중점을 건너뛰는 것**이 전부다 — 두 칸의 바깥 윤곽이
+/// 그대로 한 판의 윤곽이 된다(안쪽 경계선이 사라진다).
+function PL09plate(i,j,ty,S,sd){
+  if(ty===1)return[PL09v(i,j,S,sd),PL09eh(i,j,S,sd),PL09v(i+1,j,S,sd),PL09eh(i+1,j,S,sd),
+    PL09v(i+2,j,S,sd),PL09ev(i+2,j,S,sd),PL09v(i+2,j+1,S,sd),PL09eh(i+1,j+1,S,sd),
+    PL09v(i+1,j+1,S,sd),PL09eh(i,j+1,S,sd),PL09v(i,j+1,S,sd),PL09ev(i,j,S,sd)];
+  if(ty===2)return[PL09v(i,j,S,sd),PL09eh(i,j,S,sd),PL09v(i+1,j,S,sd),PL09ev(i+1,j,S,sd),
+    PL09v(i+1,j+1,S,sd),PL09ev(i+1,j+1,S,sd),PL09v(i+1,j+2,S,sd),PL09eh(i,j+2,S,sd),
+    PL09v(i,j+2,S,sd),PL09ev(i,j+1,S,sd),PL09v(i,j+1,S,sd),PL09ev(i,j,S,sd)];
+  return[PL09v(i,j,S,sd),PL09eh(i,j,S,sd),PL09v(i+1,j,S,sd),PL09ev(i+1,j,S,sd),
+    PL09v(i+1,j+1,S,sd),PL09eh(i,j+1,S,sd),PL09v(i,j+1,S,sd),PL09ev(i,j,S,sd)];}
+/// 격자 좌표 → 화면 좌표. **캔버스를 안 돌린다** — 벽은 화면 세로로 파여야
+/// 하고 빛도 화면에 고정이라, 도는 것은 격자뿐이다.
+function PL09scr(p,cu,cv,cs,sn,W,H){
+  for(let k=0;k<p.length;k++){const x=p[k][0]-cu,y=p[k][1]-cv;
+    p[k][0]=x*cs-y*sn+W/2; p[k][1]=x*sn+y*cs+H/2;}
+  return p;}
+
+/// 저주파 값잡음 — **찢어진 구역과 멀쩡한 구역이 번갈아** 지나가야 구멍이
+/// 곰보 자국이 아니라 「끊긴 지형」으로 읽힌다. 판의 밝기 띠도 같은 함수다
+/// (칸마다 독립 난수면 「무작위 타일」이고, 이웃끼리 비슷해야 암반이다).
+/// 새 난수를 안 들이고 같은 `h2` 를 굵은 격자에서 읽어 smoothstep 으로 섞는다.
+/// 칸 값을 그대로 쓰면 **네모난 경계**가 보인다(잔해대가 밟은 함정).
+function PL09smooth(i,j,G,sd){
+  const u=i/G,v=j/G,fi=Math.floor(u),fj=Math.floor(v),su=u-fi,sv=v-fj;
+  const eu=su*su*(3-2*su),ev=sv*sv*(3-2*sv);
+  const a=h2(fi,fj,sd),b=h2(fi+1,fj,sd),d=h2(fi,fj+1,sd),e=h2(fi+1,fj+1,sd);
+  return (a+(b-a)*eu)*(1-ev)+(d+(e-d)*eu)*ev;}
+/// 이 칸이 구멍인가. **국소 최소**라야 뚫린다(위 「구멍은 언제나 판 하나」).
+function PL09gap(i,j){
+  const v=h2(i,j,3.1);
+  // ⚠️ 확률 폭을 **좁게** 잡는다(.20~.60). `.04+.92·c^1.6` 로 넓게 흔들었더니
+  // 구멍 면적이 월드 자리마다 9~20% 로 널뛰고, 갑판 면적이 곧 중간 톤 면적이라
+  // 중간 톤이 14.7~29.0% 로 벌어져 **양쪽 상한을 다 스쳤다**(월드 18자리 실측).
+  // 구멍의 성김·빽빽함은 국소 최소 규칙이 이미 만들어 주므로, 확률까지 크게
+  // 흔들 필요가 없다.
+  if(v>=.20+.40*PL09smooth(i,j,3.2,31.7))return false;
+  return v<h2(i-1,j,3.1)&&v<h2(i+1,j,3.1)&&v<h2(i,j-1,3.1)&&v<h2(i,j+1,3.1);}
+/// 용접 — 이웃한 두 칸을 한 판으로 묶는다. **짝수 칸에서만 쌍을 시작**하므로
+/// 사슬이 안 생기고, 재귀 없이 칸 하나만 보고 결정된다(=이음매가 없다).
+/// 가로쌍이 세로쌍보다 우선이라 한 칸이 두 판에 들어가는 일이 없다.
+function PL09ev0(n){return ((n%2)+2)%2===0;}
+/// 가로 상태: 0=자유 · 1=오른쪽과 쌍을 시작 · 2=왼쪽 판에 먹힘
+/// [gp] 는 구멍 판정. 프레임마다 미리 채운 표를 넘겨 **칸당 한 번만** 계산한다
+/// (용접이 이웃을 다섯 번 물어보므로 그냥 두면 해시가 다섯 배로 돈다).
+function PL09hb(i,j,gp){
+  if(gp(i,j))return 0;
+  if(PL09ev0(i))return (h2(i,j,53.1)<.30&&!gp(i+1,j))?1:0;
+  return (h2(i-1,j,53.1)<.30&&!gp(i-1,j))?2:0;}
+/// 0=혼자 · 1=가로쌍 · 2=세로쌍 · -1=옆/위 판에 먹혔다(그리지 않는다)
+function PL09weld(i,j,gp){
+  if(gp(i,j))return 0;
+  const hb=PL09hb(i,j,gp);
+  if(hb===1)return 1;
+  if(hb===2)return -1;
+  if(PL09ev0(j)){
+    if(h2(i,j,57.7)<.30&&!gp(i,j+1)&&!PL09hb(i,j+1,gp))return 2;
+  }else if(h2(i,j-1,57.7)<.30&&!gp(i,j-1)&&!PL09hb(i,j-1,gp))return -1;
+  return 0;}
+
+/// 다각형의 무게중심과 평균 반지름.
+function PL09mid(p){let cx=0,cy=0;
+  for(let k=0;k<p.length;k++){cx+=p[k][0];cy+=p[k][1];}
+  cx/=p.length;cy/=p.length;
+  let r=0;for(let k=0;k<p.length;k++)r+=Math.hypot(p[k][0]-cx,p[k][1]-cy);
+  return[cx,cy,r/p.length];}
+/// 밝은 면 — **같은 다각형을 줄여 빛 쪽으로 민다.** 잔해대(MU2rock)가 쓴
+/// 수법 그대로다: 실루엣과 밝은 면의 들쭉날쭉이 정확히 겹치므로 밝은 쪽
+/// 가장자리가 판의 가장자리를 따라가고 **반대쪽에만** 그늘 띠가 남는다.
+/// 줄임비 1-1.12g 는 「빛 쪽 가장자리가 실루엣 밖으로 안 삐져나가는」 값이다.
+function PL09face(p,g){
+  const m=PL09mid(p),s=Math.max(.10,1-1.12*g),ox=-PL09LX*m[2]*g,oy=-PL09LY*m[2]*g;
+  const q=[];for(let k=0;k<p.length;k++)
+    q.push([m[0]+ox+(p[k][0]-m[0])*s, m[1]+oy+(p[k][1]-m[1])*s]);
+  return q;}
+/// 다각형을 옮긴다(새 배열).
+function PL09off(p,dx,dy){const q=[];
+  for(let k=0;k<p.length;k++)q.push([p[k][0]+dx,p[k][1]+dy]);return q;}
+/// 무게중심 기준으로 키운다. 구멍은 **없어진 판보다 조금 넓다** — 깨진
+/// 가장자리가 부스러져 떨어졌기 때문이다. 이 7% 가 구멍을 「어두운 타일」이
+/// 아니라 「이가 빠진 자리」로 만든다(옆 판을 실제로 갉아먹는다).
+/// 1.07 → **1.20**: 구멍이 옆 판과 같은 크기면 눈에 「조금 어두운 판」이지
+/// 「없는 판」이 아니었다(4차 렌더). 넓이로 1.44배라 구멍이 언제나 이웃보다
+/// 크고, 그래서 구멍이 화면에서 **제일 큰 도형**이 된다.
+function PL09grow(p,k){const m=PL09mid(p),q=[];
+  for(let n=0;n<p.length;n++)
+    q.push([m[0]+(p[n][0]-m[0])*k, m[1]+(p[n][1]-m[1])*k]);
+  return q;}
+/// 무게중심 둘레로 살짝 돌린다. 뜬 조각은 **±3° 까지만** 돈다 — 더 돌면
+/// 구멍과의 합동이 눈에서 깨져 「어디서 왔는지 모르는 파편」이 된다.
+function PL09rot(p,a){const m=PL09mid(p),cs=Math.cos(a),sn=Math.sin(a),q=[];
+  for(let k=0;k<p.length;k++){const x=p[k][0]-m[0],y=p[k][1]-m[1];
+    q.push([m[0]+x*cs-y*sn, m[1]+x*sn+y*cs]);}
+  return q;}
+function PL09path(c,p){c.beginPath();
+  for(let k=0;k<p.length;k++)k?c.lineTo(p[k][0],p[k][1]):c.moveTo(p[k][0],p[k][1]);
+  c.closePath();}
+/// **evenodd 빼기.** `p` 안에서 `p+(dx,dy)` 바깥만 칠한다 — 벽(두께)이
+/// 정확히 이 모양이다. 짝수-홀수 규칙이라 두 번 덮인 자리는 안 칠해진다.
+/// 클립 안에서 부르므로 반대쪽 초승달(q\p)은 화면에 안 남는다.
+/// ⚠️ 이 한 줄이 **구멍 안을 다시 그리는 것을 통째로 없앤다.** 벽을 칠하고
+/// 나서 심연을 되살리려면 하부 갑판을 구멍마다 다시 그려야 하는데, 빼기로
+/// 칠하면 이미 그려 둔 심연이 그대로 남는다.
+function PL09sub(c,p,dx,dy,col){
+  c.beginPath();
+  for(let k=0;k<p.length;k++)k?c.lineTo(p[k][0],p[k][1]):c.moveTo(p[k][0],p[k][1]);
+  c.closePath();
+  for(let k=0;k<p.length;k++)k?c.lineTo(p[k][0]+dx,p[k][1]+dy):c.moveTo(p[k][0]+dx,p[k][1]+dy);
+  c.closePath();
+  c.fillStyle=col;c.fill("evenodd");}
+
+MAPP.bg.float=function PL09float(c,t,W,H){
+  // ① 공용 바닥 — **배경의 첫 줄이어야 한다.** 안 부르면 이 안만 옛 바탕
+  // (L .0497) 위에 그려져 혼자 뿌옇다. 이 안에서는 바닥이 곧 **심연**이다.
+  mapFloor(c,W,H);
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  const cs=Math.cos(PL09TH),sn=Math.sin(PL09TH);
+  const cu=ox*cs+oy*sn, cv=-ox*sn+oy*cs;               // 카메라를 격자 좌표계로
+  const Du=(Math.abs(W*cs)+Math.abs(H*sn))/2+PL09S;
+  const Dv=(Math.abs(W*sn)+Math.abs(H*cs))/2+PL09S;
+
+  // ── 갑판 목록을 **먼저 만든다.** 그려야 할 순서(심연 → 벽 → 갑판 → 조각)와
+  // 계산 순서가 반대라, 한 번 만들어 두고 패스마다 훑는다.
+  const i0=Math.floor((cu-Du)/PL09S)-1, i1=Math.floor((cu+Du)/PL09S)+1;
+  const j0=Math.floor((cv-Dv)/PL09S)-1, j1=Math.floor((cv+Dv)/PL09S)+1;
+  const plates=[],holes=[];
+  // 구멍 판정을 **한 번만** 한다. 칸 범위 바깥으로 한 칸 여유를 두어 용접이
+  // 물어보는 이웃까지 표에 들어간다(밖은 원래 함수로 떨어진다).
+  const gw=i1-i0+3, gh=j1-j0+3, gtab=new Uint8Array(gw*gh);
+  for(let i=i0-1;i<=i1+1;i++)for(let j=j0-1;j<=j1+1;j++)
+    gtab[(i-i0+1)*gh+(j-j0+1)]=PL09gap(i,j)?1:0;
+  const gp=(i,j)=>(i<i0-1||i>i1+1||j<j0-1||j>j1+1)?PL09gap(i,j)
+                  :gtab[(i-i0+1)*gh+(j-j0+1)]===1;
+  for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){
+    if(gp(i,j)){
+      // `pc` = 없어진 판 그대로 · `p` = 부스러진 자리까지 넓힌 구멍(1.20배).
+      // 뜬 조각은 **`pc`** 로 그린다 — 조각이 자기 구멍보다 작아야 ① 구멍이
+      // 조각 뒤로 안 숨고 ② 「이 조각이 저 구멍에서 나왔다」가 **끼워 맞춰 보는
+      // 것**으로 읽힌다(같은 크기로 뒀더니 조각이 구멍을 통째로 덮어 화면에
+      // 구멍이 하나도 안 보였다, 5차 렌더).
+      const pc=PL09scr(PL09plate(i,j,0,PL09S,2.3),cu,cv,cs,sn,W,H);
+      const p=PL09grow(pc,1.20);
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+      for(let k=0;k<p.length;k++){const q=p[k];
+        if(q[0]<x0)x0=q[0];if(q[0]>x1)x1=q[0];if(q[1]<y0)y0=q[1];if(q[1]>y1)y1=q[1];}
+      if(x1<0||x0>W||y1<0||y0>H)continue;
+      holes.push({p,pc,i,j,x0,y0,x1,y1});
+    }else{
+      const ty=PL09weld(i,j,gp);
+      if(ty<0)continue;                                 // 옆 판에 먹힌 칸
+      plates.push({p:PL09scr(PL09plate(i,j,ty,PL09S,2.3),cu,cv,cs,sn,W,H),i,j});}
+  }
+
+  // ② 하부 갑판 목록 — **구멍 근처만.** 갑판이 덮을 자리를 그리는 것은 통째로
+  // 낭비다(화면의 87%). 구멍의 사각 범위에 걸치는 칸만 남기면 130 → 25 다.
+  const low=[];
+  if(holes.length){
+    const cs2=Math.cos(PL09TH2),sn2=Math.sin(PL09TH2);
+    const ox2=ox*PL09P2,oy2=oy*PL09P2;
+    const cu2=ox2*cs2+oy2*sn2, cv2=-ox2*sn2+oy2*cs2;
+    const Du2=(Math.abs(W*cs2)+Math.abs(H*sn2))/2+PL09S2;
+    const Dv2=(Math.abs(W*sn2)+Math.abs(H*cs2))/2+PL09S2;
+    const li0=Math.floor((cu2-Du2)/PL09S2)-1, li1=Math.floor((cu2+Du2)/PL09S2)+1;
+    const lj0=Math.floor((cv2-Dv2)/PL09S2)-1, lj1=Math.floor((cv2+Dv2)/PL09S2)+1;
+    for(let i=li0;i<=li1;i++)for(let j=lj0;j<=lj1;j++){
+      // 하부 갑판도 **같은 모자이크**다 — 문법이 같아야 「같은 세계의 더 먼
+      // 층」이지, 다른 문법이면 그냥 다른 그림이 밑에 깔린 것이다.
+      // ⚠️ 하부 갑판은 **성기다**(45%). 촘촘히 깔았더니 구멍 안이 갑판과
+      // 비슷한 밝기의 판으로 차서 「구멍」이 아니라 「조금 어두운 바닥」이 됐다
+      // (6차 렌더). 먼 층은 **검정 사이에 드문드문**이어야 아래가 비어 보인다.
+      if(h2(i,j,5.7)<.55)continue;                      // 하부 갑판의 구멍
+      // ⚠️ **다각형을 만들기 전에** 구멍 근처인지 본다. 화면에 걸치는 하부
+      // 칸이 130개인데 구멍에 닿는 것은 스물 남짓이라, 순서를 뒤집으면 해시가
+      // 다섯 배로 돈다(칸 하나가 꼭짓점 열둘 = 해시 24회).
+      const ccx=(i+.5)*PL09S2-cu2, ccy=(j+.5)*PL09S2-cv2;
+      const sx=ccx*cs2-ccy*sn2+W/2, sy=ccx*sn2+ccy*cs2+H/2, RR=PL09S2*.95;
+      let near=false;
+      for(let k=0;k<holes.length;k++){const hl=holes[k];
+        if(sx+RR>hl.x0&&sx-RR<hl.x1&&sy+RR>hl.y0&&sy-RR<hl.y1){near=true;break;}}
+      if(!near)continue;
+      const p=PL09scr(PL09plate(i,j,0,PL09S2,8.9),cu2,cv2,cs2,sn2,W,H);
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+      for(let k=0;k<p.length;k++){const q=p[k];
+        if(q[0]<x0)x0=q[0];if(q[0]>x1)x1=q[0];if(q[1]<y0)y0=q[1];if(q[1]>y1)y1=q[1];}
+      for(let k=0;k<holes.length;k++){const hl=holes[k];
+        if(x1>hl.x0&&x0<hl.x1&&y1>hl.y0&&y0<hl.y1){
+          low.push({p,x0,y0,x1,y1});break;}}}
+  }
+
+  // ③ 갑판 — **패스를 가른다.** 판마다 몸통→밝은 면을 이어 칠하면 다음 판의
+  // 몸통이 앞 판의 밝은 면을 덮는다(자기막이 실측으로 밟은 함정: 0.2%→0.68%).
+  // 이 안은 판이 겹치지 않게 맞물리므로 원리적으로는 안 덮이지만, 조각·자갈이
+  // 겹치는 층이라 **규율을 통째로** 지킨다.
+  // 판 몸통은 **화면 한 번 칠하기**로 끝난다. 판이 빈틈 없이 맞물리는 설계라
+  // 「모든 판을 제 색으로 칠하기」와 「화면을 그 색으로 칠하기」가 같은 그림이고,
+  // 구멍은 어차피 뒤에 불투명하게 덮는다. 다각형 마흔 번 → fillRect 한 번.
+  c.fillStyle=PL09C_DECK;c.fillRect(0,0,W,H);
+  // 단차 — 판마다 **아래쪽에 제 그림자**를 떨어뜨린다. 중력이 약해 갑판이
+  // 한 장이 아니라 **살짝살짝 어긋난 판들의 뗏목**이라는 말을, 구멍이 없는
+  // 자리에서도 하게 하는 층이다. `A+(0,e)` 에서 `A` 를 빼 초승달만 남긴다.
+  // ⚠️ 몸통 **뒤**, 밝은 면 **앞**이어야 한다. 몸통 앞에 두면 이웃 판의 몸통이
+  // 덮어 버리고(같은 패스라 순서가 없다), 밝은 면 뒤에 두면 남의 밝은 면을
+  // 갉아먹는다 — 「칠하는 차례가 밝기를 먹는다」의 이 안 버전이다.
+  c.strokeStyle=PL09C_STEP;
+  for(let k=0;k<plates.length;k++){const pl=plates[k];
+    const e=1.6+4.4*h2(pl.i,pl.j,49.7);
+    // 아래를 보는 변(바깥 법선 n.y>.12)만 골라 **선으로** 긋는다.
+    // ⚠️ 처음엔 `A+(0,e)` 에서 `A` 를 뺀 초승달을 evenodd 로 칠했는데, 그림은
+    // 같은데 **칠하는 넓이가 판 하나 통째**라 비쌌다(층별 실측 7.9 → 6.6ms).
+    // 남는 화소가 띠 하나뿐이면 띠만 긋는 게 맞다.
+    c.beginPath();let any=false;
+    for(let q=0;q<pl.p.length;q++){
+      const a0=pl.p[q],b0=pl.p[(q+1)%pl.p.length];
+      const ex=b0[0]-a0[0],ey=b0[1]-a0[1],el=Math.hypot(ex,ey)||1;
+      if(-ex/el<=.12)continue;
+      c.moveTo(a0[0],a0[1]+e*.5);c.lineTo(b0[0],b0[1]+e*.5);any=true;}
+    if(any){c.lineWidth=e;c.stroke();}}
+  for(let k=0;k<plates.length;k++){const pl=plates[k];
+    // ⚠️ **「밝은 면이 생기는가」와 「얼마나 밝은가」를 갈라 놓는다.**
+    // 둘을 한 값(판별 난수 + 저주파 띠)으로 묶었더니 띠가 어두운 구역에서는
+    // 판의 대부분이 밝은 면을 아예 못 얻어 중간 톤이 **13.2%**(하한 15% 미달),
+    // 띠가 밝은 구역에서는 **29.9%**(상한 30% 코앞)가 됐다 — 월드 **열여덟**
+    // 자리에서 재고서야 보였다(열 자리로는 최소가 18.4% 로 나와 안전해 보였다).
+    //   · **생기는가** = 판별 해시만. 구역과 무관하니 어디서나 판의 67% 다
+    //     ⇒ 중간 톤 **면적**이 월드 자리에 안 흔들린다.
+    //   · **얼마나** = 저주파 띠가 톤을 .55~1.00 배 흔든다 ⇒ 「같은 암반의 한
+    //     구역」이라는 그림은 그대로다. 흔드는 것이 면적이 아니라 밝기다.
+    // ⚠️ 흔드는 폭도 **.55~1.00 → .72~1.00 으로 좁혔다.** 넓게 흔들면 톤이
+    // .05 문턱을 넘나드는 판이 구역마다 달라져, 면적을 분리해 놨는데도
+    // 중간 톤이 14.8~30.2% 로 다시 벌어졌다(실측).
+    const hp=h2(pl.i,pl.j,3.7), bd=PL09smooth(pl.i,pl.j,2.2,59.3);
+    const g=.44+.18*h2(pl.i,pl.j,5.9);
+    // ⚠️ **문턱이지 지수가 아니다.** 지수(nk^2.4)로 누르면 판이 전부 중간쯤에
+    // 몰려 화면이 **평평해진다** — 2차 렌더가 정확히 그랬다(판 몸통 .0457 대
+    // 밝은 면 평균 .068, 1.5배라 눈이 못 가른다). 개정 예산은 「평균을 낮춰라」가
+    // 아니라 「밝은 화소의 **면적**을 묶어라」이므로 답은 **절반은 아예 안
+    // 밝히고 나머지는 끝까지 밝히는 것**이다: u=0 인 판은 밝은 면이 그늘과
+    // 같은 색이라 아예 안 생기고(=면적 0), 나머지가 최고 .1366 까지 간다.
+    // 문턱 .28 아래(판의 1/5)는 **밝은 면이 아예 안 생긴다**(그늘과 같은 색).
+    // 이 1/5 이 중간 톤 면적을 상한 아래로 끌어내리는 몫이다 — 문턱을 없애고
+    // 바닥을 .10 으로 띄웠더니 월드 열 자리 중 한 곳이 **32.3%** 로 상한 30% 를
+    // 넘었다(실측). 금(crack)이 판의 윤곽을 이미 그리므로, 밝은 면이 없는 판도
+    // 「민짜 들판」이 아니라 그냥 **그늘에 든 판**으로 읽힌다.
+    const u=Math.min(1,Math.max(0,(hp-.18)/.62));
+    fillPoly(c,PL09face(pl.p,g),
+      mixHex(PL09C_FAC0,PL09C_FAC1,.085+.915*u*u*(3-2*u)*(.72+.28*bd)));}
+  // 금 — 판과 판 사이. ⚠️ 톤 차이만으로는 **이웃한 두 판의 경계가 사라진다**
+  // (밝기가 비슷한 판끼리는 한 덩어리로 뭉쳐 「어두운 들판」이 됐다, 3차 렌더).
+  // 어두운 선이라 **밝기 예산을 한 톨도 안 쓰면서** 모자이크를 세운다.
+  // 이웃끼리 같은 변을 두 번 긋게 두는 것이 맞다 — 안쪽 금이 더 진해지고
+  // 구멍에 닿는 변은 한 번만 그어져, **구멍 쪽이 저절로 옅다**.
+  for(let k=0;k<plates.length;k++){PL09path(c,plates[k].p);
+    c.strokeStyle=PL09C_CRACK;c.lineWidth=1.4;c.stroke();}
+  // 잔금 — 판이 **한 장의 스티커**로 안 보이게. 판 안쪽에만 놓아 구멍으로
+  // 안 삐져나간다(구멍 위에 뜬 티끌은 즉시 「보케」로 읽힌다).
+  for(let k=0;k<plates.length;k++){const pl=plates[k],m=PL09mid(pl.p);
+    for(let b=0;b<2;b++){
+      if(h2(pl.i,pl.j,41.3+b*3.7)<.44)continue;
+      const a0=h2(pl.i,pl.j,43.1+b*5.3)*TAU, ln=m[2]*(.26+.34*h2(pl.i,pl.j,47.9+b*1.7));
+      const x0=m[0]+Math.cos(a0)*m[2]*.16, y0=m[1]+Math.sin(a0)*m[2]*.16;
+      fillPoly(c,ribbonPoly([[x0,y0],[x0+Math.cos(a0+.6)*ln,y0+Math.sin(a0+.6)*ln]],1.5,.4),
+        PL09C_PIT);}}
+
+  // ④ 구멍 — **이 안의 전부.** 구멍 하나가 클립 하나이고, 그 안에 심연·별·
+  // 하부 갑판·빛 자국·벽·립이 **전부** 들어간다. **갑판 위에** 그린다 —
+  // 깨진 자리는 가장자리가 부서져 없어진 판보다 조금 넓으므로(1.07배),
+  // 그리는 차례가 반대면 옆 판이 그 부스러기 몫을 도로 덮는다.
+  //
+  // ⚠️ **심연은 공용 바닥(.0184)보다 더 어둡다**(.0094). 첫 두 렌더가 여기서
+  // 죽었다: 갑판의 안 밝은 판(.046)과 구멍(.018)이 8비트로 12 대 5 라 눈이
+  // 못 갈랐고, 화면이 「검정 위에 뜬 밝은 판들」= **잔해대**로 읽혔다.
+  // 갑판 바탕은 중간 톤 하한(.05) 위로 못 올린다 — 올리면 화면의 60% 가
+  // 중간 톤이 되어 상한 30% 를 즉시 깬다. 그러니 **벌릴 수 있는 쪽은 아래뿐**
+  // 이고, 구멍은 원래 「빛이 안 닿는 곳」이라 그게 물리적으로도 맞다.
+  // `mapFloor` 는 여전히 첫 줄이다(공용 바닥 위에 더 어두운 것을 얹는 것과
+  // 바닥을 안 까는 것은 다르다 — 안 깔면 갑판 **바깥**이 옛 바탕이 된다).
+  for(let k=0;k<holes.length;k++){
+    const hl=holes[k], hh=18+12*h2(hl.i,hl.j,37.1);     // 판 두께
+    c.save();
+    PL09path(c,hl.p);c.clip();
+    fillPoly(c,hl.p,PL09C_ABYSS);
+    // 별 — 구멍의 사각 범위만 훑는다(화면 전체를 열두 번 훑지 않는다).
+    const bw=hl.x1-hl.x0,bh=hl.y1-hl.y0;
+    scatter(ox*PL09PS+(hl.x0+hl.x1)/2-W/2, oy*PL09PS+(hl.y0+hl.y1)/2-H/2, bw,bh,40,1,
+      (x,y,i,j,r)=>{
+        if(r>.60)return;
+        const q=h2(i,j,7.7);
+        // 별은 **구멍 안에만** 그려지므로 화면 면적이 1% 도 안 된다. 그래서
+        // 밝기를 아끼지 않는다 — 「저 아래가 우주다」는 점이 **보여야** 성립한다.
+        mapStar(c,x+hl.x0,y+hl.y0,q>.955?1.7:(q>.74?1.25:1.0),
+          q>.955?MAPINK.starM:MAPINK.starD, q>.74?1:.72);});
+    // 하부 갑판 — 몸통 전부 → 면 전부(패스를 가른다).
+    for(let q=0;q<low.length;q++){const lw=low[q];
+      if(lw.x1>hl.x0&&lw.x0<hl.x1&&lw.y1>hl.y0&&lw.y0<hl.y1)fillPoly(c,lw.p,PL09C_LOW);}
+    for(let q=0;q<low.length;q++){const lw=low[q];
+      if(lw.x1>hl.x0&&lw.x0<hl.x1&&lw.y1>hl.y0&&lw.y0<hl.y1)
+        fillPoly(c,PL09face(lw.p,.28),PL09C_LOWF);}
+    // 빛 자국 — 구멍으로 든 빛이 **어긋난 자리**에 떨어진다. 어긋남이 곧 깊이다.
+    const sh=30+24*h2(hl.i,hl.j,39.3);
+    fillPoly(c,PL09off(hl.p,PL09LX*sh,PL09LY*sh),A(PL09C_SHAFT,.17));
+    // 벽 — 남쪽에서 내려다보니 **먼 쪽(위) 벽만** 보인다. 아래 단을 먼저
+    // 깔고 위 단을 덮어 두 단으로 만든다(그라디언트를 안 쓰는 이유).
+    PL09sub(c,hl.p,0,hh,PL09C_WALL0);
+    PL09sub(c,hl.p,0,hh*.42,PL09C_WALL1);
+    // 립 — 깨진 모서리. **위쪽 테두리에만** 긋는다. 구멍을 빙 둘러 그으면
+    // 「윤곽선을 친 도형」이 되어 스티커로 읽힌다. 바깥 법선이 위를 보는 변
+    // (n.y<-.15)만 고르면 벽의 윗변, 즉 판이 잘린 자리와 정확히 같은 선이다.
+    // 클립 안이라 **안쪽 절반만** 남아 1.3px 다.
+    c.beginPath();
+    for(let q=0;q<hl.p.length;q++){
+      const a0=hl.p[q],b0=hl.p[(q+1)%hl.p.length];
+      const ex=b0[0]-a0[0],ey=b0[1]-a0[1],el=Math.hypot(ex,ey)||1;
+      if(-ex/el>=-.15)continue;                          // n=(ey,-ex)/|e| 의 y
+      c.moveTo(a0[0],a0[1]);c.lineTo(b0[0],b0[1]);}
+    c.strokeStyle=A(PL09C_LIP,.85);c.lineWidth=2.6;c.stroke();
+    c.restore();
+  }
+
+  // ⑤ 뜬 조각 — **자기 구멍에서 나온 그 판**을 위로 옮긴 것. 이 안의 정체.
+  const chunks=[];
+  for(let k=0;k<holes.length;k++){
+    const hl=holes[k];
+    if(h2(hl.i,hl.j,17.3)>=PL09CH)continue;
+    const lf=h2(hl.i,hl.j,19.7);
+    // 숨 — **위상에서 파생한 값을 그리지 않는다.** 순수 sin(t) 하나라
+    // 주기 끝과 처음이 같다(루프 애니메이션 규칙).
+    const bob=Math.sin(t*(.30+.22*h2(hl.i,hl.j,23.9))+h2(hl.i,hl.j,27.1)*TAU)*4.2;
+    // **자기 구멍 안에 걸쳐 뜬다**(26~60px, 구멍 지름 146px · 조각 122px).
+    // 조각이 구멍보다 작으므로 구멍의 검정이 조각의 아래·좌·우로 **테처럼
+    // 남고**, 그 테가 「이 판은 저 구멍에서 떠올랐다」를 한 번에 말한다.
+    // ⚠️ 구멍 하나만큼(92~154px) 띄웠더니 조각이 갑판의 다른 판들 사이로
+    // 섞여 들어가 **그냥 밝은 판**이 됐다(6차 렌더) — 높이는 시차가 없으면
+    // 안 읽히고, 이 게임의 카메라에는 시차가 없다.
+    const lx=(h2(hl.i,hl.j,21.1)-.5)*22, ly=-(26+34*lf)+bob;
+    const p=PL09rot(PL09off(hl.pc,lx,ly),(h2(hl.i,hl.j,29.3)-.5)*.105);
+    chunks.push({p,hole:hl.p,base:hl.pc,i:hl.i,j:hl.j,lf});}
+  // 그림자 — **구멍 안에는 안 떨어진다**(구멍 바닥이 없으니 그림자도 없다).
+  // evenodd 로 화면에서 구멍을 뺀 자리에만 클립해 초승달만 남긴다.
+  for(let k=0;k<chunks.length;k++){const ch=chunks[k];
+    c.save();
+    c.beginPath();c.rect(0,0,W,H);
+    for(let q=0;q<ch.hole.length;q++)
+      q?c.lineTo(ch.hole[q][0],ch.hole[q][1]):c.moveTo(ch.hole[q][0],ch.hole[q][1]);
+    c.closePath();c.clip("evenodd");
+    const sd=15+12*ch.lf;
+    fillPoly(c,PL09off(ch.base,PL09LX*sd,PL09LY*sd),"rgba(2,2,6,.50)");
+    c.restore();}
+  // 옆면 → 몸통 → 밝은 면. **세 패스로 가른다.**
+  for(let k=0;k<chunks.length;k++){const ch=chunks[k],th=6+5*ch.lf;
+    fillPoly(c,PL09off(ch.p,0,th),PL09C_SIDE1);      // 아래(심연이 되비친 자리)
+    fillPoly(c,PL09off(ch.p,0,th*.5),PL09C_SIDE0);}  // 위(윗면 바로 밑)
+  for(let k=0;k<chunks.length;k++)fillPoly(c,chunks[k].p,PL09C_CH);
+  for(let k=0;k<chunks.length;k++){const ch=chunks[k];
+    const nk=h2(ch.i,ch.j,33.7), g=.18+.28*h2(ch.i,ch.j,35.9);
+    // 조각은 갑판보다 **한 단 밝다** — 위로 뜬 만큼 빛을 더 받는다. 면적
+    // 봉우리(L .140)가 여기서 나오고, 조각은 화면의 5~7% 뿐이다.
+    fillPoly(c,PL09face(ch.p,g),mixHex(PL09C_CHF0,PL09C_CHF1,Math.pow(nk,1.5)));}
+
+  // ⑥ 부유 자갈 — 중력이 약하다는 말을 **작게** 한다. 구멍 위에서만 뜨므로
+  // 「깨진 자리에서 떨어져 나온 것」으로 읽힌다. 지름 3~8px 이라 적(28px)을
+  // 가릴 면적이 없다.
+  for(let k=0;k<holes.length;k++){const hl=holes[k],m=PL09mid(hl.p);
+    for(let b=0;b<3;b++){
+      if(h2(hl.i,hl.j,61.3+b*2.9)<.52)continue;
+      const ang=h2(hl.i,hl.j,63.7+b*1.7)*TAU, dr=m[2]*(.15+.55*h2(hl.i,hl.j,67.1+b*3.1));
+      const rr=1.6+2.2*h2(hl.i,hl.j,71.9+b*2.3);
+      const px=m[0]+Math.cos(ang)*dr;
+      const py=m[1]+Math.sin(ang)*dr-10-24*h2(hl.i,hl.j,73.1+b*1.9)
+              +Math.sin(t*(.34+.30*h2(hl.i,hl.j,75.7+b*2.1))+h2(hl.i,hl.j,77.3+b*1.3)*TAU)*4.4;
+      const sd=hl.i*3.1+hl.j*7.7+b*1.9;
+      fillPoly(c,jagPoly(px,py,rr,4,sd,1.05,.86),PL09C_CH);
+      fillPoly(c,jagPoly(px-PL09LX*rr*.40,py-PL09LY*rr*.40,rr*.56,4,sd,1.05,.86),PL09C_CHF0);}}
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181, 얇은 고리, 같은 청색 계열)을
+/// 부유암 위에 얹는다.
+function PL09proof(c,t,dt,W,H,st){MAPP.bg.float(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+mapTile("pl09",MAPP.demo("float",1,1),"P9 · 부유암 浮遊巖 + 빛파동 + 미니맵",
+  "지면이 끊긴 유일한 안 — 화면의 13~21%가 지면이 아니다. 구멍 너머에 <b>벽(두께) · 더 먼 갑판(시차 .44) · 별</b> 셋이 다 있어야 「구멍」이고, 하나라도 빠지면 「얼룩」이다. 뜬 조각은 <b>자기 구멍 안에 걸쳐</b> 떠 있어 어느 자리에서 떨어져 나왔는지가 보인다.",
+  MAP_W,MAP_H,1);
+mapTile("pl-bg",MAPP.demo("float",0,0),"부유암 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL09proof,"부유암 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("float",0,1),"부유암 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+
+/// 밝기 실측 — **페이지가 스스로 잰다. 그리고 한 자리에서 안 잰다.**
+/// 동공이 「웅덩이를 확실히 가로지르는 자리」에서만 재다가 월드 넷에서
+/// 다시 재니 중간 톤 최소가 1.19% 였던 전례가 있다. 여기서는 **월드 여섯
+/// 자리**에서 재고 최소·평균·최대를 다 적는다(카메라를 갈아 끼워 잰다).
+(function(){
+  const host=$("pl-num");
+  const SPOT=[[0,0],[3170,-2410],[-8600,5200],[14300,9100],[-19500,-7300],[6100,-15800],
+              [24800,3300],[-31200,18700]];
+  let z=null;
+  try{
+    const cv=document.createElement("canvas");cv.width=MAP_W;cv.height=MAP_H;
+    const c=cv.getContext&&cv.getContext("2d");
+    if(c&&c.getImageData){
+      const sv=MAPP.cam;let mid=[],p12=0,p35=0,mx=0,as=0,n0=0;
+      for(let s=0;s<SPOT.length;s++){
+        MAPP.cam=()=>SPOT[s];
+        MAPP.bg.float(c,1.37+s*.61,MAP_W,MAP_H);
+        const d=c.getImageData(0,0,MAP_W,MAP_H).data,n=d.length/4;
+        if(n<16){z=null;break;}
+        let sum=0,md=0,o12=0,o35=0;
+        for(let q=0;q<d.length;q+=4){
+          const l=(d[q]*.299+d[q+1]*.587+d[q+2]*.114)/255;
+          sum+=l;if(l>=.05&&l<=.15)md++;if(l>.12)o12++;if(l>.35)o35++;if(l>mx)mx=l;}
+        mid.push(md/n*100);
+        p12+=o12/n*100;p35+=o35/n*100;as+=sum/n;n0++;}
+      MAPP.cam=sv;
+      if(n0===SPOT.length)z={lo:Math.min.apply(null,mid),hi:Math.max.apply(null,mid),
+        me:mid.reduce((a,b)=>a+b,0)/n0,avg:as/n0,p12:p12/n0,p35:p35/n0,mx:mx,n:n0};}
+  }catch(e){z=null;}
+  const ok=v=>v?"#7ED08A":"#FF7A6A";
+  const row=document.createElement("div");
+  box(row,{border:"1px solid #26262F",borderRadius:"4px",background:"#13131A",
+    padding:"9px 12px",marginTop:"6px",fontSize:"11.5px",color:"#9494A2",
+    fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",lineHeight:"1.7"});
+  row.innerHTML=z
+    ?`<b style="color:#EDEDF2">P9 부유암</b>　중간 톤 <b style="color:${ok(z.lo>=15&&z.hi<=30)}">`+
+     `${z.lo.toFixed(1)}~${z.hi.toFixed(1)}%</b>(평균 ${z.me.toFixed(1)}) / 15~30% · 월드 ${z.n}자리　`+
+     `평균 L <b style="color:${ok(z.avg<=.075)}">${z.avg.toFixed(4)}</b>/.075　`+
+     `L&gt;.12 ${z.p12.toFixed(2)}%　L&gt;.35 <b style="color:${ok(z.p35<=.5)}">`+
+     `${z.p35.toFixed(3)}%</b>/.5%　최대 ${z.mx.toFixed(3)}`+
+     `<span style="color:#5A5A68"> · 면적 봉우리 .145/.17 · 주 색상각 227.6°(빙 29.0° · 어둠 45.4°) · `+
+     `가산 합성 0 · 흰 앞날 0 · 그라디언트 0</span>`
+    :`<b style="color:#EDEDF2">P9 부유암</b>　측정 불가(getImageData)`;
+  host.appendChild(row);
+})();
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 유니버스 · PL07 염호 鹽湖 — docs/vfx/mockup-map2.html 전용
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 여러 손이
+// 같은 파일의 다른 자리를 만지므로, 겹치는 자리를 아예 안 만드는 것이 유일하게
+// 확실한 안전장치다. 최상위 이름은 전부 `PL07` 로 시작하고, 등록은
+// `MAPP.bg.salt` **대입 하나**다(`const`/`let` 재선언 0). 새 그리기 원시함수도 0
+// 이다 — `fillPoly`·`scatter`·`h2`·`hash`·`A`·`mpTile`·`mpPat`·`mapFloor` 조합뿐.
+//
+// ── 이 안이 유일하게 하는 것: **밝은 쪽이 판이다** ────────────────────────
+//
+// 열다섯 중 **밝은 면이 갈라진** 유일한 안이고, 균열지(`MAPP.bg.fissure`)의
+// 정확한 반전이다. 균열지는 「어두운 판 + 더 어두운 금」이라 화면에서 밝은 것이
+// 립(알파 .085)과 잔불뿐이었다. 여기서는 **판의 몸통이 화면에서 제일 밝은
+// 것**이고 금은 바닥보다도 어둡다.
+//
+// ⚠️ 그래서 이 안은 열다섯 중 평균 L 이 **제일 위험하다.** 별은 화면의 1%라
+// 아무리 밝아도 안 싸우지만 판은 화면을 100% 덮는다 — 「소금이니까 하얗게」
+// 칠하는 순간 화면 전체가 하얘지고 그 위의 이펙트는 전부 죽는다.
+//
+// ── 예산을 지키면서 「밝다」를 만든 법 ────────────────────────────────────
+//
+// **판을 밝힌 게 아니라 판 둘레를 내렸다.** 앞 손들이 반복해 배운 것이
+// 「밝기가 아니라 주변이 더 어두운 것」이고, 이 안은 그 규칙만으로 서 있다:
+//
+//   ① **금은 바닥보다 어둡다.** 금 `#020207` 은 L .0101 로 공용 바닥
+//      `MAPFLOOR`(.0184)보다 **더 아래**다. 한가운데 실선(`#000004` L .0018)은
+//      사실상 순흑이다. 밝은 판(.140)과의 국소 대비가 **13.9배**다 — 판 자체는
+//      면적 봉우리 상한(.17)의 80% 밖에 안 쓰는데도 「밝은 판」으로 읽힌다.
+//   ② **밝은 판의 「개수」를 묶는다 — 판 하나하나를 어둡히지 않는다.**
+//      예산이 강제하는 산수부터 적어 둔다: 중간 톤 상한이 30% 이므로
+//      **판의 3분의 1 이상은 L .05 를 넘을 수 없다.** 판이 화면을 100% 덮으니
+//      이건 취향이 아니라 부등식이다. 그래서 판마다 밝기를 나눠 갖는 대신
+//      **네 단으로 갈라** 위 두 단(신선한 소금 crust)만 중간 톤에 올린다:
+//        A 신선 L .115~.140  판의 11.5%   ← 「밝은 판」은 이것들이다
+//        B 묵은 L .061~.079  판의 14.6%
+//        C 젖은 L .037~.046  판의 46.0%   ← 중간 톤 밖(.05 미만)
+//        D 간수 L .022~.031  판의 27.9%
+//      합쳐 중간 톤 = 판의 26.1% → 화면의 24% 로 앉는다.
+//      실제 소금호가 정확히 이렇게 생겼다 — 갓 마른 흰 crust 와 젖은 진창이
+//      **판 단위로** 얼룩덜룩하다. 예산이 강요한 형태가 소재의 진실과 같다.
+//
+//      ✗ **처음엔 판마다 「부푼 마루」(방사 그라디언트)를 줬다가 버렸다.**
+//        수치는 전부 통과했는데(중간 톤 25.8% · 평균 L .0426 · 봉우리 .153)
+//        **렌더를 눈으로 보니 판마다 등이 하나씩 켜진 「보케」**였다. 부드러운
+//        방사 falloff 는 면이 아니라 **빛**으로 읽힌다 — 지면이 스스로 빛나는
+//        안(이끼밭)의 문법을 훔친 꼴이었다. 지금은 판 안이 **평평하고**, 명암은
+//        빛 방향(왼위)으로 걸린 아주 얕은 **선형** 그라디언트(±11%)뿐이다.
+//        평평한 면 + 방향광 = 지형, 둥근 falloff = 전구. 같은 예산 다른 그림.
+//   ③ **위에 얹는 것은 전부 빼기다.** 잔결(craze)·간수 안개(mist)가 모두
+//      어둡게만 간다. 잿바다가 얻은 규칙 — 위층 시차는 밝게가 아니라
+//      어둡게로 준다. 더하는 것은 디더(±1 채널)와 불티뿐이다.
+//
+// ✗ **금을 밝게 하는 안(우유니식 흰 이랑)은 버렸다.** 두 가지로 진다.
+//   ⑴ 금은 화면 전체에 **그물로** 깔린다 — 206px 칸에 5px 폭이면 면적이
+//      7.3% 고, 그걸 L .13 으로 칠하면 평균에 +.0095 다. 판보다 싸지 않다.
+//   ⑵ 1~2px 밝은 직선이 화면을 그물로 덮으면 **「자로 그은 사선」**이 된다 —
+//      앞 손들이 눈 판정에서 실제로 반려당한 실패 모양이다.
+//   그리고 무엇보다 그건 균열지에 밝은 립을 단 것이지 **반전이 아니다.**
+//
+// ── 위치감 = 지형지물(판) ────────────────────────────────────────────────
+// 판 하나가 206px 라 캐릭터의 열 배쯤이다. 멈춰 있어도 「나는 이 판의 왼쪽
+// 아래」가 읽힌다. 게다가 판마다 단이 달라 **밝은 판 자체가 랜드마크**다 —
+// 균열지가 판 사이 명도차를 .022 로 눌러 「같은 크기 도장」을 피해야 했던 것과
+// 반대로, 여기서는 단 차이가 그대로 지도가 된다.
+//
+// ── 색 ───────────────────────────────────────────────────────────────────
+// 속성 색상환에서 제일 넓게 빈 구간은 빙(198.6°)~어둠(273.0°) 의 74.4° 다.
+// 그 한가운데 근처인 **231~234°**(청보라)를 골랐다 — 빙과 32°, 어둠과 42°,
+// 적 몸(318.8°)과 85° 떨어진다. 밤하늘 아래 간수가 실제로 이 색이라 소재와도
+// 맞고, 채도를 낮게(HSL S≈.26) 눌러 두어 속성색으로 오독될 여지를 더 줄였다.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 판 격자는 `scatter()` 로 돈다 — **칸 번호 해시**라 무늬가 영영 안 반복되고
+// 도는 칸 수가 화면 넓이에만 비례한다(O(1)). 칸마다 사이트 하나를 두고 이웃
+// 사이트와의 이등분선으로 잘라 **보로노이 판**을 만든다. 이웃 셀이 같은 사이트
+// 함수를 부르므로 판 경계가 저절로 맞물린다 — 이어 붙이는 코드가 없다.
+
+const PL07C   = 140;      // 판 격자(월드 px).
+                          // ⚠️ **밝은 판의 개수를 정하는 건 예산이 아니라 이 값이다.**
+                          // 처음엔 206 으로 뒀는데, 그러면 화면에 판이 13장뿐이라
+                          // 밝은 무리 26% 가 **3장**밖에 안 됐다 — 면적 예산은 다
+                          // 쓰는데 그림은 「어두운 바닥에 켜진 타일 둘」이었다.
+                          // 140 이면 27장이 들어와 밝은 판이 예닐곱이라, 같은 면적
+                          // 예산으로 「밝은 판이 갈라진 들판」이 된다.
+const PL07J   = .46;      // 사이트 흔듦 폭(칸의 ±23%). 더 키우면 실오라기 판이
+                          // 생기고, 더 줄이면 격자가 그대로 드러난다
+const PL07LX  = -.7071, PL07LY = -.7071;   // 빛 방향(왼위) — 균열지와 같은 규약
+
+// 어둠 셋. **전부 공용 바닥(.0184)보다 어둡거나 그 언저리다.**
+const PL07_PAN   = "#06070C";  // L .0285 — 판이 못 덮은 자리의 안전 바탕
+const PL07_SEAM  = "#020207";  // L .0101 — 금. 바닥보다 **어둡다**
+const PL07_HAIR  = "#000004";  // L .0018 — 금 한가운데 실선. 사실상 순흑
+// 티끌 둘.
+const PL07_WET   = "#2A2E45";  // L .1860 — 간수 윤기. 알파 .11 로만(합성 후 .044)
+const PL07_GLINT = "#C9D2EE";  // L .8255 — 결정 불티. 화면당 예닐곱, r≈1px
+
+/// 판 밝기의 두 끝. 판 하나는 이 선분 위의 **한 점**이고, 그 점을 칸 번호
+/// 해시가 정한다. 색은 `mixHex` 로 섞으므로 판마다 색상각이 안 흔들린다
+/// (명도는 채널의 1차식이라 섞은 비율 k 에 정확히 비례한다).
+const PL07_DARK  = "#04050D";   // L .0220 — 간수에 젖은 판(분포의 바닥)
+const PL07_LIGHT = "#202237";   // L .1404 — 갓 마른 소금 crust(분포의 꼭대기)
+
+/// ⚠️ **판은 두 무리다. 그 사이는 일부러 비워 놨다.**
+///
+/// 판 밝기는 L(k) = .0220 + .1184·k 이고, k 를 칸 해시가 정한다.
+/// 예산이 강제하는 산수부터: 중간 톤 상한이 30% 이고 판이 화면을 100% 덮으니
+/// **판의 3분의 1 이상은 L .05 를 넘을 수 없다.** 이건 취향이 아니라 부등식이다.
+///
+/// 그 26% 를 **어디에 쓰느냐**가 이 안의 전부다. 중간 톤은 L .05 든 .14 든
+/// 똑같이 한 칸을 먹으므로, 예산을 .06 짜리 판에 쓰면 **면적만 쓰고 밝아
+/// 보이지는 않는다.** 그래서 밝은 무리를 **문턱 한참 위(.095~.140)** 에
+/// 몰아 놓고, 나머지는 문턱 한참 아래(.022~.046)로 내렸다. 둘 사이 .046~.095
+/// 는 **아무 판도 안 갖는다** — 소금호가 실제로 그렇다. 증발은 문턱 현상이라
+/// 갓 마른 흰 crust 와 젖은 진창 사이에 중간 상태가 오래 안 머문다.
+///
+/// ✗ 여기까지 두 번 갈아엎었다.
+///   ⑴ 네 단(A~D)으로 끊었더니 **「켜진 판 / 꺼진 판」의 이분법**으로 보였다.
+///   ⑵ 그래서 k=v^4.8 연속 분포로 폈더니 이번엔 **밝은 판이 한 장도 없는
+///      카메라 자리가 나왔다.** 지수 꼬리가 예산을 문턱 바로 위(.05~.07)의
+///      「밝지도 어둡지도 않은」 판들에 흩어 버려, 수치는 중간 톤 26% 인데
+///      **그림에는 밝은 판이 없는** 상태가 됐다. 면적 예산과 「밝아 보임」은
+///      같은 것이 아니다.
+///   지금은 무리 안에서만 연속이라 판마다 값이 다 다르고(도장 느낌 없음),
+///   무리 사이는 뚝 끊긴다(밝은 판이 확실히 밝음).
+///   ⑶ 그리고 밝은 무리를 **칸마다 독립 동전던지기**로 뽑았더니 중간 톤이
+///      **19.4~49.6%** 로 널뛰었다. 화면에 판이 27장뿐이라 밝은 판 수가
+///      이항분포(평균 7 · 표준편차 2.3)고, 그게 그대로 면적이 된다 —
+///      **작은 수의 난수는 예산을 못 지킨다.** 그래서 아래 블록 방식으로 옮겼다.
+const PL07KB0  = .62, PL07KB1 = 1.00;   // 밝은 무리 k 범위 → L .0954~.1404
+const PL07KD1  = .12;                   // 어두운 무리 k 상한 → L .0362
+// ⚠️ 처음엔 .17(볕 끝 L .0461)로 뒀다가 실측에 걸렸다. 문턱(.05)과 **.004 밖에
+// 안 떨어져** 디더 ±1채널만으로 어두운 판이 우수수 중간 톤에 올라탔고, 어두운
+// 판이 화면의 75% 라 중간 톤이 23% 예상 → **33.4%** 로 튀었다. 지금은 볕 끝이
+// .0394 라 문턱과 .011 떨어져 있다 — **문턱 옆에는 아무것도 두지 않는다.**
+
+/// DARK→LIGHT 보간 색 — 256칸으로 양자화해 외운다.
+///
+/// 판마다 볕·그늘 두 색을 매 프레임 `mixHex` 로 만들면 프레임당 문자열 파싱이
+/// 백여 번이다. k 를 256단계로 끊어도 채널 차이가 1 미만이라 눈에 안 보이고,
+/// 첫 프레임 뒤로는 표에서 꺼내 쓴다.
+const PL07MIX=[];
+function PL07mix(k){
+  const q=Math.max(0,Math.min(255,Math.round(k*255)));
+  return PL07MIX[q]||(PL07MIX[q]=mixHex(PL07_DARK,PL07_LIGHT,q/255));
+}
+
+/// 밝은 판 고르기 — **2×2 칸 블록마다 정확히 한 장.**
+///
+/// 칸마다 독립으로 뽑으면 밝은 판 수가 이항분포라 화면마다 3~12장으로 널뛰고,
+/// 중간 톤이 19~50% 로 예산을 깬다. 블록마다 **딱 하나**를 뽑으면 비율이
+/// 항상 25% 로 고정되고 자리도 고르게 흩어진다 — 남는 무작위는 「블록 안의
+/// 넷 중 누구냐」뿐이라 격자로는 안 보인다.
+///
+/// ⚠️ 음수 칸에서도 맞아야 한다. `Math.floor(-1/2) = -1` 이므로
+/// `i - bi*2` 는 항상 0 또는 1 이다(자바스크립트 % 의 음수 함정을 피한다).
+function PL07bright(i,j){
+  const bi=Math.floor(i/2), bj=Math.floor(j/2);
+  return (i-bi*2)+(j-bj*2)*2 === Math.floor(h2(bi,bj,19.3)*4);
+}
+
+// ── 「부푼 마루」를 버리기까지 (2026-08-12 실측 기록) ─────────────────────
+//
+// 처음엔 판마다 방사 그라디언트로 **부푼 마루**를 줬다. 밝기를 가장자리로부터의
+// 거리의 k 제곱으로 주고 k 로 예산을 맞추는 구조였고, 월드 8~12자리 실측으로
+// k 를 세 번 올렸다:
+//   k=2.1  중간 톤 **37.07%** (최소 32.2 · 최대 41.1)  ← 상한 30% 를 훌쩍 넘김
+//   k=2.8  중간 톤 **29.57%** (최소 25.6 · 최대 33.1)  ← 평균은 들어왔는데 최대가 밖
+//   k=3.25 중간 톤 **26.27%** (최소 22.7 · 최대 29.5)
+//   k=3.5  중간 톤 **25.77%** (최소 21.5 · 최대 29.7) · 평균 L .0426 · 봉우리 .153
+// 네 판 모두 평균 L·봉우리·L>.35 는 처음부터 통과였고 **중간 톤만** 깨졌다.
+// 「보인다」의 정의에 **상한도 있다**는 걸 열다섯 중 이 안이 제일 세게 맞는다.
+//
+// ✗ 그런데 k=3.5 는 **수치가 전부 통과한 채로 눈 판정에서 죽었다** — 렌더를
+//   띄워 보니 판마다 등이 하나씩 켜진 **보케**였다. 그래서 마루를 통째로 버리고
+//   위의 네 단으로 갈아탔다. **수치는 그림을 보증하지 않는다**는 것이 이 안이
+//   제일 비싸게 배운 것이고, 검증 넷에 「렌더 후 눈으로 판정」이 있는 이유다.
+
+/// 칸 하나의 사이트(월드 좌표). `h2` 는 칸 번호만 먹으므로 스크롤해 나갔다
+/// 돌아와도 판이 그대로다 — 그래야 랜드마크다.
+const PL07S = (i,j)=>[(i+.5+(h2(i,j,1.7)-.5)*PL07J)*PL07C,
+                      (j+.5+(h2(i,j,4.3)-.5)*PL07J)*PL07C];
+
+/// 반평면 자르기(Sutherland–Hodgman 한 변). P 의 판을 이웃 Q 쪽 수직이등분선
+/// 으로 잘라 낸다. 그리기가 아니라 **좌표 계산**이라 새 원시함수가 아니다.
+function PL07clip(poly,px,py,qx,qy){
+  const nx=qx-px, ny=qy-py, d=(nx*(px+qx)+ny*(py+qy))*.5;   // n·x = d
+  const out=[];
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length];
+    const da=nx*a[0]+ny*a[1]-d, db=nx*b[0]+ny*b[1]-d;
+    if(da<=0)out.push(a);
+    if((da<0&&db>0)||(da>0&&db<0)){
+      const s=da/(da-db);
+      out.push([a[0]+(b[0]-a[0])*s, a[1]+(b[1]-a[1])*s]);
+    }
+  }
+  return out;
+}
+
+/// 칸 (i,j) 의 보로노이 판. 큰 사각에서 시작해 이웃 사이트로 깎아 낸다.
+///
+/// 3×3 을 먼저 깎고 **그 결과의 최대 반지름으로 바깥 고리를 걸러 낸다** —
+/// 이등분선이 판을 자를 수 있으려면 |Q-P| < 2·Rmax 여야 하므로, 대부분의
+/// 5×5 이웃은 자르기를 아예 안 부르고 넘어간다.
+function PL07cell(i,j){
+  const p=PL07S(i,j), px=p[0], py=p[1], E=PL07C*1.4;
+  let poly=[[px-E,py-E],[px+E,py-E],[px+E,py+E],[px-E,py+E]];
+  for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){
+    if(!di&&!dj)continue;
+    const q=PL07S(i+di,j+dj);
+    poly=PL07clip(poly,px,py,q[0],q[1]);
+    if(poly.length<3)return null;
+  }
+  let R2=0;
+  for(let k=0;k<poly.length;k++){
+    const dx=poly[k][0]-px,dy=poly[k][1]-py,dd=dx*dx+dy*dy;if(dd>R2)R2=dd;}
+  const lim=4*R2;
+  for(let dj=-2;dj<=2;dj++)for(let di=-2;di<=2;di++){
+    if(Math.abs(di)<2&&Math.abs(dj)<2)continue;
+    const q=PL07S(i+di,j+dj), dx=q[0]-px, dy=q[1]-py;
+    if(dx*dx+dy*dy>lim)continue;
+    poly=PL07clip(poly,px,py,q[0],q[1]);
+    if(poly.length<3)return null;
+  }
+  return poly;
+}
+
+// ── 잔결 — 소금 껍질의 잔금 ───────────────────────────────────────────────
+//
+// **이 층이 없으면 판이 「보케」가 된다.** 부드러운 방사 그라디언트만 남겨
+// 두면 판 하나하나가 흐린 동그란 빛덩이로 보이고, 그건 지면이 아니라 렌즈
+// 아웃포커스다. 잔금이 판 위를 덮는 순간 같은 밝기가 **표면**으로 읽힌다.
+//
+// 값은 전부 빼기다(어두운 선) — 질감을 얻는 데 예산을 한 톨도 안 쓴다.
+// 25.6px 칸이라 판(206px) 하나에 여덟 칸이 들어간다. 판 격자와 **다른
+// 배수**여야 두 겹의 합성 주기가 안 읽힌다.
+const PL07craze = ()=>mpTile("pl07craze",512,(c2,S)=>{
+  const N=20, U=S/N;
+  // 칸 번호를 N 으로 접어 해시하면 V(N,y)=V(0,y)+S 가 정확히 성립한다 —
+  // 타일 이음매가 수학적으로 0 이다(모듈로 자국이 아니라 진짜 연속).
+  const V=(gx,gy)=>{const mx=((gx%N)+N)%N, my=((gy%N)+N)%N;
+    return[gx*U+(h2(mx,my,7.1)-.5)*U*.82, gy*U+(h2(mx,my,9.7)-.5)*U*.82];};
+  c2.lineCap="round"; c2.lineJoin="round";
+  const seg=(a,b,w,col)=>{c2.beginPath();c2.moveTo(a[0],a[1]);c2.lineTo(b[0],b[1]);
+    c2.strokeStyle=col;c2.lineWidth=w;c2.stroke();};
+  for(let gy=-1;gy<=N;gy++)for(let gx=-1;gx<=N;gx++){
+    const mx=((gx%N)+N)%N, my=((gy%N)+N)%N, a=V(gx,gy);
+    // 넷 중 하나꼴로 끊는다 — 다 이으면 격자가 드러난다.
+    if(h2(mx,my,13.3)>.26)seg(a,V(gx+1,gy),.9+h2(mx,my,2.1)*.5,A(PL07_HAIR,.26));
+    if(h2(mx,my,17.9)>.26)seg(a,V(gx,gy+1),.9+h2(mx,my,3.7)*.5,A(PL07_HAIR,.26));
+    // 가끔 대각 — 전부 사각이면 직교 격자로 보인다.
+    if(h2(mx,my,23.1)>.80)seg(a,V(gx+1,gy+1),.8,A(PL07_HAIR,.20));
+  }
+});
+
+// ── 디더 — 계조 계단을 지운다 ────────────────────────────────────────────
+//
+// 밝은 판의 볕 끝(채널 32,34,55)에서 그늘 끝까지를 140px 판에 펴면
+// **4px 마다 한 단**이다. 부드러운 그라디언트에서 이건 반드시 띠로 보인다.
+// ⚠️ 이 층만 **안 돌리고 정수로** 민다 — 패턴이 보간되면 1px 잡음이 뭉개져
+// 디더가 디더를 못 한다(사구가 실측으로 확인한 함정이다).
+const PL07dith = ()=>mpTile("pl07dith",64,(c2,S)=>{
+  for(let i=0;i<1500;i++){
+    const x=Math.floor(hash(i*2.31)*S), y=Math.floor(hash(i*5.77)*S), u=hash(i*9.13);
+    // ⚠️ 알파와 색을 **밝은 판 기준으로** 정한다. 처음엔 흰 티끌을 알파 .055 로
+    // 뿌렸는데, 그게 L .1404 인 판 위에서 **+.037** 이라 화면의 4.6% 가 L .177 이
+    // 됐다 — 「면적 봉우리 .19」의 범인은 불티가 아니라 **디더**였다. 지금은
+    // 밝은 판 위에서 ±2 채널(±.008)만 흔든다.
+    c2.fillStyle = u<.5 ? "rgba(154,162,194,.016)" : "rgba(0,0,4,.058)";
+    c2.fillRect(x,y,1,1);
+  }
+});
+
+// ── 간수 안개 — 위층 시차. **어둡게만** 간다 ─────────────────────────────
+//
+// 두 가지 일을 한 층으로 한다. ① 지면보다 1.24배 빠르게 흘러 깊이를 준다.
+// ② 판마다 밝기를 저주파로 흔들어 **보로노이 격자가 「같은 크기 도장」으로
+// 안 읽히게** 한다. 바람 방향으로 늘여 두어 「흐르는 것」임이 정지 화면에서도
+// 읽힌다.
+const PL07mist = ()=>mpTile("pl07mist",384,(c2,S)=>{
+  for(let i=0;i<26;i++){
+    const x=hash(i*4.13)*S, y=hash(i*7.91)*S, r=64+hash(i*2.37)*120;
+    const a=(.026+hash(i*5.51)*.038).toFixed(3), sq=.34+hash(i*3.29)*.22;
+    mpWrap9(S,(dx,dy)=>{
+      c2.save(); c2.translate(x+dx,y+dy); c2.rotate(.42); c2.scale(1,sq);
+      const g=c2.createRadialGradient(0,0,0,0,0,r);
+      g.addColorStop(0,`rgba(2,3,7,${a})`); g.addColorStop(1,"rgba(2,3,7,0)");
+      c2.fillStyle=g; c2.beginPath(); c2.arc(0,0,r,0,TAU); c2.fill(); c2.restore();});
+  }
+});
+
+/// 간수 안개를 **1/3 해상도 버퍼에** 그려 올린다.
+///
+/// ⚠️ 회전을 뺐는데도 이 층만 4.62ms 로 남았다. 이유는 회전이 아니라 **덮는
+/// 화소**다 — 결·디더 타일은 대부분이 완전 투명(가는 선·1px 점)이지만 안개
+/// 타일은 부드러운 알파 얼룩이 **타일 전면**을 채워, 화면의 모든 화소가 진짜
+/// 알파 합성을 한 번씩 한다. 「화려함의 비용은 개수가 아니라 픽셀 면적」이다.
+///
+/// 안개는 이 안에서 **제일 저주파인 층**이라(제일 급한 가장자리도 60px 넘는
+/// 그라디언트) 1/3 로 그려 확대해도 잃는 것이 없다 — 오히려 확대 보간이
+/// 부드러움을 돕는다. 합성 화소가 1/9 로 준다. 심우주 성운이 14.09ms → 6.2ms
+/// 를 낸 것과 같은 수법이다.
+///
+/// ⚠️ 버퍼는 **장치 화소**로 잰다. CSS 폭으로 재면 dpr 2 인 화면에서 1/3 이
+/// 아니라 1/6 이 되어 안개가 뭉갠다(레티나에서만 나는 종류의 사고다).
+function PL07mistDraw(c,W,H,ox,oy){
+  const dsc=(c.canvas&&c.canvas.width>1&&W>0)?c.canvas.width/W:1, sc=dsc/3;
+  const rw=Math.max(1,Math.ceil(W*sc)), rh=Math.max(1,Math.ceil(H*sc));
+  let buf=c.canvas.__pl07m;
+  if(!buf||buf.width!==rw||buf.height!==rh){
+    buf=document.createElement("canvas");buf.width=rw;buf.height=rh;c.canvas.__pl07m=buf;}
+  const bc=buf.getContext("2d");
+  if(!bc)return;                       // 스텁 캔버스(스모크) — 그림은 검증 대상이 아니다
+  bc.setTransform(1,0,0,1,0,0);
+  bc.clearRect(0,0,rw,rh);             // 겹쳐 쌓이면 안 되는 **덧칠 층**이다
+  bc.setTransform(sc,0,0,sc,0,0);
+  mpPat(bc,PL07mist(),W,H,ox,oy,0);
+  c.drawImage(buf,0,0,rw,rh,0,0,W,H);
+}
+
+/// 화면 사각으로 **잘라서** 패턴을 칠한다.
+///
+/// ⚠️ `mpPat` 은 돌린 레이어도 덮으려고 언제나 `fillRect(-W*.6,-H*.6,W*2.2,H*2.2)`
+/// 를 한다 — 화면의 **4.84배**다. 절제 실측(2026-08-12)에서 이 안의 전체
+/// 14.98ms 중 **패턴 세 겹이 10.49ms**(결 3.48 · 디더 1.90 · 안개 4.82)였고,
+/// 기하는 0.26ms 에 불과했다. 즉 병목은 보로노이도 칠도 아니고 **덮는 화소 수**였다.
+/// 공용 함수는 못 고치니(계약) 부르는 쪽에서 화면 사각으로 잘라 준다 —
+/// 잘린 바깥은 래스터가 아예 안 돈다.
+/// ⚠️⚠️ **[rot] 은 0 으로만 부른다.** 실측(2026-08-12):
+///   mpPat(rot 0)   0.205ms      mpPat(rot .33)  1.938ms   — **9.5배**
+///   createPattern  0.002ms      fillRect 4.84배 0.049ms   — 둘 다 공짜
+/// 즉 비용은 셰이더 생성도 화소 수도 아니고 **패턴 셰이더에 회전이 붙는 것**
+/// 하나다. Skia 소프트웨어 래스터가 회전한 패턴에서 제일 느린 표본기로
+/// 떨어진다 — 사구가 전단 blit 에서 겪은 것과 같은 함정이다.
+/// 그래서 방향은 **타일을 구울 때 안에 새겨 넣고**(안개 얼룩은 타일 안에서
+/// 이미 .42 로 돌아 있다) 붓칠은 언제나 축에 맞춰 한다. 3.5ms 가 여기서 빠진다.
+/// (화면 사각 clip 은 남겨 둔다 — 공짜고, 알파 층이 늘면 그때는 값을 한다.)
+function PL07pat(c,cv,W,H,ox,oy,rot,alpha){
+  c.save(); c.beginPath(); c.rect(0,0,W,H); c.clip();
+  mpPat(c,cv,W,H,ox,oy,rot,alpha);
+  c.restore();
+}
+
+/// 염호 배경.
+///
+/// ⚠️ **칠하는 차례가 밝기를 먹는다.** 자기막이 발마다 「막→결→마루」를 이어
+/// 칠하다가 **다음 판의 막이 앞 판의 마루를 덮어** 알파를 1.9배 올려도 안
+/// 고쳐졌다. 그래서 여기서는 기하를 **먼저 전부** 모으고, 그 다음 층을 하나씩
+/// 화면 전체에 대해 끝낸다(판 전부 → 결 → 금 전부 → 물 → 불티 → 안개).
+/// 칠 횟수도 면적도 그대로인데 밝은 판이 이웃에게 안 먹힌다.
+MAPP.bg.salt = function PL07salt(c,t,W,H){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕 위에 그려져 뿌옇다
+  const cam=MAPP.cam(t), ox=cam[0], oy=cam[1];
+  c.fillStyle=PL07_PAN; c.fillRect(0,0,W,H);
+
+  // ── 기하 한 번 ─────────────────────────────────────────────────────────
+  const sx=W/2-ox, sy=H/2-oy, cells=[];
+  scatter(ox,oy,W,H,PL07C,1,(_x,_y,i,j,r)=>{
+    const w=PL07cell(i,j); if(!w)return;
+    const p=PL07S(i,j), X=p[0]+sx, Y=p[1]+sy;
+    const poly=new Array(w.length);
+    let Rs=0, x0=1e9, y0=1e9, x1=-1e9, y1=-1e9;
+    for(let k=0;k<w.length;k++){
+      const vx=w[k][0]+sx, vy=w[k][1]+sy;
+      poly[k]=[vx,vy]; Rs+=Math.hypot(vx-X,vy-Y);
+      if(vx<x0)x0=vx; if(vx>x1)x1=vx; if(vy<y0)y0=vy; if(vy>y1)y1=vy;
+    }
+    // ⚠️ **화면 밖 판은 여기서 버린다.** `scatter` 의 pad 1 은 화면 가장자리
+    // 금이 양쪽 판을 다 갖게 하려고 한 겹 더 도는 것인데, 칸이 140px 이라
+    // 그 한 겹이 도는 칸의 절반을 넘는다(60칸 중 보이는 건 27칸). 기하는
+    // 순수 계산이라 싸지만 **칠과 획은 안 싸다** — 겹치지 않는 판을 여기서
+    // 걸러 내면 칠·획이 45% 줄어든다. 금 굵기(12px)의 절반을 여유로 둔다.
+    if(x1<-8||y1<-8||x0>W+8||y0>H+8)return;
+    // 판 밝기는 **칸 번호 해시**로 정한다 — scatter 가 준 난수(r)를 그대로
+    // 쓴다. 나갔다 돌아와도 같은 판이 같은 밝기라 랜드마크가 성립한다.
+    //
+    // 볕/그늘 끝은 **같은 DARK→LIGHT 선분 위에서** 앞뒤로 조금 민 두 점이다.
+    // 검정을 섞어 어둡히는 방식과 달리 이러면 색상각이 판 안에서 안 흔들린다.
+    const br=PL07bright(i,j);
+    const k = br ? PL07KB0+(PL07KB1-PL07KB0)*h2(i,j,23.7)
+                 : PL07KD1*r;
+    cells.push({X,Y,poly,v:r,br,
+      R:Math.max(6,Rs/w.length),
+      lit  : PL07mix(Math.min(1,k*1.14+.010)),
+      shade: PL07mix(Math.max(0,k*0.86-.010))});
+  });
+
+  // ── ① 판 전부 — 평평한 면 + 얕은 방향광 ────────────────────────────────
+  // 판 안은 **평평하다.** 명암은 빛(왼위)에서 그늘(오른아래)로 걸린 선형
+  // 그라디언트 ±14% 뿐이고, 그래서 판이 「전구」가 아니라 「면」으로 읽힌다.
+  // 이웃한 두 판은 볕 끝과 그늘 끝이 맞닿지만 그 사이에 금이 있어, 오히려
+  // 판 하나하나가 **따로 놓인 조각**으로 떨어진다.
+  for(let n=0;n<cells.length;n++){
+    const z=cells[n];
+    const g=c.createLinearGradient(z.X+PL07LX*z.R, z.Y+PL07LY*z.R,
+                                   z.X-PL07LX*z.R, z.Y-PL07LY*z.R);
+    g.addColorStop(0,z.lit); g.addColorStop(1,z.shade);
+    fillPoly(c,z.poly,g);
+  }
+
+  // ── ③ 결 — 잔금(어둡게) + 디더(±1채널) ─────────────────────────────────
+  PL07pat(c,PL07craze(),W,H,ox,oy,0);
+  c.save(); c.imageSmoothingEnabled=false;
+  PL07pat(c,PL07dith(),W,H,Math.round(ox),Math.round(oy),0);
+  c.restore();
+
+  // ── ④ 금 전부 — 어깨·틈·실선 세 겹 ─────────────────────────────────────
+  // 판 경계는 이웃 두 판이 각자 한 번씩, 정확히 겹쳐 긋는다(화면 안의 모든
+  // 금은 양쪽 판이 다 있으므로 겹수가 균일하다 — pad 1 이 그걸 보장한다).
+  // ⚠️ 이음새는 **miter** 다. `round` 로 두면 15px 어깨가 꼭짓점을 통째로
+  // 굴려 판이 「세포」나 「비눗방울」로 보인다(눈 판정에서 실제로 그렇게 나왔다).
+  // 건조 균열의 꼭짓점은 날카롭다 — 그게 「갈라졌다」와 「부풀었다」를 가른다.
+  c.lineJoin="miter"; c.miterLimit=2.6; c.lineCap="butt";
+  const ring=(w,col)=>{
+    c.strokeStyle=col; c.lineWidth=w;
+    for(let n=0;n<cells.length;n++){
+      const q=cells[n].poly; c.beginPath();
+      for(let k=0;k<q.length;k++)k?c.lineTo(q[k][0],q[k][1]):c.moveTo(q[0][0],q[0][1]);
+      c.closePath(); c.stroke();
+    }
+  };
+  ring(12,A(PL07_SEAM,.34));   // 어깨 — 틈 둘레가 파여 들어간다
+  ring(4.2,PL07_SEAM);         // 틈 — 바닥(.0184)보다 어둡다
+  ring(1.5,PL07_HAIR);         // 실선 — 사실상 순흑. 「갈라졌다」는 이 한 줄이 말한다
+
+  // ── ⑤ 간수 윤기 — D 단(젖은 판) 위에만, 아주 넓고 아주 옅게 ─────────────
+  //
+  // ✗ **처음엔 웅덩이를 「테 두른 안쪽 다각형 + 수면 반사 짧은 선 둘」로 그렸다가
+  //   눈 판정에서 통째로 버렸다.** 안쪽 다각형이 판 모양을 그대로 축소한 것이라
+  //   테가 **스티커 테두리**로 보였고, 길이가 같은 수평선 둘은 물이 아니라
+  //   **인쇄된 「=」 기호**로 읽혔다(앞 손들이 반려당한 「자로 그은 사선」과 같은
+  //   종류다). 물을 그리려고 넣은 것이 전부 UI 부품으로 읽힌 것이다.
+  //
+  // 지금은 **모양을 하나도 안 그린다.** 판 전체에 빛 쪽으로 치우친 아주 넓은
+  // 방사 얼룩을 알파 .11 로 한 겹 얹을 뿐이다 — 합성 후 중심이 L .044 라
+  // 중간 톤 문턱(.05) 아래를 유지하고, 경계가 없으니 스티커가 될 자리가 없다.
+  for(let n=0;n<cells.length;n++){
+    const z=cells[n]; if(z.br||z.v>.34)continue;   // 어두운 무리 중 제일 젖은 쪽
+    const gx=z.X+PL07LX*z.R*.30, gy=z.Y+PL07LY*z.R*.30;
+    const g=c.createRadialGradient(gx,gy,0,gx,gy,z.R*.92);
+    g.addColorStop(0,A(PL07_WET,.11)); g.addColorStop(1,A(PL07_WET,0));
+    fillPoly(c,z.poly,g);
+  }
+
+  // ── ⑥ 결정 불티 — 예산의 L>.35 칸을 쓰는 유일한 것 ─────────────────────
+  // **A 단(신선한 crust) 위에만** 앉힌다 — 소금 결정이 빛을 받는 건 갓 마른
+  // 판에서지 진창에서가 아니다. 화면당 예닐곱이라 「팝콘」이 될 밀도가 아니고,
+  // 반짝임은 sin 을 2.4제곱해 **대부분의 시간을 어둡게** 보낸다. 위상은 자리
+  // 에서 뽑으니 나갔다 돌아와도 같은 결정이 같은 박자로 뜬다.
+  for(let n=0;n<cells.length;n++){
+    const z=cells[n]; if(!z.br)continue;        // 밝은 무리(마른 crust) 위에만
+    const cnt=hash(z.X*.013+z.Y*.029)<.30?2:1;
+    for(let k=0;k<cnt;k++){
+      const s=hash(z.X*.007+z.Y*.011+k*3.9);
+      const an=s*TAU, rr=z.R*.40*hash(s*13.7);
+      const gx=z.X+Math.cos(an)*rr, gy=z.Y+Math.sin(an)*rr;
+      const b=Math.pow(.5+.5*Math.sin(t*1.15+s*TAU),2.4);
+      if(b<.06)continue;
+      const rd=.72+s*.30;
+      const g=c.createRadialGradient(gx,gy,0,gx,gy,rd*2.1);
+      g.addColorStop(0,A(PL07_GLINT,.20*b)); g.addColorStop(1,A(PL07_GLINT,0));
+      c.fillStyle=g; c.beginPath(); c.arc(gx,gy,rd*2.1,0,TAU); c.fill();
+      c.fillStyle=A(PL07_GLINT,.92*b);
+      c.beginPath(); c.arc(gx,gy,rd,0,TAU); c.fill();
+    }
+  }
+
+  // ── ⑦ 간수 안개 — 지면보다 1.24배. 어둡게만 ────────────────────────────
+  PL07mistDraw(c,W,H,ox*1.24-t*13,oy*1.24+t*5);
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181)을 염호 위에 얹는다.
+function PL07proof(c,t,dt,W,H,st){MAPP.bg.salt(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다(배경만 그린 캔버스를 한 번 읽는다).
+function PL07num(c,t,dt,W,H,st){MAPP.bg.salt(c,t,W,H);mapMeter(c,t,W,H,st);}
+mapTile("pl07",MAPP.demo("salt",1,1),"P7 · 염호 鹽湖 + 빛파동 + 미니맵",
+  "밝은 판이 갈라진 유일한 안 — 균열지의 정확한 반전. 판을 밝힌 게 아니라 금을 바닥(.0184)보다 어두운 .0101 로 내려 국소 대비 13.9배를 냈다. 판의 25%(2×2 블록마다 한 장)만 L .095~.140 으로 올려 중간 톤을 24%에 묶는다.",
+  MAP_W,MAP_H,1);
+mapTile("pl-bg",MAPP.demo("salt",0,0),"염호 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL07proof,"염호 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("salt",0,1),"염호 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("pl-num",PL07num,"염호 · 밝기 실측","중간 톤 15~30% · 평균 L ≤ .075 · 봉우리 ≤ .17 · L>.35 ≤ 0.5%.",MAP_S,MAP_S);
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 유니버스 3차 · PL01 「협곡 峽谷」 — docs/vfx/mockup-map2.html 전용
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 여러 손이
+// 같은 파일의 다른 자리를 만지므로 **겹치는 자리를 아예 안 만드는 것**이 유일하게
+// 확실한 안전장치다. 최상위 이름은 `PL01` **하나뿐**이고, 등록은
+// `MAPP.bg.canyon` **대입 하나**다(`const`/`let` 재선언 0). 새 원시함수도 0개 —
+// scatter · h2 · hash · A · mixHex · fillPoly · jagPoly · ribbonPoly ·
+// mapFloor · mpTile · mpPat · mpWrap9 만 조합한다.
+//
+// ── 이 안이 유일하게 하는 것: **아래로 판다** ────────────────────────────
+// 나머지 열넷은 전부 평평하거나(잿바다·이끼밭·염호) 위로 솟는다(결정지·부유암·
+// 사구·산호초). 지면이 **관측자에게서 멀어지는** 안은 이것 하나다. 그래서 이
+// 안이 증명해야 하는 것은 「예쁜 골짜기」가 아니라 **깊이가 실제로 읽히는가**이고,
+// 깊이를 만드는 장치는 정확히 둘이다:
+//   ① **층(terrace)** — 골이 한 번에 안 내려간다. 대지 → 단1 → 단2 → 골까지
+//      **벽 셋**을 밟고 내려간다. 깊이가 연속이면 「그늘」이지만 계단이면 **셈이
+//      되는 깊이**다: 몇 단 아래인지가 눈으로 세어진다.
+//   ② **두 둑이 갈린다** — 볕은 한 방향에서만 오므로 한쪽 둑의 벽은 볕을 받고
+//      맞은편 둑의 벽은 그늘이다. 코드가 그렇게 생겼다: 두 둑의 향(向)은 각이
+//      정확히 180° 차이라 `aspR = −aspL` 이고(아래 `PL01.sample`), 따라서
+//      **한 화면에 밝은 벽과 검은 벽이 반드시 같이 나온다.** 대칭으로 두면
+//      골이 아니라 「도랑」이 되고 깊이가 죽는다.
+//
+// ⚠️ **균열지(fissure)와 갈리는 지점.** 두 안 다 「땅이 갈라진 것」이지만 문법이
+// 반대다. 균열지는 **선**이다 — 폭 1.6px 짜리 립(rim)이 그어지고 그 선이
+// 다각형 판을 나눈다. 이 안은 **면**이다:
+//   · 이 블록에는 `stroke()` 가 **한 번도 안 나온다.** 밝은 것은 전부 **면적을
+//     가진 사각면(facet)** 이다. 폭을 실측했다(갈래 13 × 양 둑 × u 6000 표본):
+//     중앙값 벽A **20px** · 벽B **17px** · 벽C **14px**, 95% 지점 30~40px,
+//     그리고 **7px 아래로는 못 내려간다**(`PL01.WMIN` 을 코드로 박았다 —
+//     처음엔 하한이 없어 최소 2.6px 짜리 벽이 나왔고 그건 면이 아니라 선이었다).
+//   · 균열지의 밝은 화소는 **경계에** 있고(선), 이 안의 밝은 화소는 **면 안쪽에
+//     고르게** 있다(면). 그래서 균열지는 확대하면 그물이고 이 안은 계단이다.
+//   · 균열지가 「식어서 갈라진 판」이면 이 안은 「물이 파낸 골」이다. 전자는
+//     장력이 만든 **망**이라 갈래가 만나고, 후자는 흐름이 만든 **띠**라 갈래가
+//     나란히 흐른다(아래 `PL01.LANE`).
+//
+// ── 생성 원리: 사행하는 골 여러 갈래 ─────────────────────────────────────
+// 골 하나만 두면 **화면에 골이 없는 자리**가 생긴다 — 동공이 실측으로 배운 바로
+// 그 함정이다(중간 톤 최소 1.19%). 그래서 골을 `PL01.LANE`(500px) 간격의 여러
+// 갈래로 두고 각 갈래를 따로 사행시킨다. 화면의 세로 범위(≈900)가 간격보다 넓어
+// **어느 자리에서 봐도 골이 최소 하나는 통째로 들어온다** — 「있고 없고의 동전
+// 던지기」를 지형 자체가 없앤 것이지, 잰 자리를 고른 것이 아니다.
+//
+// 갈래마다: 사행(`PL01.wob`) · 반너비(`PL01.hw`) · 다섯 지대의 비율이 전부
+// **갈래 번호의 해시**로 갈린다. 어떤 갈래는 넓고 얕고, 어떤 갈래는 좁고 깊다.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 지형에 **타일이 없다.** 골은 u(골 방향) 축을 `PL01.SEG` 마디로 자르고
+// **마디 번호를 세계 좌표에 못 박는다**(`Math.floor(u/SEG)`) — 카메라가 움직여도
+// 같은 마디는 같은 번호라 면의 색이 안 기어다닌다. 사행·너비는 무리수 비의 사인
+// 셋이라 주기가 화면보다 훨씬 크고, 갈래 번호와 마디 번호가 무한하니 반복이
+// 원리적으로 없다. 너덜·바위기둥·모래는 **기존 `scatter()`**(칸 번호 해시)다.
+// 주기를 가진 것은 대지 자갈(320)·결(256)·장막(384) 세 장인데 전부 **저대비
+// 질감**이고 서로 다른 각으로 돌려 얹어 합성 주기가 안 읽힌다.
+//
+// ── 예산 — 개정본대로. 「중간 톤 면적」이 제일 중요한 값이다 ──────────────
+// 지면은 화면을 100% 덮으므로 설계는 「평균을 어둡게」가 아니라 **밝은 화소의
+// 면적을 상한으로 묶는 것**이다. 이 안의 방식은 **계조를 이산으로 두는 것**이다
+// (셀 셰이딩 — 이 레포의 문법 그대로). 벽의 밝기가 연속 그라디언트면 어느
+// 화소가 어디에 떨어질지 통제가 안 되지만, 이산 계단이면 **어느 단에 몇 %가
+// 떨어지는지 설계 시점에 계산이 된다.**
+//
+// 그 통제력으로 하는 일이 하나 더 있다. **적 몸 채움(#24141F · L .1021)이
+// 놓이는 구간을 계조에서 통째로 비웠다.** 벽 계조는
+//   .0136 → .0468 → .0739 → **(빈칸)** → .1290 → .1505
+// 라 **.074 와 .129 사이에 단이 없다.** 그래서 배경의 어떤 면도 적 몸과 같은
+// 밝기로 칠해지지 않는다 — 적은 밝은 벽(.129·.151) 위에서는 **어두운 실루엣**,
+// 그 밖의 모든 면(≤.074) 위에서는 **밝은 덩어리**로 읽힌다. 연속 그라디언트로는
+// 절대 못 하는 방어이고, 이 안이 이산 계조를 쓰는 진짜 이유다.
+//
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 주 색상각 **90°**(마른 올리브 회색 돌). 속성 색상환에서 뇌(50.6°)와 독(129.2°)
+// 사이 **78.6° 짜리 빈 구간의 정확한 한가운데**라 최근접 이격이 **39.2°**(독)·
+// **39.4°**(뇌)로 갈린다 — 색상환이 꽉 찼다는 앞 손들의 관측 아래에서 이보다 더
+// 멀어질 수 있는 각이 없다. 기존 지면 안과도 제일 가까운 것이 이끼밭(162°)의
+// **72°**, 적 몸(318.8°)과는 **131°** 다.
+// 그리고 실제 방어는 각이 아니라 **채도**다: 제일 밝은 톤조차 절대 색차
+// (max−min)가 **10/255**, 넓은 면은 4~5/255 다. 「마른 돌」로 읽히되 어떤
+// 속성과도 색으로 다툴 채도가 애초에 없다.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// 500마리가 도는 화면이라 배경이 프레임 예산을 먹으면 안 된다. 지형은 **면
+// 500여 장**인데 `fill()` 은 프레임당 **열댓 번**이다 — 같은 계조끼리 하나의
+// path 로 모아 한 번에 채우기 때문이다(미니맵이 격자 눈금을 없앨 때 쓴 수법
+// 그대로). 면은 서로 안 겹치고 전부 불투명이라 모아 칠해도 알파가 두 번 얹히지
+// 않는다. 칠하는 화소는 **화면 딱 한 장**(지형) + 패턴 세 장이다.
+// ⚠️ 면끼리 **0.55px 씩 겹쳐** 둔다. 딱 맞대면 경계에서 안티에일리어싱이 밑색을
+// 비쳐 **검은 실금**이 생기는데, 그게 바로 이 안이 안 하기로 한 「선」이다.
+//
+// ⚠️ **패턴 값을 정하는 것은 회전도 넓이도 아니고 「소수점 이동」이다.**
+// 처음 11.46ms 가 나와 층별로 쟀더니 패턴 세 장이 8.10ms(2.77+2.66+2.67)였다.
+// 셋을 갈라 재 보니(2026-08-12 · 헤드리스 소프트웨어 래스터 · 강제 래스터):
+//     자갈 회전 .384 …… 2.905ms
+//     자갈 회전 0 · 소수점 이동 …… 2.554ms   ← 회전을 빼도 안 싸진다
+//     자갈 회전 0 · **정수 이동** …… 0.808ms  ← 여기서 3.2배가 떨어진다
+//     같은 넓이 단색 fillRect …… 0.109ms
+// 즉 비싼 것은 회전이 아니라 **소수점 좌표에서의 이중선형 보간**이다. 카메라
+// 좌표를 `Math.round` 로 넣으면 Skia 가 「정수 격자 반복 블릿」 빠른 길로 떨어진다.
+// 잃는 것은 질감의 부화소 이동뿐이라 1px 단위로 끊겨 흐르는데, 알갱이가 1~5px
+// 이라 눈에 안 보인다(사구가 디더를 정수로만 민 것과 같은 이유·같은 수법).
+//   ⇒ 세 장 다 회전 0 · 정수 이동. 대신 회전으로 벌던 **반복 은닉**을 타일
+//     크기로 갚는다: 자갈 448 · 결 256 · 장막 512 에 스크롤 속도까지 달라
+//     (장막만 1.26배) 셋의 합성 주기가 화면보다 훨씬 크다.
+// 결과 11.46 → **4.21ms**(아래 실측표).
+//
+// ⚠️⚠️ **타일이 칸보다 크면 `mpPat` 은 칸을 다 못 덮는다.** 타일을 448·512 로
+// 키우자마자 302px 칸과 2배 확대 칸이 **통째로 맨바닥**으로 나왔다(2026-08-12).
+// 원인은 공용 함수 안에 있다: `mpPat` 은 위상을 맞추려 최대 S 만큼 `translate`
+// 한 뒤 `fillRect(-0.6W,-0.6H,2.2W,2.2H)` 을 하는데, 옮긴 양이 0.6W 를 넘으면
+// 사각형의 오른쪽·아래가 칸 밖으로 밀려난다. 흰 타일로 모든 위상을 훑어 쟀다
+// (최악 덮임 %):
+//     S=181  W=302 …… 100%      S=192  W=302 …… 94.8%
+//     S=256  W=302 …… 58.5%     S=320  W=302 …… 30.9%     S=512  W=302 …… 0%
+//     S=320  W=980 …… 100%      S=384  W=980 …… 91.1%     S=512  W=980 …… 66.8%
+// 규칙은 **S ≤ 0.6 × min(W,H)** 이고, 스텁 캔버스는 `createPattern` 이 null 이라
+// **스모크가 절대 못 잡는다**(브라우저에서만 나는 종류).
+//   ⇒ 이 블록은 **공용 함수를 안 고치고 호출로 피한다**: W·H 를 3배로 넘기면
+//     사각형이 [-1.8W, 4.8W] 이 되어 S ≤ 3.8W 까지 안전하다. 패턴 위상은 W·H 와
+//     무관하게 `translate` 만으로 정해지므로 그림은 한 화소도 안 달라지고,
+//     늘어난 사각형은 Skia 가 칸 경계로 잘라 **비용도 그대로**다(0.75ms 유지).
+// ※ 기존 안들(균열지 512 · 잿바다 512/384 · 이끼밭 384 · 사구 384/256 · 동공 320)
+//   도 같은 조건이면 같은 구멍을 갖는다 — 조율자에게 따로 보고한다.
+const PL01={};
+
+// ── 축·빛·규모 ───────────────────────────────────────────────────────────
+PL01.TH  = -.42;                  // 골이 흐르는 방향 −24.1°
+PL01.SUN = PL01.TH + 1.28;        // 볕이 오는 방향 — 축과 73.3° 라 한쪽 둑만 받는다
+PL01.LANE= 478;                   // 골 갈래 사이 간격 — 화면 세로 범위(≈900)의
+                                  // 절반보다 좁아야 **어느 자리에서도 골이 하나는
+                                  // 통째로** 들어온다(중간 톤 최솟값을 지키는 근거)
+PL01.SEG = 74;                    // 면 한 장의 길이(u 축)
+PL01.W0  = 196;                   // 반너비 기준
+PL01.WMAX= 340;                   // 반너비 상한 — 화면 밖 갈래를 버리는 여유
+PL01.OFF = [0,0];                 // 카메라 이동(측정·작은 칸 액자). 기본은 0
+
+// ── 계조 ─────────────────────────────────────────────────────────────────
+// 전부 색상각 90° 위의 명도 점이다. 괄호는 L601 실측값.
+//
+// ⚠️ **깊이의 부호는 여기서 정해진다.** 세 판을 갈았고 값이 다 달랐다:
+//   1판 — 대지를 공용 바닥(.0184)째로 두고 골 안을 그보다 밝게. 렌더에서
+//         **골이 파인 게 아니라 솟아 보였다**: 어두운 대지가 「땅」이 아니라
+//         「빈 구멍」으로 읽히고, 그 안의 밝은 것은 **떠 있는 덩어리**가 된다.
+//   2판 — 대지 .0293, 그늘 둑도 .0293 으로 내려 「깊을수록 어둡다」를 맞췄더니
+//         이번엔 **그늘 둑이 대지에 먹혀** 골의 맞은편 테두리가 사라졌다.
+//         한쪽 둑만 보이면 그건 골이 아니라 **비탈 하나**다.
+//   3판(지금) — **대지를 .0468 로 올린다.** 중간 톤의 아래끝이 .05 이므로
+//         .0490 까지는 「보이는 면적」을 한 톨도 안 쓰고 올릴 수 있다. 이 한 수로
+//         셋이 동시에 풀린다: 대지가 밝은 「땅」이 되고 · 그늘 둑(.0293 ↓)이
+//         대지보다 확실히 어두워 **양쪽 테두리가 다 보이며** · 예산은 그대로다.
+// 「아래로 판다」는 그림이 아니라 이 부등호다:
+//        골 .0175 < 그늘 단 .0254~.0293 < **대지 .0468** < 볕 단 .0582~.0739 < 볕 벽 .151
+// 즉 **대지보다 어두운 것은 전부 골 안**이고, 대지보다 밝은 것은 볕을 받은 낯뿐이다.
+PL01.PLAT="#0b0d09";              // 대지 — 낮은 볕을 스쳐 받는 평면      L .0468
+PL01.PAVE="#12140f";              // 대지 자갈 — 중간 톤의 바닥을 여기서 깐다 L .0739
+// 벽 계조 — **.074 와 .129 사이가 비어 있다**(적 몸 .1021 을 피한 자리).
+PL01.WALL=["#030402",             // 0 그늘 벽                            L .0136
+           "#0b0d09",             // 1                                    L .0468
+           "#12140f",             // 2                                    L .0739
+           "#1f231b",             // 3                                    L .1290
+           "#24291f"];            // 4 볕 벽 — 이 안에서 제일 밝은 면      L .1505
+// 단 — 그늘 쪽 첫 칸이 **대지(.0293)보다 안 밝아야** 한다. 첫 판은 .0468 이라
+// 그늘 둑의 단이 열린 대지보다 밝았고, 그래서 화면이 「파인 골」이 아니라
+// **솟은 둔덕**으로 읽혔다(2026-08-12 렌더). 그늘에 든 면이 하늘이 다 보이는
+// 면보다 밝을 수는 없다 — 부등호가 틀렸던 것이지 밝기가 모자랐던 게 아니다.
+// 지금은 두 둑 다 **깊어질수록 어두워진다**:
+//   그늘 둑  대지 .0293 → 단1 .0293 → 단2 .0254 → 골 .0175
+//   볕   둑  대지 .0293 → 단1 .0739 → 단2 .0582 → 골 .0371
+// 갈리는 것은 「깊이의 방향」이 아니라 **볕이 어디서 오는가**뿐이다.
+PL01.TR1 =["#070806","#0b0d09","#12140f"];   // 단1  L .0293 .0468 .0739
+PL01.TR2 =["#060705","#090a08","#0e100b"];   // 단2  L .0254 .0371 .0582
+// 골 바닥 — 그늘 둑 발치가 제일 어둡고(그 둑의 그림자가 덮는다) 볕 둑 발치가
+// 제일 밝다. 제일 어두운 칸은 공용 바닥과 **같은 급**(.0175 vs .0184)이라
+// 「제일 깊은 곳이 화면에서 제일 어둡다」가 지켜진다.
+// ⚠️ 그런데 `MAPFLOOR` **문자열을 그대로 쓰면 안 된다.** 그렇게 뒀더니 골
+// 바닥에 **푸른 보랏빛 띠**가 그어졌다(2026-08-12 렌더). 공용 바닥 `#04040A` 는
+// 파란 검정(색상각 240°)이라 이 안의 올리브 계열 사이에서 **색으로 튄다** —
+// 게다가 그게 하필 **가늘고 긴 띠**라, 이 안이 안 하기로 한 「선」이 된다.
+// 같은 명도를 이 안의 색상각(90°)으로 다시 찍는다.
+PL01.FLR =["#040503","#060705","#090a08"];   // 골   L .0175 .0254 .0371
+// ⚠️ 낙석 마루는 **전용 색을 안 쓴다.** 처음엔 .0785 짜리 전용 톤을 뒀는데,
+// 볕 쪽 단(.0739) 위에서 대비가 **1.06배**라 4배 렌더에서 돌이 아예 안 보였고
+// 그림자만 남아 「바닥에 뚫린 구멍」으로 읽혔다(2026-08-12). 값을 올리자니
+// 적 매몰띠(.09~.115)가 바로 위에 있어 못 올린다 — 그런데 **벽 계조는 그 띠를
+// 이미 건너뛴다**(.0739 다음이 .1290). 그래서 돌을 **벽과 같은 함수로 칠한다**:
+// 돌은 결국 「작은 벽」이라 물리도 같고, 계조를 공유하니 띠를 밟을 방법이 없다.
+// 볕을 받은 돌 .1290~.1505 · 그늘의 돌 .0136 — 둘 다 계조 안의 기존 단이다.
+PL01.MOTE="#c9d1bd";              // 날리는 모래 L .805 — 알파 ≤.055 로만 쓴다
+
+// 깊을수록 볕을 덜 받는다. 벽A(테두리)·벽B·벽C 에 곱하는 계수 —
+// **이 한 줄이 「아래로 판다」를 말한다.** 위 벽이 제일 밝고 아래로 갈수록 어둡다.
+PL01.WK=[1,.66,.38];
+// 단이 받는 되비침(bounce) — 맞은편 볕 벽이 튕겨 준 빛이다. 역시 깊을수록 준다.
+PL01.TK=[.85,.55];
+// 다섯 지대의 폭(반너비에 대한 비). 합 .86 — 남는 .14 가 골 바닥의 반너비다.
+// **디딤(단)이 챌판(벽)의 두 배**다. 처음엔 .17/.21 로 비슷하게 뒀는데 렌더에서
+// 「계단」이 아니라 **줄무늬**로 보였다 — 계단은 넓은 디딤과 좁은 챌판의 **비**가
+// 만든다. 그렇다고 벽을 더 좁히면 「선」이 되어 균열지와 안 갈리므로, 아래
+// `PL01.WMIN` 이 벽의 절대 하한을 지킨다(실측 중앙값 디딤 33~34px : 벽 14~20px).
+PL01.FR=[.15,.23,.12,.22,.10];    // 벽A · 단1 · 벽B · 단2 · 벽C (골 반너비 .18)
+PL01.WMIN=7;                      // 벽의 절대 하한(px). 이 아래는 면이 아니라 선이다
+
+// ── 사행 ─────────────────────────────────────────────────────────────────
+// 무리수 비의 사인 셋. **고주파를 크게 안 준다** — 기울기가 커지면 마디 사이
+// 각이 서서 「생선가시」가 된다(앞 손이 사구에서 같은 함정을 밟았다).
+PL01.wob=function(k,u){
+  const a=hash(k*13.1+2.7)*TAU,b=hash(k*29.3+5.1)*TAU,d=hash(k*7.7+9.3)*TAU;
+  return 78*Math.sin(u*.00580+a)+38*Math.sin(u*.01170+b)+16*Math.sin(u*.02250+d);};
+/// 사행의 기울기 — 해석적으로 판다. 유한차분으로 재면 마디 폭에 따라 값이
+/// 달라져 같은 자리의 벽 밝기가 마디마다 튄다.
+PL01.wobD=function(k,u){
+  const a=hash(k*13.1+2.7)*TAU,b=hash(k*29.3+5.1)*TAU,d=hash(k*7.7+9.3)*TAU;
+  return 78*.00580*Math.cos(u*.00580+a)+38*.01170*Math.cos(u*.01170+b)
+        +16*.02250*Math.cos(u*.02250+d);};
+
+/// 한 둑의 반너비. 갈래마다 다르고 길이를 따라서도 변한다 — 좁아졌다 넓어지는
+/// 것이 「물이 판 골」이고, 폭이 일정하면 **운하**로 보인다.
+PL01.hw=function(k,s,u){
+  const sd=k*17.3+(s>0?3.1:8.9);
+  const f=.68+.20*hash(sd)
+         +.24*Math.sin(u*.00420+hash(sd+1.7)*TAU)
+         +.15*Math.sin(u*.00930+hash(sd+3.3)*TAU)
+         +.09*Math.sin(u*.01870+hash(sd+5.9)*TAU);
+  return PL01.W0*(f<.42?.42:f);};
+
+/// 단면 — 바깥(대지)에서 안(골)으로 가는 경계 여섯을 [out] 에 담는다.
+/// 다섯 폭을 **정규화**해 합이 항상 반너비의 87% 가 되게 하므로, 비율이 갈래마다
+/// 달라도(넓은 단1 + 좁은 단2 …) 골 바닥은 절대 안 없어진다.
+/// 경계마다 다른 주기로 흔드는 것이 요점이다 — 다섯 층이 나란히 밀리면
+/// **자로 그은 사선** 다섯 줄이 된다.
+/// 1차원 값잡음 — **마디 격자에 못 박은** 난수. 마디 끝(정수)에서는 해시값
+/// 그대로이고 사이는 선형이라, 마디를 직선으로 잇는 이 안의 그림과 **정확히
+/// 일치**한다(그려지는 값과 재는 값이 같아야 한다는 규약).
+/// 이게 없으면 경계가 사인 몇 개의 합이라 너무 매끄럽고, 다섯 층이 나란히
+/// 밀려 **자로 그은 사선 다섯 줄**로 보인다(2026-08-12 렌더 판정).
+PL01.vn=function(u,sd){
+  const x=u/PL01.SEG, i=Math.floor(x), f=x-i;
+  return (h2(i,sd,1.3)-.5)*(1-f)+(h2(i+1,sd,1.3)-.5)*f;};
+PL01.TMP=[0,0,0,0,0];
+PL01.prof=function(k,s,u,out){
+  const sd=k*23.7+(s>0?4.3:11.9), w=PL01.TMP;
+  const hw=PL01.hw(k,s,u)*(1+.11*PL01.vn(u,sd+1.1));   // 테두리도 물어뜯긴다
+  let sum=0;
+  for(let j=0;j<5;j++){
+    let v=(PL01.FR[j]*(.70+.60*hash(sd+j*3.7))
+         +.055*Math.sin(u*(.0037+j*.0021)+hash(sd+j*5.1)*TAU))
+         *(1+.62*PL01.vn(u,sd+j*2.3+7.7));   // 폭에 걸어야 층이 안 뒤집힌다
+    if(v<.035)v=.035;
+    w[j]=v;sum+=v;}
+  const kk=hw*.82/sum;
+  let b=hw;out[0]=b;
+  for(let j=0;j<5;j++){b-=w[j]*kk;out[j+1]=b;}
+  // ⚠️ **벽이 얇아지면 이 안의 정체가 죽는다.** 폭 분포를 재 보니(2026-08-12 ·
+  // 갈래 13 × 양 둑 × u 6000 표본) 벽의 중앙값은 14~20px 인데 **하위 5% 가
+  // 5~8px, 최소 2.6px** 였다 — 그 꼬리는 「면」이 아니라 **선**이고, 균열지와
+  // 갈리는 유일한 근거를 스스로 무너뜨린다. 좁은 골에서 다섯 지대를 비율로만
+  // 나누면 반드시 생기는 꼬리라, **절대 하한**으로 막는다: 모자란 만큼을 안쪽
+  // 디딤에서 꾸되 **디딤의 절반까지만** 꾼다(디딤이 사라지면 계단이 아니라 비탈).
+  for(let j=0;j<5;j+=2){
+    const need=PL01.WMIN-(out[j]-out[j+1]);
+    if(need<=0)continue;
+    const room=(j<4?out[j+1]-out[j+2]:out[5])*.5;
+    out[j+1]-=need<room?need:room;
+  }
+  return hw;};
+
+/// 한 마디 끝의 단면 한 벌. **두 벌을 굴려 쓴다**(프레임당 할당 0).
+///
+/// `st` — 사행이 기울면 v 축으로 잰 폭이 실제 폭보다 길어진다(1/cos). 안 고치면
+/// 굽이에서 골이 뚱뚱해져 「지렁이」가 된다. 전 경계에 곱해 **수직 폭을 일정하게**
+/// 유지한다.
+/// `aspL` — 왼 둑 벽이 볕을 받는 정도. 오른 둑은 향이 정확히 180° 반대라
+/// `cos(θ±π)` 로 **부호만 뒤집힌다** — 두 둑이 동시에 밝을 수 없다는 것이
+/// 주석이 아니라 항등식이다.
+PL01.sample=function(k,u,o){
+  o.vc=k*PL01.LANE+PL01.wob(k,u);
+  const sl=PL01.wobD(k,u), st=Math.sqrt(1+sl*sl);
+  PL01.prof(k,-1,u,o.L);PL01.prof(k,1,u,o.R);
+  for(let j=0;j<6;j++){o.L[j]*=st;o.R[j]*=st;}
+  o.aspL=Math.cos(PL01.TH+Math.atan(sl)+Math.PI/2-PL01.SUN);
+  return o;};
+PL01.SA={vc:0,aspL:0,L:[0,0,0,0,0,0],R:[0,0,0,0,0,0]};
+PL01.SB={vc:0,aspL:0,L:[0,0,0,0,0,0],R:[0,0,0,0,0,0]};
+PL01.AT={k:0,s:1,z:-1,d:0,vc:0,aspL:0,hw:0,P:[0,0,0,0,0,0]};
+
+/// 벽 한 면의 계조. [z]=0·1·2 가 벽A·벽B·벽C.
+/// 그늘 쪽(asp ≤ 0)은 **깊이와 무관하게 0단**이다 — 그늘에 계조를 주면
+/// 「덜 밝은 볕」으로 보여 두 둑의 갈림이 흐려진다.
+PL01.wallCol=function(z,asp){
+  if(asp<=0)return PL01.WALL[0];
+  let i=1+Math.floor(asp*PL01.WK[z]*4.2);
+  return PL01.WALL[i>4?4:i];};
+PL01.trCol=function(ramp,bnc){
+  if(bnc<=0)return ramp[0];
+  const i=1+Math.floor(bnc*2.4);
+  return ramp[i>2?2:i];};
+/// 지대 하나의 색. **지형과 너덜이 같은 함수를 부른다** — 따로 계산하면 돌이
+/// 제 발밑과 다른 계조에 앉아 「스티커」가 된다(첫 판이 실제로 그랬다: 볕 쪽
+/// 단의 돌이 제 바닥보다 0.005 밝아 눈에 안 보였다).
+/// [z] 0 벽A · 1 단1 · 2 벽B · 3 단2 · 4 벽C · 5 골(가운데 칸)
+/// ⚠️ **벽과 단은 다른 향값을 받는다.** 바위 낯은 면마다 기울기가 제각각이라
+/// 거칠게 흔들어야 하지만(`aspW`), 디딤은 말 그대로 평평해서 받는 되비침이 거의
+/// 안 변한다(`aspT`). 한 값으로 묶었더니 벽을 깨뜨리려고 흔든 것이 **단까지 같이
+/// 끌어내려** 중간 톤이 22.2 → 18.1% 로 빠졌다(2026-08-12 실측). 흔들 것만 흔든다.
+PL01.zoneCol=function(z,aspW,aspT){
+  if(z===5)return PL01.FLR[1];
+  return (z&1)?PL01.trCol(z===1?PL01.TR1:PL01.TR2,aspT*PL01.TK[z>>1])
+              :PL01.wallCol(z>>1,aspW);};
+
+/// 마디 하나 — 단면을 가로질러 **맞물린 사각면 열셋**을 낸다.
+/// 이웃 지대와 꼭짓점을 공유하므로 마디 사이에도, 지대 사이에도 틈이 없다.
+/// 색은 바구니(Map)에 모아 두고 나중에 계조마다 한 번씩 칠한다.
+PL01.strip=function(bk,k,mi,A,B,xa,xb,cv,Dv){
+  // 화면 밖 마디는 통째로 건너뛴다. 갈래 간격(500)이 화면 세로 범위(≈900)보다
+  // 좁아 언제나 갈래 둘이 걸치는데, 그중 하나는 대개 반이 밖이다.
+  const lo=Math.min(A.vc-A.L[0],B.vc-B.L[0])-cv, hi=Math.max(A.vc+A.R[0],B.vc+B.R[0])-cv;
+  if(hi<-Dv||lo>Dv)return;
+  const E=.55;
+  const q=(col,a0,b0,a1,b1)=>{
+    let arr=bk.get(col);if(!arr){arr=[];bk.set(col,arr);}
+    arr.push(xa-E,a0-cv,xb+E,b0-cv,xb+E,b1-cv,xa-E,a1-cv);};
+  // 면마다 거친 정도를 달리한다 — 같은 향이라도 바위가 고르지 않다.
+  // 이 한 줄이 볕 벽을 **한 줄기 띠**가 아니라 **깨진 면들**로 만든다.
+  // ⚠️ 폭을 .58~1.0 으로 뒀더니 계조가 위 두 단(.129·.151)에서만 놀아 벽이
+  // 통짜 띠로 보였다 — 화면에 **밝은 길**이 난 것 같았다(2026-08-12 렌더).
+  // .34~1.0 으로 넓히면 같은 벽에서 .0739 짜리 면도 나와 띠가 끊긴다.
+  const rg=.34+.66*h2(k*2+7,mi,3.7), rg2=.34+.66*h2(k*2+31,mi,9.1);
+  for(let si=0;si<2;si++){
+    const s=si?1:-1, PA=si?A.R:A.L, PB=si?B.R:B.L;
+    const a0=(si?-1:1)*(A.aspL+B.aspL)*.5;
+    const aspW=a0*(si?rg2:rg), aspT=a0*(.88+.12*h2(k*2+si,mi,17.3));
+    for(let z=0;z<5;z++)
+      q(PL01.zoneCol(z,aspW,aspT),
+        A.vc+s*(PA[z]+E),   B.vc+s*(PB[z]+E),
+        A.vc+s*(PA[z+1]-E), B.vc+s*(PB[z+1]-E));
+  }
+  // 골 바닥 — 셋으로 가른다. 그늘 둑 쪽이 제일 어둡고(그 둑의 그림자가 덮는다)
+  // 볕 둑 발치가 제일 밝다(볕 벽이 튕긴 빛이 거기 떨어진다). 한 색으로 두면
+  // 「깊은 골」이 아니라 **평평한 길**이 된다.
+  const lit=A.aspL>0?-1:1;                    // 볕을 받는 둑의 부호
+  const aS=A.vc-lit*(lit>0?A.L[5]:A.R[5]), bS=B.vc-lit*(lit>0?B.L[5]:B.R[5]);
+  const aL=A.vc+lit*(lit>0?A.R[5]:A.L[5]), bL=B.vc+lit*(lit>0?B.R[5]:B.L[5]);
+  const f=[0,.36,.70,1];
+  for(let z=0;z<3;z++)
+    q(PL01.FLR[z], aS+(aL-aS)*f[z]  -lit*E, bS+(bL-bS)*f[z]  -lit*E,
+                   aS+(aL-aS)*f[z+1]+lit*E, bS+(bL-bS)*f[z+1]+lit*E);
+};
+
+PL01.BK=new Map();
+PL01.terrain=function(c,cu,cv,Du,Dv){
+  const bk=PL01.BK;bk.clear();
+  const SEG=PL01.SEG, i0=Math.floor((cu-Du)/SEG), n=Math.ceil(2*Du/SEG)+1;
+  const k0=Math.floor((cv-Dv-PL01.WMAX)/PL01.LANE),
+        k1=Math.floor((cv+Dv+PL01.WMAX)/PL01.LANE);
+  for(let k=k0;k<=k1;k++){
+    let A=PL01.sample(k,i0*SEG,PL01.SA), B=PL01.SB;
+    for(let m=0;m<n;m++){
+      const ua=(i0+m)*SEG;
+      B=PL01.sample(k,ua+SEG,B);
+      PL01.strip(bk,k,i0+m,A,B,ua-cu,ua+SEG-cu,cv,Dv);
+      const sw=A;A=B;B=sw;}
+  }
+  bk.forEach((a,col)=>{
+    c.beginPath();
+    for(let i=0;i<a.length;i+=8){
+      c.moveTo(a[i],a[i+1]);c.lineTo(a[i+2],a[i+3]);
+      c.lineTo(a[i+4],a[i+5]);c.lineTo(a[i+6],a[i+7]);c.closePath();}
+    c.fillStyle=col;c.fill();});
+};
+
+/// 월드 한 점이 어느 갈래·어느 지대에 있는가. 너덜·바위기둥·모래가 **자기가
+/// 놓인 면의 색과 광량**을 알아야 하므로(지형과 따로 놀면 스티커가 된다) 여기서
+/// 한 번에 판다. 사행 진폭(≤132)이 간격의 절반(250)보다 작아 갈래 번호는
+/// 반올림으로 정확히 나온다.
+PL01.at=function(u,v,o){
+  const k=Math.round(v/PL01.LANE);
+  const vc=k*PL01.LANE+PL01.wob(k,u), s=(v>=vc)?1:-1;
+  const sl=PL01.wobD(k,u), st=Math.sqrt(1+sl*sl);
+  o.hw=PL01.prof(k,s,u,o.P);
+  const d=Math.abs(v-vc)/st;
+  o.k=k;o.s=s;o.vc=vc;o.d=d;
+  o.aspL=Math.cos(PL01.TH+Math.atan(sl)+Math.PI/2-PL01.SUN);
+  let z=5;
+  if(d>=o.P[0])z=-1;
+  else for(let j=0;j<5;j++)if(d>=o.P[j+1]){z=j;break;}
+  o.z=z;return o;};
+
+/// 너덜(talus)과 바위기둥 — **크기를 말하는 자리.** 벽 높이만으로는 골이 깊은지
+/// 얕은지 알 수 없다. 발밑에 사람 크기 돌이 굴러 있어야 벽이 「몇 층 짜리」인지
+/// 눈이 환산한다.
+///
+/// ⚠️ 돌은 **자기가 놓인 면보다 밝게** 두되 볕을 받는 쪽에서만 그렇다. 그늘
+/// 둑에서까지 밝히면 「어디서 오는 빛인지 모를 반짝임」이 되어 배경이 이펙트
+/// 문법을 흉내 낸다(이끼밭·동공이 남긴 주석과 같은 종류의 사고).
+PL01.stones=function(c,t,cu,cv,Du,Dv){
+  const o=PL01.AT, sx0=Math.cos(PL01.SUN-PL01.TH), sy0=Math.sin(PL01.SUN-PL01.TH);
+  // ⚠️ 첫 판은 화면 화소의 **0.22%** 만 바꿨다(층을 빼고 그린 판과 차이로 실측).
+  // 있으나 마나 한 것을 그리느라 비용만 낸 셈이라, 셋을 같이 고쳤다:
+  //   ① 개수·크기를 올린다(칸 74→56 · 반경 1.5~5.7 → 2.2~9.4)
+  //   ② **제 발밑 색을 지형과 같은 함수로 구한다** — 마루를 발밑에 대고 섞어야
+  //      대비가 생긴다(첫 판은 고정 계조를 써서 볕 쪽 단 위에서 차이가 0.005 였다)
+  //   ③ 밝기로 못 벌면 **그림자로 번다.** 마루는 상한(적 매몰띠) 때문에 .0785
+  //      위로 못 가지만 그림자는 검정이라 공짜다 — 볕 쪽 단(.0739) 위에서
+  //      그림자는 .033 이라 **대비 2.2배**가 그냥 나온다.
+  scatter(cu,cv,Du*2,Dv*2,56,0,(px,py,i,j,r)=>{
+    if(r>.78)return;
+    const u=cu-Du+px, v=cv-Dv+py;
+    PL01.at(u,v,o);
+    if(o.z<0)return;                                  // 대지에는 안 둔다(민둥 대지가 대비다)
+    const asp=o.s>0?-o.aspL:o.aspL;
+    // 벽 발치일수록 크고 촘촘하다 — 너덜은 벽에서 굴러 떨어져 **발치에 쌓인다**.
+    // 고르게 뿌리면 「무늬」가 되고, 발치에 몰려야 「무너져 내린 것」이 된다.
+    const outer=o.P[o.z<5?o.z:5], inner=o.z<5?o.P[o.z+1]:0;
+    const fr=(outer-o.d)/Math.max(1,outer-inner);
+    const foot=1-Math.min(1,fr*2.1);
+    const rr=(2.2+h2(i,j,11.3)*3.6)*(1+.95*foot);
+    const x=px-Du, y=py-Dv, sd=i*3.1+j*7.7;
+    const base=PL01.zoneCol(o.z,asp,asp);
+    // ⚠️ 그림자를 `ribbonPoly` 로 그렸다가 버렸다(2026-08-12 · 4배 렌더).
+    // ribbonPoly 는 양 끝을 0 으로 좁히는 종형이라 점 두 개로 부르면 **양쪽이
+    // 뾰족한 바늘**이 된다 — 돌 그림자가 아니라 **생선가시**가 화면에 박혔고,
+    // 정작 돌은 발밑과 대비가 없어 안 보여서 「가시만 떠 있는」 그림이었다.
+    // 답은 알파나 길이가 아니라 **모양**이다: 같은 덩어리를 볕 반대쪽으로 밀어
+    // 한 번 더 그린다. 돌과 그림자가 같은 실루엣이라 「이 돌의 그림자」로 읽힌다.
+    if(asp>.06)fillPoly(c,jagPoly(x-sx0*rr*.82,y-sy0*rr*.82,rr*1.06,5,sd,.95,.82),
+      "rgba(0,0,0,"+(.34+.30*asp).toFixed(3)+")");
+    fillPoly(c,jagPoly(x,y,rr,5,sd,.95,.82),
+      asp>0?PL01.wallCol(0,asp*(.72+.42*h2(i,j,13.9))):mixHex(base,"#000000",.34));
+  });
+  // 바위기둥 — 골 바닥·아래 단에 남은 기둥. **랜드마크**다: 사행과 층은 어디를
+  // 가나 비슷하게 생겼으므로 「여기 와 봤다」를 말해 줄 것이 하나는 있어야 한다.
+  //
+  // ⚠️ **「그렸다」와 「보인다」는 다르다 — 이 기둥이 그 교훈이다.**
+  // 첫 문(칸 540 · 게이트 .34 · 골 바닥에만 · 반너비 ≥30)으로 두었더니 기둥은
+  // 프레임마다 **3개씩 그려지는데 화면 안에는 40프레임 내내 0개**였다
+  // (2026-08-12. jagPoly 를 감싸 n=7 호출을 세고 캔버스 변환으로 좌표를 옮겨
+  //  확정했다. 같은 자로 잰 너덜은 13310개 중 6082개가 화면 안 — 46% 로
+  //  창/화면 넓이비와 일치하니 자는 맞았다).
+  // 원인은 그리기가 아니라 **분포**다: 설 수 있는 자리(골 바닥 = 갈래 주기 478 중
+  // 54px 띠)가 월드에 성기게 박힌 격자인데, 목업 카메라는 ±310 밖에 안 돌아다녀
+  // 그 격자를 **한 번도 안 지난다.** 게임에서는 멀리 가니 나오겠지만, 시안에서
+  // 안 보이는 것은 시안이 증명할 수 없는 것이고 주석은 거짓말이 된다.
+  //   ⇒ 설 자리를 **단1·단2·골 셋 다**로 넓히고 칸을 540→380 으로 좁혔다.
+  //     같은 자로 다시 재니 그리는 것은 프레임당 10.2개, 그중 **화면 안 0.5개** —
+  //     두 프레임에 하나씩 지나가는 셈이고, 랜드마크로는 그 정도가 맞다
+  //     (실제로 한 자리를 4배로 찍어 「선 돌 + 볕 쪽 초승달 + 누운 그림자」인지
+  //      눈으로 확인했다).
+  scatter(cu,cv,Du*2,Dv*2,380,1,(px,py,i,j,r)=>{
+    if(r>.52)return;
+    const u=cu-Du+px, v=cv-Dv+py;
+    PL01.at(u,v,o);
+    if(o.z!==5&&o.z!==3&&o.z!==1)return;
+    // 제 지대 안에 들어앉을 만큼 넓은 자리에만 — 단을 넘치면 「떠 있는 돌」이 된다
+    const room=o.z===5?o.P[5]:(o.P[o.z]-o.P[o.z+1]);
+    if(room<20)return;
+    const R=Math.min(room*.62,11+h2(i,j,17.7)*15), x=px-Du, y=py-Dv;
+    const sh=R*(2.0+h2(i,j,19.1)*2.0);
+    // 긴 그림자 — **덩어리 넷을 겹쳐** 눕힌다. 띠(ribbonPoly)로 그리면 뿌리와
+    // 끝이 같이 좁아져 「떠 있는 바늘」이 된다(너덜에서 같은 함정을 밟았다).
+    // 뿌리가 제일 굵고 끝으로 갈수록 가늘어야 **선 것의 그림자**로 읽힌다.
+    for(let b=0;b<4;b++){const f=b/3;
+      fillPoly(c,jagPoly(x-sx0*sh*f,y-sy0*sh*f,R*(1.02-.62*f),6,i*5.3+j*2.9+b*1.3,.9,1),
+        "rgba(0,0,0,"+(.60-.14*f).toFixed(3)+")");}
+    // 볕 쪽 낯 → 그 위에 몸통. 겹치고 남은 초승달이 「선 돌」로 읽힌다.
+    fillPoly(c,jagPoly(x+sx0*R*.30,y+sy0*R*.30,R,7,i*5.3+j*2.9,.92,1),PL01.WALL[3]);
+    fillPoly(c,jagPoly(x-sx0*R*.14,y-sy0*R*.14,R*.94,7,i*5.3+j*2.9+1.7,.92,1),PL01.PLAT);
+  });
+};
+
+/// 골을 따라 흐르는 모래 — **「크고 느린 것 위에 작고 빠른 것」.** 지형은
+/// 카메라 속도 그대로(지면이니까) 가고 이것만 따로 흐른다. 그 속도차가
+/// 「저 골은 크다」를 말한다.
+/// 한 위상 `ph` 에서 자리도 알파도 **전부 파생**하고 ph=0·1 에서 알파가 0 이라
+/// 주기 경계에서 도약이 없다.
+PL01.motes=function(c,t,cu,cv,Du,Dv){
+  const o=PL01.AT;
+  scatter(cu,cv,Du*2,Dv*2,88,0,(px,py,i,j,r)=>{
+    if(r>.60)return;
+    const pd=5.4+h2(i,j,23.3)*4.6;
+    const ph=((t/pd)+h2(i,j,27.1))%1;
+    const x=px-Du+(ph-.5)*(190+h2(i,j,29.7)*180);
+    const y=py-Dv+Math.sin(ph*TAU+h2(i,j,31.3)*TAU)*9;
+    PL01.at(cu+x,cv+y,o);
+    if(o.z<0)return;                                   // 골 안에서만 — 바람은 골이 모은다
+    // ⚠️ 볕 벽(제일 밝은 면 .1505) 위에는 안 얹는다. 알파 .055 짜리 모래가
+    // 거기 겹치면 .1505+.055×.655 = **.186 으로 상한 .17 을 넘는다.** 봉우리를
+    // 지키는 것은 「알파를 내리는 것」이 아니라 **제일 밝은 면을 비켜 가는 것**이다.
+    if(o.z===0)return;
+    c.fillStyle=A(PL01.MOTE,.055*Math.sin(Math.PI*ph));
+    c.fillRect(x,y,1.7,1.3);});
+};
+
+// ── 질감 세 장 ───────────────────────────────────────────────────────────
+/// 대지 자갈 — **대지의 중간 톤을 여기서 번다.** 대지는 골보다 넓은데 낮은 볕을
+/// 스쳐 받아 L .0254 다. 그대로 두면 화면의 절반이 죽은 검정이라 「꺼멓다」는
+/// 판정을 그대로 다시 받는다. 자갈은 밝기를 올리는 게 아니라 **중간 톤 화소를
+/// 면적 8~9% 만큼 심는 것**이다(개정 예산이 재는 바로 그 값).
+/// ⚠️ 타일을 448 로 키운 것은 회전을 뺐기 때문이다(위 「비용」 절). 회전이 벌던
+/// 반복 은닉을 **주기 길이**로 갚는다 — 980 화면에 2.2번밖에 안 들어간다.
+/// 굽는 값은 3.3배가 됐으므로 **가장자리에 안 닿는 것은 아홉 번 안 그린다**
+/// (`mpWrap9` 는 이음매용인데, 타일 안쪽에 온전히 든 알갱이는 이음매가 없다).
+PL01.pave=()=>mpTile("pl01pave",448,(c,S)=>{
+  const put=(x,y,r,seed,sq,col)=>{
+    if(x>r&&y>r&&x<S-r&&y<S-r)fillPoly(c,jagPoly(x,y,r,5,seed,sq,.8),col);
+    else mpWrap9(S,(dx,dy)=>fillPoly(c,jagPoly(x+dx,y+dy,r,5,seed,sq,.8),col));};
+  for(let i=0;i<410;i++){                       // 어두운 얼룩 — 저주파
+    const x=hash(i*3.7+.2)*S,y=hash(i*8.3+.6)*S,r=2+hash(i*5.9)*7.5;
+    put(x,y,r,i*4.1,.9,"rgba(0,0,0,"+(.16+hash(i*7.1)*.32).toFixed(3)+")");}
+  // ⚠️ 처음엔 반경 1.5~5.1 짜리를 590개 뿌렸다가 **별밭**으로 보였다(2026-08-12
+  // 렌더 — 어두운 바탕에 고른 밝은 점은 이 레포에서 이미 「별」의 문법이고,
+  // 심우주 다섯 안과 정면으로 겹친다). 덮는 넓이는 그대로 두고 **더 크고 더
+  // 적게** 바꾸면 같은 면적이 「돌」로 읽힌다.
+  // ⚠️ 개수는 **중간 톤의 최솟값**이 정한다. 골이 제일 좁은 자리에서 재면 화면의
+  // 중간 톤이 14.3% 까지 내려가 예산 하한(15%)을 깼는데, 골을 넓히는 것은 제일
+  // 밝은 자리를 같이 밀어 올려 상한(30%)을 깬다. 대지 자갈은 **어느 자리에나
+  // 있는 층**이라 분포를 통째로 들어 올린다 — 최솟값을 고치는 유일한 손잡이다.
+  for(let i=0;i<620;i++){                       // 자갈 — 각지고 납작하게
+    const x=hash(i*6.3+.9)*S,y=hash(i*2.1+.4)*S,r=2.6+hash(i*9.1)*5.0;
+    put(x,y,r,i*6.7,.72,PL01.PAVE);}
+});
+/// 결 — 전면에 얹는다. **어둡게만** 간다: 밝은 면 위에 얹혀도 상한을 못 넘는다.
+/// 이산 계조가 만드는 **큰 색면의 「스티커」 느낌을 깨는** 것이 진짜 일이다.
+/// ⚠️ 처음엔 460개였는데 층을 빼고 재 보니 바꾸는 화소가 **3.16%** 뿐이었다 —
+/// 큰 색면을 깨기에 모자란다(밝은 벽이 「붙여 놓은 색종이」로 보였다). 두 배로
+/// 올린다. 굽는 값은 한 번뿐이고 프레임 비용은 그대로(패턴 한 장)다.
+PL01.grain=()=>mpTile("pl01grain",256,(c,S)=>{
+  for(let i=0;i<920;i++){
+    const x=hash(i*2.9+.7)*S,y=hash(i*7.3+.2)*S,r=.7+hash(i*5.1)*2.0;
+    const a=(.14+hash(i*8.7)*.32).toFixed(3);
+    mpWrap9(S,(dx,dy)=>fillPoly(c,jagPoly(x+dx,y+dy,r,5,i*3.7,.9,.85),"rgba(0,0,0,"+a+")"));}
+  for(let i=0;i<80;i++){                        // 아주 옅은 티끌 — 알파 ≤ .014
+    const x=hash(i*4.3+.5)*S,y=hash(i*9.7+.1)*S;
+    c.fillStyle="rgba(212,220,200,"+(.008+hash(i*6.1)*.006).toFixed(4)+")";
+    mpWrap9(S,(dx,dy)=>c.fillRect(x+dx,y+dy,1,1));}
+});
+/// 먼지 장막 — 지면보다 1.26배 빠르게 흐르는 시차 층. **어둡게만** 준다
+/// (잿바다가 남긴 규칙: 위층 시차는 밝게가 아니라 어둡게로).
+PL01.veil=()=>mpTile("pl01veil",512,(c,S)=>{
+  for(let i=0;i<14;i++){
+    const x=hash(i*4.3)*S,y=hash(i*8.1)*S,r=46+hash(i*2.9)*58;
+    const a=(.030+hash(i*6.1)*.050).toFixed(3);
+    mpWrap9(S,(dx,dy)=>{
+      c.save();c.translate(x+dx,y+dy);c.scale(2.2,1);c.rotate(.6);
+      const g=c.createRadialGradient(0,0,0,0,0,r);
+      if(!g||!g.addColorStop){c.restore();return;}
+      g.addColorStop(0,"rgba(2,3,2,"+a+")");g.addColorStop(1,"rgba(2,3,2,0)");
+      c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,TAU);c.fill();c.restore();});}
+});
+
+// ── 조립 ─────────────────────────────────────────────────────────────────
+// 등록은 **대입만**. `const`/`let` 으로 기존 이름을 다시 선언하면 파일 전체가
+// SyntaxError 로 죽는다(앞 배치에서 실제로 겹쳤다).
+MAPP.bg.canyon=function PL01canyon(c,t,W,H){
+  // [PL01.OFF] = [Δx, Δy, 진폭배율]. 배율은 **작은 칸 전용 액자**다(기본 1 = 원본
+  // 카메라 그대로). 302px 창은 갈래 간격(500)보다 좁아, 카메라가 원래 진폭
+  // (±310)으로 흔들리면 창이 골 **사이**(대지)에 통째로 떨어지는 구간이 생긴다.
+  const cam=MAPP.cam(t), ak=PL01.OFF[2]==null?1:PL01.OFF[2];
+  const ox=cam[0]*ak+PL01.OFF[0], oy=cam[1]*ak+PL01.OFF[1];
+  const rx=Math.round(ox), ry=Math.round(oy);        // ⚠️ 패턴은 **정수 좌표로만**
+  // ① 공용 바닥 — 이 안에서는 **제일 깊은 골 바닥 그 자체**다(L .0184).
+  //    화면에서 제일 어두운 것이 제일 깊은 곳이라는 것을 색 하나로 못 박는다.
+  mapFloor(c,W,H);
+  // ② 대지 — 바닥보다 한 단 위(.0293). 넓게 깔리는 면이라 여기가 평균 L 을
+  //    거의 다 정한다. ⚠️ 이 한 줄을 빼면 대지가 `MAPFLOOR` 의 **푸른 검정**으로
+  //    남아 「땅」이 아니라 **빈 구멍**으로 읽히고, 그 순간 골이 파인 것이 아니라
+  //    **솟은 것**으로 뒤집힌다(2026-08-12 렌더에서 실제로 그렇게 보였다).
+  c.fillStyle=PL01.PLAT;c.fillRect(0,0,W,H);
+  // ③ 대지 자갈 — 대지의 중간 톤을 버는 층. W·H 3배는 위 「비용」 절의 덮임 규칙.
+  mpPat(c,PL01.pave(),W*3,H*3,rx,ry,0);
+  const cs=Math.cos(PL01.TH), sn=Math.sin(PL01.TH);
+  const cu=ox*cs+oy*sn, cv=-ox*sn+oy*cs;             // 카메라를 골 좌표계로
+  const Du=(Math.abs(W*cs)+Math.abs(H*sn))/2+PL01.SEG*1.5;
+  const Dv=(Math.abs(W*sn)+Math.abs(H*cs))/2+46;
+  c.save();
+  c.beginPath();c.rect(0,0,W,H);c.clip();            // 돌린 좌표계가 칸 밖으로 안 새게
+  c.translate(W/2,H/2);c.rotate(PL01.TH);
+  PL01.terrain(c,cu,cv,Du,Dv);                       // ④ 층진 벽·단·골
+  PL01.stones(c,t,cu,cv,Du,Dv);                      // ⑤ 너덜·바위기둥
+  PL01.motes (c,t,cu,cv,Du,Dv);                      // ⑥ 흐르는 모래
+  c.restore();
+  mpPat(c,PL01.grain(),W*3,H*3,rx,ry,0);             // ⑦ 결 — 어둡게만
+  mpPat(c,PL01.veil (),W*3,H*3,Math.round(ox*1.26),Math.round(oy*1.26),0);
+                                                     // ⑧ 장막 — 시차 1.26배, 어둡게만
+};
+
+/// 작은 칸(302px) 액자 = [Δx, Δy, 카메라 진폭배율]. 302 창은 갈래 간격(500)의
+/// 3/5 이라 액자 없이 두면 창이 갈래 **사이**(대지)에 통째로 떨어지는 프레임이
+/// 생긴다 — 지형이 아니라 **창 크기**가 만드는 분산이다. 980×548 전체 화면에는
+/// 안 쓴다(첫 판은 액자 없이 뒀더니 확대 칸이 **맨 대지 한 장**으로 나왔다).
+///
+/// ⚠️ **고르는 기준은 「안 비는 것」이지 「밝은 것」이 아니다.** 후보를 50px
+/// 격자로 169자리 훑어 12프레임씩 쟀다(2026-08-12). 제일 밝은 자리는 중간 톤
+/// 평균 **57.3%** 인데 그건 전체 화면(23.1%)의 2.5배라 시안이 거짓말을 하게 된다.
+/// 고른 [-200,0,.30] 은 **평균 26.8%**(전체 화면과 +3.7%p) · 최소 23.0% ·
+/// 확대 칸 최소 28.5% — 안 비면서 전체 화면과 비슷한 자리다.
+PL01.SPOT=[-200,0,.30];
+PL01.demo=function(fx,mini,spot){
+  const f=function(c,t,dt,W,H,st){
+    const sv=PL01.OFF;if(spot)PL01.OFF=PL01.SPOT;
+    try{
+      MAPP.bg.canyon(c,t,W,H);
+      if(fx){st.fx=st.fx||{p:[]};mapOver(c,t,dt,W,H,st.fx,"pulse");}
+      if(mini){const cm=MAPP.cam(t);MAPP.minimap(c,W,H,t,cm[0],cm[1]);}
+    }finally{PL01.OFF=sv;}};
+  try{Object.defineProperty(f,"name",
+    {value:"pl01_"+(fx?"fx":"bg")+(mini?"_mini":"")+(spot?"_spot":"")});}catch(e){}
+  return f;};
+/// 2배 확대 — 층과 너덜이 302px 칸에서는 안 읽힌다. 논리 화면을 절반으로 주고
+/// 2배로 늘리는 **진짜 확대**다(캔버스만 키우면 바깥이 안 칠해진다).
+/// ⚠️ 확대만 **다른 액자**를 쓴다. 이 칸은 재는 칸이 아니라 **보는 칸**이라
+/// (밝기는 `pl-num` 에서 액자 없이 잰다) 「벽이 선이 아니라 면인가」가 화면에
+/// 들어와야 한다. 액자 없이 두면 151px 짜리 창이 그늘 둑에만 떨어져 **볕 벽이
+/// 한 프레임도 안 나오는** 칸이 됐다(2026-08-12). 후보 289자리를 10프레임씩
+/// 훑어 볕 벽(L>.12)이 **어느 프레임에도 2.6% 이상** 들어오는 자리를 골랐다.
+PL01.ZSPOT=[-120,-200,.30];
+PL01.zoom=function pl01_zoom(c,t,dt,W,H,st){
+  const sv=PL01.OFF;PL01.OFF=PL01.ZSPOT;
+  try{c.save();c.scale(2,2);MAPP.bg.canyon(c,t,W/2,H/2);c.restore();}
+  finally{PL01.OFF=sv;}};
+/// 실측 — 페이지가 스스로 잰다. **액자를 안 쓴다**: 예산은 실제로 도는 화면에서
+/// 재야 하고, 유리한 자리에 올려놓고 잰 값은 시안의 자기소개지 측정이 아니다.
+PL01.meter=function pl01_meter(c,t,dt,W,H,st){
+  MAPP.bg.canyon(c,t,W,H);mapMeter(c,t,W,H,st);};
+
+PL01.W=980;PL01.H=548;PL01.S=302;
+mapTile("pl01",PL01.demo(0,0),"PL01 · 협곡 峽谷 — 배경만",
+  "아래로 파인 유일한 지형. 대지 → 단1 → 단2 → 골까지 벽 셋을 밟고 내려간다. 볕은 한 방향뿐이라 한쪽 둑의 벽은 면으로 빛나고(L .129·.151) 맞은편 둑은 검다(.0136) — 그 갈림이 깊이다.",
+  PL01.W,PL01.H,1);
+mapTile("pl01",PL01.demo(1,1),"PL01 · 협곡 + 파문 + 미니맵",
+  "벽 계조가 .074 와 .129 사이를 **비워** 적 몸(.1021)을 피한다. 파문 바깥층(.181)은 제일 밝은 벽보다도 1.20배 위.",
+  PL01.W,PL01.H,1);
+mapTile("pl01",PL01.zoom,"PL01 · 2배 — 층이 계단인지",
+  "확대해야 갈리는 것 둘: ① 벽이 선이 아니라 **면**인가(폭 7~40px · 중앙값 14~20px) ② 너덜의 그림자가 전부 같은 쪽으로 눕는가.",
+  PL01.S,PL01.S);
+mapTile("pl-bg",PL01.demo(0,0,1),"협곡 · 배경만","대비 판정용 — 이펙트를 뺐다.",PL01.S,PL01.S);
+mapTile("pl-proof",PL01.demo(1,0,1),"협곡 위에서","파문 — 바깥층 L .181, 얇은 고리.",PL01.S,PL01.S);
+mapTile("pl-mini",PL01.demo(0,1,1),"협곡 + 미니맵","적 밀도 한 겹.",PL01.S,PL01.S);
+mapTile("pl-num",PL01.meter,"협곡 · 밝기 실측",
+  "중간 톤 15~30% · 평균 L ≤ .075 · 봉우리 ≤ .17 · L>.35 ≤ 0.5%.",PL01.S,PL01.S);
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 유니버스 · PL02 결정지 結晶地 — docs/vfx/mockup-map2.html 전용
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 최상위 이름은 전부
+// `PL02` 로 시작하고, 등록은 `MAPP.bg.crystal` **대입 하나**다(재선언 0).
+// 새 그리기 원시함수도 0개 — `fillPoly`·`jagPoly`·`scatter`·`hash`·`h2`·`A`·
+// `mixHex`·`mapStar`·`mapFloor`·`mpTile`·`mpPat`·`mpWrap9` 조합뿐이다.
+//
+// ── 이 안이 유일하게 하는 것: 위로 솟고, 각진 면이 빛을 나눠 받는다 ────────
+// 열한 안 중 **평평한 면 여러 장이 서로 다른 밝기를 받는** 유일한 안이다.
+// 협곡은 아래로 파이고, 산호초도 위로 자라지만 **가지**라 면이 없다. 여기서
+// 정체를 지는 것은 결정의 개수도 크기도 아니라 **면과 면 사이의 명도 차**다.
+// 한 결정 안에서 제일 어두운 면과 제일 밝은 면이 실측 **L .050 ↔ .146 (2.9배)**
+// 로 갈린다. 이 차가 무너지면 이 안은 그냥 「뾰족한 돌밭」이 된다.
+//
+// ── ⚠️ 빙(198.6°)을 피하는 법: 파랗게 안 한다 ─────────────────────────────
+// 결정을 그리라면 손이 자동으로 파랑·청록으로 가는데 그 자리가 정확히 빙
+// (frost 198.6°)이다. **색상환에서 제일 넓게 비어 있는 구간**을 재서 골랐다:
+//   염 20.3 → 뇌 50.6 (30.3° 간격) · 뇌 50.6 → 독 129.2 (**78.6°**) ·
+//   독 129.2 → 풍 170.7 (41.5°) · 풍 170.7 → 빙 198.6 (27.9°) ·
+//   빙 198.6 → 어둠 273.0 (74.4°) · 어둠 273.0 → 적 318.8 (45.8°)
+// 30° 이상 띄울 수 있는 구간은 **[50.6,129.2] 와 [198.6,273.0] 둘뿐**이고,
+// 후자의 한가운데(235.8°)는 남색이라 「파랗게 하지 마라」에 걸린다. 그래서
+// 전자의 한가운데 **90.0°** — 감람석(olivine)·황수정 계열의 저채도 황록이다.
+//   뇌 39.4° · 독 39.2° · 염 69.7° · 풍 80.7° · **빙 108.6°** ·
+//   어둠 177.0° · 적 몸 318.8° 에서 **131.2°**
+// 최근접이 39.2° 라 **속성·적 어느 쪽과도 30° 를 넘긴다** — 이 안은 색상환이
+// 꽉 찼다는 전제를 실제로 빠져나가는 자리에 있다. 그 위에 채도를 .13~.33 으로
+// 눌러 두었으므로(저채도가 실제 방어다) 화면에서는 「따뜻한 잿빛 광물」로
+// 읽히지 이끼밭(162° 발광 초록)과도 계열이 안 겹친다.
+//
+// ── ⚠️ 반투명 — 불투명하면 그냥 바위다 ───────────────────────────────────
+// 「반투명해 보인다」는 알파를 낮춘다고 생기지 않는다. **뒤에 있는 무엇이
+// 실제로 보여야** 생긴다. 그래서 뒤가 비치는 증거를 셋 심었다:
+//   ① **파쇄대가 몸을 통과해 보인다.** 몸 알파가 **.54** 라 결정 아래의 칩
+//      무늬가 46% 대비로 그대로 이어진다. 결정의 실루엣 안팎에서 지면 무늬가
+//      **끊기지 않는다** — 이게 제일 직접적인 증거다.
+//   ② **겹친 자리가 밝아진다.** 무리로 자란 결정끼리 겹치면 알파가 쌓여
+//      L .101 → .146 이 된다(두 겹). 두께가 곧 밝기라는 유리의 성질이고,
+//      가산 합성(`lighter`) 없이 보통 알파만으로 난다.
+//   ③ **뒤 결정의 능선이 앞 결정의 몸을 뚫고 보인다.** 아래 「세 패스」의
+//      부수 효과다 — 몸을 전부 칠한 **뒤에** 능선을 전부 칠하므로, 뒤에 선
+//      결정의 어깨선이 앞 결정 몸 위로 그려진다. 불투명한 물체였다면 틀린
+//      그림이지만 유리에서는 **정확히 맞는 그림**이다.
+//
+// ── ⚠️ 칠하는 차례가 밝기를 먹는다 — 그래서 네 패스다 ─────────────────────
+// 앞 손(자기막)이 발마다 막→결→마루를 이어 칠해서 **다음 발의 막이 앞 발의
+// 마루를 덮고** 있었다. 알파를 1.9배 올려도 안 고쳐졌고 패스를 가르니
+// 0.2%→0.68% 가 됐다. 여기서는 결정 목록을 **한 번 모으고 네 번 훑는다**:
+//   ① 기슭(자갈) 전부 → ② 몸 전부 → ③ 가름선·내부 결 전부 → ④ 능선·섬광 전부
+// 결정마다 ①~④ 를 이어 칠하면 뒤 결정의 자갈이 앞 결정의 능선을 덮는다.
+// 목록을 **재사용 배열**에 담아 프레임마다 새 객체를 안 만든다(GC 0).
+//
+// ── 예산 — 「평균을 어둡게」가 아니라 「밝은 화소의 면적을 묶는 것」 ───────
+// 지면은 화면을 100% 덮으므로 1% 만 밝아도 그 1% 가 화면 전체에 깔린다.
+// 그런데 **너무 어두우면 「안 보인다」**가 되어 여덟 손이 바닥에 붙었다.
+// 개정 예산의 정의는 **중간 톤(L .05~.15) 면적 15~30%** 이고, 이 안은 그 면적을
+// **결정의 몸으로 직접 만든다** — 결정이 화면의 ~2 할을 덮고 그 전부가
+// .050~.146 사이에 들어오도록 램프를 설계했다(아래 「램프」). 파쇄대가 결정
+// 사이의 지면에서 같은 일을 한 번 더 한다.
+//   · 몸 램프 16단: 합성 L **.050 → .146** (전부 중간 톤 안)
+//   · 능선: 얇은 선만. L .13~.19
+//   · 섬광: 결정 꼭대기의 1~1.6px 점. L>.35 는 여기뿐이다
+// **흰 앞날 없음 · `lighter` 0회.**
+//
+// ── 램프 — 알파가 아니라 색으로 깊이를 준다 ───────────────────────────────
+// 면마다 알파를 달리하면 「어떤 결정은 더 투명하다」가 되어 물성이 무너진다.
+// 유리는 다 같은 유리다. 그래서 **알파는 상수 .54 하나**고, 면의 밝기는
+// 16단 램프의 **인덱스**로만 준다. 부수 효과로 프레임마다 만드는 rgba 문자열이
+// **0개**가 된다 — 램프를 모듈 로드 때 한 번 구워 두고 배열에서 꺼내 쓴다.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 결정 자리는 **기존 `scatter()`**(칸 번호 해시)다 — 칸이 무한하니 무늬가
+// 영영 안 반복되고, 도는 칸 수가 화면 넓이에만 비례한다. 지반·파쇄대·디더만
+// 타일인데 320/256/192 주기의 저대비 얼룩은 눈이 못 센다.
+// **칸당 하나**라는 성질이 예산에도 쓰인다: 밀도가 자리마다 안 흔들리므로
+// 월드 어디서 재도 중간 톤 %가 무너지지 않는다(한 자리 측정의 함정을 구조로
+// 막는다). 크기만 h² 로 뽑아 「큰 것이 드물게」를 만든다.
+
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 전부 색상각 88~96° 위의 **명도 점**이다. 갈림은 색이 아니라 명도가 만든다.
+// ⚠️ **채도는 .10~.20 을 넘기지 마라.** 색상각 90.0° 는 그대로여도 채도가
+// .16~.33 이면 화면이 통째로 초록으로 읽힌다 — 지면형은 그 색이 **화면 100%**
+// 에 깔려서, 같은 채도라도 화면의 1%인 이펙트보다 훨씬 세게 읽힌다.
+// 「저채도가 실제 방어」는 여기서 수치로 확인된다.
+//
+// ⚠️ **램프는 위가 아니라 아래로 넓힌다.** 인접한 두 면의 차가 1.5배면 결정이
+// 「납작한 삼각형」이 된다. 봉우리를 올리는 길은 예산이 막고 있으므로 어두운
+// 끝을 바닥(.0184) 쪽으로 내리는 수밖에 없다. 지금은 합성 **.034 ↔ .146**
+// (4.3배)이고, 어두운 면은 중간 톤 **아래**라 예산을 한 톨도 안 쓴다.
+//   · 아래 끝을 .028(=지면과 동일)까지 내리면 어두운 면이 배경에 **녹아**
+//     결정이 「빛 조각」만 남는다. .034 가 세 면이 다 보이는 하한이다.
+//   · 위 끝을 .162 로 올리면 **겹친 자리**가 .24 까지 올라가 `L>.17` 이 1.5%
+//     가 된다. 겹침은 반투명의 증거(②)라 없앨 수 없으니 **홑겹을 낮춘다** —
+//     홑겹 .146 이면 두 겹이 .217 이고, 그래도 무기 바깥층(.133) 위다.
+// ⚠️ **잉크의 각이 아니라 화면의 각을 맞춘다.** 잉크를 90.0° 로 두면 실제로
+// 그려진 화소는 **102.8°** 로 잰다 — 공용 바닥 `MAPFLOOR #04040A` 가 R4 G4 B10,
+// 즉 **240°(파랑)** 이라 반투명한 층 아래에서 합성 결과를 파랑 쪽으로 +7~13°
+// 돌려 버리기 때문이다. 102.8° 는 독(129.2°)과 **26.4°** 라 30° 선을 못 지킨다.
+//   ⇒ 잉크를 미리 **83°** 로 내려 둔다. 그러면 화면이 90~96° 로 앉는다.
+// 색상각 검증은 팔레트 표가 아니라 **그려진 화소**로 해야 한다.
+const PL02_DARK ="#0A0C08";   // 램프 바닥   L .0429 (합성 .034) 채도 .20
+const PL02_LITE ="#4B553B";   // 램프 꼭대기 L .3100 (합성 .146) hue 83.1 채도 .18
+const PL02_ROCK ="#11120E";   // 지반 판     L .0676  hue 75.0  채도 .13
+const PL02_PLATE="#191B16";   // 파쇄판      L .1013  hue 84.0  채도 .10
+const PL02_SLIV ="#2A3022";   // 갓 깨진 조각 L .1749  hue 85.7 채도 .17
+const PL02_SEAM ="#080907";   // 가름선·그늘쪽 실루엣 L .0332 — **어둠으로 형태를 진다.**
+                              // ⚠️ 이걸 밝은 잉크로 두면 결정마다 **밝은 철사 우리**가
+                              // 씌워진다. 실물의 각진 모서리는 대부분 그늘진 금이지
+                              // 빛나는 선이 아니고, 어둠은 예산도 안 쓴다.
+const PL02_EDGE ="#414B32";   // 능선        L .2712  hue 84.0 채도 .20
+const PL02_GLINT="#798962";   // 섬광        L .5011  hue 84.6 — 흰색이 아니다(흰 앞날 금지)
+const PL02_RN=16;             // 램프 단수
+const PL02_RAMP=[];
+for(let i=0;i<PL02_RN;i++)PL02_RAMP.push(mixHex(PL02_DARK,PL02_LITE,i/(PL02_RN-1)));
+// ⚠️ **알파를 .5 위로 올리지 마라.** .54 로 뒀을 때 결정이 「종이 오려 붙인 것」
+// 으로 보였다(두 번 연속). 유리가 유리로 보이려면 **뒤가 실제로 많이 보여야**
+// 한다 — .42 면 바닥 무늬 투과율이 **.58** 이다. 밝기는 알파가 아니라 잉크로
+// 맞춘다(램프 꼭대기를 밝게 잡으면 합성값은 그대로다).
+const PL02_A=.42;                                  // **몸 알파는 상수 하나**
+const PL02_FILL=PL02_RAMP.map(h=>A(h,PL02_A));     // 프레임마다 만드는 문자열 0개
+const PL02_LX=.86;            // 빛의 가로 성분 — 오른쪽 위에서 온다(전 결정 공통)
+const PL02_MAJ=300, PL02_MIN=168;                  // 큰 결정 칸 · 작은 결정 칸
+const PL02ix=v=>{const i=Math.round(v);return i<0?0:(i>PL02_RN-1?PL02_RN-1:i);};
+
+// ── 지반 — 깨진 판 ────────────────────────────────────────────────────────
+// 저주파를 진다. 얼룩을 **둥글게** 두면 결정지가 아니라 이끼밭이 되므로
+// `jagPoly` 를 낮은 spikeMul 로 써서 **각진 판**으로 깐다. 알파가 낮아
+// 겹칠수록 조금씩 밝아지고, 그 자체가 계조를 흩어 띠를 막는다.
+//
+// ⚠️ 이 층은 밝기가 아니라 **색상각** 때문에 두껍게 깐다. 공용 바닥
+// `MAPFLOOR #04040A` 는 R4 G4 B10 이라 **색상각이 240°(파랑)** 다. 바닥이 그대로
+// 비치는 자리는 이 안이 아니라 **바닥의 파랑**을 띠고, 그 면적이 화면의 대부분이라
+// 화소 전체의 색상각 평균이 풍(170.7°) 쪽으로 끌려간다(실측으로 확인했다).
+// 어두운 자리까지 이 안의 90° 를 입혀야 화면이 한 색으로 읽힌다 — 밝기는
+// 합성 L .035 로 중간 톤(.05) **아래**라 예산은 한 톨도 안 쓴다.
+const PL02bed=()=>mpTile("pl02bed",320,(c,S)=>{
+  for(let i=0;i<16;i++){
+    const x=hash(i*3.7+.3)*S,y=hash(i*8.1+1.9)*S,r=42+hash(i*5.3)*74;
+    const n=5+((hash(i*11.7)*3)|0);
+    // ⚠️ 알파 상한은 **.32**. 얼룩이 서로 겹치므로 세 겹이면 합성이 .0507 로
+    // 중간 톤(.05)에 들어가 지반만으로 면적을 17%p 먹는다(실측). 이 층은
+    // 밝기를 벌면 안 되고 **색상각만** 벌어야 한다.
+    const col=A(PL02_ROCK,.14+hash(i*6.9)*.18);
+    mpWrap9(S,(dx,dy)=>fillPoly(c,jagPoly(x+dx,y+dy,r,n,i*2.3+7,1.02,.86),col));
+  }
+});
+// ── 파쇄판 — 깨진 포장 ────────────────────────────────────────────────────
+// 결정 사이의 지면이다. 큰 결정과 **같은 문법**(평평한 각진 면 + 면마다 다른
+// 밝기)을 큰 규모로 한 번 더 해서, 땅 자체가 「깨져 굳은 결정」으로 읽히게 한다.
+// 반지름을 칸의 .58~.78 배로 둬 판끼리 겨우 안 닿게 하면 **남는 틈이 곧 금**이고,
+// 판이 안 겹치니 알파가 안 쌓여 값이 통제된다.
+//
+// ⚠️ **타일로 구우면 반드시 진다.** 두 갈래 다 실측으로 막혔다:
+//   ① 판이 타일보다 작아야 하므로 결국 **작은 얼룩**이 되고, 작은 얼룩을 화면
+//      가득 깔면 조약돌·이끼(위장무늬)로 읽힌다. 알갱이를 흩뿌린 판은 **보케**가
+//      됐다 — 지면은 화면을 100% 덮으므로 이 오독이 화면 전체를 지배한다.
+//   ② 판을 크게 하면 이번엔 **타일 주기가 화면보다 작아져** 반복이 보인다.
+//   ⇒ 큰 것은 타일을 안 쓴다. **`scatter()`**(칸 번호 해시)면 칸이 무한하니
+//     반복도 이음매도 없고, 도는 칸 수는 화면 넓이에만 비례한다(O(1)).
+//
+// ⚠️ `jagPoly` 는 **n 이 작을수록 각이 선다** — n=5~6 은 둥글어 조약돌이 되므로
+// **n=3**(여섯 점)만 쓴다.
+//
+// ⚠️ 판 대부분은 **중간 톤 아래**(합성 L .031~.050)에 둔다. 지면이 중간 톤을
+// 다 먹으면 결정이 설 자리가 없다(그렇게 해서 전체 51.2% 가 나온 적 있다,
+// 예산 15~30%). 중간 톤은 **결정이 버는 것**이고, 지면은 어둡되 구조가 보이는
+// 쪽을 맡는다.
+const PL02_PC=132;                    // 지면 판 칸
+function PL02floorPlates(c,ox,oy,W,H){
+  scatter(ox,oy,W,H,PL02_PC,1,(x,y,i,j,r)=>{
+    const sd=i*31.7+j*57.3;
+    const rr=PL02_PC*(.58+r*.20);
+    // 판마다 다른 밝기 — **면이 빛을 나눠 받는다**를 지면에서도 한 번 한다.
+    // ⚠️ 이 알파 범위가 **중간 톤의 하한을 든다.** 결정만으로 중간 톤을 채우면
+    // 결정이 성긴 자리에서 화면이 통째로 어두워진다(그렇게 해서 월드 한 자리가
+    // 10.3% 까지 떨어진 적 있다, 하한 15%). 판은 칸당 하나라 **자리마다 밀도가
+    // 안 흔들리므로**, 여기서 버는 몫이 그대로 최솟값을 받쳐 준다.
+    // 범위를 만지면 6자리 실측을 **다시** 해야 한다 — 최솟값과 최댓값이 같이 움직인다.
+    fillPoly(c,jagPoly(x,y,rr,3,sd+2.1,1.12,.72+hash(sd+13.7)*.30),
+             A(PL02_PLATE,.03+hash(sd+5.5)*.36));
+  });
+}
+// 잔 파편 — **높은 주파수**라 타일이어도 반복이 안 보인다(192 주기를 눈이
+// 못 센다). **길쭉하고 각진** 것만 — 둥근 알갱이는 보케가 된다.
+//
+// ⚠️ 방향은 **구울 때** 준다. `jagPoly` 는 각도를 못 받으니 처음엔 붓칠 자체를
+// 돌려(`mpPat` 의 rot) 방향을 만들었는데, 돌린 붓칠은 Skia 의 제일 느린 표본기로
+// 떨어져 **1.90ms**(프레임의 41%)를 먹었다. 타일 안에서 파편마다 `rotate` 하면
+// 방향이 **제각각**이 되고(돌린 붓칠은 전부 같은 방향이었다) 비용은 굽는 한 번뿐이다.
+const PL02grit=()=>mpTile("pl02grit",192,(c,S)=>{
+  for(let i=0;i<62;i++){
+    const sd=i*4.13+2.7;
+    const x=hash(sd)*S,y=hash(sd+1.9)*S;
+    const r=1.9+hash(sd+6.1)*3.6, ang=hash(sd+2.2)*TAU;
+    const col=A(PL02_SLIV,.16+hash(sd+8.3)*.22);
+    mpWrap9(S,(dx,dy)=>{c.save();c.translate(x+dx,y+dy);c.rotate(ang);
+      fillPoly(c,jagPoly(0,0,r,3,sd,1.18,.30),col);c.restore();});
+  }
+});
+// ── 디더 ──────────────────────────────────────────────────────────────────
+// 1px 잡음. 진폭이 딱 양자화 한 단이라 계조 경계를 흩는다.
+// ⚠️ **안 돌리고 정수로만** 민다 — 패턴이 보간되면 고주파가 뭉개져 디더가
+// 디더를 못 한다(MP2 가 실측으로 확인한 함정).
+const PL02dith=()=>mpTile("pl02dith",192,(c,S)=>{
+  for(let i=0;i<7400;i++){
+    const x=(hash(i*1.37)*S)|0,y=(hash(i*2.71+.4)*S)|0;
+    c.fillStyle=A(PL02_LITE,.006+hash(i*5.11)*.013);
+    c.fillRect(x,y,1,1);
+  }
+});
+
+// ── 결정 하나의 뼈대 ──────────────────────────────────────────────────────
+// 육각기둥 + 끝맺음(termination). 화면 좌표로 **밑동 4점 · 어깨 4점 ·
+// 꼭대기 2점 · 부러진 윗면 2점**을 뽑는다. 꼭대기 둘이 겹치면(ap=0) 뾰족한
+// 결정, 벌어지면 부러져 뭉툭한 결정이 **같은 코드 한 벌로** 나온다.
+//
+// ⚠️ 밑동은 **가운데가 아래로 불룩**하고 어깨는 **가운데가 위로 솟는다**.
+// 둘 다 없으면 기둥이 「종이에 오려 붙인 사각형」(스티커)이 되고, 땅에서
+// 자란 것이 아니라 땅 위에 놓인 것으로 보인다.
+const PL02U=[-1,0,0,1];        // 밑동 u 자리 — [1],[2] 는 결정마다 갈아 끼운다
+const PL02O=new Float64Array(24);
+function PL02geo(k,o){
+  const w1=k.w0*k.tp, shy=k.y-k.H*k.sh;
+  PL02U[1]=-k.f;PL02U[2]=k.g;
+  for(let i=0;i<4;i++){
+    const u=PL02U[i], q=1-u*u;
+    o[i*2]  =k.x+u*k.w0;         o[i*2+1]  =k.y+k.bb*q;           // 밑동
+    o[8+i*2]=k.x+u*w1+k.lx;      o[8+i*2+1]=shy-k.sk*q;           // 어깨
+  }
+  const ax=k.x+k.lx*1.5+k.ax;
+  o[16]=ax-k.ap; o[17]=k.y-k.H;                                    // 꼭대기 왼
+  o[18]=ax+k.ap; o[19]=k.y-k.H;                                    // 꼭대기 오른
+  o[20]=o[16]-k.lx*.20; o[21]=o[17]-w1*.30;                        // 부러진 윗면
+  o[22]=o[18]-k.lx*.20; o[23]=o[19]-w1*.30;
+}
+/// 면 하나의 램프 인덱스. **면의 가로 자리**(umid)와 결정의 기울기가
+/// 빛(오른쪽 위)과 이루는 각을 대신한다 — 법선을 따로 안 들인다.
+function PL02lam(k,umid,bias){
+  const n=umid*.92+k.ln*.55;
+  const raw=Math.max(0,Math.min(1,.5+.74*n*PL02_LX));
+  // ⚠️ **선형이면 결정 전체가 중간 밝기로 떠서 종이가 된다.** 유리에서 밝은
+  // 것은 **빛을 정면으로 받는 면 하나**뿐이고 나머지는 배경만큼 어둡다.
+  // 거듭제곱 곡선이 그것을 만든다: 세 면이 .028 / .064 / .144 로 앉아
+  // **4.9배**로 갈리고, 어두운 두 면은 중간 톤 아래라 예산도 안 쓴다.
+  return PL02ix(Math.pow(raw,1.5)*(PL02_RN-1)+k.di+bias+k.sh2);
+}
+
+// ── 결정 목록 ─────────────────────────────────────────────────────────────
+// 프레임마다 **같은 배열을 다시 채운다**(새 객체 0). scatter 는 칸당 한 점을
+// 주고, 그 점 둘레에 1~3 개를 무리로 세운다 — 진짜 결정은 무리로 자라고,
+// 겹쳐야 ②「겹친 자리가 밝아진다」가 성립한다.
+const PL02L=[];
+let PL02N=0;
+function PL02add(x,y,sd,big,W,H){
+  const h1=hash(sd*1.7+3.1), h2v=hash(sd*3.3+7.7), h3=hash(sd*5.9+11.3),
+        h4=hash(sd*9.1+2.2), h5=hash(sd*4.7+17.9), h6=hash(sd*13.1+5.5);
+  // 높이는 **h²**. 균등분포로 두면 비슷한 키가 늘어서 **울타리**가 되고, h³ 로
+  // 더 벌리면 위계는 좋아지지만 이번엔 **자리마다 중간 톤이 널뛴다** — 큰 것이
+  // 하나도 안 걸린 화면이 10.3%(하한 15%)까지 떨어진다(6자리 실측). h² 가
+  // 「큰 것이 드물다」와 「어느 자리에서 재도 하한을 지킨다」가 만나는 지점이다.
+  // ⚠️ 지수를 만지면 6자리 실측을 다시 해야 한다.
+  const Ht=big?(82+h1*h1*140):(22+h1*h1*54);
+  // 가로세로비도 넓게 — .16(기둥)부터 .52(뭉툭한 덩이)까지 나와야 같은 밭에
+  // 다른 결정이 산다. 전부 가늘면 원뿔 밭이 된다.
+  const w0=Ht*(big?(.16+h2v*h2v*.36):(.22+h2v*.30));
+  const bw=w0*1.6+Ht*.34+8;
+  if(x+bw<-16||x-bw>W+16||y<-16||y-Ht>H+16)return;   // 화면 밖은 목록에 안 넣는다
+  let k=PL02L[PL02N];if(!k){k={};PL02L[PL02N]=k;}
+  PL02N++;
+  k.x=x;k.y=y;k.H=Ht;k.w0=w0;k.big=big;
+  k.tp=.52+h4*.36;                       // 어깨에서 좁아지는 정도
+  k.lx=(h3-.5)*Ht*.30;                   // 기울기 — 어깨의 가로 밀림
+  k.ln=(h3-.5)*1.1;                      // 같은 기울기를 면 밝기에도 먹인다
+  // ⚠️ **어깨를 .6 아래로 내리지 마라.** 끝맺음이 키의 절반을 넘으면 결정이
+  // 그냥 **삼각뿔**이 되어 기둥의 세로 세 면이 사라지고, 이 안의 정체(각진 면이
+  // 빛을 나눠 받는다)가 통째로 없어진다. 끝맺음은 키의 **18~34%** 뿐이다.
+  k.sh=.66+h4*.16;                       // 어깨 높이 비
+  k.f=.16+h5*.34; k.g=.14+h6*.36;        // 앞 모서리 둘 — 좌우가 달라야 안 대칭이다
+  k.bb=w0*(.13+h5*.13);                  // 밑동 불룩
+  k.sk=w0*(.10+h6*.16);                  // 어깨 솟음
+  k.ax=(h6-.5)*w0*.34;
+  k.ap=h5>.72?w0*k.tp*(.20+h4*.34):0;    // .72 넘으면 **부러진** 결정
+  k.di=big?1.0:-1.6;                     // 작은 것을 낮춰 크기 위계를 한 번 더
+  k.ph=sd*1.31;
+  k.sh2=0;
+}
+function PL02gather(ox,oy,W,H,t){
+  PL02N=0;
+  scatter(ox,oy,W,H,PL02_MAJ,2,(x,y,i,j,r)=>{
+    const n=1+((r*2.6)|0);                              // 1~3 개 무리
+    for(let q=0;q<n;q++){
+      const s=h2(i,j,11+q*3);
+      // 무리를 **넓게** 벌린다 — 깊이 겹치면 겹친 면적이 통째로 밝아져
+      // 예산을 먹는다. 스치듯 겹쳐도 「뒤가 비친다」는 그대로 읽힌다.
+      PL02add(x+(s-.5)*PL02_MAJ*.66, y+(h2(i,j,23+q*3)-.5)*PL02_MAJ*.34,
+              i*73.1+j*151.7+q*29.3, 1, W,H);
+    }
+  });
+  scatter(ox,oy,W,H,PL02_MIN,1,(x,y,i,j,r)=>{
+    const n=1+((r*1.9)|0);
+    for(let q=0;q<n;q++)
+      PL02add(x+(h2(i,j,41+q*5)-.5)*PL02_MIN*.80, y+(h2(i,j,53+q*5)-.5)*PL02_MIN*.62,
+              i*37.7+j*89.3+q*17.1+900, 0, W,H);
+  });
+  // 반짝임 — 면이 빛을 받는 각이 될 때만 섬광이 뜬다. 위상이 결정마다 달라
+  // 화면 어딘가는 늘 반짝이고 같은 것이 계속 반짝이지는 않는다.
+  for(let i=0;i<PL02N;i++){const k=PL02L[i];
+    k.sh2=Math.sin(t*.34+k.ph)*1.0;}                    // 면 밝기의 느린 숨
+}
+
+// ── 패스 ① 기슭 ──────────────────────────────────────────────────────────
+// 큰 결정의 발치에 자갈을 쌓는다. **몸보다 먼저** 칠하므로 반투명한 몸을
+// 통과해 비치고, 그것이 그대로 「땅에 박혀 있다」와 ①번 반투명 증거를 겸한다.
+function PL02collar(c,k){
+  // ① 접지 그늘 — **이게 「땅에 박혀 있다」를 만든다.** 빼면 결정이 바닥 무늬
+  //    위에 **오려 붙인 스티커**로 보인다. 어둠이라 예산을 안 쓴다.
+  fillPoly(c,jagPoly(k.x+k.w0*.22,k.y+k.bb*.5,k.w0*1.5,6,k.ph+1.7,1.0,.26),
+           A(PL02_SEAM,.72));
+  // ② 발치 파편 — 납작하고 각진 것만(둥근 알갱이는 보케가 된다)
+  const n=3+((hash(k.ph*2.3)*3)|0);
+  for(let q=0;q<n;q++){
+    const s=hash(k.ph*3.7+q*2.9), u=(s-.5)*2.4;
+    const cx=k.x+u*k.w0*1.15, cy=k.y+k.bb*(1-u*u)*.7+hash(k.ph+q*5.1)*k.w0*.20;
+    const r=k.w0*(.11+hash(k.ph*7.1+q)*.17);
+    fillPoly(c,jagPoly(cx,cy,r,3,k.ph+q*3.1,1.15,.34),A(PL02_SLIV,.20+s*.20));
+  }
+}
+// ── 패스 ② 몸 ────────────────────────────────────────────────────────────
+// 기둥 3면 + 끝맺음 3면 + 부러진 윗면 1면. **면마다 램프 인덱스가 다르다** —
+// 이 안의 정체가 여기 한 줄에 있다.
+const PL02P=[[0,0],[0,0],[0,0],[0,0]];
+function PL02quad(c,o,a,b,cc,d,col){
+  PL02P[0][0]=o[a];PL02P[0][1]=o[a+1];PL02P[1][0]=o[b];PL02P[1][1]=o[b+1];
+  PL02P[2][0]=o[cc];PL02P[2][1]=o[cc+1];PL02P[3][0]=o[d];PL02P[3][1]=o[d+1];
+  fillPoly(c,PL02P,col);
+}
+function PL02body(c,k){
+  const o=PL02O;PL02geo(k,o);
+  const um=[(-1-k.f)/2,(k.g-k.f)/2,(1+k.g)/2];
+  for(let i=0;i<3;i++){                                  // 기둥
+    PL02quad(c,o,i*2,i*2+2,8+i*2+2,8+i*2,PL02_FILL[PL02lam(k,um[i],0)]);
+  }
+  // 끝맺음 — 하늘을 보는 면이라 위로 간다. 「위로 솟는다」가 실루엣이 아니라
+  // 밝기로도 읽혀야 한다. 가산은 **셋이 서로 달라야** 한다 — 같은 값을 주면 끝이
+  // 한 덩어리로 뭉쳐 삼각형이 된다.
+  // ⚠️ 그런데 **어느 것도 +2 아래로는 못 내린다.** 하늘을 보는 면이 그 아래 기둥
+  // 면보다 어두워지면 어깨에 **검은 쐐기**가 팬다(2.6배 확대에서만 보인다).
+  PL02quad(c,o,8,10,16,16,PL02_FILL[PL02lam(k,um[0],2.2)]);
+  PL02quad(c,o,10,12,18,16,PL02_FILL[PL02lam(k,um[1],3.6)]);
+  PL02quad(c,o,12,14,18,18,PL02_FILL[PL02lam(k,um[2],2.6)]);
+  if(k.ap)PL02quad(c,o,16,18,22,20,PL02_FILL[PL02lam(k,um[1],4.4)]);
+  // ── 속의 면 ────────────────────────────────────────────────────────────
+  // 반투명은 **속이 보여야** 성립한다. 기둥 속에 갈라진 판이 한 장 서 있고
+  // 그것이 앞면을 통해 비치는 그림이다. 모양·자리·밝기 셋이 전부 조건이고,
+  // 하나라도 어기면 2.6배 확대에서 바로 결함으로 보인다:
+  //   · **선이 아니라 면.** 가는 선으로 그으면 **긁힌 자국**이 된다.
+  //   · **사각형이 아니라 쐐기.** 기둥 모서리와 나란한 사각형은 「라벨을 붙여
+  //     놓은 것」이 된다. 아래가 넓고 위 한 점으로 모이면 어떤 모서리와도 안
+  //     나란하다. 밑동에는 안 닿게 띄운다.
+  //   · **그늘 쪽에 놓고 밝게.** 볕 쪽에 놓으면 자기가 얹힌 면보다 어두워져
+  //     **뚫린 구멍**이 된다. 그늘진 면에 밝은 쐐기가 뜨는 것이 「빛이 결정을
+  //     통과해 나온다」이고, 그것이 곧 반투명이다.
+  if(k.big&&k.H>78){
+    // 폭이 좁으면 **가시(생선가시)** 로 보인다 — 면으로 읽히려면 넓어야 한다.
+    const q=hash(k.ph*5.3), a=-.86+q*.18, b=a+.52+q*.26, d=.20+q*.26;
+    const w1=k.w0*k.tp, shy=k.y-k.H*k.sh, y0=k.y-k.H*(.06+q*.14);
+    const ax=k.x+((a+b)*.5+d)*w1+k.lx;
+    PL02P[0][0]=k.x+a*k.w0;PL02P[0][1]=y0;
+    PL02P[1][0]=k.x+b*k.w0;PL02P[1][1]=y0;
+    PL02P[2][0]=ax;        PL02P[2][1]=shy;
+    PL02P[3][0]=ax;        PL02P[3][1]=shy;      // 점을 겹쳐 삼각형으로 만든다
+    fillPoly(c,PL02P,PL02_FILL[PL02lam(k,um[1],2.2)]);
+  }
+}
+// ── 패스 ③ 가름선 — **어둠으로 긋는다** ──────────────────────────────────
+// ⚠️ 이 선을 **밝은 잉크로 그으면** 결정마다 밝은 철사 우리가 씌워진 그림이
+// 나온다 — 눈 판정에서 제일 크게 걸리는 결함이다. 실물의 각진 모서리는 대부분
+// **그늘진 금**이지 빛나는 선이 아니다. 어둠이라 예산도 안 쓴다.
+// 그늘 쪽 실루엣도 여기 넣는다 — 무리로 자란 결정이 **한 덩어리로 안 뭉개지게**
+// 하는 것이 이 선이다.
+function PL02seamPath(c,k){
+  const o=PL02O;PL02geo(k,o);
+  for(let i=1;i<3;i++){                                  // 앞 모서리 둘
+    c.moveTo(o[i*2],o[i*2+1]);c.lineTo(o[8+i*2],o[8+i*2+1]);
+    c.lineTo(o[i===1?16:18],o[i===1?17:19]);
+  }
+  c.moveTo(o[0],o[1]);c.lineTo(o[8],o[9]);c.lineTo(o[16],o[17]);   // 그늘 쪽 실루엣
+}
+// ── 패스 ④ 능선·내부 결·섬광 ────────────────────────────────────────────
+// **빛을 받는 쪽 한 줄만** 긋는다. 밑동→어깨→꼭대기로 이어지는 모서리 하나가
+// 「이쪽에서 빛이 온다」와 「이건 기둥이다」를 동시에 말한다.
+// ⚠️ 어깨선을 통째로 두르지 마라 — **밝은 철사 우리**가 되고 면적도 두 배가 된다.
+// 속의 결은 선이 아니라 **면**으로 준다(패스 ② 의 「속의 면」) — 선으로 그으면
+// 긁힌 자국이 된다.
+function PL02rimPath(c,k){
+  const o=PL02O;PL02geo(k,o);
+  c.moveTo(o[6],o[7]);c.lineTo(o[14],o[15]);c.lineTo(o[18],o[19]); // 볕 쪽 한 줄
+  c.moveTo(o[12],o[13]);c.lineTo(o[18],o[19]);                     // 볕 쪽 끝맺음 모서리
+}
+
+MAPP.bg.crystal=function PL02crystal(c,t,W,H){
+  mapFloor(c,W,H);                                       // **첫 줄** — 공용 바닥 .0184
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  mpPat(c,PL02bed(),W,H,ox,oy,0);                        // 지반 — 저주파 얼룩
+  PL02floorPlates(c,ox,oy,W,H);                          // 파쇄판 — 반복 없는 큰 면
+  mpPat(c,PL02grit(),W,H,ox,oy,0);                       // 잔 파편 — 방향은 구울 때 줬다(회전 0)
+  PL02gather(ox,oy,W,H,t);
+  for(let i=0;i<PL02N;i++)if(PL02L[i].big)PL02collar(c,PL02L[i]);   // ①
+  for(let i=0;i<PL02N;i++)PL02body(c,PL02L[i]);                     // ②
+  c.save();
+  c.lineWidth=1.10;c.lineCap="butt";c.strokeStyle=A(PL02_SEAM,.62); // ③ 한 획(어둠)
+  c.beginPath();for(let i=0;i<PL02N;i++)PL02seamPath(c,PL02L[i]);c.stroke();
+  c.lineWidth=1.10;c.strokeStyle=A(PL02_EDGE,.25);                  // ④ 한 획(빛)
+  c.beginPath();for(let i=0;i<PL02N;i++)PL02rimPath(c,PL02L[i]);c.stroke();
+  c.restore();
+  // 섬광 — 꼭대기에서만. L>.35 를 쓰는 것은 이것뿐이고 화면당 한 줌이다.
+  for(let i=0;i<PL02N;i++){const k=PL02L[i];
+    if(!k.big)continue;
+    const g=Math.sin(t*.5+k.ph*1.7);
+    if(g<.55)continue;
+    const o=PL02O;PL02geo(k,o);
+    mapStar(c,(o[16]+o[18])/2,o[17]+1.2,1.0+hash(k.ph)*.6,PL02_GLINT,(g-.55)*1.9);
+  }
+  // 디더 — **정수로만** 민다
+  c.save();c.imageSmoothingEnabled=false;
+  mpPat(c,PL02dith(),W,H,Math.round(ox),Math.round(oy),0);
+  c.restore();
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181, 깊은 청색, 얇은 고리).
+function PL02proof(c,t,dt,W,H,st){MAPP.bg.crystal(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다.
+function PL02num(c,t,dt,W,H,st){MAPP.bg.crystal(c,t,W,H);mapMeter(c,t,W,H,st);}
+/// 적이 읽히나 — 여덟 마리를 결정 위에 세운다. 적 몸 `#24141F` 는 318.8° 라
+/// 이 안(90.0°)과 **131.2°** 떨어져 있고, 명도도 .102 대 결정 면 .050~.146 이라
+/// 실루엣이 결정의 한 면으로 오독될 여지가 남는다 — 그래서 눈으로 본다.
+const PL02FOE=["grunt","drifter","runner","bomber","swarm","urchin","charger","grunt"];
+function PL02foes(c,t,dt,W,H,st){
+  MAPP.bg.crystal(c,t,W,H);
+  for(let i=0;i<8;i++){
+    const a=i/8*TAU+t*.16;
+    const x=W/2+Math.cos(a)*W*.33, y=H/2+Math.sin(a)*H*.31;
+    const ang=Math.atan2(H/2-y,W/2-x);
+    const r=15+hash(i*3.7)*7;
+    FOEART[PL02FOE[i]](c,x,y,r,ang,t);
+    foeEyes(c,x,y,r*.8,1,W/2,H/2,.17);
+  }
+}
+mapTile("pl02",MAPP.demo("crystal",1,1),"PL02 · 결정지 結晶地 + 빛파동 + 미니맵",
+  "위로 솟고 각진 면이 빛을 나눠 받는 유일한 안. 한 결정 안에서 어두운 면 L .050 ↔ 밝은 면 .146(2.9배). 몸 알파 .54 라 지면 무늬가 결정을 통과해 이어지고, 겹친 자리가 밝아진다. 색상각 90.0° — 빙(198.6°)에서 108.6° 떨어졌다.",
+  MAP_W,MAP_H,1);
+mapTile("pl02",PL02foes,"결정지 · 적 여덟",
+  "적 몸 L .102 · 색상 318.8°. 결정 면(.050~.146 · 90.0°)에 묻히는지 본다.",MAP_W,MAP_H,1);
+mapTile("pl-bg",MAPP.demo("crystal",0,0),"결정지 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL02proof,"결정지 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("crystal",0,1),"결정지 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("pl-num",PL02num,"결정지 · 밝기 실측","중간 톤 15~30% · 평균 L ≤ .075 · L>.35 ≤ 0.5%.",MAP_S,MAP_S);
+
+
+// ══ P8 「모래폭풍 沙嵐」 (MP8) — docs/vfx/mockup-map2.html `pl08` ═══════════
+//
+// **열 안 중 유일하게 지형이 가려지는 안이다. 배경이 배경을 덮는다.**
+//
+// ── 이 안이 팔려고 하는 것 ────────────────────────────────────────────────
+// 다른 아홉은 「무엇이 있는가」를 판다(금·결정·기둥·용암·오로라·가지·소금판·
+// 구멍·살). 이 안이 파는 것은 **「지금 보이는가」**다. 지면은 처음부터 끝까지
+// 같은 자리에 같은 모양으로 있는데, 그 위를 흐르는 모래가 **걷혔다 덮였다**
+// 하면서 보이는 정도가 오간다.
+//
+// ⚠️ **사구(P2 砂丘)와 갈리는 지점은 여기 하나다.** 사구는 지형이 주인공이라
+// 능선이 화면의 문법이고 날리는 모래는 능선을 **꾸미는** 장식이다(MP2plume 은
+// 마루에 붙어서만 뜬다). 이 안은 반대다 — **덮는 것이 주인공**이고 지형은
+// 덮일 것으로만 존재한다. 그래서 지형은 일부러 **평범한 사력 암반**이다.
+// 화려한 지형을 깔면 「가려진다」가 손해로만 읽힌다.
+//
+// ⚠️ **값어치는 「가려지는 정도가 오간다」는 것 하나다.** 늘 덮여 있으면
+// 지형이 없는 것과 같고, 안 덮이면 그냥 사구다. 그래서 이 안에서 제일 많이
+// 조율한 것은 색도 형태도 아니라 **덮임의 분포**다(아래 `MP8.cov`).
+//
+// ── 앞 손의 규칙 하나가 이 안의 목숨이다 ─────────────────────────────────
+// U1 암류가 실측으로 남긴 것: **가리는 층은 가릴 밝은 것이 있어야 보인다.**
+// 빈 우주에 차폐를 알파 .8 까지 올려도 통계가 안 움직였다(물어뜯을 것이 없었다).
+// 그래서 이 안은 순서가 **지형 먼저**다. 다만 U1 과 정반대로, 여기서 가리는
+// 층은 바탕보다 **밝다**(날리는 모래는 빛을 산란시킨다). 어두운 차폐는 이
+// 소재에서는 「그림자」로 읽히지 「모래」로 안 읽힌다.
+//
+// ── 예산이 강제한 구조: 베일은 **판이 아니라 가닥**이다 ──────────────────
+// 처음엔 베일을 「밀도에 따라 알파가 변하는 한 장의 막」으로 설계했다.
+// 캔버스를 대기 전에 순수 수학으로 예측해 보니 **그 순간 예산이 깨졌다**:
+// 막이 화소를 100% 덮으므로 밀도 .5 만 돼도 중간 톤이 화면의 47~65% 가 된다
+// (개정 상한 30%). 계산 결과는 하나였다 — **베일은 틈이 있어야 한다.**
+// 그래서 이 안의 베일에는 **연속면이 한 장도 없다.** 전부 겹치는 가닥이고,
+// 틈으로 지형이 비쳐 보이는 것이 예산을 지키는 방법이면서 동시에 「모래가
+// 흐른다」로 읽히는 이유다. 실측(월드 넷 × 시각 열여섯)으로 모래가 덮은 면적은
+// **0.4~43.1%**, 그중 짙게 덮은 것은 **0~6.3%** 를 오간다.
+//
+// ── 층 ───────────────────────────────────────────────────────────────────
+//   지면 ① 사력 밭      얕게 깔린 모래. **지형 중간 톤의 바닥짐**
+//        ② 자갈·풍식 결  구운 384 타일, 화면당 fillRect **한 번**. 밭 「위에」
+//        ③ 모래 무지    암괴의 바람그늘에 쌓인 모래. 밭보다 밝다
+//        ④ 암괴         어두운 몸 + **밝은 바람맞이 마루 립**
+//        ⑤ 풍식 홈      짧은 홈 + 얇은 립. **제일 먼저 지워지는 잔detail**
+//   베일 ⑥ 물결(T1)     넓고 옅은 가닥. 덮는 몸통
+//        ⑦ 결(T2)       가늘고 밝은 가닥. 「빠르다」를 만든다
+//        ⑧ 알갱이(T3)   아주 짧은 줄. **중간 밀도에서만** 보인다(아래 참조)
+//
+// ⚠️ **칠하는 차례를 층으로 가른다.** 자기막이 발마다 막→결→마루를 이어 칠해
+// 다음 발의 막이 앞 발의 마루를 덮은 사고가 있었다(알파를 1.9배 올려도 안
+// 고쳐졌고 세 패스로 가르니 0.2%→0.68%). 이 안은 그 병에 특히 약하다 —
+// 베일 가닥이 서로 겹치는 것이 설계의 전부라, 요소 단위로 몸→결을 이어 칠하면
+// **다음 가닥의 몸이 앞 가닥의 결을 지운다.** 그래서 `scatter` 를 층마다 따로
+// 돌린다(셀 순회는 산술뿐이라 싸다). 지면도 같다: 어두운 것 전부 → 밝은 것 전부.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 무지·암괴·홈·물결·결·알갱이 **전부 `scatter()`** 다. 칸 번호가 무한하니
+// 반복이 원리적으로 없다. 주기를 가진 것은 사력 결 타일(384) 하나뿐인데,
+// **그 타일에는 6px 넘는 것이 하나도 없다** — 저주파는 전부 scatter 가 맡는다.
+// 고주파의 384px 반복은 눈이 못 잡고, 저주파가 반복하면 즉시 격자로 읽힌다.
+// 그래서 타일 안의 밝은 알갱이는 **하나가 3px 를 안 넘는다**(밭 위에 얹히면
+// L .123 까지 가지만 낱개가 그 크기라 격자로 안 뭉친다). 이 상한을 지키는 것이
+// 타일에 저주파를 안 넣는 것과 같은 규칙의 다른 쪽 면이다.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// **방사 그라디언트가 실행 경로에 0개다**(굽는 타일 안에도 없다). 반지름의
+// 제곱에 비례하는 물건을 화면 크기로 쓰면 그것 하나로 예산이 끝난다는 것은
+// 이 레포가 이미 확인했다. 패턴 붓칠도 **회전 0** 이다 — 각도는 타일을 구울 때
+// 이미 넣어 뒀다(P2 가 띠마다 전단을 걸어 13.59ms 를 쓴 전례가 있다).
+//
+// 실측(980×548 · 매 프레임 `getImageData(0,0,1,1)` 로 **래스터 강제** · 같은
+// 판에서 형제 안을 같이 재 머신 부하를 상쇄):
+//   P8 전체 **5.10ms**(p95 5.30) = 지면 2.70 + 베일 2.20
+//   P3 동공 8.40ms · P2 사구 11.50ms · 빈 화면 0.00ms
+// 셋 중 제일 싸다. 그리기 호출만 `performance.now()` 로 감싸면 화면을 덮는
+// 패턴이 `0.000ms` 로 나온다 — 크롬이 명령을 기록만 하고 나중에 래스터하기
+// 때문이라, 강제 래스터 없이 잰 값은 비용이 아니다.
+//
+// ── 금지 둘 ──────────────────────────────────────────────────────────────
+// · **흰 앞날 없음.** 제일 밝은 색이 `#A89C8C` 인데 알파 .30 을 절대 안 넘는다.
+// · **가산 합성 없음.** `lighter` 를 한 번도 안 쓴다 — 겹치는 가닥이 설계의
+//   전부라 가산을 끼우면 겹침이 곧바로 흰 반죽이 된다.
+const MP8={};
+
+// ── 색 넷 ────────────────────────────────────────────────────────────────
+// 주 색상각 **34.3°**(모래). 최근접 속성은 염 20.3° 로 **14.0°**, 다음이
+// 뇌 50.6° 로 16.3° 다. 색상환이 이미 꽉 차서 어느 각을 골라도 20~30° 안에
+// 걸린다는 것은 다섯 손이 독립으로 확인했고, 이 안도 예외가 아니다.
+// **실제 방어는 채도와 명도 쪽에 있다**: 채도 13.9% 이고, 화면에 실제로 칠해지는
+// 값은 제일 짙은 가닥에서도 L .13 언저리라 염 계열 무기층(.181~.542)과 **4배**
+// 넘게 갈린다. 적 몸 `#24141F`(318.8°)와는 75.5° 로 멀다.
+MP8.SAND ="#A89C8C";   // 날리는 모래  L .6187 · 34.3° · 채도 13.9% — 알파로만 쓴다
+MP8.DRIFT="#403A2F";   // 쌓인 모래    L .2296 · 38.8°
+MP8.LIP  ="#4E4638";   // 바람맞이 마루 L .2776 · 38.2° — 지면에서 제일 밝다
+MP8.GRIT ="#2E2921";   // 사력 알갱이  L .1631 · 36.9°
+// 어두운 것은 전부 `rgba(0,0,0,a)` 다. 바닥(.0184)보다 확실히 어두운 색을
+// 따로 두면 공용 바닥이 움직일 때 이 안만 혼자 남는다(MP3 가 남긴 규약).
+
+// ── 바람 ─────────────────────────────────────────────────────────────────
+// 화면 축과 안 맞는 각. 지면·베일 세 층이 **같은 방향으로 다른 속도**로 흐른다
+// — 크기·밝기·속도가 함께 변해야 깊이로 읽힌다(A안 심연이 남긴 규칙).
+MP8.TH=-.40; MP8.CO=Math.cos(MP8.TH); MP8.SI=Math.sin(MP8.TH);
+MP8.WSP=196;                          // 바람 기준 속도(px/s)
+MP8.PAR=[1.26,1.62,2.30];             // 베일 세 층의 시차(지면이 1.0)
+MP8.SPD=[1,1.9,3.4];                  // 베일 세 층의 바람 배수
+
+/// 풍향 좌표 → 화면 좌표. 회전만 하므로 길이·폭이 안 변한다
+/// (그래서 `ribbonPoly` 를 화면 좌표에서 그대로 불러도 폭이 맞는다).
+MP8.sc=(u,v,W,H)=>[W/2+u*MP8.CO-v*MP8.SI, H/2+u*MP8.SI+v*MP8.CO];
+/// 원점 둘레의 다각형(jagPoly 등)을 풍향으로 늘여서 화면에 앉힌다.
+/// [eu] 를 [ev] 보다 크게 주면 바람에 깎인 유선형이 된다.
+MP8.map=function(P,u0,v0,eu,ev,W,H){
+  const o=[];
+  for(let i=0;i<P.length;i++){
+    const u=u0+P[i][0]*eu, v=v0+P[i][1]*ev;
+    o.push([W/2+u*MP8.CO-v*MP8.SI, H/2+u*MP8.SI+v*MP8.CO]);}
+  return o;};
+
+// ── 덮임 분포 — **이 안의 전부** ─────────────────────────────────────────
+//
+// 평면파 셋을 더해 0~1 의 덮임을 만든다. 세 값을 고르는 데 실측이 세 번 걸렸다:
+//
+//   ① **파장을 화면보다 훨씬 길게** 잡으면 화면이 통째로 한 위상에 들어가
+//      덮임이 **0% ↔ 100% 로 포화**한다(순수 수학 실측: 밀집 면적 0.0~95.7%).
+//      「늘 덮여 있으면 지형이 없는 것과 같다」는 판정에 정확히 걸린다.
+//   ② 그렇다고 짧게만 잡으면 **박자가 안 생긴다** — 화면 평균이 안 흔들려
+//      「걷혔다 덮였다」가 아니라 「늘 얼룩덜룩」이 된다.
+//   ③ 답은 **파면 방향을 크게 벌리는 것**이었다(.20 / 1.90 / 3.60 rad).
+//      같은 방향으로 겹친 파는 골이 겹쳐 화면을 통째로 비우는데, 교차시키면
+//      한쪽이 비어도 다른 쪽이 남는다. 파장은 2200 / 1150 / 640 —
+//      제일 긴 것이 화면 폭의 2.2배라 박자를 만들고, 제일 짧은 것이 화면 안에
+//      **틈**을 만든다.
+//
+// [CFL] 은 「완전한 무풍은 없다」는 바닥이다. 이걸 0 으로 두면 어느 순간
+// 화면에서 모래가 통째로 사라져 **다른 안과 구별이 안 되는 프레임**이 생긴다.
+MP8.CW=[[2200,.20,.36],[1150,1.90,.34],[640,3.60,.30]]
+  .map(a=>[Math.cos(a[1])*TAU/a[0], Math.sin(a[1])*TAU/a[0], a[2]]);
+MP8.LO=.40; MP8.HI=.84; MP8.CFL=.12;
+MP8.cov=function(u,v){
+  const K=MP8.CW;
+  const s=K[0][2]*Math.sin(u*K[0][0]+v*K[0][1])
+         +K[1][2]*Math.sin(u*K[1][0]+v*K[1][1]+2.1)
+         +K[2][2]*Math.sin(u*K[2][0]+v*K[2][1]+4.3);
+  const q=(.5+.5*s-MP8.LO)/(MP8.HI-MP8.LO);
+  return MP8.CFL+(1-MP8.CFL)*(q<=0?0:q>=1?1:q*q*(3-2*q));
+};
+
+// ── 카메라 ───────────────────────────────────────────────────────────────
+// 형제 안들과 **같은 경로**를 쓴다(비교가 되려면 같아야 한다).
+// [SHIFT] 는 302px 칸 전용 액자 — MP3 가 남긴 규약대로 **유리한 자리가 아니라
+// 정직한 자리**(전체 화면과 같은 밝기가 나오는 자리)로 고른다.
+MP8.OFF=[-900,620];
+MP8.SHIFT=null;
+MP8.cam=function(t){
+  const p=MAPP.cam(t),s=MP8.SHIFT,k=s?s[2]:1;
+  return[p[0]*k+MP8.OFF[0]+(s?s[0]:0), p[1]*k+MP8.OFF[1]+(s?s[1]:0)];};
+/// 층 마스크 — 1 지면 · 2 베일. 페이지가 「걷힌 지형」과 「덮인 화면」을 나란히
+/// 놓기 위한 것이고, 실측 하네스도 이걸로 **덮인 면적**을 직접 잰다
+/// (전체에서 지면만 뺀 차이가 곧 모래가 덮은 화소다).
+MP8.SHOW=3;
+
+// ── ① 사력 밭 — **지면 중간 톤의 바닥짐** ────────────────────────────────
+//
+// ⚠️ 첫 렌더에서 화면이 통째로 새까맸다(2026-08-12). 원인은 「지면의 밝은 것」이
+// 전부 **가늘거나 드물었다**는 것이다 — 자갈 알갱이는 화면의 1.0%, 마루 립은
+// 실 한 가닥, 무지는 화면당 스물 몇 개. 개정 예산이 요구하는 중간 톤 15~30%는
+// **면적을 가진 무언가**가 없으면 원리적으로 안 나온다. 여덟 손이 평균만 지키다
+// 바닥에 붙었다는 브리프의 경고가 정확히 이 자리였다.
+//
+// 그래서 모래가 얕게 깔린 **밭**을 지면의 바닥짐으로 깐다. 불투명(`mixHex`)이라
+// 겹쳐도 값이 안 쌓인다 — 반투명으로 깔면 겹치는 만큼 밝아져 적(.102)을 넘는다.
+// k 폭을 좁게(.20~.31) 둬서 겹치는 자리의 테두리가 저대비로만 보이게 한다.
+// 도형은 **각진 다각형**(jagPoly)이다. 둥근 것은 이 레포에서 「폭발」이나
+// 「보케」로 읽힌다.
+// ⚠️ **밝기가 아니라 개수로 채운다.** 밭의 중간 톤 기여를 올리는 길은 둘인데
+// 실측이 하나를 잘라 줬다:
+//   ① k 를 올려 밭을 밝게 → **적이 묻힌다.** k .26~.36(L .0732~.0943)으로 뒀더니
+//      적 몸(.1021)과의 차가 .008~.029 밖에 안 남아, 적 몸 화소의 **20~31%가
+//      배경과 안 갈렸다**(자리 넷 실측, 2026-08-12). 예산표(중간 톤 18.3% ·
+//      평균 L .0326)는 전부 통과하는데 적만 사라진 것이다 — 예산은 「배경 대
+//      이펙트」만 보고 「배경 대 적」은 안 본다는 MP3 의 경고 그대로다.
+//   ② 칸을 줄이고 게이트를 올려 **개수**로 채운다 → 밝기를 안 올리고 면적만 는다.
+// ②를 골랐다. k 는 .22~.31(L .0648~.0833)로 **내려** 적과 .019~.037 을 벌리고,
+// 칸 150→128 · 게이트 .66→.82 로 개수를 1.7배 늘린다.
+//
+// ⚠️ **칸의 절반은 화면 밖이다.** [Du,Dv] 는 돌아간 화면을 덮는 사각형의
+// 반폭이라 넓이가 화면의 1.84배다(1116×886 vs 980×548). scatter 는 그 사각형에
+// 고루 뿌리므로 **뿌린 것의 54%만 화면에 든다.** 밭이 계산보다 적게 나온 이유가
+// 이것이었고, 게이트·칸을 고를 때 이 계수를 안 넣으면 두 배씩 빗나간다.
+MP8.FCELL=128; MP8.FGATE=.82;
+MP8.flats=function(c,cu,cv,Du,Dv,W,H){
+  scatter(cu,cv,Du*2,Dv*2,MP8.FCELL,1,(sx,sy,i,j,r)=>{
+    if(r>MP8.FGATE)return;
+    // ⚠️ 크기 폭이 좁으면(18~52, 2.9배) 비슷한 얼룩이 고르게 흩어져 **표범 무늬**
+    // 로 읽힌다 — 낱개가 세어지고 「지면」이 아니라 「점들」이 된다(2026-08-12
+    // 전체화면 렌더). 폭을 12~64(5.3배)로 벌리면 큰 것이 서로 이어져 **면**이
+    // 되고 작은 것이 그 가장자리를 허문다. 개수를 늘리는 것만으로는 안 되고
+    // **크기 분포**를 벌려야 낱개가 안 세어진다.
+    const u=sx-Du, v=sy-Dv, RR=12+h2(i,j,61.3)*52;
+    if(Math.abs(u)>Du+RR*3||Math.abs(v)>Dv+RR*2)return;
+    const eu=1.7+h2(i,j,63.7)*.9;                 // 바람 방향으로 눕는다
+    fillPoly(c,MP8.map(jagPoly(0,0,RR,9,i*3.3+j*7.1,.78,1),u,v,eu,1,W,H),
+      mixHex(MAPFLOOR,MP8.DRIFT,.22+h2(i,j,65.1)*.09));   // L .0648~.0833
+  });
+};
+
+// ── ② 자갈·풍식 결 — 구운 타일. **6px 넘는 것이 하나도 없다** ────────────
+// 저주파를 여기 넣으면 384px 격자가 그대로 눈에 읽힌다. 저주파는 전부
+// `scatter` 가 맡고 타일은 고주파만 맡는다.
+// 각도는 **굽는 시점에 넣는다** — 붓칠에 회전을 걸면 Skia 가 제일 느린
+// 표본기로 떨어진다(P2 실측).
+//
+// ⚠️ **이 타일은 밭 「위에」 얹는다.** MP3 가 바닥 결을 웅덩이 밑에 깔았다가
+// 「빛이 밝을수록 질감이 희미해지는」 정반대 그림을 얻고 5.6배 대비 차이를
+// 계산으로 확인한 그대로다. 검은 자국은 밝은 것보다 위에 있어야 질감이 된다.
+MP8.grit=()=>mpTile("mp8grit",384,(c2,S)=>{
+  const CO=MP8.CO,SI=MP8.SI;
+  // 풍식 줄 — 바람 방향으로 깎인 자국. 어두운 것과 밝은 것을 짝지어 둔다.
+  for(let i=0;i<260;i++){
+    const x=hash(i*3.1+.4)*S, y=hash(i*7.9+.8)*S;
+    const l=7+hash(i*5.3)*26, w=Math.max(.35,.45+hash(i*9.7)*1.05);
+    const dk=hash(i*2.3)<.55;
+    const px=CO*l, py=SI*l, ox2=-SI*w*1.7, oy2=CO*w*1.7;
+    mpWrap9(S,(dx,dy)=>{
+      fillPoly(c2,ribbonPoly([[x+dx,y+dy],[x+dx+px,y+dy+py]],w,w*.5),
+        dk?"rgba(0,0,0,.34)":A(MP8.GRIT,.46));
+      if(!dk)fillPoly(c2,ribbonPoly(
+        [[x+dx+ox2,y+dy+oy2],[x+dx+px+ox2,y+dy+py+oy2]],w*.8,w*.4),"rgba(0,0,0,.28)");});}
+  // 자갈 그늘 — 각지고 단단하게. 부드럽고 큰 어두움은 「바닥」이 아니라
+  // 「안개」로 보인다는 것을 MP3 가 렌더로 확인했다.
+  for(let i=0;i<340;i++){
+    const x=hash(i*2.9+.7)*S, y=hash(i*6.1+.2)*S;
+    const r=Math.max(.5,.8+hash(i*4.7)*2.4), a=(.22+hash(i*8.3)*.32).toFixed(3);
+    mpWrap9(S,(dx,dy)=>fillPoly(c2,jagPoly(x+dx,y+dy,r,5,i*3.7,1.05,.82),
+      "rgba(0,0,0,"+a+")"));}
+  // 자갈 마루 — 밭 위에서 「거칠다」를 말한다. 알갱이 하나는 3px 를 안 넘으니
+  // 384 격자가 밝기로 드러나지 않는다(반복이 보이는 것은 저주파뿐이다).
+  for(let i=0;i<520;i++){
+    const x=hash(i*5.7+.1)*S, y=hash(i*3.3+.9)*S;
+    const r=Math.max(.4,.6+hash(i*7.1)*1.9);
+    mpWrap9(S,(dx,dy)=>fillPoly(c2,jagPoly(x+dx,y+dy,r,5,i*2.3+1.1,1.15,.86),
+      A(MP8.GRIT,.26+hash(i*9.1)*.24)));}
+});
+
+// ── ③④ 암괴와 그 바람그늘 — **같은 칸에서 난다** ─────────────────────────
+// 모래 무지를 따로 뿌리면 「밝은 얼룩이 아무 데나 있는」 그림이 된다. 무지는
+// 반드시 **무언가의 뒤**에 쌓여야 바람이 읽힌다. 그래서 무지와 암괴가 같은
+// 칸 번호를 쓰고, 무지는 암괴에서 **바람 아래로** 뻗는다.
+//
+// [pass] 0 무지(밝다) · 1 암괴 몸(어둡다) · 2 마루 립(제일 밝다)
+// 세 번 도는 이유는 위 「칠하는 차례」 주석 그대로다.
+MP8.RCELL=258;
+MP8.rocks=function(c,cu,cv,Du,Dv,W,H,pass){
+  scatter(cu,cv,Du*2,Dv*2,MP8.RCELL,1,(sx,sy,i,j,r)=>{
+    if(r>.72)return;
+    const u=sx-Du, v=sy-Dv;
+    const RR=13+h2(i,j,11.3)*21;                 // 암괴 반지름 13~34
+    if(Math.abs(u)>Du+RR*7||Math.abs(v)>Dv+RR*3)return;
+    // ⚠️ 늘임을 1.5~2.6 에서 낮췄다. 길쭉한 검정 덩이 바로 뒤에 창백한 무지가
+    // 붙으니 둘이 **「잎자루 달린 잎」**으로 읽혔다(2026-08-12 전체화면 렌더).
+    // 암괴를 뭉툭하게 하고 무지를 암괴 **바깥에서** 시작하면 두 도형이 안 붙는다.
+    const eu=1.20+h2(i,j,13.7)*.75;
+    if(pass===0){
+      // 바람그늘의 모래 — 머리가 좁고 꼬리가 넓은 혜성꼴. 길이는 암괴의 3~6배.
+      const DL=RR*(3.0+h2(i,j,17.1)*3.0), bend=(h2(i,j,19.3)-.5)*.34;
+      const k=.24+h2(i,j,21.7)*.08;              // L .0691~.0860 — 밭보다 밝다
+      // ⚠️ 처음엔 `ribbonPoly` **한 장**이었는데 2배 확대에서 창백한 **나뭇잎**
+      // 으로 나왔다(2026-08-12 렌더). 매끈한 윤곽 + 균일한 채움 = 스티커이고,
+      // 그 윤곽이 잎맥처럼 읽혔다. 답은 알파를 내리는 게 아니라 **도형을 쪼개는
+      // 것**: 각진 덩이 넷을 바람 아래로 꿰면 겹치는 만큼 안쪽이 짙어지고
+      // 바깥은 들쭉날쭉해진다(U1 암류가 브로콜리를 고친 것과 같은 처방).
+      const u0=u+RR*eu*1.15;                     // 암괴 **바깥**에서 시작한다
+      for(let s=0;s<4;s++){
+        const f=(s+.5)/4, lr=RR*(.62+1.05*f);
+        fillPoly(c,MP8.map(jagPoly(0,0,lr,8,i*2.9+j*5.3+s*11.7,.74,1),
+          u0+f*DL, v+bend*f*f*DL, 1.35, .78, W, H),
+          mixHex(MAPFLOOR,MP8.DRIFT,k*(.84+.16*f)));}
+      // 이랑 — 평평한 밝은 판은 **스티커**로 보인다(MP3 가 웅덩이에서 겪은 병).
+      // ⚠️ 처음엔 등간격 직선 세 줄이었는데 그건 **생선가시**다(같은 모양이 척추에
+      // 균등하게 붙는 것이 정확히 그 도형이다). 개수·간격·기울기를 전부 칸 해시로
+      // 흩고, 직선 대신 가운데를 밀어 **활**로 만든다.
+      const NR=2+(h2(i,j,29.3)*3|0);
+      for(let s=0;s<NR;s++){
+        const f=.20+(s+h2(i,j,31.1+s*2.3)*.7)/NR*.72, wq=RR*(.80+.95*f);
+        const tl=(h2(i,j,33.5+s*1.7)-.5)*.75;      // 이랑마다 다른 기울기
+        const cx=u0+f*DL, cy=v+bend*f*f*DL;
+        fillPoly(c,ribbonPoly([
+          MP8.sc(cx-wq*tl,cy-wq,W,H),
+          MP8.sc(cx+RR*.34,cy,W,H),               // 가운데를 밀어 활로
+          MP8.sc(cx+wq*tl,cy+wq,W,H)],
+          Math.max(.4,RR*.10),Math.max(.3,RR*.05)),"rgba(0,0,0,.20)");}
+      return;}
+    if(pass===1){
+      // 몸 — 어둡다. 그림자는 공짜고 빛만 값을 치른다.
+      // 알파 .62 → .46: 밭 위에서 .62 는 **구멍**이 돼(밭 L .072 → .027) 검은
+      // 자루로 읽혔다. 암괴는 밭보다 어둡기만 하면 되지 바닥을 뚫을 필요가 없다.
+      fillPoly(c,MP8.map(jagPoly(0,0,RR,7,i*5.1+j*2.7,1.0,1),u,v,eu,1,W,H),
+        "rgba(0,0,0,.46)");
+      return;}
+    // 마루 립 — **지면에서 제일 밝고 제일 얇다.** 모래가 덮으면 이것부터
+    // 사라지고, 걷히면 이것부터 돌아온다. 「가려지는 정도」를 눈이 읽는 자리다.
+    const P=[];
+    for(let s=0;s<=4;s++){const f=s/4;
+      P.push(MP8.sc(u+(f-.5)*RR*eu*1.5, v-RR*(.52+.30*Math.sin(f*3.0+h2(i,j,23.9)*6)), W, H));}
+    fillPoly(c,ribbonPoly(P,Math.max(.5,RR*.10),Math.max(.35,RR*.05)),
+      mixHex(MAPFLOOR,MP8.LIP,.34+h2(i,j,27.1)*.16));   // L .106~.148
+  });
+};
+
+// ── ⑤ 풍식 홈 — **제일 먼저 지워지는 잔detail** ──────────────────────────
+// 홈은 어둡고 립은 밝다. 립의 L 이 .070~.099 라 옅은 모래(합성 알파 .05)만
+// 지나가도 대비가 반으로 준다 — 「살짝 덮였다」가 눈에 보이는 유일한 층이다.
+MP8.GCELL=104;
+MP8.grooves=function(c,cu,cv,Du,Dv,W,H,pass){
+  scatter(cu,cv,Du*2,Dv*2,MP8.GCELL,1,(sx,sy,i,j,r)=>{
+    if(r>.66)return;
+    const u=sx-Du, v=sy-Dv;
+    if(Math.abs(u)>Du+70||Math.abs(v)>Dv+30)return;
+    const l=22+h2(i,j,31.3)*62, w=Math.max(.5,.7+h2(i,j,33.7)*1.5);
+    const bow=(h2(i,j,35.1)-.5)*10;
+    const P=[MP8.sc(u,v,W,H),MP8.sc(u+l*.5,v+bow,W,H),MP8.sc(u+l,v+bow*.3,W,H)];
+    if(pass===0){fillPoly(c,ribbonPoly(P,w,w*.45),"rgba(0,0,0,.36)");return;}
+    const o=w*1.9, Q=[MP8.sc(u,v-o,W,H),MP8.sc(u+l*.5,v+bow-o,W,H),MP8.sc(u+l,v+bow*.3-o,W,H)];
+    // ⚠️ k 상한을 .36 → .26 으로 내렸다. 립이 L .099 까지 가면 적 몸(.1021)과
+    // **.003** 차이라, 가늘어도 적 윤곽을 갉아먹는다. 넓든 좁든 적 값 근처에
+    // 두지 않는다 — 이 안에서 적 값을 지나가도 되는 것은 **움직이는 베일**뿐이다.
+    fillPoly(c,ribbonPoly(Q,w*.62,w*.28),
+      mixHex(MAPFLOOR,MP8.LIP,.16+h2(i,j,37.9)*.10));   // L .0599~.0858
+  });
+};
+
+// ── ⑤⑥⑦ 베일 — 세 층 ────────────────────────────────────────────────────
+// [층] 칸 · 게이트 · 길이 · 반폭 · 알파
+// 알파는 전부 **그 자리의 덮임**을 곱한다. 덮임이 낮으면 아예 안 그린다
+// (조기 반환) — 걷힌 자리가 싼 것이 이 안이 싼 이유다.
+// ⚠️ **덮임 지수를 1.5 로 뒀던 것이 첫 렌더가 새까맸던 두 번째 이유다.**
+// 알파에 `cov^1.5` 를 곱하면 덮임 .5 인 자리에서 알파가 **35%로 깎인다** —
+// 화면의 절반이 「모래가 있긴 한데 안 보이는」 상태가 됐다. 지수는 1.0 으로
+// 두고, 짙은 쪽 상한은 지수가 아니라 **알파 자체**로 잡는다(그래야 어디가
+// 깎이는지가 계산으로 보인다).
+// 알파는 **실측 훑기로** 잡았다(베일 배수 4단 × 밭 게이트 3단 = 12조합,
+// 월드 넷 × 시각 다섯, 2026-08-12). 기준판(.030/.050/.070) 대비 배수를 올리면
+// 중간 톤과 함께 봉우리가 같이 올라간다:
+//   ×1.0 → 중간톤 7.1/11.2/15.6 · L>.17 0.00% · 최대 .184
+//   ×1.5 → 중간톤 7.8/14.9/24.2 · L>.17 0.09% · 최대 .217
+//   ×2.0 → 중간톤 7.9/18.4/30.6 · L>.17 0.29% · 최대 .251
+//   ×2.6 → 중간톤 8.1/20.8/34.6 · L>.17 1.02% · 최대 .303  ← 상한 넘음
+// **중간 톤은 밭(지면)이 대고 베일은 「오가는 폭」을 댄다.** 베일로 중간 톤까지
+// 채우려 들면 짙은 가닥이 봉우리 상한을 뚫는다 — 위 표의 ×2.6 이 그 자리다.
+//
+// ⚠️ 그래서 ×1.6 으로 갔다가 **눈 판정에서 다시 내렸다.** 길고 밝은 가닥 몇
+// 개는 「모래」가 아니라 **「긁힌 자국」**이다: 길이 260~640 · 알파 .048~.090
+// 판에서 가닥 하나하나가 화면에 또렷이 세어졌고 렌즈에 긁힌 사선처럼 보였다
+// (2026-08-12 전체화면 렌더). 흐르는 모래는 가닥이 **세어지면 안 된다.**
+// 지금 값은 기준판의 ×1.27(T1) · ×1.40(T2) · ×1.14(T3) 이고, 줄인 알파는
+// **개수로 갚았다**(칸 155→132 · 80→70). 같은 덮임을 겹침으로 만들면 낱개
+// 윤곽이 서로를 지운다 — 밝기를 올리는 게 답이 아니라는 앞 손의 규칙 그대로다.
+// ⚠️ **T3 는 배수를 제일 낮게 둔다.** 알파가 제일 높은 층이라 봉우리를 혼자
+// 끌어올린다 — ×2.6 판의 최대 .303 은 전부 T3 가 짙은 가닥 위에 겹친 자리였다.
+MP8.VL=[
+  //  칸   게이트 길이0 길이폭 반폭0 반폭폭 알파0  알파폭  덮임지수
+  [ 132, .90, 200, 320, 14, 21, .038, .034, 1.0],   // T1 물결 — 덮는 몸통
+  [  70, .86,  70, 120,  1.8, 2.6, .070, .062, 1.0],// T2 결 — 「빠르다」
+  [  52, .62,   9,  17,  .7, 1.0, .080, .080, 0  ], // T3 알갱이 — 아래 참조
+];
+MP8.veil=function(c,t,cu,cv,Du,Dv,W,H,layer){
+  const P=MP8.VL[layer], cell=P[0];
+  // 층마다 다른 시차 + 다른 바람 배수. 같은 방향으로 다른 속도라 깊이가 읽힌다.
+  const lu=cu*MP8.PAR[layer]+MP8.WSP*MP8.SPD[layer]*t;
+  const lv=cv*MP8.PAR[layer]+MP8.WSP*MP8.SPD[layer]*t*.07;
+  scatter(lu,lv,Du*2,Dv*2,cell,2,(sx,sy,i,j,r)=>{
+    if(r>P[1])return;
+    const u=sx-Du, v=sy-Dv;
+    const LEN=P[2]+h2(i,j,41.3)*P[3], HW=Math.max(.4,P[4]+h2(i,j,43.7)*P[5]);
+    if(Math.abs(u)>Du+LEN||Math.abs(v)>Dv+HW*3)return;
+    // ⚠️ **덮임은 세 층 모두 T1 의 좌표계에서 잰다.** 층마다 제 좌표로 재면
+    // 짙은 자리가 층마다 어긋나 「세 장의 다른 모래」가 겹친 그림이 된다.
+    // 같은 자리에서 재면 결·알갱이가 물결 **속을 통과해 지나간다** — 그게
+    // 실제로 눈에 보이는 일이고, 층이 빠를수록 그 통과가 빨라 깊이가 산다.
+    const cv0=MP8.cov(cu*MP8.PAR[0]+MP8.WSP*t+u, cv*MP8.PAR[0]+MP8.WSP*t*.07+v);
+    let w;
+    if(layer===2){
+      // ⚠️ 알갱이는 **중간 밀도에서만** 보인다. 걷힌 데서는 셀 것이 없고
+      // 자욱한 데서는 낱알이 서로 묻혀 안 갈린다 — 실제로도 그렇고, 예산에도
+      // 그래야 한다: 알파가 제일 높은 층이라 짙은 가닥 위에 겹치면 상한 .17 을
+      // 넘는다. 봉우리를 덮임 .5 에 두면 **제일 밝은 것이 제일 짙은 자리를
+      // 피한다.** 「덮인다」의 문턱에서 화면이 제일 시끄러워지는 부수 효과가
+      // 있고, 그게 이 안이 팔려는 순간이라 맞다.
+      w=4*cv0*(1-cv0);
+    }else w=Math.pow(cv0,P[8]);
+    const a=(P[6]+h2(i,j,45.1)*P[7])*w;
+    if(a<.004)return;
+    // 가닥 — 축에서 ±.16rad 흔들고 가운데를 휘어 「자로 그은 사선」을 피한다.
+    // ⚠️ 휨의 크기를 **반폭이 아니라 길이**에 묶는다. 반폭에 묶으면 가는 층
+    // (T2 반폭 1.6~4.2)의 휨이 3px 밖에 안 돼 180px 짜리 가닥이 사실상 직선이
+    // 되고, 그게 정확히 「자로 그은 사선」이다. 길이의 4.5% 면 T2 도 4~9px 휜다.
+    const jit=(h2(i,j,47.3)-.5)*.32, ph=h2(i,j,49.7)*TAU, bw=LEN*.045;
+    const S=layer===2?1:3, Q=[];
+    for(let s=0;s<=S;s++){const f=s/S;
+      Q.push(MP8.sc(u+(f-.5)*LEN, v+(f-.5)*LEN*jit+Math.sin(f*2.4+ph)*bw, W, H));}
+    if(layer===0){
+      // ⚠️ `ribbonPoly` 는 **끝만 0 으로 좁아지고 시작은 30% 폭에서 뭉툭하다.**
+      // 넓은 가닥에서는 그 뭉툭한 머리가 각진 선으로 보인다(P2 가 같은 자리에서
+      // 「회청색 칼날」 판정을 받았다). 앞뒤로 한 번씩 칠해 **양 끝을 둘 다**
+      // 좁힌다. 폭을 다르게 줘 두 테두리가 평행이 안 되게 한다 — 같은 선을
+      // 폭만 줄여 겹치면 동심 줄무늬(마하 밴딩)가 생긴다.
+      //
+      // ⚠️ 그런데 **같은 중심선에 겹치면 양쪽 테두리가 결국 한 자리에 모인다** —
+      // 두 장을 겹쳐도 가닥의 옆선은 여전히 한 줄이고, 그게 「긁힌 자국」의
+      // 정체였다. 뒤 장을 바람에 **가로질러 밀어** 두 옆선을 갈라 놓는다.
+      // 겹치는 가운데가 짙고 갈라진 양옆이 옅어져, 가닥 하나가 이미 **단면**을
+      // 갖는다(방사 그라디언트 없이 얻는 부드러운 가장자리다).
+      const off=HW*.42, ox2=-MP8.SI*off, oy2=MP8.CO*off;
+      fillPoly(c,ribbonPoly(Q,HW,HW*.16),A(MP8.SAND,a*.58));
+      fillPoly(c,ribbonPoly(Q.slice().reverse().map(q=>[q[0]+ox2,q[1]+oy2]),
+        HW*.80,HW*.13),A(MP8.SAND,a*.58));
+      return;}
+    fillPoly(c,ribbonPoly(Q,HW,HW*.30),A(MP8.SAND,a));
+  });
+};
+
+// ── 조립 ─────────────────────────────────────────────────────────────────
+// 등록은 **대입만**. `const`/`let` 으로 기존 이름을 다시 선언하면 파일 전체가
+// SyntaxError 로 죽는다(앞 배치에서 실제로 겹쳤다).
+MAPP.bg.sandstorm=function(c,t,W,H){
+  const cm=MP8.cam(t), ox=cm[0], oy=cm[1];
+  // 공용 바닥 — **배경의 첫 줄이어야 한다.** 안 깔면 이 안만 옛 바탕(L .0497)
+  // 위에 그려져 혼자 뿌옇다.
+  mapFloor(c,W,H);
+  // 카메라를 풍향 좌표로. [Du,Dv] 는 돌아간 화면 사각형을 덮는 반폭이다.
+  const cu=ox*MP8.CO+oy*MP8.SI, cv=-ox*MP8.SI+oy*MP8.CO;
+  const Du=(Math.abs(W*MP8.CO)+Math.abs(H*MP8.SI))/2;
+  const Dv=(Math.abs(W*MP8.SI)+Math.abs(H*MP8.CO))/2;
+  if(MP8.SHOW&1){
+    MP8.flats(c,cu,cv,Du,Dv,W,H);             // ① 사력 밭 — 지면 중간 톤의 바닥짐
+    mpPat(c,MP8.grit(),W,H,ox,oy,0);          // ② 자갈·결 — **밭 위에** fillRect 한 번
+    MP8.rocks(c,cu,cv,Du,Dv,W,H,0);           // ③ 바람그늘의 모래
+    MP8.grooves(c,cu,cv,Du,Dv,W,H,0);         // ⑤ 홈(어둡다)
+    MP8.rocks(c,cu,cv,Du,Dv,W,H,1);           // ④ 암괴 몸(어둡다)
+    MP8.grooves(c,cu,cv,Du,Dv,W,H,1);         // ⑤ 홈의 립(밝다)
+    MP8.rocks(c,cu,cv,Du,Dv,W,H,2);           // ④ 마루 립(제일 밝다)
+  }
+  if(MP8.SHOW&2){
+    MP8.veil(c,t,cu,cv,Du,Dv,W,H,0);          // ⑤ 물결
+    MP8.veil(c,t,cu,cv,Du,Dv,W,H,1);          // ⑥ 결
+    MP8.veil(c,t,cu,cv,Du,Dv,W,H,2);          // ⑦ 알갱이
+  }
+};
+
+/// 시안 조립 — [fx] 파문(mPulse) · [mini] 적 밀도 미니맵 · [spot] 302px 액자.
+/// **try/finally 로 반드시 되돌린다** — 전역 하나를 임시로 바꾸는 수법이라
+/// (RECOLOR·LV 와 같은 규약) 예외가 나면 다음 칸이 남의 액자로 그려진다.
+MP8.demo=function(fx,mini,spot,show){
+  const f=function(c,t,dt,W,H,st){
+    const sv=MP8.SHIFT, sw=MP8.SHOW;
+    if(spot)MP8.SHIFT=MP8.SPOT;
+    if(show)MP8.SHOW=show;
+    try{
+      MAPP.bg.sandstorm(c,t,W,H);
+      if(fx){st.fx=st.fx||{p:[]};mapOver(c,t,dt,W,H,st.fx,"pulse");}
+      if(mini){const cm=MP8.cam(t);MAPP.minimap(c,W,H,t,cm[0],cm[1]);}
+    }finally{MP8.SHIFT=sv;MP8.SHOW=sw;}};
+  try{Object.defineProperty(f,"name",
+    {value:"mp8_"+(fx?"fx":"bg")+(mini?"_mini":"")+(spot?"_spot":"")+(show?"_s"+show:"")});}catch(e){}
+  return f;};
+/// 302px 칸 액자. **후보를 훑어 고른 것이 아니라 원점에서 진폭만 줄인 것**이다
+/// — 고르지 않았으니 유리한 자리일 수가 없다(MP3 는 25px 격자로 후보를 훑어야
+/// 했는데, 그 안은 웅덩이 사이 간격이 302px 창만 해서 창이 통째로 빈 프레임이
+/// 생겼기 때문이다). 이 안은 밭이 화면당 수십 개라 작은 창도 늘 뭔가를 담는다.
+/// 그리고 **실측 칸(`MP8.meter`)은 액자를 아예 안 쓴다** — 보고한 수치는 전부
+/// 액자 없는 980×548 에서 나온 것이다.
+MP8.SPOT=[0,0,.34];
+/// 2배 확대 — 가닥의 겹침과 마루 립이 302px 칸에서는 안 읽힌다. 논리 화면을
+/// 절반으로 주고 2배로 늘리는 **진짜 확대**다(캔버스만 키우면 바깥이 안 칠해진다).
+MP8.zoom=function mp8_zoom(c,t,dt,W,H,st){
+  const sv=MP8.SHIFT;MP8.SHIFT=MP8.SPOT;
+  try{c.save();c.scale(2,2);MAPP.bg.sandstorm(c,t,W/2,H/2);c.restore();}
+  finally{MP8.SHIFT=sv;}};
+/// 실측 — 페이지가 스스로 잰다. **여기는 액자를 안 쓴다**: 예산은 실제로 도는
+/// 화면에서 재야 하고, 액자를 씌우면 수치가 유리하게 나온다.
+MP8.meter=function mp8_meter(c,t,dt,W,H,st){
+  MAPP.bg.sandstorm(c,t,W,H);mapMeter(c,t,W,H,st);};
+
+MP8.W=980;MP8.H=548;MP8.S=302;
+mapTile("pl08",MP8.demo(0,0),"P8 · 모래폭풍 沙嵐 — 배경만",
+  "흐르는 모래가 지형을 덮는다. 덮임은 <b>파장 2200/1150/640 의 교차파</b>라 화면이 통째로 비지도 덮이지도 않는다 — 짙은 가닥이 지나갈 때마다 암괴의 마루 립이 지워졌다 돌아온다.",
+  MP8.W,MP8.H,1);
+mapTile("pl08",MP8.demo(1,1),"P8 · 모래폭풍 + 파문 + 미니맵",
+  "베일의 <b>넓은 몸</b>은 파문 바깥층(L .181) 아래에 있다 — L&gt;.17 화소가 화면의 0.01~0.05% 뿐이다(월드 여섯 자리 실측). 그 0.05% 는 알갱이가 짙은 가닥 위에 겹친 자리로 최대 .215 까지 가니, <b>제일 밝은 배경이 제일 어두운 이펙트보다 어둡다고는 못 쓴다.</b>",
+  MP8.W,MP8.H,1);
+mapTile("pl08",MP8.demo(0,0,0,1),"덮개를 걷어낸 지면",
+  "같은 순간, 베일만 뺐다. <b>이 지형은 처음부터 끝까지 여기 있다</b> — 오가는 것은 지형이 아니라 덮임이다.",
+  MP8.W,MP8.H,1);
+mapTile("pl08",MP8.zoom,"가닥 확대 · 2배",
+  "연속면이 <b>한 장도 없다</b> — 겹치는 가닥뿐이라 틈으로 지형이 비친다. 모래가 <b>짙게</b> 덮은 면적은 화면의 0~6.3% 를 오가고, 옅은 것까지 세면 0.4~43.1% 다(월드 넷 × 시각 열여섯 실측).",
+  MP8.S,MP8.S);
+mapTile("pl-bg",MP8.demo(0,0,1),"P8 · 모래폭풍 沙嵐",
+  "<b>지형이 가려지는</b> 유일한 안. 배경이 배경을 덮는다.",MP8.S,MP8.S);
+mapTile("pl-proof",MP8.demo(1,0,1),"P8 · 모래폭풍 위에서",
+  "같은 파문, 같은 시각. 모래가 짙은 순간에도 고리가 배경 위로 읽힌다 — 베일의 넓은 몸이 L .12 를 넘는 면적이 화면의 0.4%(최대 1.3%) 뿐이라 얇은 고리가 먹힐 바탕 자체가 없다.",MP8.S,MP8.S);
+mapTile("pl-mini",MP8.demo(0,1,1),"P8 · 모래폭풍 + 미니맵",
+  "미니맵은 적 밀도 한 겹.",MP8.S,MP8.S);
+mapTile("pl-num",MP8.meter,"P8 · 모래폭풍 실측 460×258",
+  "개정 예산: <b>중간 톤(.05~.15) 15~30%</b> · 넓은 면적 평균 L ≤ .075 · 면적 봉우리 ≤ .17 · L&gt;.35 ≤ 0.5%.",460,258);
+
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// PL05 · 극지 極地 — **하늘이 보이는** 유일한 지면 안 · docs/vfx/mockup-map2.html
+// ══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다 — 같은 시각에 열 손이
+// 같은 파일을 만지므로 **겹치는 자리를 아예 안 만드는 것**이 유일하게 확실한
+// 안전장치다. 최상위 이름은 전부 `PL05` 로 시작하고, 등록은 `MAPP.bg.polar` 에
+// **대입만** 한다(선언 금지 — 양쪽이 `const` 하면 파일이 통째로 SyntaxError 다).
+// 구운 타일 키도 `pl05*` 로 못박았다: `mpTiles` 는 공용 사전이라 키가 겹치면
+// **다른 손의 타일이 내 그림으로 나온다**(조용히 틀린다).
+//
+// ── 이 안이 유일하게 하는 것: 광원이 화면 안에 있다 ───────────────────────
+// 지면 열한 안 중 **지평선이 화면 안에 있는 유일한 안**이다. 나머지는 전부
+// 순수 부감이라 「위」가 없고, 따라서 빛이 어디서 오는지 말할 수 없다.
+// 여기는 화면 위쪽 25.5% 가 하늘이고 그 하늘에 오로라가 있다 —
+// **화면에 그려진 것이 화면의 광원**인 유일한 안이다.
+//
+// ⚠️ 겹칠 위험이 둘이라 갈리는 자리를 먼저 못박는다.
+//   · **자기막(U3)** 도 오로라 커튼이다. 갈리는 자리는 색이 아니라 **역할과
+//     면적**이다: 저쪽은 커튼이 화면 전체(100%)를 덮고 **커튼이 주인공**이며
+//     발이 세로로 화면을 가로지른다. 여기는 오로라가 **지평선 위 띠**뿐이고
+//     (밝은 열에서만 능선 위로 솟아 실측 면적 아래 표 참조) **주인공은 얼음
+//     평원**이다. 그리고 저쪽은 오로라가 아무것도 안 비춘다 — 여기는 **비춘다**
+//     (아래 「인과」 절). 그 인과가 이 안의 정체고 저쪽에는 없는 것이다.
+//   · **경호(P1)** 는 하늘이 **바닥에 비치는** 안이다. 거기 하늘은 물에 비친
+//     **상(像)** 이라 화면에 하늘 자체는 없다. 여기는 **하늘 자체가 보인다** —
+//     지평선 위가 진짜 하늘이고, 바닥에는 하늘의 **상이 아니라 빛**만 온다.
+//     경호는 별을 바닥에 다시 그리고(반사), 여기는 별을 바닥에 **한 톨도 안
+//     그린다.** 바닥에 오는 것은 밝기뿐이고 모양은 안 온다.
+//
+// ── 인과 — 「하늘의 밝은 자리 아래가 밝다」 ────────────────────────────────
+// 오로라의 가로 밝기 프로파일 `PL05aurA(u,ph)` **하나**가 세 곳을 동시에 몬다:
+//   ① 오로라 발의 알파와 길이(하늘에서 얼마나 솟는가)
+//   ② 그 열 **바로 아래** 얼음의 밝기(빛웅덩이 얼룩의 알파)
+//   ③ 그 열에서만 켜지는 빙정 반짝임
+// 렌더러 셋이 **같은 함수를 같은 인자로** 부르므로 인과가 갈라질 수 없다.
+// 하늘의 마루가 흘러가면 **얼음 위의 밝은 자리도 같이 흘러간다** — 이것이
+// 「하늘에 사건이 있다」가 지면 안에서 값을 하는 방식이고, 커튼이 배경일 뿐인
+// 자기막에는 없는 것이다.
+//
+// **말이 아니라 실측으로 세운다**(결정적 실험). 지면 띠(지평선+14 ~ +150)의
+// 열평균 L 을 재고, 같은 프레임에서 `PL05aurA` 를 **상수(.28)로 얼려** 다시 잰다:
+//   · 하늘 프로파일과의 상관계수 r = **0.44 ~ 0.94 (다섯 시점 평균 0.69)**
+//   · 가로 진폭(열평균 L 의 표준편차) 비 = **1.04 ~ 4.09배 (평균 2.17배)**
+// 오로라를 얼리면 지면의 가로 밝기 변화가 **절반 이하로 죽는다.** 얼려도 남는
+// 것은 지면 자신의 결과 사스트루기이고, 그만큼이 상관을 희석해 r 이 1 에서
+// 멀어진다 — 시점마다 값이 흔들리는 것은 그 순간 하늘에 마루가 몇 개 걸렸느냐다.
+// ⚠️ 그러니 **한 프레임의 r 로 말하면 안 된다**(0.44 도 0.94 도 같은 안이다).
+//
+// ── 지평선은 **선이 아니다** ──────────────────────────────────────────────
+// 하늘과 땅을 가로선 하나로 나누면 그건 **자로 그은 가로선**이다(U3 가 「막을
+// 사각 조각으로 칠했다가 자로 그은 가로선이 생겨」 반려된 것과 같은 종류).
+// 그래서 경계를 **먼 빙구 능선의 실루엣 윗변**으로 만든다 — 두 겹(깊이 .075 ·
+// .163)이 서로 다른 속도로 흘러 시차가 나고, 윗변은 칸 해시 **세 옥타브**를
+// 이은 값이라 **직선 구간이 원리적으로 없다.** 능선의 최소 높이가 바탕 사각의
+// 이음매를 **언제나** 덮으므로 가로선이 노출되는 프레임이 없고, 몸통의
+// **아랫변도** 같은 값잡음으로 흔들어 둘째 가로선이 안 생기게 했다.
+//
+// ── 얼음을 파랗게 안 한다 — 색이 아니라 **명도**로 간다 ────────────────────
+// 빙 속성(#4FC3F7 · 198.6° · S 90% · L .70)과 설 융화(#C6E4F5 · 205°)가 이미
+// 「밝은 하늘색」을 다 차지했다. 그래서 얼음의 방어는 색상각이 아니라 채도·명도다:
+//   눈 바탕 `#15161D` → **232.5° · S .16 · L .0882**
+//   빙 속성 lit      → 198.6° · S .90 · L .70
+// 색상각은 33.9° 떨어졌고 **채도가 5.6배 · 명도가 7.9배** 낮다. 나란히 놓으면
+// 「같은 파랑의 두 단계」가 아니라 「색이 거의 없는 것 ↔ 형광 하늘색」이다.
+// 실제로 이 안에서 채도가 .30 을 넘는 것은 오로라 하단 자홍 림 하나뿐이고
+// 그건 하늘에만 있다.
+//
+// 주 색상각 **232.5°**(면적의 74.5% 를 먹는 눈 바탕 기준). 속성까지 거리:
+//   빙 198.6° **33.9°** · 어둠 273.0° **40.5°** · 풍 170.7° 61.8° ·
+//   독 129.2° 103.3° · 뇌 50.6° 178.1° · 염 20.3° 147.8°
+// 색상환이 꽉 차서 어떤 각을 골라도 최근접 속성과 20~30° 안에 걸린다는 것이
+// 다섯 손의 결론인데, 빙 198.6 ↔ 어둠 273.0 사이 74.4° 틈의 한가운데(235.8°)
+// 가 **속성 기준으로는 색상환에서 제일 넓은 자리**라 거기 놓았다.
+//   ⚠️ 정직하게 적는다 — 융화 색까지 세면 자 磁(#6E8AE8 228°)와 **4.5°** 다.
+//   갈림은 색상각이 아니라 채도·명도가 낸다: 자는 S .68 · L .55, 여기는
+//   S .16 · L .088 이라 **채도 4.3배 · 명도 6.2배** 차이다.
+//   ⚠️ 자기막(U3 · 250°)과는 17.5° 다. 그쪽과의 갈림은 위에 적은 대로 **역할과
+//   면적**이지 색이 아니다 — 색으로 갈리려 하면 색상환에 자리가 없다.
+// **적과는 오히려 제일 멀다**: 적 몸 `#24141F` 318.8° 와 **86.3°** 로 거의
+// 보색이다(사구 333° 는 FOEDARK 와 14° 라 면적으로 갚아야 했다). 차가운
+// 청회색 위의 자주빛 실루엣이라 적이 색으로도 갈린다.
+//
+// ── 예산 — 「평균을 어둡게」가 아니라 **밝은 화소의 면적을 묶는 것** ────────
+// 지면은 화면을 100% 덮는다. 그런데 얼음 평원은 **원래 밝은 것**이라 여덟 안
+// 중 예산을 제일 쉽게 깨는 소재다. 이 안이 밝은 면적을 묶는 방법은 하나다:
+//
+//   **극야다.** 해가 안 뜬다. 유일한 빛이 지평선 위 오로라이고, 그 빛은
+//   지면을 **스치듯** 지나간다. 스침빛에서 밝은 것은 **광원 쪽으로 기운 면**
+//   뿐이고 나머지는 밤에 잠긴다. 그래서 「지평선에서 멀수록 어둡다」가
+//   취향이 아니라 **광학**이고, 밝은 화소의 면적이 **화면 위쪽 띠로 묶인다.**
+//
+// 그 묶음을 **베일 한 장**이 집행한다(`PL05IMG.veil`): 지면 위에 얹는 알파
+// 램프 한 장이 지면의 **모든 층**(바탕·결·사스트루기·압력 능선)을 아래로 갈수록
+// 한꺼번에 잠근다. 층마다 알파를 따로 재는 대신 blit 한 번으로 끝나고,
+// 예산 조정이 상수 **셋**(`PL05VA`·`PL05VF0`·`PL05VF1`)으로 모인다 —
+// 값과 그에 따른 L 은 그 상수 선언 자리에 적어 두었다.
+//
+// ── 비용 ─────────────────────────────────────────────────────────────────
+// 500마리가 도는 화면이라 배경이 프레임 예산을 먹으면 안 된다. 큰 것은 전부
+// **한 번 굽고 blit** 이다 — 하늘 램프·베일이 4×256 두 장, 빛웅덩이 얼룩이
+// 128² 한 장이고, 프레임마다 도는 것은 화면에 걸친 폴리곤(오로라 발 ~114 ·
+// 사스트루기 ~50 · 압력 능선 블록 ~25)뿐이다. 실측값은 아래 「실측」 절에 적었다.
+// ⚠️ 크롬은 캔버스 명령을 **기록만 하고 나중에 래스터**한다 — 그리기 호출만
+// `performance.now()` 로 감싸면 화면 덮는 blit 이 `0.000ms` 로 나온다.
+// 아래 값은 매 프레임 `getImageData(0,0,1,1)` 로 래스터를 강제해 잰 것이다.
+//
+// ── 이음매 ───────────────────────────────────────────────────────────────
+// 큰 것은 타일을 안 쓴다. 사스트루기·압력 능선·반짝임·별은 전부 기존
+// **`scatter()`**(칸 번호 해시)이고, 능선 윗변은 같은 원리를 1차원에 쓴 값잡음
+// 세 옥타브다 — 칸 번호가 무한하니 무늬가 영영 안 반복되고 이음매도 없다.
+// 오로라 발도 화면이 아니라 **월드 칸 번호**에 못 박혀 있다(`k=floor(u0/STEP)+n`).
+// 타일인 것은 **눈 결·눈 언덕·디더**뿐이고, 256·384·192 주기는 눈이 못 센다
+// (반복은 주기가 화면보다 커야 보인다).
+//
+// ── 실측 (실캔버스 · dt=1/60 고정 구동기 900프레임 · 강제 래스터) ─────────
+// ⚠️ **한 자리에서 잰 값은 측정이 아니다.** 월드 여덟 자리 × 세 시점 = 24 표본.
+// (이 규칙이 실제로 버그를 잡았다 — 「지평선을 화면에 못 박는다」 주석 참조)
+//
+//                         980×548 (24표본)    302² (4표본)  예산
+//   중간 톤(.05~.15)  18.3~24.2% (평균 21.5)  17.5~23.1%   15~30%   ✅
+//   평균 L            .0396~.0432            .0395~.0425   ≤ .075   ✅
+//   면적 봉우리(점 끔) .1433                   —            ≤ .17    ✅
+//   L>.12             .023~.279%             .008~.207%    (상한 없음)
+//   L>.35             0.0000%                0.0000%       ≤ .5%    ✅
+//   최대(반짝임 포함)  .180~.318              .135~.257
+//
+// **못 지킨 것 · 정직하게** — `L>.35` 예산 0.5% 를 사실상 **안 쓴다**(열 표본 중
+// 하나에서만 화소가 나왔고 면적은 0.0000%). 반짝임을 정수 좌표로 스냅해 봉우리를
+// .31 → .35 까지 올렸지만 거기까지다. 「밝은 불티」로 화려함을 사는 길이 이 안에는
+// 거의 없다 — 극야의 얼음판에 밝을 이유가 있는 것은 빙정 몇 알뿐이라서다.
+// 화려함은 대신 **하늘**이 판다.
+//
+// 비용: 극지 **8.18ms**(980×548 · 소프트웨어 래스터 · 강제 래스터). 이 기계에서는
+// 다른 손의 크롬이 동시에 돌아 절대 ms 가 부풀려지므로 **같은 판에서 잰 비**로
+// 읽어야 한다 — 사구 7.15 · 동공 8.63 · 균열지 11.03 · 잿바다 4.07 이었으니
+// **사구의 1.14배 · 동공의 0.95배 · 균열지의 0.74배**다. 층별로는 오로라 1.49 ·
+// 빛웅덩이 1.12 · 사스트루기 0.64 · 능선 0.37 · 압력 능선 0.25 · 별 0.17 ·
+// 반짝임 0.06 이고, 나머지 4.1ms 는 화면을 덮는 blit·패턴(바닥·하늘·바탕·
+// 눈 결·눈 언덕·베일·디더)이다.
+//
+// 루프 검산(그려지는 값 1300개 · 1ms 간격 4000점 · 카메라 고정):
+//   ① max |f(t) − f(t+P)| = **2.56e-13** (부동소수 오차뿐)
+//   ② 이음매 한 걸음 4.637 / 그 자리 이웃 50걸음 최대 4.675 → 비 **0.992**,
+//      창 최대(4.850)가 이음매가 **아니다** = 「뚝」이 없다   ③ NaN/Inf 0개
+//   (검산 대상은 **위상 파생값**이다. 지면 결의 흐름과 카메라는 t 를 직선으로
+//    쓰는 **스크롤**이라 주기가 없고, 그 이음매는 scatter 와 패턴이 맡는다 —
+//    기존 여덟 안과 같은 계약이다.)
+const PL05PER=10, PL05W=TAU/PL05PER;   // 위상 스케줄 **하나** — 그려지는 값은
+                                       // 전부 sin(정수·ph + 상수) 꼴이라
+                                       // f(t+PER)=f(t) 가 부동소수 오차까지 같다
+const PL05HZ=.255;                     // 지평선 = 화면 높이의 25.5%
+const PL05TH=-.155;                    // 바람 축 — 결과 사스트루기가 나란한 방향
+const PL05AST=9;                       // 오로라 발 간격(px)
+const PL05SCELL=98;                    // 사스트루기 칸
+const PL05RCELL=470;                   // 압력 능선 칸 — **위치감을 주는 랜드마크**
+const PL05KCELL=126;                   // 빙정 반짝임 칸
+// 베일 — 이 안의 예산 손잡이 셋. α(f) = PL05VA · smoothstep(PL05VF0, PL05VF1, f)
+//   f ≤ .02  α 0     L .0882  ← 원경 띠. 이 안에서 제일 넓은 밝은 자리
+//   f = .23  α .568  L .0500  ← **중간 톤 경계가 여기서 지난다.** 이 상수 하나가
+//                               중간 톤 면적을 정한다. VF1 이 .55 였을 때
+//                               월드 여덟 자리 평균 **29.2% · 최대 32.5%** 로
+//                               예산(30%)을 넷에서 넘겼다 — 그래서 .38 로 좁혔다
+//   f ≥ .38  α .86   L .0304  ← 바닥(.0184)보다 **밝다.** 아래가 검은 구멍이
+//                               되면 「맵이 꺼멓다」 판정으로 되돌아간다
+const PL05VA=.86, PL05VF0=.02, PL05VF1=.38;
+// 오로라 세 패스의 알파 계수(막 · 결 · 하단 림)와 빛웅덩이 계수
+const PL05AM=.27, PL05AR=.62, PL05AH=.15, PL05PA=.72;
+
+/// 색 — 한 색상 계열(229~233°)의 **명도 사다리** 하나다. 얼음을 파랗게 하는
+/// 대신 단 사이를 벌린다(자기막이 「네 단이 전부 붙어 있어 아무 결도 안 보였다」
+/// 로 배운 것). 채도가 .30 을 넘는 것은 `aurC` 하나뿐이고 그건 하늘에만 쓴다.
+const PL05C={
+  skyT :"#04050C",  // 하늘 꼭대기   L .0216
+  skyH :"#080A14",  // 지평선 하늘   L .0413
+  ridgeF:"#06070F", // 먼 빙구       L .0299 — 지평선 하늘보다 어둡다(역광 실루엣)
+  ridgeN:"#040509", // 가까운 빙구   L .0202
+  snow :"#15161D",  // 눈 — 원경 띠  L .0882 · 232.5° · S .16  ← **주 색상**
+  lit  :"#1B1D27",  // 오로라가 닿은 눈 L .1147
+  veil :"#04050B",  // 밤에 잠기는 것  L .0211
+  crest:"#262832",  // 사스트루기 마루 L .1590 · 230.0°
+  groove:"#03040A", // 결의 그늘·그림자 L .0172 — **빼기는 예산을 안 쓴다**
+  aurA :"#161A2E",  // 오로라 막     L .1062 · 230.0° · S .35
+  aurB :"#20253C",  // 오로라 결     L .1495 · 229.3°
+  aurC :"#2E1A30",  // 오로라 하단 림 L .1352 · **294.5°** — 질소 하단 발광
+  spark:"#C6CEE6",  // 빙정 반짝임   L .8090 — 이 안에서 유일하게 .35 를 넘는 것
+};
+
+/// 세로 램프를 **한 번 굽는다.** 그라디언트를 프레임마다 `fillStyle` 로 쓰면
+/// Skia 가 화소마다 보간식을 돌아 한 장에 14ms 가 나온 전례가 있다(사구, 실측).
+/// 4×256 에 굽고 늘려 쓰면 텍스처 blit 이라 훨씬 싸고, 세로가 늘어나면서
+/// 생기는 계조 손실은 디더가 받는다.
+function PL05bakeV(fill){
+  const cv=document.createElement("canvas");
+  cv.width=4;cv.height=256;
+  const c2=cv.getContext("2d");
+  if(!c2||!c2.createLinearGradient)return null;
+  const g=c2.createLinearGradient(0,0,0,256);
+  if(!g||!g.addColorStop)return null;
+  fill(g);
+  c2.fillStyle=g;c2.fillRect(0,0,4,256);
+  return cv;
+}
+/// 램프 세 장 — 화면 크기와 무관하다(늘려 쓴다). 한 번만 굽는다.
+const PL05IMG={};
+function PL05img(){
+  if(PL05IMG.done)return PL05IMG;
+  PL05IMG.done=1;
+  // 하늘 — 위가 제일 어둡고 지평선 쪽이 아주 조금 밝다(기광).
+  PL05IMG.sky=PL05bakeV(g=>{for(let i=0;i<=16;i++){const z=i/16;
+    g.addColorStop(z,mixHex(PL05C.skyT,PL05C.skyH,Math.pow(z,1.7)));}});
+  // 베일 — **이 안의 예산 집행자.** 지면의 모든 층을 아래로 갈수록 잠근다.
+  // ⚠️ 처음엔 `pow(f,.40)` 이었다. 기울기가 지평선 바로 아래에서 제일 커서
+  // **밝은 띠 → 뚝 → 평평한 밤**이 되고, 그 「뚝」이 화면을 가로지르는 띠
+  // 경계로 보였다(2026-08-12 렌더). smoothstep 은 양 끝에서 기울기가 0 이라
+  // 원경 띠도 밤도 평평하고 그 사이만 매끈하게 넘어간다 — 경계가 안 생긴다.
+  PL05IMG.veil=PL05bakeV(g=>{for(let i=0;i<=32;i++){const z=i/32;
+    const u=Math.max(0,Math.min(1,(z-PL05VF0)/(PL05VF1-PL05VF0)));
+    g.addColorStop(z,A(PL05C.veil,+(PL05VA*u*u*(3-2*u)).toFixed(4)));}});
+  // 빛웅덩이 얼룩 — **한 번 굽고 blit.** 부드러운 가장자리라 이음매가 없다.
+  PL05IMG.blob=(function(){
+    const cv=document.createElement("canvas");cv.width=128;cv.height=128;
+    const c2=cv.getContext("2d");
+    if(!c2||!c2.createRadialGradient)return null;
+    const g=c2.createRadialGradient(64,64,0,64,64,64);
+    if(!g||!g.addColorStop)return null;
+    g.addColorStop(0,A(PL05C.lit,1));g.addColorStop(.42,A(PL05C.lit,.62));
+    g.addColorStop(.74,A(PL05C.lit,.20));g.addColorStop(1,A(PL05C.lit,0));
+    c2.fillStyle=g;c2.fillRect(0,0,128,128);
+    return cv;})();
+  return PL05IMG;
+}
+
+/// 오로라의 가로 밝기 프로파일 — **이 안의 인과가 전부 여기서 나온다.**
+/// 발의 알파·길이, 얼음의 빛웅덩이, 빙정 반짝임이 **같은 이 함수**를 부른다.
+/// 위상 항은 전부 sin(정수·ph + 상수)라 주기 끝과 처음이 정확히 같다.
+/// 지수 1.7 은 **밝은 열을 드물게** 만드는 손잡이다 — 면적으로 예산을 지킨다.
+function PL05aurA(u,ph){
+  const s=.34*Math.sin(u*.0059+ph)
+         +.26*Math.sin(u*.0107-2*ph+1.7)
+         +.22*Math.sin(u*.0193+3*ph+.5)
+         +.18*Math.sin(u*.0037-ph+4.2);
+  // ⚠️ 계수가 (×1.24 −.17) 였을 때 **오로라가 화면 끝에서 끝까지 이어졌다** —
+  // 값이 0 이 되는 구간이 사실상 없어서 하늘 띠가 통짜 한 장이 됐다.
+  // 문턱을 올려 **꺼진 구간을 만든다**: 띠가 끊겨야 「사건」이지, 안 끊기면 벽지다.
+  return Math.pow(Math.max(0,Math.min(1,(s+1)*.5*1.42-.34)),1.7);
+}
+
+/// 먼 빙구 능선의 윗변 — 칸 해시 **세 옥타브**를 이은 값잡음.
+/// 칸 경계에서 값이 이어지므로 **이어 붙인 자국이 원리적으로 없고**, 칸 번호가
+/// 무한하니 무늬가 영영 안 반복된다(scatter 와 같은 원리를 1차원에).
+///
+/// ⚠️ 처음엔 두 옥타브에 진폭이 5~22px 이라, 980px 폭에 **완만한 언덕 하나**만
+/// 지나가 지평선이 사실상 **자로 그은 가로선**으로 보였다(2026-08-12 렌더).
+/// 고친 것 둘: 진폭을 키우고, **제일 잔 옥타브는 선형 보간**으로 둔다 —
+/// smoothstep 만 쓰면 전부 둥글어 「눈 언덕」이 되는데, 이것은 **깨진 얼음**이라
+/// 마디가 각져야 한다. 잔 옥타브 하나가 각지면 실루엣 전체가 얼음으로 읽힌다.
+function PL05ridgeH(u,sd,c1,a1,c2,a2){
+  const oct=(cell,amp,s2,ang)=>{
+    const k=Math.floor(u/cell),p=u/cell-k;
+    const h0=h2(k,s2,1.7),h1=h2(k+1,s2,1.7);
+    return (h0+(h1-h0)*(ang?p:p*p*(3-2*p)))*amp;
+  };
+  return oct(c1,a1,sd,0)+oct(c2,a2,sd+9.3,0)+oct(c1*.26,a1*.85,sd+21.7,1);
+}
+/// 능선 한 겹. **지평선 = 이 실루엣의 윗변**이다. 최소 높이가 바탕 사각의
+/// 이음매(y=지평선)를 언제나 덮으므로 가로선이 드러나는 프레임이 없다.
+///
+/// ⚠️ 그런데 **아랫변이 새 가로선이었다**(2026-08-12 렌더). 능선 몸통이 어둡고
+/// 그 아래 눈이 밝으니, 몸통의 바닥이 화면을 가로지르는 **자로 그은 선**으로
+/// 보였다. 윗변만 흩는 것으로는 모자란다 — 아랫변도 같은 값잡음으로 흩되,
+/// **언제나 지평선보다 아래**에 있도록 [foot] 만큼 내려서 흔든다(위로 넘으면
+/// 바탕 사각의 곧은 윗변이 노출된다).
+function PL05ridge(c,W,base,u0,sd,c1,a1,c2,a2,minH,col,foot){
+  const ft=foot||0;
+  c.beginPath();
+  c.moveTo(-3,base+ft);
+  for(let x=-3;x<=W+3;x+=5)
+    c.lineTo(x,base-minH-PL05ridgeH(x+u0,sd,c1,a1,c2,a2));
+  // 아랫변은 **윗변과 같은 인자(x+u0)** 로 흔든다 — x 를 늘려 잡으면 아랫변만
+  // 다른 속도로 흘러 「한 능선의 위아래가 서로 미끄러지는」 그림이 된다.
+  for(let x=W+3;x>=-3;x-=7)
+    c.lineTo(x,base+ft*.10+PL05ridgeH(x+u0,sd+41.3,43,ft*.30,137,ft*.24));
+  c.closePath();
+  c.fillStyle=col;c.fill();
+}
+
+/// 눈 결 — 바람이 지표를 훑은 자국. **주로 어둠으로 판다**(빼기는 예산을 안
+/// 쓴다). 밝은 줄은 알파 .017 뿐인데, 이것이 원경 띠에서만 눈에 남는 이유는
+/// 베일이 아래쪽을 통째로 잠그기 때문이다 — 층마다 알파를 재지 않아도 된다.
+/// 가로 이음매는 **정수 파수**로 0 이 되고 세로는 랩이다.
+/// ⚠️ **처음엔 줄이 타일 폭을 통째로 가로질렀다가 반려됐다**(2026-08-12 렌더):
+/// 화면 끝에서 끝까지 이어지는 긴 곡선 서른 줄이 균일하게 깔려 눈이 아니라
+/// **빗질한 금속판**(혹은 나뭇결)으로 보였다. 바람이 눈을 훑은 자국은 이어지지
+/// 않는다 — **짧게 끊기고 자리마다 길이가 다르다.** 그래서 줄 하나를 도막
+/// 두셋으로 쪼개고, 도막마다 길이·알파·굵기를 따로 뽑는다. 타일을 넘는 도막은
+/// 가로로도 ±S 만큼 한 번 더 그려 이음매를 없앤다(세로는 mpWrap9 와 같은 원리).
+const PL05fine=()=>mpTile("pl05fine",256,(c,S)=>{
+  const ROWS=34;
+  for(let r=0;r<ROWS;r++){
+    const sd=r*4.7;
+    const y0=(r+.5+(hash(sd+1.3)-.5)*.90)/ROWS*S;
+    const amp=.7+hash(sd+2.1)*2.2;
+    const k1=1+Math.floor(hash(sd+5.1)*3),k2=4+Math.floor(hash(sd+6.3)*5);
+    const p1=hash(sd+7.7)*TAU,p2=hash(sd+8.9)*TAU;
+    const yy=x=>y0+amp*Math.sin(TAU*k1*x/S+p1)+amp*.45*Math.sin(TAU*k2*x/S+p2);
+    const M=2+Math.floor(hash(sd+11.1)*3);           // 한 줄에 도막 2~4
+    for(let m=0;m<M;m++){
+      const q=sd+m*13.7;
+      if(hash(q+3.3)<.22)continue;                   // 성긴 자리 — 균등하면 골판지
+      const x0=hash(q+2.9)*S, len=S*(.09+.24*hash(q+4.1));
+      // 도막마다 **기울기가 다르다**(±7°). 전부 수평이면 도막을 쪼개 놓아도
+      // 이웃 줄과 한 줄로 이어져 보여 다시 「빗질한 금속판」이 된다.
+      const sl=(hash(q+12.7)-.5)*.25;
+      const ga=(.13+.14*hash(q+6.1)).toFixed(3);     // 도막마다 진하기가 다르다
+      const la=(.010+.014*hash(q+9.3)).toFixed(3);
+      const draw=(dx,dy,col,w)=>{c.beginPath();
+        const NP=Math.max(6,Math.round(len/6));
+        for(let i=0;i<=NP;i++){const x=x0+i/NP*len;
+          const y=yy(x)+dy+(x-x0)*sl;i?c.lineTo(x+dx,y):c.moveTo(x+dx,y);}
+        c.strokeStyle=col;c.lineWidth=w;c.lineCap="round";c.stroke();};
+      for(let w2=-1;w2<=1;w2++)for(let w3=-1;w3<=1;w3++){
+        draw(w3*S,1.6+w2*S,"rgba(1,2,8,"+ga+")",1.6+1.0*hash(q+7.7));  // 그늘 — 빼기
+        draw(w3*S,w2*S,"rgba(198,206,230,"+la+")",1.2);}               // 볕 — 유일한 더하기
+    }
+  }
+});
+/// 눈 언덕(swell) — **저주파를 맡는다.** 결(고주파)과 베일(세로 램프)만 있으면
+/// 원경 띠가 **빗질한 금속판**으로 보인다(2026-08-12 렌더 판정): 가로로 긴
+/// 잔줄이 균일하게 깔리고 그 위에 큰 얼룩이 하나도 없었기 때문이다.
+/// 넓고 흐린 어두운 얼룩을 깔아 「눈이 쌓인 굴곡」을 만든다.
+/// **어둡게만** 간다 — 빼기는 예산을 한 톨도 안 쓰고, 오히려 중간 톤 면적을
+/// 줄여 준다(잿바다에서 얻은 규칙: 위층 시차는 밝게가 아니라 어둡게로).
+const PL05swell=()=>mpTile("pl05swell",384,(c,S)=>{
+  for(let i=0;i<9;i++){
+    const x=hash(i*4.9)*S,y=hash(i*8.7)*S,r=52+hash(i*2.3)*62;
+    const a=(.030+hash(i*6.7)*.055).toFixed(3);
+    mpWrap9(S,(dx,dy)=>{
+      c.save();c.translate(x+dx,y+dy);c.scale(2.2,1);
+      const g=c.createRadialGradient(0,0,0,0,0,r);
+      if(!g||!g.addColorStop){c.restore();return;}
+      g.addColorStop(0,"rgba(2,3,9,"+a+")");g.addColorStop(1,"rgba(2,3,9,0)");
+      c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,TAU);c.fill();c.restore();});
+  }
+});
+/// 디더 — **장식이 아니라 계조 대책이다.** 하늘 램프와 베일은 4×256 을 화면
+/// 높이로 늘려 쓰는 저주파 층이라 채널 한 단이 수십 px 에 걸린다. 1px 잡음의
+/// 진폭(알파 1~4/255)이 딱 그 한 단이라 띠 경계가 흩어진다.
+/// **회전·소수점 이동을 안 한다** — 패턴이 보간되면 디더가 디더를 못 한다.
+const PL05dith=()=>mpTile("pl05dith",192,(c,S)=>{
+  let img=null;try{img=c.getImageData(0,0,S,S);}catch(e){img=null;}
+  if(!img||!img.data||img.data.length!==S*S*4)return;   // 스텁 캔버스(스모크)
+  const d=img.data;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    if(h2(x,y,2.9)<.42)continue;                        // 58% 화소에만
+    const i=(y*S+x)*4;
+    d[i]=200;d[i+1]=206;d[i+2]=226;d[i+3]=1+Math.floor(h2(x,y,6.7)*4);
+  }
+  c.putImageData(img,0,0);
+});
+
+/// 별 — **바탕이다.** 이 안의 주인공은 얼음 평원이라 두 층만 최소로 깐다.
+/// 깊이 .03 이라 지면(1.0)이 흐르는 동안 **거의 안 움직인다** — 그 속도차가
+/// 「저기는 무한히 멀다」를 말한다(경호가 반사의 증거로 쓴 것과 같은 장치를,
+/// 여기서는 **진짜 하늘**에 쓴다).
+function PL05stars(c,ox,oy,W,hzY){
+  if(hzY<8)return;
+  scatter(ox*.030,oy*.030,W,hzY,54,1,(x,y,i,j,r)=>{
+    if(r>.46||y>hzY-3)return;
+    mapStar(c,x,y,.85,MAPINK.starD,.18+.28*h2(i,j,7.1));});
+  scatter(ox*.030,oy*.030,W,hzY,140,1,(x,y,i,j,r)=>{
+    if(r>.34||y>hzY-4)return;
+    mapStar(c,x,y,1.05,MAPINK.starM,.30+.28*h2(i,j,8.3));});
+}
+
+/// 오로라 — **지평선 위 띠.** 세 겹이고 겹마다 하는 일이 다르다:
+///   ① **밑동 띠** — 넓고 낮은 종형이 이웃과 11겹으로 겹쳐 **이어진 띠**가 된다.
+///      실제 오로라에서 제일 밝은 「아래 자락」이 이것이고, 이 안에서 하늘이
+///      「사건」으로 읽히는 면적은 전부 여기다.
+///   ② **결(striation)** — 높이 솟는 가는 발. **세 발에 하나꼴로만** 켠다.
+///   ③ **하단 자홍 림** — 능선 바로 위에 걸리는 짧고 넓은 도막.
+///
+/// ⚠️ **첫 렌더가 「생선가시」였다**(2026-08-12). 원인 셋을 전부 고쳤다:
+///   ㉠ 발을 화면 좌표 `(n-1)*STEP` 에 두어 **자로 잰 듯 균일**했다. 이제
+///      **월드 칸 번호 k=floor(u0/STEP)+n** 에 못 박아, 발마다 고정된 해시가
+///      붙는다(스크롤해도 그 발은 그 성질을 유지한다 — scatter 규약).
+///   ㉡ 발 길이가 밝기 하나의 함수라 **이웃끼리 길이가 거의 같았다.** 이제
+///      길이에 발마다의 해시(±40%)가 곱해져 윗끝이 한 줄로 안 선다.
+///   ㉢ `ribbonPoly` 는 위아래를 0 으로 좁히는 종형인데 **불룩한 허리가 능선
+///      뒤에 숨고 뾰족한 머리만 삐져나와** 있었다. 밑동을 지평선 34px 아래로
+///      내려 허리가 능선 **위**에 오게 했다 — 같은 도형인데 보이는 부분이
+///      「바늘」에서 「천」으로 바뀐다.
+/// ⚠️ **세 패스로 가른다**(밑동 전부 → 결 전부 → 림 전부). 자기막이 실측으로
+/// 배운 것이다: 발마다 이어 칠하면 **다음 발의 밑동이 앞 발의 결을 덮는다.**
+const PL05RB=[];
+function PL05aurora(c,W,hzY,u0,ph){
+  const STEP=PL05AST,N=Math.ceil(W/STEP)+5;
+  const k0=Math.floor(u0/STEP)-2;              // **월드 앵커**
+  // 길이는 전부 **지평선 높이의 배수**다 — 980×548 과 302² 에서 같은 그림이
+  // 나와야 한다(픽셀로 못 박으면 작은 칸에서만 오로라가 하늘을 다 덮는다).
+  const yb=hzY*1.24,HM=hzY*.96;
+  for(let n=0;n<N;n++){
+    const k=k0+n,u=k*STEP,x=u-u0;
+    const a=PL05aurA(u,ph);
+    const j1=h2(k,0,3.7),j2=h2(k,0,5.9);
+    // 발이 **평행하지 않다.** 기울기와 흔들림이 u 를 따라 계속 바뀐다.
+    const ln=7.5*Math.sin(u*.0041+ph),wb=3.2*Math.sin(u*.0170-2*ph);
+    const mk=(h,q)=>{const P=[];
+      for(let v=0;v<=q;v++){const z=v/q;
+        P.push([x+ln*z*z+wb*Math.sin(1.9*z+ph),yb-h*z]);}
+      return P;};
+    let o=PL05RB[n];if(!o)o=PL05RB[n]={};
+    o.a=a;o.j=j2;
+    // ⚠️ 발마다의 흔들림이 ±20% 였을 때 윗끝이 한 줄로 서서 **털 난 가장자리**로
+    // 보였다. ±45% 로 벌리면 이웃의 꼭지가 서로 다른 높이에서 끝나 가장자리가 녹는다.
+    o.base=mk(hzY*.41+HM*(.16+.50*a)*(.55+.90*j1),3);   // 밑동 — 낮고 넓다
+    o.ray =mk(hzY*.56+HM*(.10+1.05*a)*(.62+.76*j1),5);  // 결 — 높고 가늘다
+    // 하단 림은 **길이를 따로 잡는다.** 종형의 불룩한 허리가 능선 윗변 바로
+    // 위(지평선 −14 ~ −34px)에 오도록 길이를 못 박은 것이다 — 밑동과 같은
+    // 길이를 쓰면 허리가 능선 뒤에 숨어 자홍이 한 화소도 안 보인다.
+    o.hem =mk(hzY*(.69+.29*a),2);
+  }
+  const WB=STEP*5.2;
+  for(let n=0;n<N;n++){const o=PL05RB[n],al=o.a*PL05AM;                // ① 밑동
+    if(al>.004)fillPoly(c,ribbonPoly(o.base,WB,WB*.42),A(PL05C.aurA,Math.min(1,al)));}
+  // ② 결 — **세 발에 하나만** 켠다(촘촘하면 빗이다). 발 하나를 **두 폭**으로
+  // 칠한다: 넓고 흐린 무리 + 좁고 밝은 심. 한 폭만 쓰면 가장자리가 곧은 선이라
+  // 「세로 막대」로 읽히는데(2026-08-12 렌더), 무리가 그 선을 녹인다.
+  for(let n=0;n<N;n++){const o=PL05RB[n];
+    if(o.j>.34)continue;
+    const q=o.j*2.9,al=Math.pow(o.a,1.5)*PL05AR*(.55+.75*q);
+    if(al<=.004)continue;
+    fillPoly(c,ribbonPoly(o.ray,STEP*(1.3+1.5*q),STEP*.34),
+      A(PL05C.aurA,Math.min(1,al*.72)));
+    fillPoly(c,ribbonPoly(o.ray,STEP*(.24+.34*q),STEP*.07),
+      A(PL05C.aurB,Math.min(1,al)));}
+  // ⚠️ 림이 `WB*.50` 폭에 알파 .30 이었을 때 **하늘 전체가 자홍**이 됐다
+  // (2026-08-12 렌더): 114 발이 스물다섯 겹으로 겹치니 얇은 테가 아니라 벽칠이었다.
+  // 겹치는 수를 알파에 반영해 폭과 알파를 함께 내린다 — 자홍은 **테**여야 한다.
+  for(let n=0;n<N;n++){const o=PL05RB[n],al=Math.pow(o.a,1.15)*PL05AH; // ③ 하단 림
+    if(al>.004)fillPoly(c,ribbonPoly(o.hem,WB*.22,WB*.13),
+      A(PL05C.aurC,Math.min(1,al)));}
+}
+
+/// 사스트루기 — 바람이 눈을 **깎아** 놓은 것. 사구(P2)와 정반대로 각지고,
+/// 능선처럼 화면을 가로지르는 것이 아니라 **낱개로 흩어져 있다.**
+/// 스침빛이라 그림자가 **아래(관찰자 쪽)로 길게 눕는다** — 광원이 지평선에
+/// 있다는 것을 지면이 스스로 말하는 자리다.
+/// 크기가 화면 y 의 함수인 이유: 기울어 본 화면이라 아래쪽이 가깝다.
+/// 카메라가 세로로 흐르면 같은 사스트루기가 **다가오며 커진다.**
+/// ⚠️ **세 패스로 가른다** — 그림자 전부 → 몸통 전부 → (베일) → 마루 전부.
+/// 이어 칠하면 다음 것의 그림자가 앞 것의 마루를 덮는다(자기막이 실측으로
+/// 배운 그 자리다). 마루만 베일 뒤로 보낸 이유는 아래 pass 2 주석에 적었다.
+function PL05sast(c,ox,oy,W,H,hzY,pass){
+  const gh=Math.max(1,H-hzY);
+  scatter(ox,oy,W,H,PL05SCELL,1,(x,y,i,j,r)=>{
+    if(y<hzY+13||r>.80)return;
+    const f=Math.min(1,(y-hzY)/gh);
+    // ⚠️ 원근 계수가 (.42+1.10f) 였을 때 **보이는 자리의 것이 제일 작았다** —
+    // 베일 때문에 눈에 남는 것은 지평선 근처인데 거기가 f≈0 이라 크기가 최소였다.
+    // 원근은 지키되 기울기를 낮춰(.62+.75f) 원경 것도 읽히게 한다.
+    const s=(.62+.75*f)*(.70+.62*h2(i,j,3.1));
+    const a0=PL05TH+(h2(i,j,5.3)-.5)*.34;
+    const ca=Math.cos(a0),sa=Math.sin(a0);
+    const L=(30+34*h2(i,j,7.7))*s;
+    if(!(L>1))return;
+    // 휨은 **작게.** 크게 휘면 밝은 마루가 초승달이 되어 「생선」으로 보인다.
+    const bow=(h2(i,j,9.1)-.5)*.14*L;
+    const P=[];
+    for(let u=0;u<4;u++){const z=u/3;
+      P.push([x+ca*L*(z-.5),y+sa*L*(z-.5)-Math.sin(Math.PI*z)*bow]);}
+    // ⚠️ **첫 렌더가 「보케 얼룩」이었다**(2026-08-12). 그림자만 넓은 종형이라
+    // 부드러운 타원이 되고 마루는 대비가 모자라 안 보여서, 화면에 남은 것이
+    // 「초점 나간 먼지」였다. 사스트루기는 **깎인 것**이라 셋이 다 있어야 한다:
+    //   그림자(길게 눕는 꼬리) · 몸통(어두운 덩치) · 마루(빛 받는 날)
+    // 그림자를 **길고 뾰족한 꼬리**로 바꾸고(1.7배 길이 · 끝 폭 1/6), 마루를
+    // 밝기·굵기 양쪽으로 올렸다. 얼룩 하나가 물체 하나로 읽히는 최소 구성이다.
+    if(pass===0){
+      const d=L*(.26+.20*h2(i,j,11.3));
+      const S=[];for(let u=0;u<4;u++){const z=u/3;
+        S.push([P[u][0]+d*.22+ca*L*z*.70,P[u][1]+d+sa*L*z*.70]);}
+      fillPoly(c,ribbonPoly(S,L*.24,L*.045),A(PL05C.groove,.34+.26*h2(i,j,13.7)));
+    }else if(pass===2){
+      // 마루 — **베일 뒤에 온다.** 평평한 눈은 시선이 스칠수록 어두워지지만
+      // 광원 쪽으로 기운 면은 멀어도 빛을 받는다. 그래서 이 한 겹만 베일을
+      // 안 먹고, 대신 자기 몫의 거리 감쇠(.32+.68·(1−f))를 따로 가진다.
+      // 이것이 아래쪽 절반을 「밋밋한 검정」에서 구해 내는 유일한 층이다.
+      // ⚠️ 감쇠가 (.32+.68·(1−f)) 였을 때 아래쪽 절반이 **「생선」**이 됐다
+      // (2026-08-12 렌더): 거의 검은 바닥 위의 밝은 초승달은 질감이 아니라
+      // **떠 있는 물체**로 읽힌다. 먼 쪽을 더 죽여 대비를 1.3배까지 낮추면
+      // 같은 것이 「물체」에서 「긁힌 자국」으로 넘어간다.
+      const w=L*(.055+.030*h2(i,j,15.1));
+      fillPoly(c,ribbonPoly(P,w,w*.24),A(PL05C.crest,
+        Math.min(1,(.50+.30*h2(i,j,17.3))*(.12+.88*(1-f)))));
+    }else{
+      // ⚠️ 폭이 길이의 8.5~13% 였을 때 마루가 **흰 얼룩(스티커)** 으로 보였다
+      // (2026-08-12 렌더): 종횡비 5:1 짜리 밝은 렌즈는 「날」이 아니라 「점」이다.
+      // 10:1 로 얇게 뽑으면 같은 밝기가 **선**으로 읽혀 물체의 모서리가 된다.
+      // 몸통 — 마루 **아래**에 붙는 어두운 덩치. 이것이 있어야 마루가
+      // 「선」이 아니라 「물체의 날」로 읽힌다.
+      const w=L*(.055+.030*h2(i,j,15.1));
+      const B=[];for(let u=0;u<4;u++)B.push([P[u][0]+w*.35,P[u][1]+w*1.45]);
+      fillPoly(c,ribbonPoly(B,w*1.5,w*.55),A(PL05C.groove,.30+.20*h2(i,j,19.7)));
+    }
+  });
+}
+
+/// 압력 능선 — 얼음판이 서로 밀어붙여 **깨진 덩어리가 쌓인 줄.** 이 안의
+/// **랜드마크**이자 「여기 와 봤다」를 주는 유일한 것이다(균열지의 금, 이끼밭의
+/// 군락, 경호의 섬에 해당한다). 균열지와 갈리는 자리: 저쪽은 **파인 선**이고
+/// 이쪽은 **쌓인 덩어리**다 — 지면보다 위로 솟아 자기 그림자를 가진다.
+/// 드물게 둔다(칸 470 · 확률 .46) — 흔하면 랜드마크가 아니라 질감이 된다.
+function PL05pack(c,ox,oy,W,H,hzY,pass){
+  const gh=Math.max(1,H-hzY);
+  scatter(ox,oy,W,H,PL05RCELL,2,(x,y,i,j,r)=>{
+    if(r>.46)return;
+    const ang=PL05TH+(h2(i,j,21.1)-.5)*1.9;
+    const ca=Math.cos(ang),sa=Math.sin(ang);
+    // ⚠️ 덩어리 간격이 25~45px 이라 어두운 쪽에서 **발자국**처럼 보였다
+    // (밝은 윗면만 남고 몸통은 밤에 잠기니 점점이 찍힌 자국이 된다).
+    // 간격을 반지름보다 좁게 잡아 **겹쳐 이어지는 줄**로 만든다.
+    const n=6+Math.floor(h2(i,j,23.3)*8),step=16+h2(i,j,25.7)*16;
+    for(let b=0;b<n;b++){
+      const q=(b-(n-1)/2)*step;
+      const bx=x+ca*q,by=y+sa*q+Math.sin(b*1.7+h2(i,j,27.1)*TAU)*5;
+      if(by<hzY+13||by>H+40||bx<-50||bx>W+50)continue;
+      const f=Math.min(1,(by-hzY)/gh);
+      // ⚠️ 처음엔 반지름이 3~17px 이라 화면에서 **한 개도 안 보였다**
+      // (2026-08-12 렌더). 랜드마크는 「있다」가 아니라 「보인다」라야 값을
+      // 하므로 두 배로 키우고, 윗면(빛 받는 면)을 넓게 잡았다.
+      const rr=(9.0+11.0*h2(i+b,j,29.3))*(.62+.90*f);
+      if(!(rr>0))continue;
+      const sd=i*3.1+j*7.7+b*1.9;
+      if(pass===0)
+        fillPoly(c,jagPoly(bx+rr*.24,by+rr*.86,rr*1.25,5,sd,1.05,.50),
+          A(PL05C.groove,.50));
+      else if(pass===1)
+        fillPoly(c,jagPoly(bx,by,rr,5,sd,1.10,.72),A(PL05C.ridgeN,.90));
+      else
+        // 윗면 — 스침빛을 받는 면. 덩어리의 **위쪽 절반**에만 얹고, 사스트루기
+        // 마루와 같은 이유로 **베일 뒤**에 온다(기운 면은 멀어도 빛을 받는다).
+        fillPoly(c,jagPoly(bx-rr*.16,by-rr*.34,rr*.66,5,sd+1.3,1.00,.58),
+          A(PL05C.crest,Math.min(1,.72*(.16+.84*(1-f)))));
+    }
+  });
+}
+
+/// 빛웅덩이 — **오로라가 얼음에 만드는 밝은 자리.** 웅덩이마다 알파가 그 자리
+/// 하늘의 밝기(`PL05aurA`, 오로라 발과 **같은 함수 · 같은 인자**)라, 하늘의
+/// 마루가 흘러가면 얼음 위의 밝은 자리도 같이 흘러간다. 이 안의 인과가 눈에
+/// 보이는 자리이자, 지면 안 열하나 중 **하늘이 바닥을 밝히는 유일한 곳**이다.
+///
+/// ⚠️ **처음엔 세로 조각 28개(뒤엔 56개)로 그렸다가 버렸다**(2026-08-12 렌더).
+/// 이웃 조각의 알파 차가 채널 한 단도 안 되는데 **경계가 완벽한 수직선**이라
+/// 눈이 그걸 잡아냈다 — 곧은 선은 양자화 아래에서도 보인다. 조각을 늘리는
+/// 방향으로는 안 없어진다(56 에서도 그대로 보였다).
+///   ⇒ 답은 **경계를 없애는 것**이다: 부드러운 방사 얼룩을 **한 번 굽고**
+///     blit 으로 흘린다. 방사 그라디언트는 반지름의 제곱에 비례해 비싸지만
+///     구운 스프라이트는 텍스처 blit 이라 열두 장을 깔아도 공짜에 가깝다.
+/// 자리는 **월드 칸에 못 박는다**(칸 `PL05PWC`) — 화면 좌표에 두면 카메라가
+/// 흐를 때 웅덩이가 화면에 붙어 따라다닌다.
+/// ⚠️ 얼룩의 **넓이가 곧 비용**이다(층별 실측 1.75ms — 이 안에서 제일 비쌌다).
+/// 겹침 배수(2.2)와 세로 길이(0.75)를 줄여 칠하는 화소를 1.9M → 0.9M 로 내렸다.
+/// 웅덩이는 원경 띠에서만 값을 하므로 아래로 길게 끌 이유가 없다.
+const PL05PWC=130;
+function PL05pool(c,W,hzY,gh,u0,ph,IM){
+  if(!IM.blob)return;
+  const bw=PL05PWC*2.2,bh=gh*.75;
+  const k0=Math.floor((u0-bw)/PL05PWC),k1=Math.floor((u0+W+bw)/PL05PWC);
+  c.save();
+  c.beginPath();c.rect(0,hzY,W,gh);c.clip();
+  for(let k=k0;k<=k1;k++){
+    const u=k*PL05PWC,x=u-u0;
+    const al=Math.pow(PL05aurA(u,ph),1.35)*PL05PA*(.62+.76*h2(k,0,7.9));
+    if(al<=.004)continue;
+    c.globalAlpha=Math.min(1,al);
+    const w=bw*(.72+.56*h2(k,0,11.3));
+    c.drawImage(IM.blob,x-w*.5,hzY-bh*.42,w,bh);
+  }
+  c.restore();
+}
+
+/// 빙정 반짝임(다이아몬드 더스트) — **이 안의 화려함이 사는 유일한 자리.**
+/// L .809 짜리 점인데 한 화면에 몇 알뿐이라 예산의 0.5% 중 0.01% 도 안 쓴다.
+/// 켜지는 조건이 둘이다: 지평선 가까이(스침빛이 닿는 곳) **그리고** 하늘의
+/// 그 열이 밝을 때. 밝기가 아니라 **인과**가 이 점들을 켠다.
+/// 깜빡임은 sin(3·ph+상수)의 9제곱 — 주기가 정확히 닫히고, 확 켜졌다 사라진다.
+function PL05spark(c,ox,oy,W,H,hzY,ph,u0){
+  const gh=Math.max(1,H-hzY);
+  scatter(ox,oy,W,H,PL05KCELL,0,(x,y,i,j,r)=>{
+    if(y<hzY+13)return;
+    const f=(y-hzY)/gh;if(f>.46)return;
+    const bl=Math.pow(Math.max(0,Math.sin(3*ph+h2(i,j,31.7)*TAU)),9);
+    if(bl<.05)return;
+    const a=PL05aurA(x+u0,ph);
+    const al=bl*(.20+.80*a)*(1-f/.46)*.98;
+    if(al<=.01)return;
+    // ⚠️ **정수 좌표로 스냅한다.** 소수 자리에 반경 .95 사각을 놓으면 3×3 에
+    // 부분 덮임으로 퍼져 제일 밝은 화소가 알파의 절반도 못 받는다 — 실측에서
+    // `L>.35` 화소가 **0.0000%** 였다(불티 예산 0.5% 를 통째로 안 쓴 것이다).
+    // 정수 자리에 반경 1 이면 화소 넷이 알파를 온전히 받아 L .8 까지 올라간다.
+    mapStar(c,Math.round(x),Math.round(y),1,PL05C.spark,Math.min(1,al));
+  });
+}
+
+MAPP.bg.polar=function PL05bg(c,t,W,H){
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  const ph=t*PL05W,IM=PL05img();
+  // ⚠️ 지평선은 **화면에 못 박는다.** 처음엔 카메라 세로를 깊이 .028 로 따르게
+  // 했는데(`H*PL05HZ + oy*.028`) 월드 여덟 자리에서 재 보니 중간 톤이
+  // **0.07% ~ 31.8%** 로 널뛰었다 — 원점 근처만 예산 안이고 월드 y 가 25000 을
+  // 넘으면 지평선이 화면 밖으로 나가 화면이 통째로 하늘이거나 통째로 밤이었다.
+  // 목업 카메라(`MAPP.cam`)가 원점 둘레를 도는 유계 진동이라 안 드러났던 것이고,
+  // 실제 게임의 카메라는 플레이어 좌표라 **무계**다. 물리로도 이쪽이 맞다:
+  // 평평한 평원 위를 **평행이동**하는 카메라에게 무한원의 지평선은 안 움직인다.
+  // (한 자리에서 잰 값은 측정이 아니라 시안의 자기소개다 — 그 규칙이 잡은 버그다.)
+  const hzY=Math.round(H*PL05HZ);
+  const gh=Math.max(1,H-hzY),u0=ox*.045;
+  // ⓪ 공용 바닥 — **배경의 첫 줄.** 안 깔면 이 안만 옛 바탕(L .0497) 위에
+  //    그려져 혼자 뿌옇다.
+  mapFloor(c,W,H);
+  // ① 하늘
+  if(IM.sky&&hzY>2)c.drawImage(IM.sky,1,0,2,IM.sky.height,0,0,W,hzY+2);
+  // ② 별 — 깊이 .03
+  PL05stars(c,ox,oy,W,hzY);
+  // ③ 오로라 — 지평선 위 띠
+  PL05aurora(c,W,hzY,u0,ph);
+  // ④ 얼음 평원 바탕 — 여기부터 아래가 전부 지면이다
+  c.fillStyle=PL05C.snow;c.fillRect(0,hzY,W,gh);
+  // ⑤ 먼 빙구 능선 두 겹 — **지평선은 선이 아니라 이 실루엣의 윗변이다.**
+  //    깊이가 다르니 서로 다른 속도로 흘러 시차가 난다.
+  //    진폭은 화면 높이에 비례한다 — 302 칸에서 980×548 과 같은 실루엣이 나와야 한다.
+  const rs=H/548;
+  //    ⚠️ 두께는 **얇게.** 처음엔 몸통이 최소 28px 이라 오로라와 눈 사이에
+  //    새까만 막대가 가로놓였다 — 먼 능선은 시선 방향으로 눌려 얇아야 멀어 보인다.
+  PL05ridge(c,W,hzY+2*rs,ox*.075,3.1,64*rs,7*rs,230*rs,11*rs,3*rs,PL05C.ridgeF,4*rs);
+  PL05ridge(c,W,hzY+5*rs,ox*.163,17.7,82*rs,10*rs,300*rs,17*rs,5*rs,PL05C.ridgeN,8*rs);
+  // ⑥ 눈 결(고주파) + 눈 언덕(저주파) — 지면에만. 바람이 지표 눈을 초당
+  //    18px 씩 따로 민다(능선은 카메라와 같은 속도다 — 그 속도차가 바람이다).
+  c.save();
+  c.beginPath();c.rect(0,hzY+6*rs,W,Math.max(0,H-hzY-6*rs));c.clip();
+  const cs=Math.cos(PL05TH),sn=Math.sin(PL05TH);
+  mpPat(c,PL05swell(),W,H,ox*1.0,oy*1.0,PL05TH*.5);
+  mpPat(c,PL05fine(),W,H,ox-sn*t*18,oy+cs*t*18,PL05TH);
+  c.restore();
+  // ⑦ 지면 구조 — **패스를 가른다**(그림자 전부 → 몸통 전부)
+  PL05pack(c,ox,oy,W,H,hzY,0);
+  PL05sast(c,ox,oy,W,H,hzY,0);
+  PL05pack(c,ox,oy,W,H,hzY,1);
+  PL05sast(c,ox,oy,W,H,hzY,1);
+  // ⑧ 베일 — **평평한 것**을 아래로 갈수록 한꺼번에 잠근다. blit 한 번.
+  if(IM.veil)c.drawImage(IM.veil,1,0,2,IM.veil.height,0,hzY,W,gh);
+  // ⑨ 빛웅덩이 — 베일 **뒤**에 온다. 하늘이 비추는 것은 잠기지 않는다
+  PL05pool(c,W,hzY,gh,u0,ph,IM);
+  // ⑩ **기운 면은 베일 뒤에 온다.** 평평한 눈은 시선이 스칠수록 어두워지지만
+  //    광원 쪽으로 기운 면(사스트루기 마루 · 얼음덩이 윗면)은 멀어도 빛을 받는다.
+  //    광학이 그렇고, 덕분에 아래쪽 절반이 「밋밋한 검정」이 되지 않는다.
+  PL05pack(c,ox,oy,W,H,hzY,2);
+  PL05sast(c,ox,oy,W,H,hzY,2);
+  // ⑪ 빙정 반짝임
+  PL05spark(c,ox,oy,W,H,hzY,ph,u0);
+  // ⑫ 디더 — **안 돌리고 정수로** 민다. 보간되면 1px 잡음이 뭉개진다.
+  //    ⚠️ 화면 사각으로 **클립한다.** `mpPat` 은 돌린 레이어까지 덮으려고
+  //    화면의 4.84배를 칠하는데, 이 패스는 안 돌리므로 그 여유가 통째로 낭비다.
+  c.save();c.imageSmoothingEnabled=false;
+  c.beginPath();c.rect(0,0,W,H);c.clip();
+  mpPat(c,PL05dith(),W,H,Math.round(ox),Math.round(oy),0);
+  c.restore();
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181)을 극지 위에 얹는다.
+function PL05proof(c,t,dt,W,H,st){MAPP.bg.polar(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다(배경만 그린 캔버스를 한 번 읽는다).
+function PL05num(c,t,dt,W,H,st){MAPP.bg.polar(c,t,W,H);mapMeter(c,t,W,H,st);}
+/// 적 여덟 — **진짜 제약은 무기가 아니라 적이다**(몸 채움 #24141F L .1021).
+/// 하늘 · 원경 띠 · 중경 · 근경에 두 마리씩 흩어 어느 밝기대에서도 읽히는지 본다.
+function PL05foe(c,t,dt,W,H,st){
+  MAPP.bg.polar(c,t,W,H);
+  const R=Math.min(W,H)*.072;
+  for(let i=0;i<8;i++){
+    const x=W*(.13+.245*(i%4))+Math.sin(t*.5+i)*W*.02;
+    const y=H*(i<4?.17:.62)+Math.cos(t*.43+i*1.7)*H*.035+(i%2?H*.10:0);
+    FOEART.grunt(c,x,y,R,Math.PI/2+Math.sin(t*.45+i)*.5,t);
+    foeEyes(c,x,y,R,1,W/2,H*1.05,.16);
+  }
+}
+mapTile("pl05",MAPP.demo("polar",1,1),"극지 極地 + 빛파동 + 미니맵",
+  "지평선이 화면 안에 있는 유일한 안. 하늘의 오로라가 <b>진짜 광원</b>이라 밝은 열 아래 얼음이 같이 밝아진다. 지평선은 선이 아니라 먼 빙구 실루엣의 윗변이다.",
+  MAP_W,MAP_H,1);
+mapTile("pl05",PL05foe,"적 여덟 — 네 밝기대에",
+  "하늘·원경 띠·중경·근경에 두 마리씩. 적 몸 318.8° 와 얼음 232.5° 는 86° 떨어져 있다.",MAP_S,MAP_S);
+mapTile("pl05",MAPP.demo("polar",0,0),"배경만 — 302 칸",
+  "작은 칸에서도 지평선·오로라·평원 셋이 갈리는지.",MAP_S,MAP_S);
+mapTile("pl-bg",MAPP.demo("polar",0,0),"극지 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL05proof,"극지 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("polar",0,1),"극지 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("pl-num",PL05num,"극지 · 밝기 실측",
+  "중간 톤(.05~.15) 15~30% · 평균 L ≤ .075 · 봉우리 ≤ .17 · L&gt;.35 ≤ 0.5%.",MAP_S,MAP_S);
+
+// ══════════════════════════════════════════════════════════════════════════
+// 행성 유니버스 · 산호초 珊瑚礁 (PL06) — 2026-08-11
+// ══════════════════════════════════════════════════════════════════════════
+//
+// 최상위 이름은 전부 `PL06` 로 시작하고, 등록은 `MAPP.bg.coral` 에 **대입만**
+// 한다(`const`/`let` 재선언 0 · 기존 줄 수정 0 · HTML 무수정). 새 그리기
+// 원시함수도 0개다 — `ribbonPoly`/`fillPoly`/`puffPoly`/`scatter`/`hash`/`h2`/
+// `A`/`mapFloor`/`mpTile`/`mpPat`/`mpWrap9` 의 조합뿐이다.
+//
+// ── 이 안이 유일하게 하는 것: **한때 살아 있던 것**이 지형이다 ─────────────
+// 열한 안 중 지형의 정체가 「생물의 잔해」인 것은 여기뿐이다. 유기체(有機)는
+// **지금 살아 있는** 살이라 축이 반대다 — 저쪽은 맥동하고 이쪽은 **안 움직인다.**
+//
+// ⚠️ **이끼밭과 갈리는 자리는 명도가 아니라 「빛나는가」다.**
+//   · 이끼 — **자체발광 군락(점).** `lighter` 로 후광을 깔고 주기마다 밝아진다.
+//   · 산호 — **안 빛나는 구조물(가지).** 이 안에는 광원이 하나도 없다:
+//     가산 합성 0회 · 발광 그라디언트 0개 · 맥동 0개 · L>.35 화소 0.000%.
+//     화면에서 밝은 것은 전부 **빗겨 든 빛을 받은 면**이고, 그 증거로 모든
+//     밝은 면 옆에는 **같은 방향으로 누운 그림자**가 있다. 스스로 빛나는 것은
+//     그림자를 안 만든다 — 그 한 가지가 두 안을 눈으로 가른다.
+//
+// ── 가지는 뻗어 나가는 것 ─────────────────────────────────────────────────
+// 굵기가 일정하면 산호가 아니라 **철사**다. 그래서 이 안의 모든 가지는
+// `ribbonPoly(pts, w, w*.15)` 로만 그린다 — 밑동에서 끝까지 폭이 단조롭게 줄고
+// 끝은 0 으로 닫힌다. 자식 가지는 언제나 부모의 **.46~.66 배**로 시작하니
+// 갈래를 아무리 타고 내려가도 굵어지는 마디가 없다(실측 검산은 보고에).
+//
+// ── 지형의 뼈대: 스퍼앤그루브(spur & groove) ──────────────────────────────
+// 첫 렌더에서 화면이 **「바닥에 흩어진 지푸라기」**로 보였다(2026-08-11 눈 판정).
+// 자국은 산호처럼 생겼는데 **큰 구조가 없어서** 전체가 한 가지 크기의 잡음이
+// 됐다. 실제 산호초 바닥에는 파도 방향으로 난 **골(groove·모래 수로)** 과 그
+// 사이의 **둔덕(spur·산호 능선)** 이 있다. 그걸 그대로 뼈대로 쓴다:
+//   · 골 — 어두운 모래띠. **빼기만** 하므로 예산을 안 쓰면서 큰 구조를 준다.
+//   · 둔덕 — 골 사이. 화석 포장과 서 있는 군락이 여기 몰린다.
+//   · 군락은 **골 안에서 안 자란다**(월드 좌표로 판정) — 구조가 우연이 아니라
+//     인과로 읽히는 자리다.
+// 골은 1차원 칸 해시(파장 250px)라 무한히 안 반복하고, 굽이가 파장의 30% 라
+// 「줄무늬」가 아니라 「수로」로 읽힌다.
+//
+// ── 「밝기가 아니라 덮는 면적이다」 ───────────────────────────────────────
+// 개정 예산의 제일 중요한 항목은 **중간 톤(L .05~.15) 15~30%** 다. 앞 손들이
+// 봉우리를 올려 놓고도 `L>.12` 가 0.0% 였던 이유는 그 값에 **도달하는 화소가
+// 없어서**였다. 그래서 이 안은 봉우리를 안 올리고 **중간 톤에 닿는 면적**을
+// 설계한다. 두 번 실측하고 두 번 갈아엎은 결과가 지금 구조다:
+//   ① 서 있는 군락만으로 화면을 채우려 했더니 가지 1495개 · 그리기 3946번 ·
+//      **JS 만 33ms/프레임**이 나왔다(사구 1.65 · 동공 5.4 · 이끼 1.5).
+//      500마리가 도는 게임에서 배경이 프레임을 통째로 먹는 값이라 **버렸다.**
+//   ② ⇒ **지면 자체를 가지로 만든다.** 닳아 평평해진 화석 가지가 굳은
+//      포장(PL06mat)이 넓은 면적을 맡고, 서 있는 군락은 그 위에서 **입체**를
+//      맡는다. 예산이 아니라 **그림이 먼저** 그렇게 생겼다 — 죽은 산호초의
+//      바닥은 실제로 부러진 가지가 굳은 석회 포장이다.
+//   ③ 포장은 **두 톤**이다. 셋에 하나(묻힌 자국)는 L .035 로 **중간 톤 아래**에
+//      두고, 드러난 자국만 L .0685~.0854 로 올린다. 포장을 촘촘히 깔면서도
+//      중간 톤 면적은 상한 안에 묶는 유일한 방법이다 — 한 톤으로 깔면
+//      「촘촘함」과 「예산」 중 하나를 반드시 버리게 된다.
+//   ④ 포장은 **한 번 굽고 패턴으로 붓칠**한다(프레임당 fillRect 셋). 한 장이면
+//      340px 마다 무늬가 도니 **두 장을 다른 각(19.5° / -45.3°)으로 겹친다** —
+//      두 격자의 합주기가 화면보다 커져 반복이 안 읽힌다.
+//
+// ⚠️ **알파가 낮으면 예산을 한 톨도 안 쓴다.** 처음엔 포장 자국을 알파
+// .40~.86 으로 흩었는데, 알파 .40 이면 바닥(L .021) 위에서 합성 명도가 .042 라
+// **중간 톤에 아예 도달을 안 했다.** 자기막이 「팔레트 꼭대기 .198 인데 L>.12
+// 가 0.0%」였던 것과 같은 사고다. 그래서 자국은 **적고 진하게**(알파 .84~1.0)
+// 간다 — 개수가 아니라 **닿는가**가 예산을 쓴다.
+//
+// ⚠️ **`mpPat` 은 큰 타일에서 화면 아래를 못 덮는다.** 첫 렌더에서 화면 밑
+// 55px 이 통째로 맨바닥(#04040A)으로 남았다. 원인은 `mpPat` 이 화면 좌표로
+// `fillRect(-H*.6, H*2.2)` 를 치는데 타일 위상 이동이 최대 −S 라, **S > H*.6**
+// 이면 아래가 모자란다(384 타일 · H 548). 기존 안들은 타일이 투명 덧칠이라
+// 티가 안 났을 뿐 같은 구멍이 있다. 이 안은 **화면에 클립하고 W·H 를 부풀려**
+// 부른다 — 그리는 화소는 그대로고 사각형만 넉넉해진다.
+//
+// ── 칠하는 차례가 밝기를 먹는다 ──────────────────────────────────────────
+// 군락마다 그림자→몸통→볕을 이어 칠하면 **다음 군락의 그림자가 앞 군락의 볕을
+// 덮는다**(자기막이 실측으로 겪은 사고 — 0.2%→0.68%). 그래서 화면의 모든 가지를
+// 먼저 모아 두고(PL06SEG) **세 패스로 가른다**: 그림자 전부 → 몸통 전부 → 볕 전부.
+//
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 주 색상각 설계값 **294.5°**(볕 능선 `#2A202B`), **화면 실측 300.0°**(제일 밝은
+// 화소 rgb(42,31,42) — 알파 합성과 8비트 양자화가 5.5° 민다). 어둠과 적 사이의
+// 제일 넓은 빈 구간(273.0~318.8, 45.8°)에 놓았고, 실측 기준 거리는
+// **어둠 27.0° · 적 몸 18.8°** 다. 색상환이 꽉 차서 어느 각을 골라도 20~30° 안에
+// 걸리므로 각으로는 못 이긴다.
+// 진짜 방어는 **채도와 면적**이다 — 이 안의 색은 전부 HSV 채도 .22~.27(최대
+// 채도차가 255분의 11)이고, 적과 부딪히는 명도대(L>.102)에 쓰는 면적이
+// **화면의 0.02~0.90%**(월드 12자리 실측)다. 「탈색된 석회」라는 정체가
+// 그대로 방어가 된다. 적 8마리를 얹어 눈으로도 확인했다.
+//
+// ── 위치감 ────────────────────────────────────────────────────────────────
+// 두 겹이다. **큰 것**은 골(수로)이 만든다 — 화면에 서너 줄이 비스듬히 지나가
+// 「나는 이 골의 어느 쪽에 있다」가 즉시 읽힌다. **작은 것**은 군락이 만든다 —
+// 하나가 캐릭터의 서너 배라 「저 덤불의 왼쪽」이 읽힌다. 둘 다 칸 번호 해시로
+// 정해지니 나갔다 돌아와도 그대로고, 칸 번호가 무한하니 이음매도 반복도 없다.
+//
+// ── 움직임 ────────────────────────────────────────────────────────────────
+// **죽은 것은 안 움직인다.** 맥동도 주기도 없다. 대신 지면보다 1.28배 빠르게
+// 흐르는 **먼지막**이 시차를 준다 — 이끼의 포자(위로 뜨는 밝은 점)와 정반대로
+// 이 층은 **빼기만** 한다(어두운 얼룩). 밝은 화소를 한 개도 안 늘리면서
+// 「미끄러지는 종이」를 면한다.
+//
+// ── 실측 (2026-08-11 · 헤드리스 크롬 · 980×548 · dpr 1 · dt 고정 1/60) ─────
+// **월드 12자리**(임의 좌표 여덟 + 데모 경로 넷)에서 잰 값이다. 한 자리에서 잰
+// 값은 시안의 자기소개지 측정이 아니다.
+//   중간 톤(L .05~.15)  최소 **18.73%** · 평균 19.81% · 최대 21.55%   [상한 15~30%]
+//   넓은 면적 평균 L    최소 .0335 · 평균 .0347 · 최대 .0358          [상한 ≤ .075]
+//   면적 봉우리(상위 1% 면적이 시작되는 L)  **.090**                   [상한 ≤ .17]
+//   화면 최대 L         .1248~.1403        L>.12  0.00~0.49%
+//   L>.35               **0.000%** — 열두 자리 전부                    [상한 ≤ 0.5%]
+//   가지 세대비         자식/줄기 .4601~.6598 · 손자/줄기 .2122~.4318
+//                       **설계 구간 밖 0개**(줄기 400개 · 가지 2402개)
+//   브라우저 실캔버스   900프레임 예외 0 · 302²·1960×1096·97×61·980×548@dpr2 전부 예외 0
+//   비용(강제 래스터)   **10.22 ms/frame** — 같은 판에서 사구 6.98(문서 6.2) ·
+//                       균열지 5.75(문서 5.3) · 이끼밭 4.78(문서 0.21).
+//                       ⚠️ **이 안이 이 배치에서 제일 비싸다**(사구의 1.47배).
+//                       값의 대부분은 서 있는 군락 348가지 × 세 패스라, 더 줄여야
+//                       하면 `PL06CELL` 을 키우거나 `PL06WRG` 를 올리면 된다 —
+//                       둘 다 **군락이 작아 보이는 값**을 치른다.
+const PL06LX=-.62, PL06LY=-.785;      // 빛 방향(왼쪽 위) — 단위벡터.
+                                      // 화면의 모든 그림자와 볕이 이 하나를 따른다
+const PL06SQ=.88;                     // 탑다운 눌림 — 바닥에 붙은 것으로 보이게
+const PL06CELL=300;                   // 큰 군락 칸(지형지물)
+const PL06CELLR=56;                   // 부스러기 칸
+// 굵기 문턱 셋 — **비용은 그리기 횟수에 붙는다.** 얇은 가지에 그림자와 볕을
+// 따로 얹어 봐야 1px 아래라 화면에 도달을 안 하면서 그리기만 는다.
+const PL06WSH=1.70;                   // 이 굵기 위만 그림자를 진다
+const PL06WRG=1.70;                   // 이 굵기 위만 볕 능선을 얹는다
+const PL06WTH=1.15;                   // 이 굵기 아래는 **한 번에** 칠한다(잔가지)
+const PL06GTH=.62, PL06GLV=250;       // 골의 방향 · 파장
+
+// 3단이 아니라 **명도 사다리**다. 전부 같은 색상각(280~300°) 위의 점이고,
+// 제일 밝은 것(볕 능선)이 L .1421 로 면적 봉우리 상한(.17) 아래다.
+const PL06_SHADE="#030203";           // 그림자        L .0095 ← 바닥(.0184)보다 어둡다
+const PL06_BED0 ="#060506";           // 모래·골       L .0212
+const PL06_BED1 ="#0E0B0F";           // 기반암 얼룩   L .0484
+const PL06_MATD ="#0A080B";           // 묻힌 화석     L .0350 ← 중간 톤 **아래**
+const PL06_MAT  ="#131015";           // 드러난 화석   L .0685
+const PL06_MATC ="#1A1319";           // 화석의 등     L .0854
+const PL06_BODY ="#1D161E";           // 선 가지 몸통  L .0981
+const PL06_TWIG ="#221B24";           // 잔가지        L .1181
+const PL06_LIT  ="#2A202B";           // 볕 능선       L .1421  ← 화면 최대
+const PL06_DUST ="#020102";           // 먼지막        L .0055 (빼기 전용)
+// 알파까지 굳힌 문자열 — 프레임마다 700번 넘게 쓰므로 그때마다 만들지 않는다.
+const PL06A_SHADE=A(PL06_SHADE,.60), PL06A_SHADE2=A(PL06_SHADE,.72),
+      PL06A_BODY =A(PL06_BODY ,.96), PL06A_TWIG  =A(PL06_TWIG ,.94),
+      PL06A_LIT  =A(PL06_LIT  ,.88), PL06A_LIT2  =A(PL06_LIT  ,.50),
+      PL06A_BASE =A(PL06_BODY ,.94), PL06A_FOOT  =A(PL06_SHADE,.20),
+      PL06A_SAND =A(PL06_BED0 ,.94), PL06A_SAND2 =A(PL06_BED0 ,.50);
+
+// 화면 한 장 분량의 가지를 **모아 두는 통**. 프레임마다 비워 다시 채운다
+// (배열을 새로 만들지 않으니 GC 가 안 돈다). 세 패스로 갈라 칠하려면 그리기
+// 전에 화면의 가지가 전부 모여 있어야 한다.
+const PL06SEG=[];                     // [다각형, 밑동 반폭, 점배열]
+const PL06BAS=[];                     // [x, y, 반지름, 씨앗]
+const PL06FOT=[];                     // [x, y, 반지름, 씨앗] — 군락이 지면에 지는 그늘
+
+/// 골 한 줄의 성질 — **1차원 scatter.** 칸 번호가 무한하니 반복이 없고,
+/// 도는 칸 수는 화면 넓이에만 비례한다(사구의 능선과 같은 원리).
+const PL06gw=k=>.13+.15*hash(k*9.7+1.3);       // 골 폭(파장 비율)
+const PL06gc=k=>.5+.34*(hash(k*3.1+2.7)-.5);   // 골 중심
+/// 골의 굽이. 파장의 30% 를 흔들어야 「줄무늬」가 아니라 「수로」가 된다.
+const PL06gwob=u=>44*Math.sin(u*.0061+1.9)+23*Math.sin(u*.0127+4.3);
+/// 월드 좌표가 골 안인가 — 0(둔덕) ~ 1(골 한가운데).
+/// 군락이 골에서 안 자라게 하는 데 쓴다. 구조가 우연이 아니라 인과로 읽힌다.
+function PL06inG(wx,wy){
+  const cs=Math.cos(PL06GTH),sn=Math.sin(PL06GTH);
+  const u=wx*cs+wy*sn, v=-wx*sn+wy*cs-PL06gwob(u);
+  const k=Math.floor(v/PL06GLV), p=v/PL06GLV-k;
+  const d=Math.abs(p-PL06gc(k))/(PL06gw(k)*.5);
+  return d<1?1-d:0;
+}
+
+/// 가지 하나. **뻗어 나가는 것**이라 폭이 단조롭게 줄고, 굽어야 한다 —
+/// 곧은 가지는 「자로 그은 사선」으로 보인다(앞 손들이 눈 판정에서 잡은 것).
+/// 자식은 부모의 `.46~.66` 배로 시작하므로 갈래를 타고 내려가면 반드시 가늘어진다.
+/// 다각형을 여기서 **한 번만** 만들어 둔다 — 그림자는 같은 다각형을 밀어서 쓴다.
+function PL06limb(x,y,ang,len,w,depth,sd){
+  if(len<3.2||w<.22)return;
+  const N=depth?3+depth:2, step=len/N;
+  const turn=(hash(sd*1.31+2.7)-.5)*1.55;              // 총 휘는 각 ±44°
+  // 밑동을 한 걸음 뒤에서 시작한다 — `ribbonPoly` 는 양 끝을 좁히는 종형이라
+  // 이음매에서 잘록해진다. 그 잘록한 데를 부모 가지 **안쪽에** 묻는다.
+  let a=ang, px=x-Math.cos(ang)*step*.55, py=y-Math.sin(ang)*step*.55*PL06SQ;
+  const pts=[[px,py]];
+  for(let i=1;i<=N;i++){
+    a+=turn/N*(.5+i/N)+(hash(sd+i*3.7)-.5)*.15;
+    px+=Math.cos(a)*step; py+=Math.sin(a)*step*PL06SQ;
+    pts.push([px,py]);
+  }
+  PL06SEG.push([ribbonPoly(pts,w,w*.15),w,pts]);
+  if(depth<=0)return;
+  // 갈래는 **둘이 기본**이다. 하나면 굽은 막대가 되고, 둘이라야 「갈라져 자란
+  // 것」이 된다. 마지막 세대만 하나로 떨어뜨려 끝이 뭉치지 않게 한다.
+  const nk=depth>1?2:(1+(hash(sd*5.3+1.9)<.52?1:0));
+  for(let k=0;k<nk;k++){
+    // 갈라지는 자리를 40~82% 로 흩는다. 일정하면 **생선가시**가 된다.
+    const f=.40+.42*hash(sd+k*7.1+11.3);
+    const idx=Math.max(1,Math.min(N,Math.round(f*N)));
+    const p=pts[idx],p0=pts[idx-1];
+    const ba=Math.atan2(p[1]-p0[1],p[0]-p0[0]);
+    const side=hash(sd+k*2.3+.7)<.5?-1:1;
+    PL06limb(p[0],p[1],ba+side*(.36+.48*hash(sd+k*9.7)),
+      len*(.40+.26*hash(sd+k*4.3)),
+      w*(.46+.20*hash(sd+k*6.7)),                       // ← 세대비. 1 을 못 넘는다
+      depth-1, sd*1.7+k*13.1+3.3);
+  }
+}
+
+/// 군락 하나. **덩이가 여럿**이라야 덤불이지, 한 점에서 방사하면 민들레가 된다.
+///
+/// ⚠️ 처음엔 덩이마다 주가지 3~6개를 `i/n*TAU` 로 **방사**시켰다가 버렸다
+/// (2026-08-11 눈 판정): 화면에 **거미**가 앉은 것으로 보였다 — 굵은 가지가
+/// 한 점에서 고르게 뻗고 그 위에만 볕 능선이 있으니 「다리 여섯 달린 별」이
+/// 된 것이다. 산호 군락은 **줄기에서 갈래를 쳐 올린 덤불**이라, 덩이마다
+/// 줄기를 한둘만 두고 갈래(PL06limb 의 재귀)로 부피를 만든다.
+function PL06colony(x,y,r,sd,depth,base){
+  const nq=4+Math.floor(hash(sd*3.7+1.3)*(depth>1?2.8:1.2));
+  for(let q=0;q<nq;q++){
+    const qa=hash(sd+q*5.3)*TAU, qd=r*(.10+.46*hash(sd+q*9.1));
+    const bx=x+Math.cos(qa)*qd, by=y+Math.sin(qa)*qd*PL06SQ;
+    // 밑동 굵기를 **반지름에 묶는다.** 고정 폭으로 두면 작은 군락에서 폭이
+    // 반지름을 넘어 도형이 뒤집힌다(`celHoop` 이 다섯 번 죽은 것과 같은 사고).
+    const w0=r*(.040+.022*hash(sd+q*7.1));
+    const n=1+(hash(sd+q*2.9)<.5?1:0);                  // 줄기 1~2
+    for(let i=0;i<n;i++){
+      const a=qa+(hash(sd+q*11.3+i*1.7)-.5)*2.0;        // 군락 바깥쪽으로 자란다
+      PL06limb(bx,by,a,r*(.30+.36*hash(sd+q*13.1+i*3.3)),
+        w0*(.80+.34*hash(sd+q*17.9+i*2.1)),depth,sd+q*23.3+i*4.7);
+    }
+    // 석회 기부 — 가지들의 좁아진 뿌리가 여기 묻힌다. 큰 군락에만 둔다
+    // (작은 것에 두면 개수만 늘고 화면에서는 2px 얼룩이다).
+    if(base)PL06BAS.push([bx,by,w0*1.35,sd+q*3.1]);
+  }
+}
+
+/// **볕 능선의 중심선.** 가지의 빛 쪽 면만 얇게 덮는다. 굽은 가지라 한 벡터로
+/// 밀면 안 되고, 점마다 법선을 구해 **빛 쪽**으로 폭에 비례해 민다.
+/// 폭이 끝으로 갈수록 줄므로 능선도 같이 좁아진다 — 그래야 볕도 뻗어 나간다.
+function PL06ridge(pts,w){
+  const o=[],n=pts.length;
+  for(let i=0;i<n;i++){
+    const p=pts[i],q=pts[i<n-1?i+1:i],b=pts[i?i-1:0];
+    let dx=q[0]-b[0],dy=q[1]-b[1];const d=Math.hypot(dx,dy)||1;dx/=d;dy/=d;
+    let nx=-dy,ny=dx;
+    if(nx*PL06LX+ny*PL06LY<0){nx=-nx;ny=-ny;}          // 언제나 빛 쪽
+    const ww=w*(1-i/(n-1)*.85)*.42;
+    o.push([p[0]+nx*ww,p[1]+ny*ww]);
+  }
+  return o;
+}
+
+/// 기반암 — 석회 바탕의 큰 얼룩. **중간 톤에 일부러 안 닿는다**(L .021~.048):
+/// 넓은 층이 중간 톤에 들어가면 평균 L 이 적(.102) 쪽으로 붙어 적이 묻힌다.
+/// 넓은 것은 어둡게, 중간 톤은 **좁은 것**이 맡는다.
+/// ⚠️ **알갱이를 여기 같이 굽는다.** 처음엔 공용 `mpGravel()` 을 다른 각으로
+/// 한 겹 더 붓칠했는데, 화면을 덮는 패턴 한 겹이 곧 **화면 하나치 래스터**다.
+/// 1px 점의 반복 주기는 눈이 못 세니 각을 달리할 이유가 없었다 — 굽는 판에
+/// 섞으면 그리기 한 번이 통째로 없어진다.
+const PL06bed=()=>mpTile("pl06bed",320,(c,S)=>{
+  c.fillStyle=PL06_BED0;c.fillRect(0,0,S,S);
+  for(let i=0;i<30;i++){
+    const x=hash(i*3.7)*S,y=hash(i*8.3)*S,r=24+hash(i*5.1)*66;
+    const up=hash(i*2.3)>.42;
+    mpWrap9(S,(dx,dy)=>{
+      const g=c.createRadialGradient(x+dx,y+dy,0,x+dx,y+dy,r);
+      g.addColorStop(0,up?A(PL06_BED1,.78):"rgba(0,0,0,.42)");
+      g.addColorStop(1,up?A(PL06_BED1,0):"rgba(0,0,0,0)");
+      c.fillStyle=g;c.beginPath();c.arc(x+dx,y+dy,r,0,TAU);c.fill();});
+  }
+  for(let i=0;i<300;i++){                      // 알갱이 — 고주파(디더 겸)
+    const x=hash(i*2.7+9.1)*S,y=hash(i*6.1+3.3)*S,r=.55+hash(i*8.9)*1.5;
+    c.fillStyle=A("#B0B8C8",.024+hash(i*4.4)*.042);
+    mpWrap9(S,(dx,dy)=>{c.beginPath();c.arc(x+dx,y+dy,r,0,TAU);c.fill();});
+  }
+});
+
+/// 눌러앉은 화석 포장 — **지면 자체가 가지다.**
+/// 서 있는 군락과 갈리는 점은 **그림자가 없다는 것**이다: 닳아 평평해진 것이라
+/// 높이가 없다. 그래서 이 층의 입체는 **방향이 없다** — 자국 한가운데에 한 단
+/// 밝은 등(PL06_MATC)을 넣어 「둥근 관」으로만 읽히게 한다.
+/// ⚠️ 방향 있는 명암(한쪽 볕·반대쪽 그림자)을 구우면 **타일을 돌리는 순간
+/// 빛의 방향이 같이 돈다.** 두 장을 다른 각으로 겹치는 이 안에서는 그 순간
+/// 화면에 광원이 셋이 된다. 포장이 방향을 안 갖는 것은 그래서다.
+///
+/// 반 넘게는 **묻힌 자국**(PL06_MATD · L .035)이다. 촘촘한 포장과 중간 톤 상한을
+/// 동시에 지키는 유일한 길이다 — 한 톤으로 깔면 둘 중 하나를 반드시 버린다.
+const PL06matTile=(key,S,sd,cnt,scl)=>mpTile(key,S,(c)=>{
+  for(let i=0;i<cnt;i++){
+    const x=hash(sd+i*3.11)*S,y=hash(sd+i*5.73)*S;
+    const a0=hash(sd+i*7.31)*TAU;
+    // ⚠️ 자국의 **가로세로비가 정체를 정한다.** 처음엔 길이 26 · 반폭 3
+    //    (비 7:1)이었는데 화면에서 **잔털**로 보였다(2026-08-11 눈 판정 두 번).
+    //    `ribbonPoly` 는 폭이 끝으로 줄고 종형까지 먹어 **평균 폭이 반폭의
+    //    0.84배**라, 반폭 3 은 화면에서 2.5px 짜리 실이다. 포장은 실이 아니라
+    //    **덩이**라야 한다 — 길이 10~28 · 반폭 4.0~7.0 으로 비를 4:1 로 낮춘다.
+    const ln=(10+hash(sd+i*9.71)*18)*scl, w=(4.0+hash(sd+i*11.3)*3.0)*scl;
+    // 알파를 .84 아래로 안 내린다 — 그 아래는 중간 톤에 도달을 안 해서
+    // 「개수만 늘리는 티끌 층」이 된다(자기막의 실패를 그대로 밟게 된다).
+    const al=.84+.16*hash(sd+i*13.7);
+    const lit=hash(sd+i*23.9)>.32;                       // 드러난 것 68%
+    const M=ln+w*2+3;
+    const one=(dx,dy)=>{
+      const N=3,st=ln/N,P=[];let a=a0,px=x+dx,py=y+dy;
+      P.push([px,py]);
+      for(let k=1;k<=N;k++){a+=(hash(sd+i*2.3+k*1.9)-.5)*.50;
+        px+=Math.cos(a)*st;py+=Math.sin(a)*st;P.push([px,py]);}
+      fillPoly(c,ribbonPoly(P,w,w*.15),A(lit?PL06_MAT:PL06_MATD,al));
+      if(lit)fillPoly(c,ribbonPoly(P,w*.44,w*.08),A(PL06_MATC,al*.84));  // 관의 등
+      // 갈래 — 막대기만 깔면 「생선가시」가 된다. 화석도 가지라야 한다.
+      for(let f=0;f<2;f++){
+        const j=1+f,b=P[j];
+        if(!b)break;
+        let ab=Math.atan2(P[j][1]-P[j-1][1],P[j][0]-P[j-1][0])
+               +(hash(sd+i*17.3+f*5.1)<.5?-1:1)*(.45+.45*hash(sd+i*19.1+f*3.7));
+        const Q=[[b[0],b[1]]];let qx=b[0],qy=b[1];
+        const nn=2+f;
+        for(let k=1;k<=nn;k++){ab+=(hash(sd+i*4.7+k*2.1+f)-.5)*.44;
+          qx+=Math.cos(ab)*st*.80;qy+=Math.sin(ab)*st*.80;Q.push([qx,qy]);}
+        fillPoly(c,ribbonPoly(Q,w*(.60-f*.16),w*.10),A(lit?PL06_MAT:PL06_MATD,al*.94));
+      }
+    };
+    // 가장자리에 걸친 것만 3×3 으로 감는다 — 안쪽 것까지 아홉 번 그리면
+    // 굽는 비용이 아홉 배인데 그림은 똑같다.
+    if(x<M||x>S-M||y<M||y>S-M)mpWrap9(S,one);else one(0,0);
+  }
+});
+const PL06matA=()=>PL06matTile("pl06matA",340,1.7,420,1);
+const PL06matB=()=>PL06matTile("pl06matB",284,58.3,235,.80);
+
+/// 먼지막 — 지면보다 빠르게 흐르는 **어두운** 얼룩. 시차를 밝기가 아니라
+/// 어둠으로 주므로 예산을 한 톨도 안 쓴다(잿바다·사구에서 얻은 규칙).
+const PL06veil=()=>mpTile("pl06veil",320,(c,S)=>{
+  for(let i=0;i<8;i++){
+    const x=hash(i*4.3+.7)*S,y=hash(i*8.1+.3)*S,r=46+hash(i*2.9)*58;
+    const a=(.038+hash(i*6.1)*.070).toFixed(3);
+    mpWrap9(S,(dx,dy)=>{
+      c.save();c.translate(x+dx,y+dy);c.scale(1.7,1);
+      const g=c.createRadialGradient(0,0,0,0,0,r);
+      g.addColorStop(0,A(PL06_DUST,a));g.addColorStop(1,A(PL06_DUST,0));
+      c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,TAU);c.fill();c.restore();});
+  }
+});
+
+MAPP.bg.coral=function PL06coral(c,t,W,H){
+  mapFloor(c,W,H);   // 공용 바닥 — 안 깔면 이 안만 옛 바탕(L .0497) 위에 그려져 뿌옇다
+  const cam=MAPP.cam(t),ox=cam[0],oy=cam[1];
+  // ⚠️ 패턴은 **화면에 클립하고 W·H 를 부풀려** 부른다. `mpPat` 의 사각형은
+  //    화면 좌표라 타일 위상(최대 −S)만큼 아래가 모자란다(S > H*.6 이면 구멍).
+  //    부풀린 만큼 그리는 화소가 늘지 않게 클립이 막아 준다.
+  const W2=W+360,H2=H+360;
+  c.save();c.beginPath();c.rect(0,0,W,H);c.clip();
+
+  // ── ① 기반암 · 화석 포장 — 굽고 붓칠한다(프레임당 fillRect 셋) ─────────
+  mpPat(c,PL06bed(),W2,H2,ox,oy,0);             // 기반암 + 알갱이(한 판에 구웠다)
+  mpPat(c,PL06matA(),W2,H2,ox,oy,.3403);        // 19.5°
+  mpPat(c,PL06matB(),W2,H2,ox,oy,-.7906);       // -45.3°
+
+  // ── ② 골(모래 수로) — **빼기만** 하는 큰 구조 ─────────────────────────
+  const gcs=Math.cos(PL06GTH),gsn=Math.sin(PL06GTH);
+  const cu=ox*gcs+oy*gsn, cv=-ox*gsn+oy*gcs;
+  const Du=(Math.abs(W*gcs)+Math.abs(H*gsn))/2+40;
+  const Dv=(Math.abs(W*gsn)+Math.abs(H*gcs))/2+80;
+  c.save();c.translate(W/2,H/2);c.rotate(PL06GTH);
+  const k0=Math.floor((cv-Dv)/PL06GLV),k1=Math.floor((cv+Dv)/PL06GLV);
+  for(let k=k0;k<=k1;k++){
+    const gw=PL06gw(k)*PL06GLV*.5, base=(k+PL06gc(k))*PL06GLV-cv;
+    // ⚠️ **폴리라인을 화면의 세 배로 뽑는다.** `ribbonPoly` 는 양 끝을 0 으로
+    //    좁히는 종형이라(점 **번호** 기준), 화면 폭에 딱 맞춰 뽑으면 골이
+    //    화면 가장자리에서 27% 가늘어져 「렌즈로 본 줄무늬」가 된다. 화면은
+    //    가운데 1/3 만 쓰고 그 구간의 종형 계수는 .96~1.00 이다.
+    //    간격은 110px 로 고정 — 굽이의 짧은 주기(495px)를 4.5점으로 뜬다.
+    const P=[],SPAN=Du*3.2,NP=Math.max(12,Math.ceil(SPAN*2/110));
+    for(let i=0;i<=NP;i++){
+      const u=-SPAN+i/NP*SPAN*2;
+      P.push([u,base+PL06gwob(u+cu)]);
+    }
+    // 두 겹 — 가장자리를 한 단 흐려야 「칠한 줄무늬」가 아니라 「파인 수로」다
+    fillPoly(c,ribbonPoly(P,gw*1.22,gw*1.22),PL06A_SAND2);
+    fillPoly(c,ribbonPoly(P,gw,gw*.86),PL06A_SAND);
+  }
+  c.restore();
+
+  // ── ③ 화면 한 장 분량의 가지를 **모은다** ──────────────────────────────
+  PL06SEG.length=0;PL06BAS.length=0;PL06FOT.length=0;
+  // ⚠️ **큰 것 몇 개 > 중간 것 여럿.** 처음엔 반지름 64~116 짜리를 열대여섯
+  //    개 뿌렸는데 화면에서 **군락이 안 보였다**(2026-08-11 눈 판정 두 번) —
+  //    포장과 크기가 비슷하니 「무늬가 조금 진한 자리」로 묻힌 것이다. 같은
+  //    가지 예산을 **덩치**에 몰아 반지름 82~140 짜리 대여섯 개로 바꿨다.
+  //    지형지물은 개수가 아니라 **하나가 화면에서 차지하는 크기**로 산다.
+  scatter(ox,oy,W,H,PL06CELL,1,(x,y,i,j,r)=>{
+    if(r>.42)return;                                    // 면적 상한 = 비용 상한
+    const R=82+h2(i,j,7.7)*58;
+    if(x<-R*1.5||x>W+R*1.5||y<-R*1.5||y>H+R*1.5)return;
+    // **골에서는 안 자란다** — 구조가 인과로 읽히는 자리.
+    if(PL06inG(x-W/2+ox,y-H/2+oy)>.30)return;
+    PL06FOT.push([x,y,R*.86,i*3.1+j*5.7]);
+    PL06colony(x,y,R,i*37.1+j*71.3+11.7,2,1);
+  });
+  // 부스러기 — 부러져 굴러다니는 가지 한 토막. 붙박이(포장)와 서 있는 것(군락)
+  // 사이를 잇는다. 이건 **골 안에도 있다** — 부러진 것은 굴러 들어가니까.
+  scatter(ox,oy,W,H,PL06CELLR,0,(x,y,i,j,r)=>{
+    if(r>.38)return;
+    PL06limb(x,y,h2(i,j,5.9)*TAU,10+h2(i,j,8.1)*16,.80+h2(i,j,2.7)*1.25,0,
+      i*7.3+j*11.9+2.3);
+  });
+
+  // ── ④ 세 패스로 가른다 ────────────────────────────────────────────────
+  // ⚠️ 군락마다 그림자→몸통→볕을 이어 칠하면 **다음 군락의 그림자가 앞 군락의
+  //    볕을 덮는다.** 자기막이 그렇게 0.2% 를 잃었고 세 패스로 가르니 0.68%
+  //    가 됐다(칠 횟수·면적 그대로). 그림자는 전부 먼저, 볕은 전부 나중이다.
+  let k,s,b,d;
+  // 군락이 지면에 지는 그늘 — 덤불 하나에 **한 번**. 이게 없으면 군락이
+  // 포장과 같은 평면에 놓여 「바닥에 그린 무늬」로 보인다(2026-08-11 눈 판정:
+  // 서 있는 것과 깔린 것이 안 갈렸다). 빛 반대쪽으로 반지름의 22% 밀어 둔다.
+  // ⚠️ 알파를 .42 로 뒀더니 이번엔 **둥근 구덩이**로 보였다(같은 날 다음 렌더).
+  //    덤불이 지는 그늘은 「구멍」이 아니라 「조금 어두운 자리」라 .20 이 맞다.
+  for(k=0;k<PL06FOT.length;k++){b=PL06FOT[k];
+    fillPoly(c,puffPoly(b[0]-PL06LX*b[2]*.22,b[1]-PL06LY*b[2]*.22,b[2],8,b[3],PL06SQ),
+      PL06A_FOOT);}
+  for(k=0;k<PL06BAS.length;k++){b=PL06BAS[k];
+    fillPoly(c,puffPoly(b[0]-PL06LX*b[2]*.50,b[1]-PL06LY*b[2]*.50,b[2]*1.06,4,b[3],PL06SQ),
+      PL06A_SHADE2);}
+  for(k=0;k<PL06SEG.length;k++){s=PL06SEG[k];
+    if(s[1]<PL06WSH)continue;                           // 잔가지는 그림자를 안 진다
+    d=s[1]*1.75;
+    // 같은 다각형을 **밀어서** 쓴다 — 그림자용 점 배열을 새로 만들지 않는다.
+    c.save();c.translate(-PL06LX*d,-PL06LY*d);
+    fillPoly(c,s[0],PL06A_SHADE);c.restore();}
+  for(k=0;k<PL06BAS.length;k++){b=PL06BAS[k];
+    fillPoly(c,puffPoly(b[0],b[1],b[2],4,b[3],PL06SQ),PL06A_BASE);}
+  for(k=0;k<PL06SEG.length;k++){s=PL06SEG[k];
+    // 잔가지는 **한 번에** 칠한다. 1px 짜리에 볕 능선을 얹어 봐야 0.4px 라
+    // 화면에 도달을 안 하고 그리기 횟수만 는다 — 대신 한 단 밝은 색으로
+    // 통째로 칠하면 같은 면적이 중간 톤에 **닿는다**.
+    fillPoly(c,s[0],s[1]<PL06WTH?PL06A_TWIG:PL06A_BODY);}
+  for(k=0;k<PL06BAS.length;k++){b=PL06BAS[k];
+    fillPoly(c,puffPoly(b[0]+PL06LX*b[2]*.30,b[1]+PL06LY*b[2]*.30,b[2]*.50,4,b[3]+1.7,PL06SQ),
+      PL06A_LIT2);}
+  for(k=0;k<PL06SEG.length;k++){s=PL06SEG[k];
+    if(s[1]<PL06WRG)continue;
+    fillPoly(c,ribbonPoly(PL06ridge(s[2],s[1]),s[1]*.40,s[1]*.06),PL06A_LIT);}
+
+  // ── ⑤ 먼지막 — 1.28배로 흐른다. **빼기만** 한다 ────────────────────────
+  mpPat(c,PL06veil(),W2,H2,ox*1.28+t*11,oy*1.28+t*4,.21);
+  c.restore();
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+/// 최악 대비 증거 — 파문(mPulse · 바깥층 L .181)을 산호초 위에 얹는다.
+function PL06proof(c,t,dt,W,H,st){MAPP.bg.coral(c,t,W,H);mapOver(c,t,dt,W,H,st,"pulse");}
+/// 실측 — 페이지가 스스로 잰다(배경만 그린 캔버스를 한 번 읽는다).
+function PL06num(c,t,dt,W,H,st){MAPP.bg.coral(c,t,W,H);mapMeter(c,t,W,H,st);}
+/// 적 8마리 — 「묻히나」는 말이 아니라 겹쳐 놓고 봐야 한다. 기본형(grunt)은
+/// 부속지가 하나도 없어 실루엣이 제일 단순하다 = **제일 불리한 표본**이다.
+function PL06foes(c,t,dt,W,H,st){
+  MAPP.bg.coral(c,t,W,H);
+  const px=W*.5,py=H*.5;
+  for(let i=0;i<8;i++){
+    const a=i/8*TAU+.31, R=(i%2?.30:.41);
+    const x=px+Math.cos(a+t*.16)*W*R, y=py+Math.sin(a+t*.16)*H*R*.86;
+    FOEART.grunt(c,x,y,19,Math.atan2(py-y,px-x),t+i);
+    foeEyes(c,x,y,19,1,px,py,.17);
+  }
+}
+mapTile("pl06",MAPP.demo("coral",1,1),"PL06 · 산호초 珊瑚礁 + 빛파동 + 미니맵",
+  "한때 살아 있던 것이 지형이다. 파도 방향으로 난 골(모래 수로)과 그 사이 둔덕 — 둔덕은 닳아 평평해진 화석 가지의 포장이고 그 위에 군락이 서 있다. 광원 0개(가산 합성 0회 · L>.35 0.000%)라 밝은 것은 전부 빗겨 든 빛을 받은 면이고, 그 옆에는 늘 같은 방향의 그림자가 눕는다.",
+  MAP_W,MAP_H,1);
+mapTile("pl06",PL06foes,"산호초 + 적 8마리",
+  "적 몸 L .102 위로 올라가는 화소는 화면의 0.02~0.90% 뿐이고(잔가지 .118 · 볕 능선 .142) 전부 폭 1~3px 짜리 실선이라 40px 실루엣을 못 덮는다. 적은 그 위에 L .542 짜리 테를 두른다.",
+  MAP_W,MAP_H,1);
+mapTile("pl-bg",MAPP.demo("coral",0,0),"산호초 · 배경만","대비 판정용 — 이펙트를 뺐다.",MAP_S,MAP_S);
+mapTile("pl-proof",PL06proof,"산호초 위에서","파문 — 바깥층 L .181, 얇은 고리.",MAP_S,MAP_S);
+mapTile("pl-mini",MAPP.demo("coral",0,1),"산호초 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
+mapTile("pl-num",PL06num,"산호초 · 밝기 실측",
+  "중간 톤(L .05~.15) 15~30% · 평균 L ≤ .075 · 봉우리 ≤ .17 · L>.35 ≤ 0.5%.",MAP_S,MAP_S);

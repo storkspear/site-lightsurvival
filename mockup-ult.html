@@ -1,165 +1,30 @@
-<title>라서 — 셀 VFX 시안</title>
-<style>
-  :root{--ground:#0A0A0E;--panel:#13131A;--edge:#26262F;--ink:#EDEDF2;--dim:#9494A2;--faint:#5A5A68;
-    --gold:#FFD27A;--amber:#FF8A3D}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--ground);color:var(--ink);
-    font-family:"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
-    -webkit-font-smoothing:antialiased;line-height:1.6}
-  .wrap{max-width:1600px;margin:0 auto;padding:44px 20px 90px}
-  /* 목차 — 섹션이 열두 개라 스크롤만으로는 못 찾는다 */
-  nav.toc{position:sticky;top:0;z-index:20;background:rgba(10,10,14,.94);
-    backdrop-filter:blur(10px);border-bottom:1px solid var(--edge);
-    margin:0 0 28px;padding:10px 0;display:flex;gap:6px;flex-wrap:wrap}
-  nav.toc a{font-size:11.5px;letter-spacing:.02em;color:var(--dim);text-decoration:none;
-    padding:5px 10px;border:1px solid transparent;border-radius:99px;white-space:nowrap}
-  nav.toc a:hover{color:var(--ink);border-color:var(--edge);background:#16161E}
-  h2{scroll-margin-top:64px}
-  header{border-bottom:1px solid var(--edge);padding-bottom:34px;margin-bottom:56px}
-  .kicker{font-size:11px;letter-spacing:.36em;text-transform:uppercase;color:var(--amber);margin:0 0 14px}
-  h1{font-size:clamp(31px,5vw,50px);line-height:1.05;margin:0 0 16px;font-weight:600;letter-spacing:-.025em;text-wrap:balance}
-  .lede{color:var(--dim);max-width:66ch;margin:0;font-size:15px}
-  .lede b{color:var(--ink);font-weight:600}
-  h2{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--amber);margin:44px 0 5px;font-weight:600}
-  .sub{color:var(--dim);font-size:13px;margin:0 0 14px;max-width:70ch}
-  body.bare .sub,body.bare .note,body.bare .cmp,body.bare .warn,body.bare header .lede{display:none}
-  /* ⚠️ grid-template-columns 가 아티팩트 호스트에서 안 먹어 한 열로 떨어졌다.
-     (display:grid 는 먹는데 템플릿만 무시돼 기본 1열이 된다.)
-     그래서 **그리드를 안 쓴다** — flex + 고정폭이면 어디서든 줄바꿈이 확정된다. */
-  .grid,.voc{display:flex;flex-wrap:wrap;gap:9px;align-items:flex-start;margin-top:6px}
-  .grid>.tile,.voc>.v{width:150px;flex:0 0 150px}
-  .grid.wide{display:block}
-  .grid.wide>.tile{width:100%;flex:none}
-  .tile{background:var(--panel);border:1px solid var(--edge);border-radius:4px;overflow:hidden;display:flex;flex-direction:column}
-  .tile canvas{width:100%;height:auto;display:block;background:#0C0C12}
-  .cap{padding:7px 9px 8px;border-top:1px solid var(--edge)}
-  .cap .nm{font-size:12.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cap .nm span{display:none}
-  .cap .ds{font-size:10px;color:var(--dim);margin-top:2px;line-height:1.4;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  body.bare .cap .ds{display:none}
-  .voc{margin-top:6px}
-  .voc .v{background:var(--panel);border:1px solid var(--edge);border-radius:4px;overflow:hidden}
-  .voc canvas{width:100%;height:auto;display:block;background:#0C0C12}
-  .voc .vl{padding:7px 9px 8px;font-size:10px;color:var(--dim);line-height:1.4;
-    border-top:1px solid var(--edge);display:-webkit-box;-webkit-line-clamp:2;
-    -webkit-box-orient:vertical;overflow:hidden}
-  .voc .vl b{font-size:12.5px}
-  body.bare .voc .vl{-webkit-line-clamp:1}
-  .voc .vl b{display:block;color:var(--ink);font-size:12.5px;font-weight:600;margin-bottom:1px}
-  .note{border-left:2px solid var(--amber);padding:2px 0 2px 16px;color:var(--dim);font-size:13.5px;margin:26px 0 0;max-width:70ch}
-  .note b{color:var(--ink);font-weight:600}
-  .stage{background:#0C0C12;border:1px solid var(--edge);border-radius:4px;padding:40px 22px;
-         display:flex;flex-direction:column;align-items:center;gap:24px;position:relative;overflow:hidden}
-  .lvup{text-align:center}
-  .lvup .big{font-size:25px;font-weight:600;letter-spacing:.2em;color:var(--gold)}
-  .lvup .cnt{font-size:11px;letter-spacing:.26em;color:var(--faint);margin-top:6px}
-  .cards{display:flex;flex-wrap:wrap;gap:14px;width:100%;max-width:700px;justify-content:center}
-  .cards>.card{width:210px;flex:0 0 210px}
-  .card{background:linear-gradient(180deg,#1A1A24,#101018);border:1px solid var(--edge);border-radius:4px;
-        padding:17px 14px 15px;display:flex;flex-direction:column;align-items:center;gap:11px;text-align:center;position:relative}
-  .card.pick{border-color:var(--amber);box-shadow:0 0 0 1px rgba(255,138,61,.3),0 0 44px -12px rgba(255,138,61,.8)}
-  .card .slot{position:absolute;top:9px;right:10px;font-size:9px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase}
-  .card canvas{border-radius:50%;background:#0C0C12;border:1px solid #262630}
-  .card .t{font-size:15.5px;font-weight:600}
-  .card .lv{font-size:10.5px;letter-spacing:.2em;color:var(--amber)}
-  .card .d{font-size:11.5px;color:var(--dim);line-height:1.5;min-height:3em}
-  .card .tag{font-size:10px;letter-spacing:.1em;color:var(--faint);border-top:1px solid var(--edge);padding-top:8px;width:100%}
-  .hud{background:#0C0C12;border:1px solid var(--edge);border-radius:4px;padding:20px}
-  .hudbar{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
-  .rack .rl{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
-  .slots{display:flex;gap:6px}
-  .sl{width:46px;height:46px;border-radius:4px;background:#0C0C12;border:1px solid #262630;position:relative}
-  .sl.empty{border-style:dashed;border-color:#1E1E26}
-  .sl .l{position:absolute;bottom:-1px;right:2px;font-size:9px;color:var(--gold);font-weight:600;text-shadow:0 0 4px #000}
-  .hudtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--edge)}
-  .hudtop .lv{font-size:19px;font-weight:600;color:var(--gold)}
-  .hudtop .tm{font-size:19px;font-weight:600;letter-spacing:.1em;font-variant-numeric:tabular-nums}
-  .xpbar{height:3px;background:#1E1E26;border-radius:2px;overflow:hidden;margin-top:14px}
-  .xpbar i{display:block;height:100%;width:46%;background:linear-gradient(90deg,var(--amber),var(--gold))}
-  .warn{background:#17111A;border:1px solid #3A2233;border-radius:4px;padding:18px 20px;margin-top:8px}
-  .warn h3{margin:0 0 8px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
-  .warn p{margin:0 0 8px;font-size:13px;color:var(--dim);line-height:1.6}
-  .warn p:last-child{margin:0}
-  .warn b{color:var(--ink);font-weight:600}
-  .big1{grid-column:1/-1}
-  @media(max-width:760px){.cards>.card{width:100%;flex:1 1 100%}}
-</style>
+<meta charset="utf-8">
+<!-- ⚠️ 이게 없으면 폰이 980px 로 렌더한 뒤 축소한다 — `max-width` 질의가
+     한 번도 안 걸려 반응형이 통째로 죽는다(16장 전부 빠져 있었다). -->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Light Survival — 셀 VFX 시안</title>
+<link rel="stylesheet" href="vfx.css">
 
 <div class="wrap">
 <nav class="toc">
-  <span style="color:#9494A2;margin-right:6px">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본 공격</a><a href="mockup-mani.html">발현</a><a href="mockup-manic.html">발현 전용기</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html">저주</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html" style="color:var(--gold);font-weight:700">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-etc.html">그 외</a><a href="mockup-map2.html">행성 맵</a><a href="mockup-lobby.html">로비</a><a href="mockup-map.html">우주 맵</a>
-  <span style="color:#26262F;margin:0 8px">|</span><a href="#s-ult">궁극기</a><a href="#s-levelsu">레벨 성장표</a><a href="#s-ulticon">아이콘</a>
-  <a href="#" id="bare" style="margin-left:auto;color:var(--amber)">설명 접기</a>
+  <div class="nav1"><span class="lbl">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본·발현</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html">저주</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html" class="cur">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-foes.html">우주괴물</a><a href="mockup-ui.html">인터페이스</a><a href="mockup-map.html">심우주 유니버스</a><a href="mockup-map2.html">행성 유니버스</a><a href="mockup-lobby.html">로비</a><a href="mockup-flow.html">흐름·타이틀</a></div>
+  <div class="nav2"><span class="lbl">이 페이지</span><a href="#s-ult">궁극기</a><a href="#s-levelsu">레벨 성장표</a><a href="#s-ulticon">아이콘</a><a href="#" id="bare" class="bare">설명 접기</a></div>
 </nav>
 <header>
   <p class="kicker">Light Survival · 셀 VFX 시안</p>
   <h1>궁극기 — 발현의 개막</h1>
-  <p class="lede">주기로 도는 스킬과 발동 방식이 다릅니다. <b>발현 게이지가 100 이 되는
-  한 사건</b>이 전역 즉발과 15초 발현창을 동시에 낳습니다 — 한 종, 몸에 붙고, 거리를 안 봅니다.</p>
+  
 </header>
 <h2 id="s-ult">궁극기</h2>
-<p class="sub"><b>개안 한 종입니다.</b> 충전원은 <b>발현 게이지 그대로</b> —
-게이지가 100 이 되는 <b>한 사건</b>이 궁극기(전역 즉발)와 발현창(15초 몸 상태)을
-<b>동시에</b> 낳습니다. 자원을 둘로 나누는 것이 아니라 한 번 쓰는 것에 두 얼굴을
-줍니다. 아래 셋은 다른 궁극기가 아니라 <b>개안의 논거를 하나씩 떼어 그린 칸</b>입니다.</p>
+
 <div class="grid" id="ult"></div>
 
-<div class="warn">
-  <h3>모순 하나를 먼저 풀었습니다</h3>
-  <p>문서 두 곳이 <b>같은 자원을 두 곳에 쓰고</b> 있었습니다. 하나가 자동으로 다 쓰면
-  다른 하나는 영영 안 찹니다.</p>
-  <p>① <code>FX.basicMani</code> 주석 — 「발현 게이지는 적 처치로 차고 <b>100 이면 즉시
-  자동 발동</b>(15초 유지 · 60초 잠금)」<br>
-  ② 배치표 — 「발현 게이지가 <b>개안(궁극기)의 충전원</b>이 될 자리」</p>
-  <p><b>(a) 별도 게이지 — 반려.</b> HUD 에 미터가 하나 더 늘고, 충전원 후보가 전부
-  나쁩니다. <b>피격</b>은 맞을수록 세지는 보상이라 「안 맞는 것이 실력」과 정반대로 서고,
-  <b>시간</b>은 게이지가 아니라 쿨다운이라 그 순간 궁극기가 <b>주기로 도는 스킬</b>이
-  됩니다. <b>보스 처치</b>는 판에 몇 번 없어 성장이 안 붙습니다.</p>
-  <p><b>(c) 수동으로 아껴 쓴다 — 반려.</b> <b>이 게임엔 버튼이 하나도 없습니다</b>
-  (조준·발사 전부 자동). 궁극기에만 버튼을 다는 것은 시안이 아니라 조작 설계 변경이고,
-  「한 손가락」이라는 전제를 깹니다.</p>
-  <p><b>(b) 채택 — 궁극기는 발현의 개막입니다.</b> 두 문서가 둘 다 참이 되고, 새 게이지도
-  새 버튼도 안 생깁니다. 측정치(15/60 → 가동률 14~18%)도 한 글자 안 건드립니다.</p>
-</div>
+<h2 id="s-levelsu">레벨 성장표</h2>
 
-<p class="note"><b>축 — 「센 스킬」과 갈리는 자리.</b> 물리 10 · 마법 7 · 방어 · 저주 ·
-회복은 전부 ⑴카드로 골라 슬롯에 꽂고 ⑵주기로 돌며 ⑶<b>반경</b>을 갖습니다. 궁극기는
-셋 다 아닙니다 — 고를 수 없고, 주기가 없고(판에 두세 번), <b>거리를 안 봅니다.</b>
-이 시안에서 화면 전체를 칠하는 것은 개안뿐입니다. 그리고 터진 뒤 <b>내 몸이 15초 동안
-다른 것</b>이 됩니다: 나머지 다섯은 무언가를 <b>내보내고</b>, 궁극기만 <b>나를 바꿉니다.</b></p>
-
-<p class="note"><b>층 — 발현(몸)에 붙습니다.</b> 각성은 무기의 말이고(L5 실루엣에 갈퀴),
-궁극기는 슬롯이 없어 실루엣을 세울 무기가 없습니다. 그래서 <b>L5 에 갈퀴를 세우지
-않습니다</b> — 세우는 순간 두 층이 같은 그림을 쓰게 됩니다.</p>
-
-<p class="note"><b>종수는 하나.</b> 15/60 이라 한 판에 두세 번 뜹니다. 다섯 종을 두면
-한 종을 판당 0.5회 보고, 그건 설계가 아니라 제비뽑기입니다. 게다가 궁극기는 <b>3택 카드에
-안 나오므로</b>(고르는 것이 아니라 몸에 붙어 있습니다) 플레이어가 종을 고를 손잡이 자체가
-없습니다 — 종이 여럿이면 「다른 이유로 고른 속성」이 궁극기를 대신 정하게 됩니다.
-변주는 이미 <b>발현창 안에 열여덟 벌</b> 있습니다(<a href="mockup-mani.html"
-style="color:var(--gold)">발현</a> 페이지) — 다양성은 창이 맡고 개막은 늘 같아야
-「그 사건」으로 읽힙니다.</p>
-
-<p class="note"><b>개안은 살립니다(갈아엎지 않습니다).</b> 실명·전역 밝힘 둘 다 축과
-정확히 맞습니다 — 눈을 뜨는 것이 궁극기이고 그 대가로 남이 눈을 잃습니다. 실명은 이미
-확정 어휘라 새 상태도 안 만듭니다. 대신 <b>격을 올렸습니다</b>: 예전 개안은
-<code>saw(t, 2.0~2.6)</code> 로 <b>주기로 도는 스킬</b>이었고 그 자체가 위 축과
-모순이었습니다. 이제 눈은 이펙트가 아니라 <b>게이지 그 자체</b>입니다 — 그려져 들어오는
-동안이 충전, 다 그려지면 개안, 떠 있는 동안이 발현창, 감기면 잠금입니다.</p>
-
-<h2 id="s-levelsu">레벨 성장표 — 궁극기</h2>
-<p class="sub">L1~L5. 성장축은 <b>눈의 개수</b>입니다 — 크기로 두면 칸마다 자가 달라
-다섯을 나란히 놓아도 안 갈리는데, 개수는 어디서 봐도 갈립니다.
-<br>⚠️ 예전 넷 중 둘이 <b>화면에 없는 숫자</b>였습니다(「쿨다운 −25%」·「피해 +80%」).
-이 표는 칸마다 전역 <code>LV</code> 만 바꿔 <b>같은 함수</b>를 부르는 계약이라, 안 보이는
-것을 적으면 표가 거짓말을 합니다. 그리고 <b>실명은 L3 특전에서 L1 기본으로 내렸습니다</b> —
-눈을 뜨면 남이 눈을 잃는 것이 궁극기의 정체지 레벨 보상이 아닙니다.</p>
 <div id="levelsu"></div>
 
-<h2 id="s-ulticon">아이콘 — 궁극기</h2>
-<p class="sub">3택 카드와 장비 랙에 쓰는 작은 문양입니다. 110px 에서 <b>실루엣만으로</b>
-구별돼야 합니다.</p>
+<h2 id="s-ulticon">아이콘</h2>
+
 <div class="grid" id="ulticon"></div>
 </div>
 <!-- ⚠️ file:// 에서 브라우저가 vfx.js 를 세게 캐시한다. 시안을 고쳐도 새로고침에
