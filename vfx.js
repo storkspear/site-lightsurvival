@@ -13514,7 +13514,7 @@ const ELEMS=[
 ["preShade","어둠 影 · 발현 전","SHADE","코어만 물든다 — 어둠은 여기서도 어둡다"],
 ["shade","어둠 影 · 발현","SHADE","먹는 둘레 + 안에서 자기를 복제하는 코어"],
 ["whiteBase","백광 白光 — 발현 전","WHITE","다섯을 다 거친 최종. 그물 위에 다섯 종의 알갱이가 맺힌다"],
-["whiteMani","백광 白光 — 발현","WHITE","아직 안 골랐습니다"],
+["whiteMani","백광 白光 — 발현","WHITE","발현 중의 백광"],
 ];
 // 변신은 속성이 아니라 **전환의 연출**이다 — 자기 섹션으로 뺀다(2026-08-10).
 const MORPHS=[["morph","변신 — 속성을 얻는 순간","MORPH",
@@ -13667,7 +13667,7 @@ if($("basicmani")){const BM=$("basicmani");asRow(BM,TILE_W);
       `<div class="cap" style="padding:8px 10px 9px;border-top:1px solid #26262F">`+
       `<div style="font-size:13.5px;font-weight:600;color:#EDEDF2">${nm}</div>`+
       `<div style="font-size:11px;color:#FFB43C;margin-top:3px;line-height:1.45">${
-        (MANIDESC[k]||"— 미정").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}</div></div>`);
+        (MANIDESC[k]||"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}</div></div>`);
     BM.appendChild(d);
     mk(cv,[420,420],(c,t,dt,W,H,st)=>{const sr=RECOLOR,sl=LV;RECOLOR=k;LV=3;
       try{FX.basicMani(c,t,dt,W,H,st);}finally{RECOLOR=sr;LV=sl;}});});}
@@ -13762,6 +13762,8 @@ if($("manicpick")){const MP=$("manicpick");
 // ⚠️ 전용기는 **셋**(회귀·경계·정지)인데 칸은 하나다. 하나를 골라 박으면 나머지
 // 둘이 시안에서 사라지므로 **번갈아 돈다**(5초씩). 어느 속성 칸에서 보든 셋이
 // 다 지나가고, 라벨이 지금 무엇인지 같이 바뀐다.
+const FUSEK=new Set(["aqua","blast","smoke","fstorm","magnet",
+  "plague","snow","numb","thunder","murk"]);
 if($("elem3")){const E3=$("elem3");
   E3.classList.add("lvset");
   E3.style.setProperty("--block","420px");
@@ -13796,11 +13798,23 @@ if($("elem3")){const E3=$("elem3");
         }finally{RECOLOR=sr;LV=sl;}});});
     blk.appendChild(cells);E3.appendChild(blk);});}
 
-if($("basicelem")){const BE=$("basicelem");asRow(BE,TILE_W);
+// 속성의 층이 다섯이다(2026-08-12 사용자 확정):
+//   **기본**  무속성 — 속성이 없는 상태. 위 「기본 공격」 절이 그것이라 여기선 뺀다
+//   **단일**  염·빙·뇌·풍·독 다섯
+//   **특수**  암흑 — **다른 것과 융화가 안 된다**
+//   **융화**  단일 다섯 중 둘을 고른 조합 열(5C2)
+//   **최고**  광 — 다섯을 다 합쳤을 때 새로 변하는 것
+// 한 줄에 늘어놓으면 이 층이 안 보이므로 절을 가른다.
+// 광(백광)은 **다섯이 전부 융화된 최고 단계**라 융화 격자에 같이 둔다.
+// 무속성은 위 「기본 공격」 절이 그것이라 여기선 뺀다.
+const TOPK=new Set(["white"]), SKIPK=new Set(["gold"]);
+if($("basicelem")){const BE=$("basicelem"),BEF=$("basicelemf");
+  asRow(BE,TILE_W);if(BEF)asRow(BEF,TILE_W);
   // 기본 공격은 **캐릭터가 될 수 있는 상태 전부**를 따라간다 — 여섯 속성만
   // 두면 어둠·백광·융화로 간 판에서 이 총알이 무슨 색인지 시안에 답이 없다.
   // 순서는 캐릭터 페이지와 같게: 무속성 → 여섯 속성 → 융화 열 → 백광.
   BASICELEMS.forEach(([k,nm])=>{
+    if(SKIPK.has(k))return;   // 무속성 = 기본 공격 절
     // **한 줄에 넷.** 여기에 곧 속성별 패시브(점화·감속·연쇄 같은 것)를
     // 얹을 자리라, 150px 칸에서는 총알과 패시브가 겹쳐 아무것도 안 읽힌다.
     // 칸을 네 배 가까이 키우고 캔버스 해상도도 같이 올린다(작은 칸에 큰
@@ -13814,7 +13828,7 @@ if($("basicelem")){const BE=$("basicelem");asRow(BE,TILE_W);
       `<div style="font-size:13.5px;font-weight:600;color:#EDEDF2">${nm}</div>`+
       `<div style="font-size:11px;color:#FFB43C;margin-top:3px;font-weight:600">${
         PVNAME[PASSIVE[k]]||"— 패시브 없음"}</div></div>`);
-    BE.appendChild(d);
+    (((FUSEK.has(k)||TOPK.has(k))&&BEF)?BEF:BE).appendChild(d);
     mk(cv,[420,420],(c,t,dt,W,H,st)=>{const sr=RECOLOR,sl=LV;RECOLOR=k;LV=3;
       try{FX.basic(c,t,dt,W,H,st);}finally{RECOLOR=sr;LV=sl;}});});}
 
@@ -13862,10 +13876,10 @@ const fvCell=(host,el,vi,tag,col)=>{
     `<div style="font-size:11.5px;font-weight:600;color:#EDEDF2;white-space:nowrap;`+
     `overflow:hidden;text-overflow:ellipsis">${FVNAME[el]}</div>`+
     `<div style="font-size:10px;font-weight:700;color:${col};margin-top:2px">`+
-    `${tag}${ok?" · "+(vi+1)+"안":" · 미정"}</div>`+
+    `${tag}</div>`+
     `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
     `display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">`+
-    `${ok?FVSET[el][vi][0]:"아직 안 골랐습니다"}</div>`+
+    `${ok?FVSET[el][vi][0]:""}</div>`+
     // 시너지 — **이 융화가 무엇을 세게 만드는가.** 그림 옆에 붙어야 「모으면
     // 세진다」가 고를 때 보인다. 표에 없는 칸(무속성·백광)은 아예 안 그린다.
     (FVSYN[el]?`<div style="font-size:10px;color:#FFB43C;margin-top:4px;`+
@@ -13879,9 +13893,6 @@ const fvCell=(host,el,vi,tag,col)=>{
   else box(d,{opacity:".38"});};
 { // ── 확정 ────────────────────────────────────────────────────────────
   const sec=document.createElement("div");
-  sec.insertAdjacentHTML("beforeend",
-    `<div style="font-size:13px;font-weight:600;color:#7CFFB0;margin-bottom:7px">`+
-    `✅ 확정 — 융화마다 <b>기본</b>과 <b>발현</b> 두 벌</div>`);
   const row=document.createElement("div");asRow(row,TILE_W);
   Object.keys(FVNAME).forEach(el=>{
     const f=FVFIX[el]||{};
