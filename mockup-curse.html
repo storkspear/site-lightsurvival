@@ -8,11 +8,11 @@
 <div class="wrap">
 <nav class="toc">
   <div class="nav1"><span class="lbl">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본·발현·융화</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html" class="cur">상태이상</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-foes.html">우주괴물</a><a href="mockup-ui.html">인터페이스</a><a href="mockup-map.html">심우주 유니버스</a><a href="mockup-map2.html">행성 유니버스</a><a href="mockup-lobby.html">로비</a><a href="mockup-flow.html">흐름·타이틀</a><a href="mockup-pick.html">고르기</a></div>
-  <div class="nav2"><span class="lbl">이 페이지</span><a href="#s-state">상태이상 14종</a><a href="#s-mark">상태 표식</a><a href="#" id="bare" class="bare">설명 접기</a></div>
+  <div class="nav2"><span class="lbl">이 페이지</span><a href="#s-state">상태이상 19종</a><a href="#s-buff">버프 9종</a><a href="#s-mark">상태 표식</a><a href="#s-stateicon">아이콘</a><a href="#" id="bare" class="bare">설명 접기</a></div>
 </nav>
 <header>
   <p class="kicker">Light Survival · 셀 VFX 시안</p>
-  <h1>빼앗는 다섯 가지</h1>
+  <h1>빼앗는 것과 되돌리는 것</h1>
   
 </header>
 <h2 id="s-state">상태이상 19종</h2>
@@ -62,11 +62,42 @@
 <tr><td><b>돌진</b></td><td><code>rush</code></td><td>상대를 향해 나아간다</td></tr>
 </table>
 
+<h2 id="s-buff">버프 9종</h2>
+<h3>단일 해제 — 상태 하나를 집어 없앤다</h3>
+<table class="st">
+<tr><th>버프</th><th>키</th><th>무엇을 없애나</th></tr>
+<tr><td><b>지혈</b></td><td><code>staunch</code></td><td><b>출혈</b> 멈춤</td></tr>
+<tr><td><b>해독</b></td><td><code>antidote</code></td><td><b>중독</b> 제거</td></tr>
+<tr><td><b>접지</b></td><td><code>ground</code></td><td><b>감전</b> 회복</td></tr>
+<tr><td><b>해방</b></td><td><code>release</code></td><td><b>속박</b> 제거</td></tr>
+</table>
+
+<h3>회복</h3>
+<table class="st">
+<tr><th>버프</th><th>키</th><th>무엇인가</th></tr>
+<tr><td><b>치유</b></td><td><code>mend</code></td><td>회복 효과 — 아홉 중 <b>유일하게 없애는 게 아니라 채운다</b></td></tr>
+</table>
+
+<h3>무리 해제 — 무리 하나를 통째로 없앤다</h3>
+<table class="st">
+<tr><th>버프</th><th>키</th><th>없애는 무리</th><th>몇 종</th></tr>
+<tr><td><b>축복</b></td><td><code>blessing</code></td><td>디버프 <b>도트데미지</b></td><td>점화·동상·감전·중독·출혈 5</td></tr>
+<tr><td><b>성전</b></td><td><code>crusade</code></td><td>디버프 <b>No moving</b></td><td>빙결·속박·봉인 3</td></tr>
+<tr><td><b>은총</b></td><td><code>grace</code></td><td>디버프 <b>No attack</b></td><td>실명·침묵·석화 3</td></tr>
+<tr><td><b>가호</b></td><td><code>aegis</code></td><td>디버프 <b>능력치 하락</b></td><td>둔화·저주·역병·감쇄·풍화 5</td></tr>
+</table>
+
 <h2 id="s-mark">상태 표식</h2>
 <div class="grid" id="marks"></div>
 
+<h2 id="s-buffmark">버프 표식</h2>
+<div class="grid" id="buffmarks"></div>
+
 <h2 id="s-stateicon">아이콘</h2>
 <div class="grid" id="stateicon"></div>
+
+<h2 id="s-bufficon">버프 아이콘</h2>
+<div class="grid" id="bufficon"></div>
 
 </div>
 <!-- ⚠️ file:// 에서 브라우저가 vfx.js 를 세게 캐시한다. 시안을 고쳐도 새로고침에

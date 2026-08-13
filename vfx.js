@@ -45618,3 +45618,291 @@ function DM2icon(host,reg,key,nm,kind){
  if(SH){asRow(SH,ICON_W);
    IKSTATE.forEach(([k,nm,g])=>{
      if(IKICON[k])DM2icon(SH,IKICON,k,nm,IKGROUP[g]);});}}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BF — 버프 9종 (2026-08-13 사용자 지시)
+//
+// 아홉을 따로따로 그리면 아홉 개를 외워야 한다. 그런데 목록을 읽어 보면
+// **셋으로 갈려 있다** — 그 갈림이 곧 그림 문법이다:
+//
+//   단일 해제 4  지혈·해독·접지·해방   상태 **하나**를 집어 없앤다
+//   회복     1   치유                  아홉 중 유일하게 **안 없애고 채운다**
+//   무리 해제 4  축복·성전·은총·가호   무리 **하나**를 통째로 없앤다
+//
+// ⚠️ 단일 넷은 **없앨 상태의 색을 그대로 쓴다.** 지혈이 붉으면 안 되고 출혈과
+//    같은 색이어야 「저것을 없앤다」가 읽힌다 — 버프색으로 통일하면 넷이 구별이
+//    안 되고, 무엇을 지우는 건지도 사라진다.
+// ⚠️ 무리 넷은 **훑는 방향으로 가른다.** 개수로만 가르면 성전(3)과 은총(3)이
+//    똑같아진다. 방향은 무리의 뜻에서 나온다:
+//      축복 도트뎀=몸에 붙어 탄다      → **위로 걷어 올린다**
+//      성전 못 움직임=발이 묶였다      → **아래로 내려가 푼다**
+//      은총 공격 불가=눈과 입이 막혔다 → **눈높이에서 좌우로 열린다**
+//      가호 능력치 하락=깎여 나갔다    → **밖에서 안으로 닫아 채운다**
+//    고리 개수는 그 무리의 종수(5·3·3·5)를 그대로 쓴다 — 덤으로 읽히는 정보다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BFNAME={
+  // ── 단일 해제 ───────────────────────────────────────────────────────────
+  staunch :"지혈",   // 출혈 멈춤
+  antidote:"해독",   // 중독 제거
+  ground  :"접지",   // 감전 회복
+  release :"해방",   // 속박 제거
+  // ── 회복 ────────────────────────────────────────────────────────────────
+  mend    :"치유",   // 회복 효과
+  // ── 무리 해제 ───────────────────────────────────────────────────────────
+  blessing:"축복",   // 도트데미지 무리 제거 (점화·동상·감전·중독·출혈)
+  crusade :"성전",   // No moving 무리 제거 (빙결·속박·봉인)
+  grace   :"은총",   // No attack 무리 제거 (실명·침묵·석화)
+  aegis   :"가호"};  // 능력치 하락 무리 제거 (둔화·저주·역병·감쇄·풍화)
+
+/// 무리 해제 넷이 실제로 무엇을 지우는지 — 표와 그림이 갈리면 안 되므로
+/// **[PVMKL] 의 무리 이름을 그대로** 키로 쓴다. 상태가 늘면 여기가 자동으로 는다.
+const BFCURE={blessing:"도트",crusade:"못 움직임",grace:"공격 불가",aegis:"능력치 하락"};
+const BFCOUNT=k=>PVMKL.filter(r=>r[3]===BFCURE[k]).length;
+
+/// 버프 표식. [pvMark] 와 시그니처를 맞춘다 — 같은 자리에서 불리고, 언젠가
+/// 한 몸에 상태와 버프가 같이 뜨면 **같은 규칙으로 겹쳐야** 하기 때문이다.
+function bfMark(c,x,y,r,kind,f,t,k,SC,layer){
+  const T=TONE[k]||TONE.white, al=f;
+  // 단일 해제 넷 — **뜯겨 빠져나간다.** 상태 표식이 「머물러 있다」이므로
+  // 버프는 그 반대인 「떠난다」로 그린다. 접지만 아래로 가는데(땅으로 빠진다)
+  // 그것이 이 넷 안에서 접지를 가르는 유일한 축이다.
+  // ⚠️ 입자로 짰다가 **한 번 실패했다**(2026-08-13 실측): 칸 86px 에서 몸 반지름이
+  //    6px 이라 조각이 1~2px 로 떨어져 아무것도 안 읽혔다. 무리 해제 넷은 **큰 획
+  //    하나**라 같은 크기에서 멀쩡히 읽혔다 — 그래서 단일 넷도 **몸짓 하나**로 다시
+  //    짰다. 작은 표식에서 사는 것은 개수가 아니라 **획의 크기**다.
+  if(kind==="staunch"||kind==="antidote"||kind==="ground"||kind==="release"){
+    const u=saw(t,1.35), g=ease(u);
+    c.lineCap="round";
+    if(kind==="staunch"){
+      // 지혈 — 방울 **하나**가 아래에서 몸으로 되빨려 들고, 그 자리를 획이 막는다.
+      // 출혈이 「맺혀 떨어진다」이므로 지혈은 **부호를 뒤집은 같은 방울**이다.
+      const oy=r*(1.50-1.30*g), sz=r*(.55-.26*g), aa=al*(1-g*.50);
+      c.save();c.translate(x,y+oy);
+      c.beginPath();c.ellipse(0,0,sz*.70,sz,0,0,TAU);
+      c.fillStyle=A(T[0],aa*.95);c.fill();
+      c.beginPath();c.ellipse(0,-sz*.22,sz*.32,sz*.42,0,0,TAU);
+      c.fillStyle=A(T[2],aa);c.fill();c.restore();
+      const bw=r*(.45+1.05*g);
+      c.beginPath();c.moveTo(x-bw,y+r*1.62);c.lineTo(x+bw,y+r*1.62);
+      c.strokeStyle=A(T[2],al*g*.95);c.lineWidth=r*.28;c.stroke();
+      return;}
+    if(kind==="antidote"){
+      // 해독 — 거품 **하나**가 크게 부풀어 오르다 **위에서 터진다.** 중독이
+      // 「느리게 떠오른다」이므로 갈리는 자리는 크기와 **터짐**이다.
+      const oy=-r*(.20+1.30*g), sz=r*(.30+.40*g);
+      if(g<.78){
+        c.save();c.translate(x,y+oy);
+        c.beginPath();c.arc(0,0,sz,0,TAU);
+        c.strokeStyle=A(T[0],al*.90);c.lineWidth=r*.24;c.stroke();
+        c.strokeStyle=A(T[2],al*.85);c.lineWidth=r*.10;c.stroke();
+        c.restore();
+      }else{const p=(g-.78)/.22;            // 터진다 — 조각 넷이 밖으로
+        for(let i=0;i<4;i++){const aa2=i*TAU/4+.6, rr=sz*(1+p*1.5);
+          c.beginPath();
+          c.moveTo(x+Math.cos(aa2)*sz*.6,y+oy+Math.sin(aa2)*sz*.6);
+          c.lineTo(x+Math.cos(aa2)*rr,y+oy+Math.sin(aa2)*rr);
+          c.strokeStyle=A(T[2],al*(1-p)*.9);c.lineWidth=r*.14;c.stroke();}}
+      return;}
+    if(kind==="ground"){
+      // 접지 — 굵은 번개 **한 줄기**가 몸에서 **아래 땅 획으로** 빠진다. 넷 중
+      // 혼자 아래로 가는 것이 이 칸의 정체라, 땅 획을 항상 켜 둔다.
+      c.beginPath();c.moveTo(x-r*1.30,y+r*1.70);c.lineTo(x+r*1.30,y+r*1.70);
+      c.strokeStyle=A(T[0],al*.85);c.lineWidth=r*.30;c.stroke();
+      const P=[[x+r*.34,y-r*.20],[x-r*.26,y+r*.62],[x+r*.14,y+r*.62],[x-r*.20,y+r*1.62]];
+      const seg=Math.min(1,g*1.45);
+      c.beginPath();c.moveTo(P[0][0],P[0][1]);
+      for(let i=1;i<P.length;i++){const q=Math.min(1,Math.max(0,seg*3-(i-1)));
+        if(q<=0)break;
+        c.lineTo(P[i-1][0]+(P[i][0]-P[i-1][0])*q,P[i-1][1]+(P[i][1]-P[i-1][1])*q);}
+      c.strokeStyle=A(T[0],al*.95);c.lineWidth=r*.34;c.stroke();
+      c.strokeStyle=A(T[2],al*(1-g*.35));c.lineWidth=r*.15;c.stroke();
+      if(g>.72){const p=(g-.72)/.28;         // 땅에 닿는 순간 옆으로 퍼진다
+        c.beginPath();c.ellipse(x-r*.20,y+r*1.70,r*(.3+1.2*p),r*.12,0,0,TAU);
+        c.strokeStyle=A(T[2],al*(1-p)*.9);c.lineWidth=r*.12;c.stroke();}
+      return;}
+    // 해방 — 몸을 조이던 **고리가 끊어져 두 쪽으로 튄다.** 속박이 「팽팽하다」라
+    // 해방은 그 팽팽함이 **놓이는 순간** 하나다. 풍화(이가 빠진 테)와 갈리는
+    // 자리는 조각이 **딱 둘**이고 서로 반대로 간다는 것이다.
+    const gap=.30+g*1.15, off=g*r*1.15;
+    for(const sgn of[-1,1]){
+      c.save();c.translate(x+sgn*off,y-sgn*off*.30);c.scale(1,.62);
+      c.beginPath();c.arc(0,0,r*1.12,
+        sgn>0?-Math.PI/2+gap:Math.PI/2+gap, sgn>0?Math.PI/2-gap:-Math.PI/2-gap);
+      c.strokeStyle=A(T[0],al*(1-g*.45)*.9);c.lineWidth=r*.30;c.stroke();
+      c.strokeStyle=A(T[2],al*(1-g*.45));c.lineWidth=r*.13;c.stroke();
+      c.restore();}
+    return;}
+  // 치유 — **아래에서 위로 차오른다.** 아홉 중 유일하게 없애는 게 아니라 채우는
+  // 것이라, 넷의 「빠져나간다」와 **부호가 반대**여야 한 눈에 갈린다.
+  if(kind==="mend"){
+    // ⚠️ 점 여섯으로 짰다가 몸에 낀 티끌로만 보였다(실측). 아이콘이 **십자**이므로
+    //    표식도 십자로 맞춘다 — 아이콘과 표식이 다른 물건이면 둘을 잇는 데 한 번
+    //    더 외워야 하고, 아홉 중 유일하게 「채우는 것」이라는 정보가 흐려진다.
+    const u=saw(t,1.45), g=ease(u);
+    c.lineCap="round";
+    // 차오르는 고리 — 아래에서 위로. 「채운다」의 방향은 이것이 맡는다.
+    c.save();c.translate(x,y+r*.75-g*r*1.70);c.scale(1,.34);
+    c.beginPath();c.arc(0,0,r*(.75+.55*g),0,TAU);
+    c.strokeStyle=A(T[0],al*(1-g)*.80);c.lineWidth=r*.42;c.stroke();
+    c.strokeStyle=A(T[2],al*(1-g)*.95);c.lineWidth=r*.18;c.stroke();
+    c.restore();
+    // 십자 — 몸 위에서 밝아졌다 사그라진다. 아이콘과 같은 모양이 여기 있어야 한다.
+    const pl=Math.sin(u*Math.PI), L=r*(.60+.30*pl);
+    c.save();c.translate(x,y-r*1.35);
+    for(const [w,col,aa] of [[r*.34,T[0],al*.85],[r*.15,T[2],al*(.45+.55*pl)]]){
+      c.beginPath();c.moveTo(-L,0);c.lineTo(L,0);c.moveTo(0,-L);c.lineTo(0,L);
+      c.strokeStyle=A(col,aa);c.lineWidth=w;c.stroke();}
+    c.restore();
+    return;}
+  // 무리 해제 넷 — **훑고 지나가며 지운다.** 방향이 무리를 말하고, 고리 개수가
+  // 종수를 말한다. 지나간 자리에 **밝은 심**을 남기는 것이 「지웠다」의 신호다.
+  const N=BFCOUNT(kind)||3, u=saw(t,1.7);
+  for(let i=0;i<N;i++){
+    const ph=(u+i/N)%1, g=ease(ph), aa=al*Math.sin(ph*Math.PI)*.95;
+    if(aa<=.01)continue;
+    c.save();c.translate(x,y);
+    if(kind==="blessing"){                           // 위로 걷어 올린다
+      c.translate(0,r*.95-g*r*2.0);c.scale(1,.32);
+      c.beginPath();c.arc(0,0,r*1.05,0,TAU);
+    }else if(kind==="crusade"){                      // 아래로 내려가 푼다
+      c.translate(0,-r*.95+g*r*2.0);c.scale(1,.32);
+      c.beginPath();c.arc(0,0,r*1.05,0,TAU);
+    }else if(kind==="grace"){                        // 눈높이에서 좌우로 열린다
+      c.translate(0,-r*.30);
+      const w=g*r*1.70;
+      c.beginPath();
+      c.moveTo(-w-r*.26,-r*.72);c.lineTo(-w+r*.26,-r*.72);
+      c.lineTo(-w+r*.26, r*.72);c.lineTo(-w-r*.26, r*.72);c.closePath();
+      c.moveTo( w-r*.26,-r*.72);c.lineTo( w+r*.26,-r*.72);
+      c.lineTo( w+r*.26, r*.72);c.lineTo( w-r*.26, r*.72);c.closePath();
+      c.fillStyle=A(T[0],aa*.90);c.fill();
+      c.beginPath();
+      c.moveTo(-w,-r*.52);c.lineTo(-w,r*.52);c.moveTo(w,-r*.52);c.lineTo(w,r*.52);
+      c.strokeStyle=A(T[2],aa);c.lineWidth=r*.14;c.stroke();
+      c.restore();continue;
+    }else{                                           // 가호 — 밖에서 안으로 닫는다
+      c.scale(1,.40);
+      c.beginPath();c.arc(0,0,r*(2.10-1.15*g),0,TAU);}
+    c.strokeStyle=A(T[0],aa*.85);c.lineWidth=r*.34;c.stroke();
+    c.strokeStyle=A(T[2],aa);c.lineWidth=r*.15;c.stroke();
+    c.restore();}
+}
+
+// ── 표식 칸 ───────────────────────────────────────────────────────────────
+// ⚠️ 색은 **없앨 것에서 가져온다.** 단일 넷은 그 상태의 색, 무리 넷은 그 무리의
+//    얼굴 색이다. 아홉을 전부 흰색으로 두면 「버프다」만 남고 「무엇에 대한
+//    버프인가」가 사라진다 — 그것이 이 격자가 답할 유일한 질문이다.
+const BFMKL=[
+  ["staunch" ,"지혈 staunch" ,"gold" ,"단일 해제","방울이 <b>위로 되빠진다</b> — 출혈의 낙하와 부호 반대. <b>출혈</b> 멈춤"],
+  ["antidote","해독 antidote","toxin","단일 해제","거품이 <b>빠져나간다</b> — 중독은 떠오르고 해독은 떠나 버린다. <b>중독</b> 제거"],
+  ["ground"  ,"접지 ground"  ,"volt" ,"단일 해제","넷 중 <b>혼자 아래로</b> 빠진다 — 전기는 땅으로 나간다. <b>감전</b> 회복"],
+  ["release" ,"해방 release" ,"gale" ,"단일 해제","줄이 <b>끊어져 튄다</b> — 속박의 팽팽함이 풀린 순간. <b>속박</b> 제거"],
+  ["mend"    ,"치유 mend"    ,"white","회복","아래에서 위로 <b>차오른다</b> — 아홉 중 유일하게 안 없애고 채운다"],
+  ["blessing","축복 blessing","ember","무리 해제","고리 <b>다섯이 위로</b> 걷어 올린다 — 몸에 붙어 타던 것. <b>도트뎀 5종</b>"],
+  ["crusade" ,"성전 crusade" ,"frost","무리 해제","고리 <b>셋이 아래로</b> 내려가 발을 푼다. <b>못 움직임 3종</b>"],
+  ["grace"   ,"은총 grace"   ,"shade","무리 해제","눈높이에서 <b>좌우로 열린다</b> — 가린 것을 젖힌다. <b>공격 불가 3종</b>"],
+  ["aegis"   ,"가호 aegis"   ,"gale" ,"무리 해제","<b>밖에서 안으로 닫으며</b> 깎인 자리를 채운다. <b>능력치 하락 5종</b>"]];
+const BFMK={};
+for(const [kd,,K] of BFMKL) BFMK[kd]=function bfMkTile(c,t,dt,W,H,st){
+  const cx=W/2, cy=H/2, SC=Math.min(W,H)/238;
+  st.F=st.F||mkFoes([[0,0,17*SC]]);        // 상태 격자와 **같은 몸 크기** — 안 그러면 못 견준다
+  stepFoes(st.F,dt);
+  bfMark(c,cx,cy,st.F[0].r,kd,1,t,K,SC,0);
+  drawFoes(c,t,cx,cy,st.F);
+  bfMark(c,cx,cy,st.F[0].r,kd,1,t,K,SC,1);
+};
+{const H=MOUNT("buffmarks"); if(H)
+  BFMKL.forEach(([kd,nm,,grp,ds])=>tile(H,BFMK,kd,`${nm} · ${grp}`,"",ds,238,86));}
+
+// ── 버프 아이콘 아홉 ──────────────────────────────────────────────────────
+// ⚠️ 아이콘은 표식과 다른 물건이다 — 표식은 **움직여서** 말하고 아이콘은
+//    **한 장으로** 말한다. 그래서 표식의 「방향」을 아이콘에서는 **모양**으로
+//    옮긴다. 단일 넷은 「없앨 것 + 그것을 끊는 획」, 무리 넷은 **방패꼴 하나에
+//    무리를 가르는 표시**를 얹었다 — 넷이 한 가족으로 읽혀야 무리 해제로 보인다.
+const BFICON={
+/// 지혈 — **방울 + 가로 막음.** 출혈 아이콘(떨어지는 방울 하나)을 그대로 두고
+/// 밑에 막는 획을 그었다. 없앨 것을 안 그리면 「무엇을 지혈하나」가 안 남는다.
+staunch(c,S){const cx=S/2;
+  const drop=(sc,col)=>{c.beginPath();
+    c.moveTo(cx,S*(.42-.26*sc));
+    c.bezierCurveTo(cx+S*.24*sc,S*.44,cx+S*.21*sc,S*.70,cx,S*.70);
+    c.bezierCurveTo(cx-S*.21*sc,S*.70,cx-S*.24*sc,S*.44,cx,S*(.42-.26*sc));
+    c.closePath();c.fillStyle=col;c.fill();};
+  drop(1,IC.d); drop(.58,IC.b);
+  ibar(c,cx,S*.84,S*.72,S*.115,IC.d,S*.055);
+  ibar(c,cx,S*.84,S*.56,S*.05,IC.l,S*.025);},
+/// 해독 — **거품 셋이 그릇 밖으로 나간다.** 중독(느리게 떠오르는 거품)과
+/// 갈리는 자리는 **그릇**이다 — 담겼던 것이 빠져나가는 중으로 읽힌다.
+antidote(c,S){const cx=S/2;
+  c.beginPath();c.moveTo(S*.22,S*.50);
+  c.bezierCurveTo(S*.22,S*.90,S*.78,S*.90,S*.78,S*.50);
+  c.closePath();c.fillStyle=IC.d;c.fill();
+  c.beginPath();c.moveTo(S*.31,S*.55);
+  c.bezierCurveTo(S*.31,S*.80,S*.69,S*.80,S*.69,S*.55);
+  c.closePath();c.fillStyle=IC.b;c.fill();
+  [[.34,.30,.085],[.52,.16,.105],[.68,.32,.070]].forEach(([x,y,r])=>{
+    c.beginPath();c.arc(S*x,S*y,S*r,0,TAU);c.fillStyle=IC.d;c.fill();
+    c.beginPath();c.arc(S*x,S*y,S*r*.50,0,TAU);c.fillStyle=IC.l;c.fill();});},
+/// 접지 — **번개가 아래 가로선으로 빠진다.** 감전(각지게 튀는 것)에 **땅**을
+/// 더한 것이라, 아홉 중 유일하게 아래가 닫혀 있다.
+ground(c,S){const cx=S/2;
+  const P=[[cx+S*.10,S*.08],[cx-S*.14,S*.42],[cx+S*.03,S*.42],
+           [cx-S*.12,S*.74],[cx+S*.17,S*.36],[cx-S*.01,S*.36]];
+  ip(c,P,IC.d);
+  ip(c,P.map(([x,y])=>[cx+(x-cx)*.60,S*.08+(y-S*.08)*.86]),IC.b);
+  ibar(c,cx,S*.86,S*.76,S*.10,IC.d,S*.05);
+  ibar(c,cx,S*.86,S*.46,S*.045,IC.l,S*.022);},
+/// 해방 — **끊어진 고리.** 속박(팽팽한 줄)의 반대라 **틈**이 정보다. 풍화(이가
+/// 빠진 테)와 갈리는 자리는 틈이 **하나**이고 양끝이 벌어져 있다는 것이다.
+release(c,S){const cx=S/2,cy=S/2;
+  iarc(c,cx,cy,S*.30,-.95,3.55,S*.175,IC.d,1);
+  iarc(c,cx,cy,S*.30,-.85,3.45,S*.075,IC.b,1);
+  [[-.62,-.72],[.66,-.66]].forEach(([dx,dy],i)=>{
+    c.beginPath();c.arc(cx+S*dx*.52,cy+S*dy*.52,S*.075,0,TAU);
+    c.fillStyle=i?IC.l:IC.b;c.fill();});},
+/// 치유 — **십자.** 아홉 중 유일하게 채우는 것이라 **혼자만 대칭**이다.
+/// 나머지 여덟이 전부 한쪽으로 기울어 있어, 대칭 하나면 그것만으로 갈린다.
+mend(c,S){const cx=S/2,cy=S/2;
+  const cross=(w,l,col)=>{ibar(c,cx,cy,l,w,col,w*.42);ibar(c,cx,cy,w,l,col,w*.42);};
+  cross(S*.30,S*.80,IC.d); cross(S*.155,S*.60,IC.b);
+  c.beginPath();c.arc(cx,cy,S*.075,0,TAU);c.fillStyle=IC.l;c.fill();},
+/// 무리 해제 넷 — **같은 방패꼴**에 무리 표시만 갈아 끼운다. 넷이 한 가족으로
+/// 안 보이면 「무리를 지운다」라는 공통점이 사라지고 그냥 버프 넷이 된다.
+blessing(c,S){BFshield(c,S);BFglyph(c,S,"up");},
+crusade (c,S){BFshield(c,S);BFglyph(c,S,"down");},
+grace   (c,S){BFshield(c,S);BFglyph(c,S,"open");},
+aegis   (c,S){BFshield(c,S);BFglyph(c,S,"in");},
+};
+/// 넷이 나눠 쓰는 방패꼴. 위가 넓고 아래가 뾰족한 것이 방패이고, 결계(육각)·
+/// 경면(거울)과 안 겹치게 **모서리를 안 깎았다**.
+function BFshield(c,S){
+  const sh=(sc,col)=>{const w=S*.34*sc,tp=S*(.50-.34*sc),bt=S*(.50+.38*sc);
+    c.beginPath();
+    c.moveTo(S/2-w,tp);c.lineTo(S/2+w,tp);
+    c.lineTo(S/2+w*.82,bt-S*.18*sc);c.lineTo(S/2,bt);
+    c.lineTo(S/2-w*.82,bt-S*.18*sc);c.closePath();
+    c.fillStyle=col;c.fill();};
+  sh(1,IC.d); sh(.68,IC.b);}
+/// 방패 안 표시 — 표식의 **방향**을 한 장으로 옮긴 것이다.
+function BFglyph(c,S,kind){
+  const cx=S/2,cy=S*.50,u=S*.13;
+  if(kind==="up"||kind==="down"){
+    const d=kind==="up"?-1:1;
+    for(let i=0;i<2;i++){const y=cy+d*(i?-u*.05:u*.85)-d*u*.35;
+      IKln(c,[[cx-u*1.05,y],[cx,y+d*u*.85],[cx+u*1.05,y]],S*.075,i?IC.l:IC.d);}
+    return;}
+  if(kind==="open"){
+    for(const s of[-1,1]){
+      IKln(c,[[cx+s*u*.45,cy-u*.95],[cx+s*u*1.15,cy],[cx+s*u*.45,cy+u*.95]],S*.075,IC.d);
+      IKln(c,[[cx+s*u*.45,cy-u*.72],[cx+s*u*.95,cy],[cx+s*u*.45,cy+u*.72]],S*.035,IC.l);}
+    return;}
+  iarc(c,cx,cy,u*1.05,0,TAU,S*.070,IC.d,1);     // in — 밖에서 안으로
+  for(let i=0;i<4;i++){const a=i*TAU/4+.78;
+    IKln(c,[[cx+Math.cos(a)*u*1.75,cy+Math.sin(a)*u*1.75],
+            [cx+Math.cos(a)*u*1.20,cy+Math.sin(a)*u*1.20]],S*.055,IC.l);}}
+
+{const BH=MOUNT("bufficon");
+ if(BH){asRow(BH,ICON_W);
+   BFMKL.forEach(([k,,,grp])=>{
+     if(BFICON[k])DM2icon(BH,BFICON,k,BFNAME[k],grp);});}}
