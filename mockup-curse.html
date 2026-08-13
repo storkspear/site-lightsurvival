@@ -15,28 +15,17 @@
   <h1>빼앗는 다섯 가지</h1>
   
 </header>
-<h2 id="s-state">상태이상 14종</h2>
-<p class="def">⭐ <b>「저주」 계열을 없애고 상태이상으로 통일했다</b>(2026-08-13).
-전에는 저주 스킬 5종과 상태이상 8종이 <b>혼재</b>했다 — 속박·봉인은 스킬이면서
-상태였고, 저주·역병·암막은 상태를 거는 스킬인데 <b>그 자체가 상태 이름</b>이기도 했다.
-<b>스킬은 상태를 「거는」 것이지 상태 그 자체가 아니다.</b></p>
-
-<p class="def">⚠️ <b>지운 넷</b> — 분해(감전과 겹침) · 저주(중독과 겹침) ·
-역병(중독) · 암막(실명). 겹치는 효과를 하나로 모았다.
-<b>저주 스킬 다섯은 통째로 없앤다</b> — 여러 스킬에 상태이상을 적절히 묻히는 것으로
-대체한다.</p>
-
-<h3>도트뎀 — 속성마다 하나씩</h3>
+<h2 id="s-state">상태이상 17종</h2>
+<h3>도트데미지 (초당 피해 데미지)</h3>
 <table class="st">
 <tr><th>상태</th><th>키</th><th>속성</th><th>무엇인가</th></tr>
 <tr><td><b>점화</b></td><td><code>burn</code></td><td>염 炎</td><td>불에 타는 것</td></tr>
 <tr><td><b>동상</b></td><td><code>frost</code></td><td>빙 氷</td><td>얼어서 피해를 입는 것</td></tr>
 <tr><td><b>감전</b></td><td><code>shock</code></td><td>뇌 雷</td><td>전기가 올라 피해를 입는 것</td></tr>
 <tr><td><b>중독</b></td><td><code>poison</code></td><td>독 毒</td><td>독에 걸린 것</td></tr>
-<tr><td><b>둔화</b></td><td><code>slow</code></td><td>풍 風</td><td>속도가 느려지는 것</td></tr>
 </table>
 
-<h3>못 움직인다</h3>
+<h3>디버프 (No moving)</h3>
 <table class="st">
 <tr><th>상태</th><th>키</th><th>속성</th><th>무엇인가</th></tr>
 <tr><td><b>빙결</b></td><td><code>freeze</code></td><td>빙 氷</td><td>얼어붙어 멈춘다</td></tr>
@@ -44,7 +33,7 @@
 <tr><td><b>봉인</b></td><td><code>seal</code></td><td>암 影</td><td>봉해져 못 움직인다</td></tr>
 </table>
 
-<h3>공격을 못 한다</h3>
+<h3>디버프 (No attack)</h3>
 <table class="st">
 <tr><th>상태</th><th>키</th><th>속성</th><th>무엇인가</th></tr>
 <tr><td><b>실명</b></td><td><code>blind</code></td><td>암 影</td><td>앞이 안 보인다 — 공격 불가 +
@@ -54,7 +43,16 @@
 <tr><td><b>석화</b></td><td><code>stone</code></td><td>무 無</td><td>돌이 되어 <b>공격도 이동도</b> 못 한다</td></tr>
 </table>
 
-<h3>그 밖에 — 위치를 건드린다</h3>
+<h3>디버프 (능력치 하락)</h3>
+<table class="st">
+<tr><th>상태</th><th>키</th><th>속성</th><th>무엇인가</th></tr>
+<tr><td><b>둔화</b></td><td><code>slow</code></td><td>풍 風</td><td><b>이동속도</b> 하락</td></tr>
+<tr><td><b>저주</b></td><td><code>curse</code></td><td>독 毒 (마 痲)</td><td><b>공격력</b> 하락</td></tr>
+<tr><td><b>역병</b></td><td><code>plague</code></td><td>독 毒 (역 疫)</td><td><b>공격속도</b> 하락</td></tr>
+<tr><td><b>감쇄</b></td><td><code>damp</code></td><td>무 無</td><td><b>치명타 불가</b> — 공격은 되나 결정타가 안 난다</td></tr>
+</table>
+
+<h3>디버프 (Other) — 위치를 건드린다</h3>
 <table class="st">
 <tr><th>상태</th><th>키</th><th>무엇인가</th></tr>
 <tr><td><b>넉백</b></td><td><code>knock</code></td><td>스킬 시전이 <b>중단되고</b> 뒤로 밀려난다</td></tr>
@@ -62,13 +60,11 @@
 <tr><td><b>돌진</b></td><td><code>rush</code></td><td>상대를 향해 나아간다</td></tr>
 </table>
 
-<p class="def">⚠️ <b>암 影 이 셋을 갖는다</b>(실명·침묵·봉인). 어느 것이 걸리는지는
-<b>스킬이 정한다</b> — 기본 공격은 실명이다.</p>
-
 <h2 id="s-mark">상태 표식</h2>
-<p class="def">몸에 무엇이 걸렸는지를 그림으로 말한다. <b>동사가 겹치면 안 된다</b> —
-실명은 <b>스치고 지나가고</b>, 동상은 <b>붙어 자라고</b>, 둔화는 <b>뒤로 떨어진다</b>.</p>
 <div class="grid" id="marks"></div>
+
+<h2 id="s-stateicon">아이콘</h2>
+<div class="grid" id="stateicon"></div>
 
 </div>
 <!-- ⚠️ file:// 에서 브라우저가 vfx.js 를 세게 캐시한다. 시안을 고쳐도 새로고침에
