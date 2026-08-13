@@ -46220,23 +46220,36 @@ function W3core(c,t,dt,W,H,st,i){
   //     아무것도 아니었다(그게 「레이저가 안 보인다」의 정체다) — 아래에서
   //     **밝은 심을 가진 획**으로 새로 세운다.
   WDreact(c,t,st,SC,cx,cy,RR,spin,shade?W3sd(D):D);
-  // ⭐ 암 — **그늘이 뻗는 자리를 획으로 못박는다**(2026-08-13 사용자: 「부딪혀서
-  //   발사하는 레이저 같은 게 전혀 안 보인다」). 그늘 자체는 검정이라 검은 배경
-  //   에서 사라진다 — 이 레포의 규약대로 [celStroke] 로 **어두운 집 + 밝은 심**
-  //   을 그어 그 자리를 말한다. 부채(W3fan)는 그대로 두고 **획만 얹는다**.
+  // ⭐ 암 — **찢긴 틈.** 곧은 획은 백광의 것이라 쓰면 안 된다(2026-08-13 사용자:
+  //   「백광처럼 1자 에너지가 아니고 암흑만의 스타일을 하고 싶은데」).
+  //   어둠이 하는 일은 **쏘는 것이 아니라 삼키는 것**이다 — 껍질이 적 쪽으로
+  //   **찢어지고**, 그 틈이 벌어지며 안에 든 것을 지운다.
+  //   ⚠️ 속은 거의 검정이라 검은 배경에서 아무것도 아니다. 그래서 **가장자리만**
+  //     밝은 자주로 긋는다(#C0A8E8). 「어둠이 보이는 이유는 밝은 림」 그대로다.
+  //   ⚠️ 가장자리를 **톱니로** 만드는 것이 백광과 갈리는 전부다 — 곧으면 레이저,
+  //     들쭉날쭉하면 찢긴 자리다.
   if(shade)for(const e of st.ev){
     const u=Math.min(1,e.l/WDEVL),fade=1-u,g=ease(u);
     const O=GDorigin(st,e,spin,cx,cy,RR);
     const fo=e.src,tx=cx+fo.ox+fo.kx,ty=cy+fo.oy+fo.ky;
     const na=Math.atan2(ty-O[1],tx-O[0]);
-    const len=(Math.hypot(tx-O[0],ty-O[1])+RR*.42)*g;
-    celStroke(c,[[O[0],O[1]],
-      [O[0]+Math.cos(na)*len,O[1]+Math.sin(na)*len]],
-      Math.max(.6,(2.6+6.4*fade)*SC),"W3ray",Math.min(1,fade*1.25));
-    // 심 하나 더 — 가늘고 제일 밝게. 넓은 획만으로는 「넓은 그늘」이지 「쐈다」가 아니다
-    celStroke(c,[[O[0],O[1]],
-      [O[0]+Math.cos(na)*len,O[1]+Math.sin(na)*len]],
-      Math.max(.4,(0.9+1.6*fade)*SC),"W3ray",Math.min(1,fade*1.45));}
+    const L=(Math.hypot(tx-O[0],ty-O[1])+RR*.55)*g;
+    const nx=-Math.sin(na),ny=Math.cos(na);
+    const K=9, sd=e.ia*7.3, hi=[], lo=[];
+    for(let i=0;i<=K;i++){
+      const p=i/K, ax=O[0]+Math.cos(na)*L*p, ay=O[1]+Math.sin(na)*L*p;
+      // 폭 — 입구는 좁고 중간이 제일 벌어졌다 끝에서 다시 닫힌다(틈의 모양)
+      const w=RR*(.06+.46*Math.sin(Math.PI*Math.pow(p,.78)))*(.55+.45*fade);
+      const j1=w*(.62+.38*Math.abs(Math.sin(sd+i*2.7)));
+      const j2=w*(.62+.38*Math.abs(Math.sin(sd*1.7+i*3.1)));
+      hi.push([ax+nx*j1,ay+ny*j1*.94]); lo.push([ax-nx*j2,ay-ny*j2*.94]);}
+    const poly=hi.concat(lo.reverse());
+    fillPoly(c,poly,A(W3INK,W3c(Math.min(1,fade*1.30))));   // 삼킨다 — 안을 지운다
+    const lw=Math.max(.5,(1.5+2.6*fade)*SC);
+    celStroke(c,hi,lw,"W3ray",Math.min(1,fade*1.25));       // 톱니 가장자리 — 밝은 자주
+    celStroke(c,lo,lw,"W3ray",Math.min(1,fade*1.25));
+    // 입 — 껍질이 찢어진 자리. 여기가 제일 밝아야 「어디서 열렸나」가 남는다
+    celStroke(c,[hi[0],lo[0]],lw*1.35,"W3ray",Math.min(1,fade*1.45));}
   W3react(c,t,st,SC,cx,cy,RR,spin,D,shade);
   drawP(c,st);}
 
