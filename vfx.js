@@ -45398,6 +45398,315 @@ WDDEF.forEach((D,i)=>{
 //   `typeof` 로도 못 막으므로 try 로 받는다 — 없으면 여섯만 선다.
 let WDGD=null;try{WDGD=GDFX;}catch(_){}
 const WDMAP=Object.assign({},WDFX);
+
+// ══════════════════════════════════════════════════════════════════════════
+// W2 — 결계 · 염 炎 / 빙 氷 **재디자인** (2026-08-13)
+//
+// 물려받은 것 : GDcells · GDproj · GDflat · GDcellAt · GDorigin · GDblink ·
+//   WDinit(st.cell · st.pair · st.F) · WDstage(무대 전부 — 적 넷의 달려듦,
+//   막음 판정, hitFoe 튕김, st.ev, 셀 시계 fl/dead/bn, stepFoes, stepP) ·
+//   WDreact(막은 순간 — 빙의 shards, 여섯이 공유하는 celSplash) ·
+//   WDRR · WDANG · WDPER · WDDASH · WDEVL · WDGROW · WDTAIL ·
+//   WDDEF(표) · WDFX · WDMAP · mk 가 붙인 라벨(anims) ·
+//   pvLayer · drawFoes · hero · emit · drawP ·
+//   fillPoly · celStroke · celSplash · firePath(불 3패스 그대로) · shards ·
+//   FCramp · FCink · IBrim · IBmos · toneOf · mixHex · gAdd · A · hash · TAU
+// 새로 그린 것 : **0** — 새 원시함수 없다. 그리는 것은 전부 위 문법의 조합이다.
+//   (셀 상태 `ch`(숯) 하나만 얹었다 — 없이는 「끝까지 번지고 스스로 꺼진다」를
+//    감쇠로밖에 못 쓰고, 감쇠는 두 줄에서 죽는다. 그 자리가 지금 반려된 자리다.)
+//
+// ⚠️ **껍질은 안 건드렸다.** 육각 셀 격자 · 구면 투영 · 기운 판 누르기 ·
+// 맞은 셀 고르기 · 깨졌다 돋는 시계는 [GDcells]/[WDstage] 것 그대로다.
+// 갈아 끼운 것은 **① 셀이 맞았을 때·평상시 무엇을 하는가**와 **② 칠** 둘뿐이다.
+// 무대조차 새로 안 짰다 — [WDstage] 를 **그대로 부르되** `D.e` 를 "W2ember"/
+// "W2frost" 로 바꿔 넘겨 그 안의 원소 분기만 끄고, 그 몫을 [W2step] 이 받는다.
+// 그래서 적의 주기·튕김·이벤트 수명은 여섯이 여전히 **한 벌**이다.
+//
+// ── 진단 확인 ─────────────────────────────────────────────────────────────
+// 염 — 맞다. 다만 원인은 `face:.13` **하나가 아니다.** 예전 판은 불이 붙어도
+//   면에 더해지는 색이 `T[0]`(#5E1A06, 거의 검붉음)이라 **불붙은 셀이 더
+//   어두워졌다.** 밝은 것은 위로 뻗은 불길 실루엣뿐 → 「테두리에 불붙은 육각」.
+//   그래서 면 알파만 올리면 어두운 판이 커질 뿐이다. 칠을 **열 계조**
+//   (dark→base→yel, [FCramp])로 갈고 [FCink] 로 **긋고 채워** 어두운 테를
+//   바깥 절반에만 남긴다 — 그 테가 곧 가장자리에 앉는 숯이다.
+//   번짐도 맞다. 55% 감쇠는 1 → .55 → .30 에서 멈춘다(두 줄). **세대마다 안
+//   약해지게** 바꾸고, 대신 지나간 자리에 `ch`(숯)를 남겨 앞이 못 돌아오게
+//   막는다 — 확률이 아니라 **탄 것은 다시 안 탄다**는 규칙이라 결정적이다.
+//   그래서 앞은 껍질을 한 바퀴 다 돌고 **저절로 죽고**(안 그러면 온 셀이 늘
+//   켜져 있는 주황 공이 된다), 다음 불은 직격이 난 **새 자리**에서 다시 난다.
+//   재는 값: 48셀 중 타는 셀이 0.9초마다 0→42→0 을 그리고, 다 꺼져 있는 틈은
+//   0.3초 남짓이다(아래 [W2CHHIT] 주석).
+// 빙 — 맞다. 「속이 찬 판」은 [IBpane]/[IBcrys] 가 이미 반려한 자리다
+//   (꽉 찬 면은 무엇을 해도 **돌**이 되고, 순검정 속은 **철사 도형**이 된다).
+//   그래서 몸은 낮은 알파로 두고 앞뒤 두 켜가 서로 비치게 한다 — 겹침이 곧
+//   두께다. 여기에 **반지름 16% 안쪽의 같은 판**을 한 겹 더 그어 가장자리를
+//   둘로 만든다(유리가 유리로 읽히는 신호는 그것 하나다).
+//   「안 떤다」도 그대로 지킨다 — 다만 정지한 그림은 정보를 안 주므로,
+//   **도형은 한 톨도 안 움직이고 빛만 지나간다**: 좁은 띠 하나가 껍질을 훑는다.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── 수치 ──────────────────────────────────────────────────────────────────
+/// 염 — 번짐의 시계. 셀 48개(6줄)에서 한쪽 끝→반대쪽 끝이 6~7세대이므로
+/// `SPRD` 가 한 바퀴 도는 시간을 정한다(.13 × 7 ≈ .91s).
+const W2SPRD =.13,   // 한 세대가 옆으로 붙는 간격(s) — **세대마다 안 약해진다**
+      W2CATCH=.58,   // 이 세기 위로 타는 셀만 옆에 옮긴다
+      W2BNX  =.38,   // [WDstage] 의 .62 위에 더 얹는 감쇠 — 합 1.0/s 라 불머리가 선다
+      W2CHUP =1.15,  // 숯이 앉는 속도(/s) — 타는 동안
+      W2CHDN =.95,   // 숯이 식는 속도(/s) — 다 타고 난 뒤
+      W2CHSP =.45,   // **번져서** 다시 붙을 수 있는 숯 한계
+      W2CHHIT=.82,   // **직격**은 이만큼 탄 자리까지 다시 붙인다(직격이 더 세다).
+                     // ⚠️ 이 둘이 「불이 죽어 있는 틈」의 길이를 정한다. 처음엔
+                     //   .70/.80 이라 한 바퀴 돌고 나서 **0.7초쯤 통째로 꺼져**
+                     //   있었고, 그 틈의 그림이 하필 예전에 반려된 「검은 육각 +
+                     //   주황 테」였다(2026-08-13 렌더 판정). 틈을 0.3초 밑으로
+                     //   줄이되 **번짐 한계(W2CHSP)는 그대로** 둔다 — 그래야
+                     //   앞은 여전히 한 바퀴에 죽고 다음 불은 새 자리에서 난다.
+      W2FLAME=.34;   // 불길(firePath)이 서는 세기
+/// 빙 — 두께와 빛의 시계.
+const W2THK =.84,    // 껍질 두께 — 안쪽 면의 반지름 비(16% 두껍다)
+      W2GLN =.55,    // 빛줄기가 껍질을 훑는 각속도(rad/s). 셸 회전(.40)과 달라야
+                     // 「지나간다」로 읽힌다 — 같으면 칠해 둔 줄무늬가 된다
+      W2GSH =7,      // 그 줄기의 좁기(지수). 넓으면 그냥 밝아진다
+      W2CRK =.26;    // 깨진 직후 **금이 보이는** 시간(s) — 이 동안은 셀이 남아 있다
+
+const W2c=v=>v<0?0:v>1?1:v;      // ⚠️ [A] 는 알파를 안 깎는다 — 1 을 넘기면
+                                 //   rgba() 가 통째로 무시돼 **색이 조용히 틀린다**
+
+// ── 색 — 전부 [FCramp]·[toneOf]·[mixHex] 에서 파생, 새 색상수 0 ───────────
+/// ⚠️ 계조를 매 프레임 셀마다 섞으면 [mixHex] 가 48×2 회 돈다. 눈에 안 보이는
+/// 단계까지 나눌 이유가 없으므로 **양자화해서 캐시한다**(항목 7·12개).
+const W2RAMP={},W2HOT={},W2CHAR={},W2ICE={};
+const W2ramp=k=>W2RAMP[k]||(W2RAMP[k]=FCramp(k));
+/// ⚠️ **주황에 빨리 닿아야 한다.** 처음엔 중간(bn=.55)에서야 `base` 에 닿게
+/// 뒀는데, 셀 대부분이 그 아래에 살아서 면이 **어두운 벽돌색**이었다 —
+/// 그러면 화면에서 제일 밝은 것이 또 테가 되어 「테두리에 불붙은 육각」으로
+/// 돌아간다(2026-08-13 렌더 판정, 이 블록이 고치려던 바로 그 그림).
+function W2hot(k,bn){                       // 타는 면 — 어두운 → 주황 → 노랑
+  const q=Math.round(W2c(bn)*11),id=k+"_"+q,v=W2HOT[id];if(v)return v;
+  const RM=W2ramp(k),u=q/11;
+  return W2HOT[id]=(u<.35?mixHex(RM.dark,RM.base,u/.35)
+                         :mixHex(RM.base,RM.yel,(u-.35)/.65));}
+/// ⚠️ 숯은 **꺼멓지 않다.** 새까맣게 두면 검은 배경에 먹혀 셀이 사라지고
+/// 남는 것이 테뿐이다(같은 판정). 다 탄 자리는 속불이 남아 **벌겋다**.
+function W2char(k,ch){                      // 다 탄 면 — 숯
+  const q=Math.round(W2c(ch)*6),id=k+"_"+q,v=W2CHAR[id];if(v)return v;
+  return W2CHAR[id]=mixHex(toneOf(k)[0],W2ramp(k).smki,q/6*.55);}
+function W2ice(k){                          // 비치는 몸 — [IBpane] 의 그 값
+  return W2ICE[k]||(W2ICE[k]=mixHex(toneOf(k)[0],toneOf(k)[1],.22));}
+
+/// 육각 하나 — [WDhex] 의 `hex()` 와 **한 글자도 안 다르다.**
+function W2hexP(P0,rot,rr){const L=[];
+  for(let j=0;j<6;j++){const a=rot+j/6*TAU;L.push([Math.cos(a)*rr,Math.sin(a)*rr]);}
+  return GDflat(L,P0);}
+
+/// [WDstage] 에 넘길 **그림자 정의.** `e` 만 바꾼다 — 무대는 그대로 굴리고
+/// 그 안의 `ember`/`frost` 분기만 꺼서 [W2step] 이 대신 받게 하는 것이 전부다.
+function W2sd(D){return{key:D.key,k:D.k,s:D.s,e:"W2"+D.e,pv:D.pv,
+                        fill:D.fill,face:D.face,kb:D.kb};}
+
+// ── 규칙 — 맞았을 때·평상시 ───────────────────────────────────────────────
+/// 불티 — **오른다.** `g` 를 음수로 두는 것이 「불티」와 「파편」을 가르는 전부다
+/// (빙의 조각은 [WDstage] 값 그대로 `g:150`, 떨어진다).
+function W2spark(st,q,spin,cx,cy,RR,SC,D){
+  const P=GDproj(q,spin,cx,cy,RR);if(P.dep<0)return;   // 뒤쪽 불티는 안 보인다
+  emit(st,P.x,P.y,2,{k:D.k,sp:30*SC,r:1.5*SC,life:.55,g:-46*SC,
+                     a:-Math.PI/2,spread:1.5,spikeP:.75});}
+
+/// ⚠️ 사건은 **한 번만** 집는다. [WDstage] 가 쌓은 `st.ev` 에 표를 찍어(`w2`)
+/// 프레임이 늘어지든 줄든 같은 사건을 두 번 안 먹게 한다 — `l<=dt` 로 새것을
+/// 가려내면 dt 가 흔들릴 때 같은 셀이 두 번 붙는다.
+function W2step(t,dt,st,SC,cx,cy,RR,spin,D,ember){
+  const cell=st.cell;if(!cell)return;
+  for(const e of st.ev){
+    if(e.w2)continue;e.w2=1;
+    const q=(e.ci>=0)?cell[e.ci]:null;if(!q)continue;
+    if(ember){                                   // 염 — **직격은 다시 붙인다**
+      if((q.ch||0)<W2CHHIT){q.bn=1;W2spark(st,q,spin,cx,cy,RR,SC,D);}}
+    else{                                        // 빙 — 깨져 비었다 다시 돋는다
+      q.dead=WDGROW;
+      emit(st,cx+Math.cos(e.ia)*RR,cy+Math.sin(e.ia)*RR*.94,7,
+        {k:D.k,sp:96*SC,r:2.8*SC,life:.42,g:150*SC,spikeP:.85});}}
+  if(!ember)return;
+  // 숯의 시계 — 타는 동안 앉고, 다 타면 식는다. 이것이 「번짐의 끝」을 정한다.
+  for(const q of cell){
+    if(q.ch===undefined)q.ch=0;
+    if(q.bn>0)q.bn=Math.max(0,q.bn-dt*W2BNX);
+    if(q.bn>.25)q.ch=Math.min(1,q.ch+dt*W2CHUP);
+    else if(q.bn<=.05)q.ch=Math.max(0,q.ch-dt*W2CHDN);}
+  // 옮아붙는다 — **세대마다 안 약해진다.** 붙는 세기는 늘 1 이고, 앞을 세우는
+  // 것은 감쇠가 아니라 **시간**이다(먼저 붙은 셀이 먼저 사그라든다).
+  // ⚠️ 한 세대를 **모아 두었다 동시에** 켠다. 그 자리에서 켜면 방금 붙은 셀이
+  //   같은 틱에 제 이웃을 또 붙여 앞이 [st.pair] 의 나열 순서대로 튄다.
+  st.w2s=(st.w2s||0)+dt;
+  for(let g=0;st.w2s>=W2SPRD&&g<3;g++){
+    st.w2s-=W2SPRD;
+    const lit=[];
+    for(const pr of st.pair){
+      const a=cell[pr[0]],b=cell[pr[1]];
+      if(a.bn>W2CATCH&&b.bn<.05&&(b.ch||0)<W2CHSP)lit.push(b);
+      else if(b.bn>W2CATCH&&a.bn<.05&&(a.ch||0)<W2CHSP)lit.push(a);}
+    for(const q of lit){q.bn=1;W2spark(st,q,spin,cx,cy,RR,SC,D);}}
+  if(st.w2s>=W2SPRD)st.w2s=0;}                   // 탭이 잠들었다 깬 프레임
+
+// ── 염 — **면이 곧 불이다** ───────────────────────────────────────────────
+/// 판 하나가 세 상태를 오간다: 성한 판 → 타는 판 → 숯. 셋 다 **면의 색**으로
+/// 갈리고 테는 거들 뿐이다 — 예전 판이 그 반대(테가 주인공)여서 「타는 판」이라는
+/// 이름과 그림이 안 맞았다.
+function W2ember(c,t,st,SC,cx,cy,RR,spin,q,front,D){
+  const P0=GDproj(q,spin,cx,cy,RR);
+  if((P0.dep>=0)!==front)return;
+  const T=toneOf(D.k),RM=W2ramp(D.k);
+  const bn=q.bn||0,ch=q.ch||0,bl=GDblink(t,q.rank);
+  const sc=(.62+.38*Math.abs(P0.dep))*(1+q.fl*.22)*(1+bn*.10);  // 타면 살짝 부푼다
+  const r=RR*WDANG*.5*D.fill*sc;
+  const al=W2c((front?.55+.45*P0.dep:.16+.14*(1+P0.dep))*(.46+.54*bl)
+               +q.fl*.45+bn*.34);
+  if(al<.02||r<.4)return;
+  const rot=P0.th*.25,S=W2hexP(P0,rot,r);
+  if(bn<=.02){
+    // 성한 판 / 숯 — **지나간 자리가 남아야** 「번졌다」가 그림에 남는다.
+    // 숯일수록 면이 **더 진해진다**(알파 +) — 다 탄 자리가 구멍처럼 비면
+    // 껍질에 빵꾸가 난 것으로 읽힌다. 결계는 끝까지 안 뚫린다.
+    fillPoly(c,S,A(W2char(D.k,ch),W2c((D.face+ch*.30)*al+q.fl*.30)));
+    // **속불** — 다 탄 판은 한동안 속이 벌겋다. 이게 없으면 불이 지나간 뒤
+    // 화면에서 제일 밝은 것이 다시 테가 되어 「테두리에 불붙은 육각」으로
+    // 돌아간다 — 껍질이 쉬는 그 0.3초가 하필 그 그림이면 안 된다.
+    if(ch>.24)fillPoly(c,W2hexP(P0,rot,r*.46),A(RM.base,W2c(.20*ch*al)));
+  }else{
+    // 타는 판 — [FCink] 는 **긋고 나서 채운다.** 채우기가 획의 안쪽 절반을
+    // 덮으므로 남는 것은 바깥 절반의 굵은 어두운 테뿐이고(이 레포의 불 문법),
+    // 안쪽은 통째로 주황이 된다. 그 테가 **가장자리에 앉는 숯**이다.
+    FCink(c,S,W2hot(D.k,bn),RM.ink,Math.max(.6,(1.2+1.8*bn)*SC),
+          W2c((.62+.38*bn)*al*1.35));
+    // 2톤이 지배한다 — 주황 바탕 + 크림 심(불 3패스가 지키는 그 규칙).
+    if(bn>.30)fillPoly(c,W2hexP(P0,rot,r*(.28+.26*bn)),
+                       A(RM.lit,W2c((bn-.30)*1.5*al)));}
+  // 결계의 획(밝은 심)은 **성한 셀에만.** 타는 셀의 가장자리는 빛나는 게
+  // 아니라 타고([FCink] 의 어두운 테), 다 탄 셀의 가장자리는 **죽는다**.
+  // ⚠️ 숯에서 이 획을 안 깎으면 화면에서 제일 밝은 것이 또 테가 된다 —
+  //   1차 렌더가 「검은 육각 + 밝은 주황 테」였던 원인의 절반이 이 줄이었다.
+  if(bn<=.38&&ch<.98){
+    const lw=1.5*SC+q.fl*2.4*SC;
+    celStroke(c,S.concat([S[0]]),Math.max(.4,lw*(.80+.40*bl)),D.k,
+              W2c(al*1.30*Math.max(0,1-bn*2.6)*(1-ch*.85)));}
+  // 불길 — [WDhex] 의 3패스 **그대로**. 앞면 **윗쪽**만 세운다: 불은 오르므로
+  // 아랫배의 불길은 제 껍질 속으로 파고들어 얼룩만 되고, 윗쪽 것만 실루엣
+  // 밖으로 혀를 내민다. (뒷면 불길은 알파 .16 에 뭉개져 픽셀 값만 먹는다 —
+  // 화려함의 비용은 개수가 아니라 면적이다.)
+  if(front&&bn>W2FLAME&&P0.y<cy+r*.6){
+    const bx=P0.x,by=P0.y+r*.35,w=r*.52,h=r*(1.7+.8*bn);
+    const a2=W2c(Math.min(1,bn*1.2)*al*1.5);
+    firePath(c,bx,by,w,h,t,q.id*2.11,q.id*1.7);
+    c.fillStyle=A(T[0],W2c(.85*a2));c.fill();
+    firePath(c,bx,by-r*.10,w*.78,h*.94,t*1.18,q.id*2.11,q.id*1.7+.9);
+    c.fillStyle=A(T[1],W2c(.92*a2));c.fill();
+    firePath(c,bx,by-r*.20,w*.40,h*.74,t*1.34,q.id*2.11+3.7,q.id*2.3);
+    c.fillStyle=A(T[2],a2);c.fill();}}
+
+// ── 빙 — **두께가 비친다** ────────────────────────────────────────────────
+/// 셀 하나가 「면」이 아니라 **판(slab)** 이다: 낮은 알파의 몸 + 각진 조각 +
+/// 가장자리 둘(바깥 면·안쪽 면) + 모서리에서만 꺾이는 빛. 앞 켜가 비쳐
+/// **뒤 켜가 그대로 보이고**, 그 겹침이 곧 껍질의 두께다.
+function W2frost(c,t,st,SC,cx,cy,RR,spin,q,front,D){
+  const P0=GDproj(q,spin,cx,cy,RR);
+  if((P0.dep>=0)!==front)return;
+  const dead=q.dead||0;
+  const crk=dead>WDGROW-W2CRK?(dead-(WDGROW-W2CRK))/W2CRK:0;   // 1 → 0
+  if(dead>WDTAIL&&crk<=0)return;                 // 자리가 비어 있다
+  const T=toneOf(D.k);
+  const grow=(dead>0&&dead<=WDTAIL)?1-dead/WDTAIL:1;   // 마지막 .5초에 솟아 돋는다
+  // **아무것도 안 떤다** — [GDblink] 를 안 쓰는 유일한 칸이다(명멸은 「살아
+  // 움직인다」의 문법이고 얼음은 그 반대다). 대신 좁은 띠 하나가 껍질을 훑는다:
+  // 위상 하나(t·W2GLN)에서 파생하므로 주기 끝과 처음이 이어지고, 도형·알파는
+  // 한 톨도 안 움직인다 — 정지를 지키면서 정보만 는다.
+  const gl=Math.pow(Math.max(0,Math.cos(P0.th-t*W2GLN)),W2GSH);
+  const sc=(.62+.38*Math.abs(P0.dep))*(1+q.fl*.22)*grow;
+  const r=RR*WDANG*.5*D.fill*sc;
+  let al=(front?.55+.45*P0.dep:.16+.14*(1+P0.dep))+q.fl*.45;
+  if(crk>0)al*=crk;                              // 금이 갔다 **흩어진다**
+  al=W2c(al);
+  if(al<.02||r<.4)return;
+  const rot=P0.th*.25,S=W2hexP(P0,rot,r);
+  // ① 몸 — **꽉 채우면 돌이 되고 비우면 철사 도형이 된다**([IBpane]·[IBcrys]
+  //    판정). 사이가 답이므로 낮은 알파로 둔다: 뒤 켜가 이 판을 통해 보인다.
+  fillPoly(c,S,A(W2ice(D.k),W2c(D.face*al*1.50)));
+  if(front){
+    gAdd(c,cc=>{fillPoly(cc,S,A(T[1],W2c((.07+.20*gl)*al)));});
+    IBmos(c,S,D.k,al*.55,q.id*3.7,2);            // 결정 하나는 단색 면이 아니다
+    // ② **두께의 뒷면.** 반지름 16% 안쪽의 같은 판은 화면에서 중심 쪽으로
+    //    W2THK 배 축소한 것과 같다(구면 투영이라 그렇다). 실루엣 쪽 셀일수록
+    //    두 테가 크게 어긋나 **옆구리**가 보인다 — 그게 두께의 유일한 신호다.
+    IBrim(c,S.map(p=>[cx+(p[0]-cx)*W2THK,cy+(p[1]-cy)*W2THK]),
+          D.k,W2c(al*.38),Math.max(.5,.85*SC));}
+  if(q.fl>.30)                                   // 옆 셀이 맞으면 하얗게 언다
+    fillPoly(c,W2hexP(P0,rot,r*.50),A(T[2],W2c(q.fl*1.05*al)));
+  // ③ 테 — **모서리에서만 빛이 꺾인다.** 빛줄기가 지나가는 셀만 더 밝다.
+  IBrim(c,S,D.k,W2c(al*(.80+.85*gl)),
+        Math.max(.5,((front?1.35:.80)+q.fl*1.8)*SC));
+  // ④ 금 — 깨지는 그 .26초에만. 한가운데서 모서리로 **자라 나간다**([celStroke]
+  //    라 어두운 집 안에 밝은 심이 든다 = 실금이 빛난다). 그 뒤에 조각이
+  //    떨어지는 것은 [WDreact] 의 [shards] 그대로다.
+  if(crk>0){
+    const g=1-crk;
+    for(let s=0;s<3;s++){
+      const a0=rot+s/3*TAU+hash(q.id*4.1+s*1.7)*1.1,P=[[0,0]];
+      for(let n=1;n<=3;n++){
+        const rr=r*.34*n*(.45+.55*g);
+        const aa=a0+(hash(q.id*7.7+s*2.3+n)-.5)*.6;
+        P.push([Math.cos(aa)*rr,Math.sin(aa)*rr]);}
+      celStroke(c,GDflat(P,P0),Math.max(.4,.95*SC),D.k,W2c(crk*1.1));}}}
+
+// ── 한 칸의 몸통 — [WDcore] 의 순서 그대로 ────────────────────────────────
+/// 뒤 껍질 → 표식(뒤) → 적 → 표식(앞) → 몸 → 앞 껍질 → 반응 → 파티클.
+/// ⚠️ [hurtFlash] 가 여기도 **하나도 없다** — 결계는 막으므로 몸이 안 맞는다.
+/// ⚠️ [WDreact] 에는 **원본 D** 를 넘긴다. 빙의 「조각이 떨어진다」(shards)가
+///   거기 있고, 그건 물려받는 것이 맞다 — 내가 바꾸는 것은 껍질이지 반응이 아니다.
+function W2core(c,t,dt,W,H,st,i){
+  const D=WDDEF[i],ember=(D.e==="ember");
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,RR=WDRR*SC;
+  const spin=t*.40;
+  WDstage(t,dt,st,SC,cx,cy,RR,spin,W2sd(D));     // 무대는 **그대로**
+  W2step(t,dt,st,SC,cx,cy,RR,spin,D,ember);      // 원소 규칙만 내가
+  const hx=ember?W2ember:W2frost;
+  for(const q of st.cell)hx(c,t,st,SC,cx,cy,RR,spin,q,false,D);
+  if(D.pv)pvLayer(c,cx,cy,st.F,D.pv,t,D.k,SC,0);
+  drawFoes(c,t,cx,cy,st.F);
+  if(D.pv)pvLayer(c,cx,cy,st.F,D.pv,t,D.k,SC,1);
+  hero(c,t,cx,cy);
+  for(const q of st.cell)hx(c,t,st,SC,cx,cy,RR,spin,q,true,D);
+  WDreact(c,t,st,SC,cx,cy,RR,spin,D);
+  drawP(c,st);}
+
+// ── 표 갈아 끼우기 — [WDDEF] 는 **덮어쓴다**(직접 안 고친다) ──────────────
+/// `face` 만 움직인다. `fill`(1.02, 빈틈없이 붙는 육각) · `kb` · `pv` · `s` 는
+/// 여섯이 나란히 서야 하는 값이라 안 건드린다.
+Object.assign(WDDEF[0],{face:.26,
+  nm:"결계 · 염 炎 — 타는 판",
+  ds:"육각은 그대로. **면이 곧 불이다** — 맞은 셀이 주황으로 차고 옆으로 "+
+     "**안 약해진 채** 옮아붙어 껍질을 한 바퀴 돈다. 지나간 자리는 숯. 점화"});
+Object.assign(WDDEF[1],{face:.24,
+  nm:"결계 · 빙 氷 — 비치는 판",
+  ds:"육각은 그대로. **속이 비치는 두꺼운 판** — 앞뒤 두 켜가 서로 비쳐 두께가 "+
+     "보이고 모서리만 빛난다. 안 떨고 빛이 훑고 지날 뿐. 맞으면 금이 갔다 흩어져 "+
+     "1.8초 뒤 솟아 돋는다. 빙결"});
+
+/// ⚠️ **함수 이름을 그대로 물려받는다.** [mk] 가 `fn.name` 을 label 로 쓰고
+/// 그 label 이 스모크 필터(`--only=`)와 예외 표시가 보는 유일한 이름이다 —
+/// 이름을 바꾸면 같은 칸인데 로그에서 남이 된다. (최상위 이름은 규약대로 전부
+/// `W2`; 아래 둘은 최상위 바인딩이 아니라 `W2FN` 의 속성이다.)
+const W2FN={};
+[0,1].forEach(i=>{const key=WDDEF[i].key;
+  W2FN[key]={[key]:function(c,t,dt,W,H,st){W2core(c,t,dt,W,H,st,i);}}[key];
+  WDFX[key]=W2FN[key];WDMAP[key]=W2FN[key];});
+/// ⚠️ 이 블록이 **마운트 뒤**에 놓였을 때를 위한 되꽂기. [mk] 는 함수 참조를
+/// 그대로 들고 가므로 표만 고치면 화면은 안 바뀐다. 앞에 놓였으면 `anims` 에
+/// 아직 그 라벨이 없어 이 줄은 조용히 아무것도 안 한다(양쪽 다 안전하다).
+/// ※ 캡션(nm/ds)까지 새것으로 뜨게 하려면 이 블록을 [WDROW] 마운트
+///   **앞**(WDMAP 만든 직후)에 병합해야 한다 — 캡션은 마운트 때 한 번 읽힌다.
+try{if(typeof anims!=="undefined")
+  for(const a of anims)if(W2FN[a.label])a.fn=W2FN[a.label];}catch(_){}
+// ══════════════════════════════════════════════════════════════════════════
+
 if(WDGD){WDMAP.GDground3=WDGD.GDground3;WDMAP.GDground4=WDGD.GDground4;}
 // ⚠️ **무(無) 원본을 맨 앞에 세운다** — 기준이 없으면 「무엇이 바뀌었나」가
 // 화면에 안 보인다(손이 짚은 것).
