@@ -45074,8 +45074,11 @@ const WDDEF=[
   nm:"결계 · 염 炎 — 타는 판",
   ds:"육각은 그대로. 맞은 셀에 **불이 붙고 옆 셀로 옮아붙는다** — 세대마다 55%씩 "+
      "약해져 두 줄쯤 번지다 꺼진다. 닿은 놈에게 점화"},
- {key:"WDwardFrost",k:"frost",s:0,e:"frost",pv:"freeze",fill:1.02,face:.30,kb:0,
-  // ⚠️ kb 30 → **0**(2026-08-13 사용자: 「얼면 언 거지 왜 뒤로 튕겨나가냐」).
+ {key:"WDwardFrost",k:"frost",s:0,e:"frost",pv:"freeze",fill:1.02,face:.30,kb:14,
+  // ⚠️ kb 30 → 0 → **9**. 처음엔 통째로 껐는데(「얼면 언 거지 왜 뒤로
+  //   튕겨나가냐」) 그러면 **닿은 티가 안 난다** — 두 번째 판정에서 「아주 살짝
+  //   튕겨나가듯이 넉백되면서 얼도록」으로 확정(2026-08-13). 9 는 원래 30 의
+  //   **절반 밑**이라 한 뼘 물러난 자리에서 굳는다(9 → **14**, 2차 조정).
   //   빙결은 「얼어붙어 멈춘다」인데 밀어내면 **표식과 그림이 서로를 부정한다.**
   //   여섯 중 **혼자만 안 미는 것**이 이 칸의 정체가 된다 — 나머지는 쳐내고
   //   이것은 **붙잡는다**. 접선으로 흘리는 풍(20)과도 다른 축이다.
@@ -45149,7 +45152,11 @@ function WDstage(t,dt,st,SC,cx,cy,RR,spin,D){
     //   (2026-08-13 사용자: 「빙결이면 얼어버린 즉시 그 자리에 있어야지」).
     //   전용 시계 `fz` 로 분리한다 — 얼면 **4.2초 통째로 정지**하고 그동안
     //   표식도 계속 켜 둔다. 달려듦 한 주기(WDPER)보다 길어야 「멈췄다」가 된다.
-    if(FRZ&&f.frz>0){f.frz-=dt;f.pv=1;continue;}
+    // ⚠️ 밀린 값(kx/ky)은 [stepFoes] 가 매 프레임 **0 으로 감쇠시킨다**. 그냥
+    //   두면 언 놈이 밀려났다가 **도로 빨려 들어온다** — 「튕겨나가면서 언다」가
+    //   아니라 「튕겼다 되돌아온다」가 된다. 밀린 만큼을 **자리에 굳혀** 옮긴다.
+    if(FRZ&&f.frz>0){f.frz-=dt;f.pv=1;
+      f.ox+=f.kx;f.oy+=f.ky;f.kx=0;f.ky=0;continue;}
     const pu=f.u;f.u=(f.u+dt/WDPER)%1;
     const dash=Math.sin(Math.PI*Math.min(1,f.u/WDDASH));
     const ang=f.a0+t*f.sp, rad=f.rh-dash*(f.rh-(RR+f.r*.86));
@@ -45166,8 +45173,15 @@ function WDstage(t,dt,st,SC,cx,cy,RR,spin,D){
         if(Math.abs(q.ph-q0.ph)<.45&&
            Math.abs(((q.th-q0.th)%TAU+TAU+Math.PI)%TAU-Math.PI)<.80)
           q.fl=Math.max(q.fl,.55);
+      // ⭐ **맞은 칸은 깨졌다 돋는다 — 원본(무)의 규약이고 파생이 전부 따른다**
+      //   (2026-08-13 사용자 지시). 지금까지 빙만 하고 있었다.
+      //   ⚠️ 육각 껍질(s:0)에만 건다. 풍(s:1 고리)·독(s:2 뜬 판)은 **안 깨지는
+      //     것이 정체**라 설명에도 「안 깨진다」·「안 꺼진다」로 못박혀 있고,
+      //     사용자가 그 둘은 합격시켰다 — 규약을 억지로 끼우면 그 정체가 죽는다.
+      if(D.s===0)q0.dead=WDGROW;
       if(D.e==="ember")q0.bn=1;                     // 불이 붙는다 — 아래서 번진다
-      if(FRZ){q0.dead=WDGROW;f.frz=4.2;                // 깨져 비었다 다시 돋는다 · 적은 언다
+      if(FRZ){f.frz=4.2;                            // 적은 그 자리에 언다
+
         emit(st,cx+Math.cos(fa)*RR,cy+Math.sin(fa)*RR*.94,7,
           {k:D.k,sp:96*SC,r:2.8*SC,life:.42,g:150*SC,spikeP:.85});}
       if(D.e==="toxin"){st.pool=Math.min(1,st.pool+.34);
@@ -45569,10 +45583,15 @@ function W2step(t,dt,st,SC,cx,cy,RR,spin,D,ember){
   for(const e of st.ev){
     if(e.w2)continue;e.w2=1;
     const q=(e.ci>=0)?cell[e.ci]:null;if(!q)continue;
-    if(ember){                                   // 염 — **직격은 다시 붙인다**
+    // ⭐ **깨졌다 돋는 것은 원본(무)의 규약이고, 파생은 전부 그것을 따른다**
+    //   (2026-08-13 사용자: 「결계가 파생된 애들은 기본적으로 부딪히면 부딪힌
+    //   부분들은 깨졌다가 다시 회복되는 원본 메커니즘을 따라가야 돼」).
+    //   염이 이걸 안 하고 있었다 — 맞은 칸에 불만 붙이고 판은 멀쩡했다.
+    //   속성이 바꾸는 것은 **그 위에 무엇이 더 얹히나**지, 껍질의 규약이 아니다.
+    q.dead=WDGROW;
+    if(ember){                                   // 염 — 깨진 자리에 **불이 붙는다**
       if((q.ch||0)<W2CHHIT){q.bn=1;W2spark(st,q,spin,cx,cy,RR,SC,D);}}
-    else{                                        // 빙 — 깨져 비었다 다시 돋는다
-      q.dead=WDGROW;
+    else{                                        // 빙 — 깨진 자리에서 **조각이 진다**
       emit(st,cx+Math.cos(e.ia)*RR,cy+Math.sin(e.ia)*RR*.94,7,
         {k:D.k,sp:96*SC,r:2.8*SC,life:.42,g:150*SC,spikeP:.85});}}
   if(!ember)return;
@@ -45607,6 +45626,12 @@ function W2step(t,dt,st,SC,cx,cy,RR,spin,D,ember){
 function W2ember(c,t,st,SC,cx,cy,RR,spin,q,front,D){
   const P0=GDproj(q,spin,cx,cy,RR);
   if((P0.dep>=0)!==front)return;
+  // ⚠️ 원본 [WDhex] 의 두 줄을 **그대로** 물려받는다 — 이게 없어서 염만 깨져도
+  //   판이 멀쩡히 그려졌다(2026-08-13 반려). 깨진 칸은 안 그리고, 마지막
+  //   `WDTAIL` 동안 작게 솟아 돋는다.
+  const dead=q.dead||0;
+  if(dead>WDTAIL)return;
+  const grow=dead>0?1-dead/WDTAIL:1;
   const T=toneOf(D.k),RM=W2ramp(D.k);
   // ⚠️ [GDblink] 를 **안 쓴다**(2026-08-13 사용자: 「부딪힌 부분만 붉게 빛나야
   //   되는 거 아니야? 계속 전체가 반짝거리는데」). 블링크는 셀 전체를 주기로
@@ -45616,11 +45641,15 @@ function W2ember(c,t,st,SC,cx,cy,RR,spin,q,front,D){
   //   에서만 나오게 하고, 안 탄 판은 가만히 어둡게 둔다.
   const bn=q.bn||0,ch=q.ch||0,bl=1;
   const sc=(.62+.38*Math.abs(P0.dep))*(1+q.fl*.22)*(1+bn*.10);  // 타면 살짝 부푼다
-  const r=RR*WDANG*.5*D.fill*sc;
+  const r=RR*WDANG*.5*D.fill*sc*grow;
   // 안 탄 판은 **바닥 밝기**로 깔린다(.42). 타면 bn 이, 맞으면 fl 이 올린다 —
   // 밝기의 출처가 둘뿐이라 「어디가 맞았나」가 한 눈에 남는다.
-  const al=W2c((front?.55+.45*P0.dep:.16+.14*(1+P0.dep))*.42
-               +q.fl*.62+bn*.52);
+  // ⚠️ 두 번째 판정(2026-08-13 사용자: 「부딪히면 빨개지는 효과를 조금만 더 세게」).
+  //   바닥을 **.42 → .34** 로 더 내리고 맞은 섬광(fl)·타는 밝기(bn)를 올린다 —
+  //   같은 대비를 「밝은 것을 더 밝게」로만 벌리면 흰색으로 뜨므로, **어두운
+  //   쪽을 더 내려** 벌린다. 그래야 붉은 것이 붉게 남는다.
+  const al=W2c((front?.55+.45*P0.dep:.16+.14*(1+P0.dep))*.34
+               +q.fl*1.18+bn*.92);
   if(al<.02||r<.4)return;
   const rot=P0.th*.25,S=W2hexP(P0,rot,r);
   if(bn<=.02){
@@ -45631,7 +45660,7 @@ function W2ember(c,t,st,SC,cx,cy,RR,spin,q,front,D){
     //   맞은 자리가 지나간 뒤에도 주황으로 남고, 여섯 번 맞으면 껍질이 통째로
     //   빨개졌다(2026-08-13 반려). 숯은 **꺼진 것**이라 내려야 맞다 — 다만
     //   0 으로 내리면 구멍처럼 비니 바닥(.62배)까지만 내린다.
-    fillPoly(c,S,A(W2char(D.k,ch),W2c(D.face*(1-.38*ch)*al+q.fl*.30)));
+    fillPoly(c,S,A(W2char(D.k,ch),W2c(D.face*(1-.38*ch)*al+q.fl*.70)));
     // **속불** — 다 탄 판은 한동안 속이 벌겋다. 이게 없으면 불이 지나간 뒤
     // 화면에서 제일 밝은 것이 다시 테가 되어 「테두리에 불붙은 육각」으로
     // 돌아간다 — 껍질이 쉬는 그 0.3초가 하필 그 그림이면 안 된다.
@@ -45761,14 +45790,15 @@ function W2core(c,t,dt,W,H,st,i){
 /// 여섯이 나란히 서야 하는 값이라 안 건드린다.
 Object.assign(WDDEF[0],{face:.26,
   nm:"결계 · 염 炎 — 타는 판",
-  ds:"육각은 그대로. **면이 곧 불이다** — 맞은 셀이 주황으로 차고 옆으로 "+
-     "**안 약해진 채** 옮아붙어 껍질을 한 바퀴 돈다. 지나간 자리는 숯. 점화"});
+  ds:"육각은 그대로. **면이 곧 불이다** — 맞은 셀이 붉게 확 달아오르고 옆으로 "+
+     "**두 겹까지만** 옮아붙는다. 어디를 맞았는지가 껍질에 남고, 지나간 자리는 "+
+     "**꺼진 숯**으로 어두워진다. 점화"});
 Object.assign(WDDEF[1],{face:.24,
   nm:"결계 · 빙 氷 — 비치는 판",
   ds:"육각은 그대로. **속이 비치는 두꺼운 판** — 앞뒤 두 켜가 서로 비쳐 두께가 "+
      "보이고 모서리만 빛난다. 안 떨고 빛이 훑고 지날 뿐. 맞으면 금이 갔다 흩어져 "+
-     "1.8초 뒤 솟아 돋는다. **여섯 중 혼자 안 밀어낸다** — 닿은 놈은 그 자리에 "+
-     "얼어붙어 선다(빙결)"});
+     "1.8초 뒤 솟아 돋는다. **여섯 중 넉백이 제일 약하다** — 닿은 놈은 한 뼘 "+
+     "물러나다 그 자리에 **얼어붙어 4.2초 굳는다**(빙결)"});
 
 /// ⚠️ **함수 이름을 그대로 물려받는다.** [mk] 가 `fn.name` 을 label 로 쓰고
 /// 그 label 이 스모크 필터(`--only=`)와 예외 표시가 보는 유일한 이름이다 —
