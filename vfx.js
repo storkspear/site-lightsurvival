@@ -46,6 +46,30 @@ const TINTABLE={
   FLconeA:"phys", SDspineD:"phys",
   ward:"tintguard"};
 
+// ── 목차 — **한 곳에서 만든다** (2026-08-14) ───────────────────────────────
+// ⚠️ 전에는 17장에 **각각 하드코딩**돼 있었다. 「보조 공격」을 끼울 때 기준
+//   문자열이 마법 페이지에서만 안 맞아(그 태그엔 `class="cur"` 가 붙어 있었다)
+//   **한 장만 링크가 16개**가 됐다. 사본이 17개면 또 난다 — 여기서 그린다.
+// ⚠️ `nav2`(이 페이지 안 목차)는 페이지마다 다르므로 **안 건드린다.**
+const NAVPAGES=[
+  ["mockup.html","캐릭터"],["mockup-basic.html","기본·발현·융화"],
+  ["mockup-weapon.html","일반 공격"],["mockup-support.html","보조 공격"],
+  ["mockup-magic.html","마법 공격"],["mockup-guard.html","방어"],
+  ["mockup-curse.html","상태이상"],["mockup-heal.html","회복"],
+  ["mockup-ult.html","궁극기"],["mockup-meta.html","성좌·아이템"],
+  ["mockup-foes.html","우주괴물"],["mockup-ui.html","인터페이스"],
+  ["mockup-map.html","심우주 유니버스"],["mockup-map2.html","행성 유니버스"],
+  ["mockup-lobby.html","로비"],["mockup-flow.html","흐름·타이틀"],
+  ["mockup-pick.html","고르기"]];
+// ⚠️ 스모크 스텁에는 `querySelector` 가 없다(브라우저 API 를 다 안 흉내낸다).
+// 목차는 그림과 무관하므로 **없으면 조용히 넘어간다** — 스텁이 죽으면 1000칸이
+// 통째로 안 돌아 진짜 그리기 예외를 못 본다.
+{const n1=document.querySelector&&document.querySelector(".nav1");
+ if(n1){const here=(location.pathname.split("/").pop()||"mockup.html");
+   n1.innerHTML='<span class="lbl">시안</span>'+
+     NAVPAGES.map(([h,nm])=>
+       `<a href="${h}"${h===here?' class="cur"':''}>${nm}</a>`).join("");}}
+
 const MOUNTS={
   // 완성 페이지 — 채택된 것만 선다
   magic  :"mockup-magic.html",  levelsm:"mockup-magic.html",
@@ -14050,7 +14074,10 @@ function MOUNTR(key,fallbackId){
 function MOUNTRL(key,fallbackId){
   const t=(typeof TINTABLE!=="undefined")&&TINTABLE[key];
   const d=t&&LVDEST[t];
-  return (d&&document.getElementById(d))||document.getElementById(fallbackId);}
+  if(d)return document.getElementById(d);          // 표가 정한 자리 — 그것뿐이다
+  // ⚠️ `fallbackId` 가 null 이면 **null 을 돌려준다.** 부르는 쪽이 제 기본값을
+  //   따로 쓰겠다는 뜻이라, 여기서 `getElementById(null)` 을 부르면 안 된다.
+  return fallbackId?document.getElementById(fallbackId):null;}
 const SKTAGCOL={"일반":"#8A8A96","보조":"#7FB2E5","마법":"#B08AE0",
                 "오라":"#E0A05A","마법진":"#5FC9A8","방어":"#E08A9A"};
 /// 칩 줄 — 태그가 없으면 빈 문자열이라 칸 높이가 안 변한다.
@@ -14535,13 +14562,17 @@ function lvTable(o){
     if(w!==h)h.appendChild(w);
     h.__lv=w;return w;};
   const main=wrapOf(o.host);
-  if(!main)return 0;
+  // ⚠️ 전엔 `if(!main)return 0` 였다 — 기본 호스트가 이 페이지에 없으면 **줄을
+  //   하나도 안 그려**, `hostOf` 로 딴 페이지에 갈 줄까지 통째로 죽었다.
+  if(!main&&!o.hostOf)return 0;
   let made=0;
   for(const r of rows){
     const [key,nm,sub,txt]=r;
     const fn=reg[key];
     if(!fn)continue;                               // 없는 그림은 조용히 건너뛴다
-    const W=(o.hostOf&&o.hostOf(key)) ? wrapOf(o.hostOf(key)) : main;
+    // ⚠️ `hostOf` 가 있으면 **그 답만 따른다.** 답이 null 일 때 `main` 으로
+    //   떨어뜨리면 옮긴 줄이 **옛 페이지에도** 뜬다(칸 쪽 [tile] 과 같은 규율).
+    const W=o.hostOf?wrapOf(o.hostOf(key)):main;
     if(!W)continue;
     // `n` 은 수 또는 **줄마다 재는 함수**다 — 원본 성장표는 계열마다 단수가
     // 다르다(`LVN={"궁극기":3}`).
@@ -14598,8 +14629,17 @@ lvTable({
   host  : LVHOSTS["물리"],
   rows  : LVW.map(([key,nm,kind])=>[key,nm,kind,
             [LVT1[key]||"기준 디자인"].concat(LVT[key]||[])]),
-  hostOf: (k)=>{const w=LVW.find(x=>x[0]===k);
-                return w?(LVHOSTS[w[2]]||LVHOSTS["물리"]):null;},
+  // ⚠️ **[TINTABLE] 이 먼저다.** LVW 셋째 칸(계열 문자열)은 손으로 적은 값이라
+  //   칸이 계열을 옮겨가도 안 따라온다 — 빛원반이 일반 성장표에 남아 있었다.
+  //   자리를 정하는 표는 하나여야 한다.
+  // ⚠️ **[TINTABLE] 에 있으면 그 답만 따른다** — 목적지 호스트가 이 페이지에
+  //   없으면 `null` 이고, 그건 「여기 그리지 마라」는 뜻이다. 옛 계열로 떨어뜨리면
+  //   빛원반이 일반 성장표에 남는다(그렇게 한 번 틀렸다). 표에 **없는** 스킬만
+  //   LVW 셋째 칸(손으로 적은 계열)을 쓴다.
+  hostOf: (k)=>{
+    if(typeof TINTABLE!=="undefined"&&TINTABLE[k])return MOUNTRL(k,null);
+    const w=LVW.find(x=>x[0]===k);
+    return w?(LVHOSTS[w[2]]||LVHOSTS["물리"]):null;},
   n     : (k)=>{const w=LVW.find(x=>x[0]===k);
                 return w?(LVN[w[2]]||5):5;},
   tone  : "wtone",
@@ -14637,7 +14677,16 @@ const ICONHOSTS={"일반 공격":$("icons"),"마법 공격":$("iconsm"),
   // ⚠️ 「저주」 아이콘 자리도 뺐다 — 계열이 없어졌다(2026-08-13).
   "회복":$("healicon")};
 for(const h of Object.values(ICONHOSTS))asRow(h,ICON_W);
+/// 계열 호스트 → 아이콘 계열. 칸이 간 곳을 아이콘도 따라가게 하는 다리.
+const ICKIND={phys:"일반 공격",support:"보조 공격",tintsupport:"보조 공격",
+              magic:"마법 공격",tintmagic:"마법 공격",
+              guard:"방어",tintguard:"방어",heal:"회복",ult:"궁극기"};
 function iconTile(reg,key,nm,kind){
+  // ⭐ **계열을 표에서 되읽는다.** 전엔 넷째 인자에 손으로 적혀 있어 칸을 옮겨도
+  //   아이콘은 옛 페이지에 남았다 — 여덟 종이 그랬다(사용자: 「공격·레벨성장표·
+  //   아이콘이 다 한 세트인데 하나만 옮기면 어쩌자는 거냐」).
+  const routed=(typeof TINTABLE!=="undefined")&&TINTABLE[key];
+  if(routed&&ICKIND[routed])kind=ICKIND[routed];
   const iconHost=ICONHOSTS[kind]||ICONHOSTS["일반 공격"];
   const d=document.createElement("div");d.className="v";asCell(d,ICON_W);
   const cv=document.createElement("canvas");
@@ -17041,7 +17090,11 @@ MGDEF.forEach(([key,nm])=>{
     // 속성이 스킬마다 고정이라 RECOLOR 훅을 안 탄다 — 그리는 쪽이 색을 직접 댄다.
     mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
       try{fn(c,t,dt,W,H,st);}finally{LV=sl;}});}
-  row.appendChild(cells);host.appendChild(row);});
+  row.appendChild(cells);
+  // ⚠️ 손조립 성장표 — 호스트를 고정하면 칸이 옮겨가도 표가 안 따라간다.
+  {const _r=(typeof TINTABLE!=="undefined"&&TINTABLE[key])
+     ?MOUNTRL(key,null):document.getElementById("levelsm");
+   if(_r)_r.appendChild(row);}});
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -17725,7 +17778,10 @@ MGFI.forEach(([key,nm])=>{
     const fn=FX[key];
     mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
       try{fn(c,t,dt,W,H,st);}finally{LV=sl;}});}
-  row.appendChild(cells);LVHOSTS["마법"].appendChild(row);});
+  row.appendChild(cells);
+  {const _r=(typeof TINTABLE!=="undefined"&&TINTABLE[key])
+     ?MOUNTRL(key,null):document.getElementById("levelsm");
+   if(_r)_r.appendChild(row);}});
 
 // 아이콘 — 110px 에서 **실루엣만으로** 갈려야 한다. 기존 열아홉과 안 겹치게
 // 골랐다: 채운 부채꼴 · S자 띠 · 나선 · 도장 · 가로 톱니벽 · 가시 열 ·
@@ -18377,7 +18433,10 @@ MGW.forEach(([key,nm])=>{
     const fn=FX[key],tk=WTONE[key];
     mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV,sr=RECOLOR;LV=L;RECOLOR=tk;
       try{fn(c,t,dt,W,H,st);}finally{LV=sl;RECOLOR=sr;}});}
-  row.appendChild(cells);HOST.appendChild(row);});}
+  row.appendChild(cells);
+  {const _r=(typeof TINTABLE!=="undefined"&&TINTABLE[key])
+     ?MOUNTRL(key,null):document.getElementById("levelsm");
+   if(_r)_r.appendChild(row);}});}
 MGW.forEach(w=>iconTile(ICON,w[0],w[1],"마법 공격"));
 
 
@@ -38695,7 +38754,7 @@ FLconeC(c,t,dt,W,H,st){FLconeDraw(c,t,dt,W,H,st,FLCC[LV-1]);},
  //   섞여 있다. `hostOf` 훅이 **줄마다** 자리를 정하므로 표를 안 쪼개도 된다 —
  //   칸만 옮기고 성장표를 안 옮기면 표가 옛 페이지에 남는다(검사 ⑭ 가 잡았다).
  lvTable({host:HOST,rows:FLROWS,name:"FLcell",
-   hostOf:(k)=>MOUNTRL(k,"levelsm")});}
+   hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsm")});}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GD — 접지 接地 를 **결계(ward)의 셸 문법**으로 다시 그린다 (2026-08-12)
@@ -39586,7 +39645,7 @@ FVvortC(c,t,dt,W,H,st){FVdraw(c,t,dt,W,H,st,FVLC[LV-1]);},
 // 따로 만들어 같은 `#fllv` 에 `appendChild` 하면 화면에서는 같은 표로 이어진다.
 // `.lvset` / `--block` 은 `FL` 이 이미 붙였어도 **같은 값이라 덮어써도 무해**하다
 // (호스트가 없어 `$("fv")` 로 떨어진 경우를 위해 여기서도 한 번 건다).
-{const HOST=MOUNT("levelsm");
+{const HOST=document.getElementById("levelsm");
  const FVROWS=[
  ["FVvortB","화염회오리 火旋","깔때기가 열린다 (RT .72 → 2.18)",[
   "<b>좁고 곧다</b> — 위가 아래의 두 배밖에 안 벌어져 아직 기둥에 가깝다",
@@ -39594,7 +39653,7 @@ FVvortC(c,t,dt,W,H,st){FVdraw(c,t,dt,W,H,st,FVLC[LV-1]);},
   "<b>위가 벌어진다</b> — 꼭대기가 1.05R 로 열리며 <b>깔때기</b>가 성립한다",
   "<b>위에서 내려다보게 된다</b> — 눌림이 갈리고(.22→.43) 도는 덩이가 <b>17개로 굵어진다</b>",
   "<b>다 열린다</b> — 꼭대기 2.18R · 도는 덩이 <b>22개에 1.42배</b> · 불티가 흩어진다"]]];
- lvTable({host:HOST,rows:FVROWS,name:"FVcell"});}
+ lvTable({host:HOST,rows:FVROWS,name:"FVcell",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsm")});}
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -42852,7 +42911,7 @@ FX.HGrico=function HGrico(c,t,dt,W,H,st){
 // 무해**하다(호스트가 없어 `$("hg")` 로 떨어진 경우를 위해 여기서도 건다).
 // ⚠️ `.lvset` 을 [tile] 이 `.grid` 를 붙여 둔 `<div>` 에 겹쳐 걸면 격자 규칙
 // 둘이 싸워 그 페이지 낱칸이 전부 2열로 무너진다 — **제 호스트에만** 건다.
-{const HOST=MOUNT("levelsh");
+{const HOST=document.getElementById("levelsh");
  const HGROWS=[
  ["HGbeat","맥박 脈搏","주기 3.4초 → 1.4초 (한 박 8.5% 고정)",[
   "3.4초에 한 번 — 파문이 몸을 겨우 벗어나고 알갱이가 둘뿐이다",
@@ -42878,7 +42937,7 @@ FX.HGrico=function HGrico(c,t,dt,W,H,st){
   "<b>2.2초</b> — 벽에 부딪는 <b>파편</b>이 튄다",
   "<b>1.8초</b> — 벽이 넓고 굵어진다",
   "<b>1.4초 — 맞자마자 돌아온다.</b> 돌려주는 양은 L1과 같다. 자란 건 기다림뿐이다"]]];
- lvTable({host:HOST,rows:HGROWS,name:"HGcell"});}
+ lvTable({host:HOST,rows:HGROWS,name:"HGcell",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsh")});}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GL — 방어 신규 시안의 **레벨 성장표** (접두 `GL`)              (2026-08-13)
@@ -43333,7 +43392,7 @@ GLplasma (c,t,dt,W,H,st){GLplasmaCore(c,t,dt,W,H,st,GLP[LV-1]);},
 // ⚠️ `.lvset` 은 **제 호스트에만** 붙인다 — [tile] 이 이미 `.grid` 를 붙여 둔
 // `<div>` 에 겹쳐 붙이면 격자 규칙 둘이 싸워 그 페이지의 낱칸이 전부 2열로
 // 무너진다(2026-08-12 궁극기·마법 두 번 냈다).
-{const HOST=MOUNT("levelsg");
+{const HOST=document.getElementById("levelsg");
  const GLROWS=[
  ["GLfire2","소염 消炎","되받는 세기 — 삼킨 열이 얼마나 많이 판으로 돌아오나",[
   "<b>아무것도 안 돌려준다</b> — 고리 토막이 색만 갈린다. 막긴 막는데 되받음이 없다",
@@ -43365,7 +43424,7 @@ GLplasma (c,t,dt,W,H,st){GLplasmaCore(c,t,dt,W,H,st,GLP[LV-1]);},
   "<b>위아래 줄까지 물린다</b> — 격자가 닫힌다. 점등 45%",
   "<b>맞은 자리가 즉시 닫힌다</b> — 뚫린 구멍 둘레가 통째로 켜진다",
   "<b>되뿜음이 판을 타고 간다</b> — 점등 70% · 중간 판이 한 번 밝게 켜지는 릴레이"]]];
- lvTable({host:HOST,rows:GLROWS,name:"GLcell"});}
+ lvTable({host:HOST,rows:GLROWS,name:"GLcell",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsg")});}
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -43762,7 +43821,7 @@ WLwall4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 // 캔버스**를 돌려주므로 조립은 그대로 돌고 그리기 비용은 0 이다.
 // ⚠️ `.lvset` 은 **제 호스트에만** 붙인다 — [tile] 이 이미 `.grid` 를 붙여 둔
 // `<div>` 에 겹쳐 붙이면 격자 규칙 둘이 싸워 낱칸이 전부 2열로 무너진다.
-{const HOST=MOUNT("levelsg");
+{const HOST=document.getElementById("levelsg");
  const WLROWS=[
  ["WLwall1","빙벽 A · 겹친 유리판","덮는 각 — 호가 얼마나 감싸나 (몇 놈을 막나)",[
   "<b>한 놈만 막는다</b> — 판 셋뿐. 반각 16.5° 라 나머지 셋은 옆으로 그냥 들어온다",
@@ -43788,7 +43847,7 @@ WLwall4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
   "<b>두 겹이 다 찬다</b> — 바깥 줄 일곱이 채워져 열넷이 완성된다",
   "<b>금이 간다</b> — 칸이 단단해지고(.58) 깎인 칸에 균열이 그어진다",
   "<b>파편이 터진다</b> — 칸이 떨어질 때 얼음 조각과 냉기가 같이 튄다"]]];
- lvTable({host:HOST,rows:WLROWS,name:"WLcell"});}
+ lvTable({host:HOST,rows:WLROWS,name:"WLcell",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsg")});}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // JD — 사용자 판정 셋을 페이지에 박는다 (접두 `JD`)               (2026-08-13)
@@ -44055,8 +44114,8 @@ JDlatch(c,t,dt,W,H,st){JDlatchRun(c,t,dt,W,H,st);},
    "빈 껍질 윤곽이 남는다 · 지속형(역 疫)",238,undefined,undefined,5);}
 
 // 기생 — 레벨 성장표. 칸은 전역 `LV` 만 바꿔놓고 **같은 함수**를 부른다.
-{const HOST=MOUNT("levelsm");
- lvTable({host:HOST,reg:JDFX,name:"JDcell",rows:[
+{const HOST=document.getElementById("levelsm");
+ lvTable({host:HOST,reg:JDFX,name:"JDcell",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsm"),rows:[
  ["JDlatch","기생 寄生 · 독 毒","마법",[
   "기준 — 붙는 것 <b>둘</b>. 5초면 떨어지고, 떨어지면 빨린 것이 <b>돌아와 다시 부푼다</b>",
   "<b>붙는 것 셋</b> — 한 마리에 둘도 붙는다",
@@ -44075,8 +44134,8 @@ JDlatch(c,t,dt,W,H,st){JDlatchRun(c,t,dt,W,H,st);},
 //    `RECOLOR="gale"` 을 걸고 그리는데, 성장표가 그걸 안 걸면 같은 함수가 **다른
 //    색으로** 나온다(`TK` 가 `"gold"` 만 바꾸므로 `WBleak`·`hero` 가 갈린다).
 //    원래 고르기 마운트도 `tone:"gale"` 이었다 — 사용자가 고른 그림이 그 색이다.
-{const HOST=MOUNT("levelsg");
- lvTable({host:HOST,name:"JDgcell",tone:"gale",rows:[
+{const HOST=document.getElementById("levelsg");
+ lvTable({host:HOST,name:"JDgcell",tone:"gale",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsg"),rows:[
  ["WBarc","풍벽 風壁","막는 각 — 어디를 막나 (등 뒤는 끝까지 열려 있다)",[
   "<b>앞의 한 뼘뿐이다</b> — 호 92°. 나머지 268° 는 통째로 열려 있어 곧장 몸에 닿는다",
   "<b>호가 넓어진다</b> (92° → 132°)",
@@ -44330,7 +44389,7 @@ SDspineD(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 // 이 레포의 성장표 관례 그대로다: 칸이 전역 `LV` 를 갈아 끼우고 **같은 함수**를
 // 부른다([lvTable] 이 마크업을 통째로 쥐고 있으므로 손으로 조립하지 않는다).
 {const HOST=MOUNTRL("SDspineD","levelsm");  // 칸을 따라 계열 페이지로 간다
- lvTable({host:HOST,name:"SDcell",color:"#7FD8FF",rows:[
+ lvTable({host:HOST,name:"SDcell",color:"#7FD8FF",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsm"),rows:[
  ["SDspineD","서릿발","갈래 수 — 각도도 사거리도 안 자란다",[
   "<b>한 갈래 · 한 번</b> — 파면이 폭 없이 정면으로만 번진다. "+
   "지나간 자리에 <b>서리 자국 한 줄</b>이 남는다",
@@ -44604,8 +44663,8 @@ SCspine(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 
 // 성장표 — 칸은 전역 `LV` 만 바꿔놓고 **같은 함수**를 부른다.
 // ⚠️ 마크업은 손으로 안 짠다. `lvTable` 한 줄이 전부다.
-{const HOST=MOUNT("levelsm");
- lvTable({host:HOST,name:"SCcell",rows:[
+{const HOST=document.getElementById("levelsm");
+ lvTable({host:HOST,name:"SCcell",hostOf:(k)=>(typeof TINTABLE!=="undefined"&&TINTABLE[k])?MOUNTRL(k,null):document.getElementById("levelsm"),rows:[
  ["SCspine","서리결정","마법 — 연타 수 (5 · 7 · 9 · 9 · 11)",[
   "기준 — 사슬 <b>마디 5</b>. 처음 맞은 적에게 <b>5연타</b>. 직선 한 갈래고 사거리는 끝까지 안 는다",
   "<b>7연타</b> — 마디 둘이 붙는다. 사슬 굵기 10.4 → 11.4 (<b>+9.6%</b>)",
