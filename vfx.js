@@ -35946,7 +35946,8 @@ FZtomb1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
     emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
       {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:0,spread:1.5});
     emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
-      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});}
+      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});
+    PAerupt(st,cx+T.ox,cy+T.oy+T.r*1.2,T.r,SC,PA_FRG[4],1.7);}
   if(pu<.80&&u>=.80){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
     emit(st,cx+T.ox,cy+T.oy,20,{k:"frost",sp:170*SC,r:2.8*SC,life:.55,g:120*SC,spikeP:.9});
     IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.9,SC,6);}
@@ -41298,7 +41299,8 @@ ILpillar(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
     emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
       {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:0,spread:1.5});
     emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
-      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});}
+      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});
+    PAerupt(st,cx+T.ox,cy+T.oy+T.r*1.2,T.r,SC,PA_FRG[LV-1],1.7);}
   if(pu<.80&&u>=.80){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
     emit(st,cx+T.ox,cy+T.oy,20,{k:"frost",sp:170*SC,r:2.8*SC,life:.55,g:120*SC,spikeP:.9});
     IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.9,SC,6);}
@@ -44208,3 +44210,76 @@ SCspine(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
   "연타는 <b>9 그대로</b> — 이 칸의 사건은 <b>얼음 폭발</b>이다. 마지막 마디가 부서지면 "+
   "밀어내고(넉백), <b>0.22초 뒤에</b> 주변 적이 언다. 굵기 12.4 → 13.4 (<b>+8.1%</b>)",
   "각성 — <b>11연타</b> + 얼음 폭발. 굵기 13.4 → 14.4 (<b>+7.5%</b>)"]]]});}
+
+/// ⚠️ **판정 손잡이.** 「많아졌으면」의 반대편은 「지저분하다」다. 경계는 눈으로만
+/// 잡히므로 아래 넷을 나란히 렌더해 사용자가 고른다. 그림 코드는 한 벌뿐이고
+/// **이 한 줄만** 갈아 끼운다.
+///   PA-a 얌전  [2,3,5,6,8]      L5 ms ×1.05 · ops ×1.12
+///   PA-b 보통  [3,5,8,11,14]    L5 ms ×1.10 · ops ×1.21   ← 기본
+///   PA-c 넉넉  [4,7,11,16,20]   L5 ms ×1.15 · ops ×1.30
+///   PA-d 과함  [6,10,16,24,30]  L5 ms ×1.23 · ops ×1.45   (경계 표본 — 채택 후보 아님)
+/// 곡선을 키(`ILP_H`=1.5/2.4/3.3/4.0/4.6)와 **같은 모양**으로 잡았다. 이 줄의
+/// 축이 「키」라서, 파편이 다른 곡선을 그리면 표가 두 가지를 말하게 된다.
+const PA_FRG=[3,5,8,11,14];       // 뚫는 순간 파편 수                  ←원본 0
+/// 그 파편의 수명(초). `IBpushFrag` 의 `.70` 은 **부서질 때**의 값이다 —
+/// 뚫는 순간의 부스러기는 그만큼 남으면 솟는 0.18초를 덮어 기둥을 가린다.
+const PA_FRL=.34;
+/// 그 파편의 크기 ÷ `T.r`. 부서질 때(`T.r*.9`)의 절반 이하다.
+/// ⚠️ **처음에 `.22` 로 잡았다가 렌더를 보고 올렸다.** `.22` 는 조각이 1.3~3.1px
+/// 라 238칸에서 **안 보인다** — 「많아졌다」가 눈으로 안 온다(ops 는 1.25배가
+/// 찍혔는데 ms 는 +3.5% 뿐이었다). 브라우저 실측으로 크기 셋을 재 보니
+/// `.22 → .38 → .55` 의 L5 평균이 **2.94 → 3.17 → 3.24ms** 로 거의 안 는다 —
+/// 이 자리에서 **크기는 공짜에 가깝다**. `.55` 는 L5 에서 조각이 마법진을 덮어
+/// `.38` 로 굳혔다.
+const PA_FRR=.38;
+/// 파편이 앉는 링 ÷ `T.r`. **마법진 반지름 `RN` 과 같은 값**이다
+/// (`ILpillar`: `T.r*1.62*1.85` · `FZtomb1`: `RR*1.85` where `RR=T.r*1.62`).
+/// 여기 한 곳에 둬서 두 호출부가 리터럴을 안 베낀다.
+const PA_FRN=1.62*1.85;
+
+/// 마법진을 **뚫고 나오는 순간**의 파편을 놓는다.
+///
+/// ⚠️ **새 그리기 원시가 아니다.** `IBpushFrag` 와 **같은 레코드 모양**을
+/// `st.fr` 에 넣을 뿐이고, 밟는 것도 그리는 것도 전부 기존
+/// `IBstepFrag`/`IBdrawFrag` 다. 공용 넷(`IBpushFrag`·`IBburst`·`IBstepFrag`·
+/// `IBdrawFrag`)은 한 글자도 안 고쳤다 — 호출부가 20곳이 넘는다.
+///
+/// `IBpushFrag` 를 그냥 안 쓰고 스포너를 따로 둔 이유 셋:
+///   ① **자리** — `IBpushFrag` 는 파편을 **한 점**에 몬다. 마법진이 깨지는
+///      사건은 **원 둘레**에서 나므로, 링 위에 눌림(.34)까지 맞춰 앉혀야
+///      「원을 뚫고 나왔다」가 된다. 한 점에서 뿜으면 「기둥이 뿜었다」가 된다.
+///      선례: `IBburst`(L32263)가 「벽 폭을 따라」가 필요해서 `IBpushFrag` 옆에
+///      따로 생겼고, L36784 주석이 그 갈림을 명시한다.
+///   ② **크기·수명** — `IBpushFrag` 는 `m:.70` · `r*(.45+.5h)` 를 **박아** 넣는다.
+///      실측상 그 둘이 평균 비용의 지배 인자다(위 ③). 공용을 고치면 20곳이 같이
+///      바뀌므로 여기서만 다르게 준다.
+///   ③ **방향** — 뚫고 나오는 것은 **위로 밀고** 밖으로 튄다. `IBpushFrag` 의
+///      전방위 난수(`hash(...)*TAU`)는 「터졌다」지 「뚫었다」가 아니다.
+///
+/// ⚠️ 씨앗은 **고정**이다(주기마다 같은 패턴). 뚫는 순간은 3.0초에 한 번이고
+/// 부스러기는 0.34초에 사라져 두 번이 한 화면에 안 겹치므로, 주기 번호를
+/// 섞지 않았다 — 섞으면 루프가 안 닫히는 쪽 위험만 는다.
+function PAerupt(st,x,gy,r,SC,n,seed){
+  if(!(n>0))return;
+  st.fr=st.fr||[];
+  const RN=r*PA_FRN;
+  for(let i=0;i<n;i++){
+    // 링 위에 **고르게** 깔고 각도만 흔든다. 전부 난수로 두면 낮은 칸(파편 셋)
+    // 에서 한쪽에만 몰려 「원이 깨졌다」가 안 읽힌다.
+    const a0=(i+.5)/n*TAU+(hash(i*3.1+seed)-.5)*.62;
+    const cs=Math.cos(a0),sn=Math.sin(a0);
+    const dr=RN*(.60+.48*hash(i*7.7+seed));      // 둘레 안팎으로 흩는다
+    const px=x+cs*dr, py=gy+sn*dr*.34;           // 마법진과 **같은 눌림**
+    st.fr.push({x:px,y:py,
+      vx:cs*(44+70*hash(i*5.3+seed))*SC,         // 밖으로
+      vy:-(72+94*hash(i*9.1+seed))*SC,           // 위로 — 뚫고 나온다
+      ro:hash(i*2.3+seed)*TAU,
+      vr:(hash(i*4.7+seed)-.5)*7,
+      r:r*PA_FRR*(.55+.72*hash(i*6.1+seed)),
+      l:0,
+      m:PA_FRL*(.72+.55*hash(i*8.3+seed)),
+      tr:[[px,py]]});}
+}
+
+
+// ───────────────────────────────────────────────────────────────────────────
