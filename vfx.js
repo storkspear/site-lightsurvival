@@ -33875,8 +33875,12 @@ const GEVAR=[
 // ── 사용자 판정 (2026-08-12) — 열다섯 중 **넷만** 남는다 ──────────────────
 // ⚠️ **해빙(빙)은 셋 다 반려돼 한 칸도 안 남았다.** 다섯 속성 중 빙만 방어가
 // 없는 상태라, 다시 그리기 전에는 속성 방어가 다섯이 아니라 넷이다.
+// ⚠️ 2차 판정(2026-08-13) — 셋을 더 뺐다: 소염2·접지3·항체2.
+//   이로써 **속성 방어에 남는 것은 역풍1 하나뿐**이다. 속성별 방어는 결계가
+//   맡기로 정해졌으므로(아래 「결계」 절) 이 격자는 사실상 걷힌 셈이다.
 const GEDROP=new Set(["GEfire1","GEfire3","GEice1","GEice2","GEice3",
-  "GEvolt1","GEvolt2","GEwind2","GEwind3","GEtox1","GEtox3"]);
+  "GEvolt1","GEvolt2","GEwind2","GEwind3","GEtox1","GEtox3",
+  "GEfire2","GEvolt3","GEtox2"]);
 {const GH=document.getElementById("guard");
  if(GH)GEROW.forEach(([host,pre,nm,ds])=>{
    GEVAR.forEach(([sfx,vn,vd])=>{
@@ -45385,9 +45389,12 @@ function WDreact(c,t,st,SC,cx,cy,RR,spin,D){
         Math.max(1,(9+7*fade)*SC),D.k,fade*.85);
     }else if(D.e==="white"){
       // **되받아친다** — 거울 획이 법선으로 곧게 나간다. 1회 튕김의 그림.
+      // ⚠️ 굵기를 **약 2.2배**로 올렸다(2026-08-13 사용자: 「백광은 발사되는
+      //   레이저를 조금 더 두껍게」). 여섯 중 넉백이 제일 센 칸인데 획이 가늘어
+      //   「세다」가 그림에 안 실렸다 — 수치와 그림이 같은 말을 해야 한다.
       celStroke(c,[[O[0],O[1]],
         [O[0]+Math.cos(e.ia)*128*SC*g,O[1]+Math.sin(e.ia)*128*SC*g]],
-        Math.max(.5,(1.2+3.2*fade)*SC),D.k,fade);
+        Math.max(.9,(2.8+7.0*fade)*SC),D.k,fade);
     }else if(D.e==="frost"){
       // **금이 가 조각이 진다** — 떨어진 조각이 아래로 눕는다.
       shards(c,O[0],O[1]+RR*.10,Math.max(1,(9+7*u)*SC),5,e.ia*7.3,fade*.9,D.k);
