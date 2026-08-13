@@ -13986,6 +13986,41 @@ const VIS=window.IntersectionObserver?new IntersectionObserver(es=>{
 /// 너프하고 나니 격자에 제일 약한 그림이 서서 「이 스킬이 무엇인가」가 안 읽혔다.
 /// ⚠️ **`tile()` 전부에 걸면 안 된다** — 129곳이 쓰고 유니버스·우주괴물·아이콘도
 /// 그 안에 있다. 스킬 목록 표들만 `5` 를 넘긴다.
+// ── 스킬 태그 — 칸에 라벨로 붙는다 (2026-08-13 사용자 지시) ─────────────────
+//
+// ⚠️ **이것은 두 번째 목록이다.** 정본은 엔진 도감(`lib/data/weapons.dart`·
+//   `magic.dart` 의 `tags` 필드)이고 시안은 Dart 를 못 읽으니 어쩔 수 없다.
+//   목록이 둘이면 반드시 갈라진다 — 이 레포가 이미 겪은 병이다(sword vs saber).
+//   그래서 **`tools/mockup_lint.js` 검사 ⑬ 이 둘을 대조**한다. 한쪽만 고치면
+//   커밋 전에 걸린다. 갈라짐을 막는 것은 규율이 아니라 그 게이트다.
+//
+// ⚠️ 시안에만 있고 엔진에 아직 없는 것(부양·기생·단전·빛원반…)은 여기에만 산다.
+//   린터는 **엔진에 있는 id 만** 대조하므로 그것들은 자유롭게 적을 수 있다.
+const SKTAG={
+  // 일반 — 총구에서 곧장 나간다
+  bolt:["일반"], smg:["일반"], scatter:["일반"], saber:["일반"],
+  lance:["일반"], shotgun:["일반"],
+  // 보조 — 몸에서 떨어져 스스로 친다
+  seeker:["보조"], orbit:["보조","오라"], discus:["보조"],
+  // 마법
+  sanctum:["마법","마법진"], pulse:["마법"], lightfall:["마법"],
+  arc:["마법","보조"], pillar:["마법","마법진"],
+  wisp:["마법","보조","오라"], flare:["마법"],
+  // 방어
+  ward:["방어","오라"],
+  // 시안에만 있는 것 — 엔진 도감엔 아직 없다(린터 대조 대상 아님)
+  mgGaleUplift:["마법","보조"], JDlatch:["마법","보조"], mgBoltHalt:["마법","보조"],
+};
+const SKTAGCOL={"일반":"#8A8A96","보조":"#7FB2E5","마법":"#B08AE0",
+                "오라":"#E0A05A","마법진":"#5FC9A8","방어":"#E08A9A"};
+/// 칩 줄 — 태그가 없으면 빈 문자열이라 칸 높이가 안 변한다.
+function tagChips(key){
+  const t=SKTAG[key]; if(!t||!t.length)return "";
+  return `<div class="tg" style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">`+
+    t.map(x=>`<span style="font-size:8px;line-height:1;padding:2px 4px;border-radius:3px;`+
+      `color:${SKTAGCOL[x]||"#9494A2"};border:1px solid ${SKTAGCOL[x]||"#9494A2"}55;`+
+      `background:${SKTAGCOL[x]||"#9494A2"}14">${x}</span>`).join("")+`</div>`;}
+
 function tile(host,reg,key,nm,en,ds,S,W,H,lv){
   // ⭐ 속성을 입힐 수 있는 스킬은 **제 절로 간다**. 표 하나가 자리를 정하므로
   // 스킬을 옮길 때 마운트를 안 뒤져도 된다.
@@ -14004,7 +14039,8 @@ function tile(host,reg,key,nm,en,ds,S,W,H,lv){
   cap.innerHTML=`<div class="nm" style="font-size:12px;font-weight:600;color:#EDEDF2;`+
     `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>`+
     `<div class="ds" style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
-    `display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${ds}</div>`;
+    `display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${ds}</div>`+
+    tagChips(key);
   d.appendChild(cap);host.appendChild(d);
   // **무기 고유색.** reg 가 FX 일 때만 입힌다(속성 몸·융화는 자기 색이 있다).
   const fn=reg[key],tk=(reg===FX)?WTONE[key]:null;
