@@ -7,38 +7,69 @@
 
 <div class="wrap">
 <nav class="toc">
-  <div class="nav1"><span class="lbl">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본·발현·융화</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html" class="cur">저주</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-foes.html">우주괴물</a><a href="mockup-ui.html">인터페이스</a><a href="mockup-map.html">심우주 유니버스</a><a href="mockup-map2.html">행성 유니버스</a><a href="mockup-lobby.html">로비</a><a href="mockup-flow.html">흐름·타이틀</a><a href="mockup-pick.html">고르기</a></div>
-  <div class="nav2"><span class="lbl">이 페이지</span><a href="#s-state">상태이상 8종</a><a href="#s-curse">저주 5종</a><a href="#s-levelsc">레벨 성장표</a><a href="#s-curseicon">아이콘</a><a href="#" id="bare" class="bare">설명 접기</a></div>
+  <div class="nav1"><span class="lbl">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본·발현·융화</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html" class="cur">상태이상</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-foes.html">우주괴물</a><a href="mockup-ui.html">인터페이스</a><a href="mockup-map.html">심우주 유니버스</a><a href="mockup-map2.html">행성 유니버스</a><a href="mockup-lobby.html">로비</a><a href="mockup-flow.html">흐름·타이틀</a><a href="mockup-pick.html">고르기</a></div>
+  <div class="nav2"><span class="lbl">이 페이지</span><a href="#s-state">상태이상 14종</a><a href="#s-mark">상태 표식</a><a href="#" id="bare" class="bare">설명 접기</a></div>
 </nav>
 <header>
   <p class="kicker">Light Survival · 셀 VFX 시안</p>
   <h1>빼앗는 다섯 가지</h1>
   
 </header>
-<h2 id="s-state">상태이상 8종</h2>
+<h2 id="s-state">상태이상 14종</h2>
+<p class="def">⭐ <b>「저주」 계열을 없애고 상태이상으로 통일했다</b>(2026-08-13).
+전에는 저주 스킬 5종과 상태이상 8종이 <b>혼재</b>했다 — 속박·봉인은 스킬이면서
+상태였고, 저주·역병·암막은 상태를 거는 스킬인데 <b>그 자체가 상태 이름</b>이기도 했다.
+<b>스킬은 상태를 「거는」 것이지 상태 그 자체가 아니다.</b></p>
+
+<p class="def">⚠️ <b>지운 넷</b> — 분해(감전과 겹침) · 저주(중독과 겹침) ·
+역병(중독) · 암막(실명). 겹치는 효과를 하나로 모았다.
+<b>저주 스킬 다섯은 통째로 없앤다</b> — 여러 스킬에 상태이상을 적절히 묻히는 것으로
+대체한다.</p>
+
+<h3>도트뎀 — 속성마다 하나씩</h3>
 <table class="st">
-<tr><th>상태</th><th>키</th><th>거는 속성</th><th>효과</th></tr>
-<tr><td><b>점화</b></td><td><code>burn</code></td><td>ember · fstorm</td><td>세고 짧은 도트</td></tr>
-<tr><td><b>동상</b></td><td><code>frost</code></td><td>frost · snow</td><td>둔화 + 0.1s 빙결 + 냉기 도트</td></tr>
-<tr><td><b>감전</b></td><td><code>shock</code></td><td>volt · magnet</td><td>공속 저하 + 0.05s 경직</td></tr>
-<tr><td><b>분해</b></td><td><code>decomp</code></td><td>blast</td><td>감전 + 도트 중첩 상한 +1</td></tr>
-<tr><td><b>중독</b></td><td><code>poison</code></td><td>toxin · murk</td><td>약하고 길다. 자동 중첩</td></tr>
-<tr><td><b>실명</b></td><td><code>blind</code></td><td>aqua · gale · smoke</td><td>원거리 발사각에 오차</td></tr>
-<tr><td><b>저주</b></td><td><code>curse</code></td><td>plague · numb</td><td>받는 피해 증가 + 약한 도트</td></tr>
-<tr><td><b>침묵</b></td><td><code>silence</code></td><td>thunder</td><td>원거리 공격만 중지</td></tr>
+<tr><th>상태</th><th>키</th><th>속성</th><th>무엇인가</th></tr>
+<tr><td><b>점화</b></td><td><code>burn</code></td><td>염 炎</td><td>불에 타는 것</td></tr>
+<tr><td><b>동상</b></td><td><code>frost</code></td><td>빙 氷</td><td>얼어서 피해를 입는 것</td></tr>
+<tr><td><b>감전</b></td><td><code>shock</code></td><td>뇌 雷</td><td>전기가 올라 피해를 입는 것</td></tr>
+<tr><td><b>중독</b></td><td><code>poison</code></td><td>독 毒</td><td>독에 걸린 것</td></tr>
+<tr><td><b>둔화</b></td><td><code>slow</code></td><td>풍 風</td><td>속도가 느려지는 것</td></tr>
 </table>
 
-<h2 id="s-curse">저주 5종</h2>
+<h3>못 움직인다</h3>
+<table class="st">
+<tr><th>상태</th><th>키</th><th>속성</th><th>무엇인가</th></tr>
+<tr><td><b>빙결</b></td><td><code>freeze</code></td><td>빙 氷</td><td>얼어붙어 멈춘다</td></tr>
+<tr><td><b>속박</b></td><td><code>bind</code></td><td>풍 風</td><td>묶여서 못 움직인다</td></tr>
+<tr><td><b>봉인</b></td><td><code>seal</code></td><td>암 影</td><td>봉해져 못 움직인다</td></tr>
+</table>
 
-<div class="grid" id="curse"></div>
+<h3>공격을 못 한다</h3>
+<table class="st">
+<tr><th>상태</th><th>키</th><th>속성</th><th>무엇인가</th></tr>
+<tr><td><b>실명</b></td><td><code>blind</code></td><td>암 影</td><td>앞이 안 보인다 — 공격 불가 +
+<b>움직임 제어가 안 되고 적을 안 향해 길을 잃는다</b></td></tr>
+<tr><td><b>침묵</b></td><td><code>silence</code></td><td>암 影</td><td>움직임과 적을 보는 것은 되나
+<b>일반 공격·스킬을 못 쓴다</b></td></tr>
+<tr><td><b>석화</b></td><td><code>stone</code></td><td>무 無</td><td>돌이 되어 <b>공격도 이동도</b> 못 한다</td></tr>
+</table>
 
-<h2 id="s-levelsc">레벨 성장표</h2>
+<h3>그 밖에 — 위치를 건드린다</h3>
+<table class="st">
+<tr><th>상태</th><th>키</th><th>무엇인가</th></tr>
+<tr><td><b>넉백</b></td><td><code>knock</code></td><td>스킬 시전이 <b>중단되고</b> 뒤로 밀려난다</td></tr>
+<tr><td><b>그랩</b></td><td><code>grab</code></td><td><b>넉백의 반대</b> — 순간적으로 끌어당겨 못 움직이게 한다(블랙홀)</td></tr>
+<tr><td><b>돌진</b></td><td><code>rush</code></td><td>상대를 향해 나아간다</td></tr>
+</table>
 
-<div id="levelsc"></div>
+<p class="def">⚠️ <b>암 影 이 셋을 갖는다</b>(실명·침묵·봉인). 어느 것이 걸리는지는
+<b>스킬이 정한다</b> — 기본 공격은 실명이다.</p>
 
-<h2 id="s-curseicon">아이콘</h2>
+<h2 id="s-mark">상태 표식</h2>
+<p class="def">몸에 무엇이 걸렸는지를 그림으로 말한다. <b>동사가 겹치면 안 된다</b> —
+실명은 <b>스치고 지나가고</b>, 동상은 <b>붙어 자라고</b>, 둔화는 <b>뒤로 떨어진다</b>.</p>
+<div class="grid" id="marks"></div>
 
-<div class="grid" id="curseicon"></div>
 </div>
 <!-- ⚠️ file:// 에서 브라우저가 vfx.js 를 세게 캐시한다. 시안을 고쳐도 새로고침에
      반영이 안 돼 「왜 똑같지?」가 났다(2026-08-10). 매 로드마다 쿼리를 갈아
