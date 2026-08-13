@@ -46797,3 +46797,125 @@ function BFglyph(c,S,kind){
  if(BH){asRow(BH,ICON_W);
    BFMKL.forEach(([k,,,grp])=>{
      if(BFICON[k])DM2icon(BH,BFICON,k,BFNAME[k],grp);});}}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MI — 마법 공격 아이콘 14종 (2026-08-13 사용자 지시: 「마법공격은 아이콘 만들어줘」)
+//
+// 실측: 마법 페이지에 칸이 22 인데 아이콘은 **8** 이었다(성역·파문·낙광·뇌광·
+// 광주·정령·단전·부양). 나머지 열넷이 통째로 비어 있었다.
+//
+// ⚠️ 아이콘은 표식·시안과 다른 물건이다 — **44px 한 장**에서 갈려야 한다.
+//   그래서 각 스킬의 「제일 큰 몸짓 하나」만 남기고 나머지는 버린다. 시안을
+//   축소하면 전부 얼룩이 된다(이 파일이 이미 여러 번 겪은 자리다).
+// ⚠️ 갈리는 축을 **먼저 정하고** 그렸다 — 같은 계열 안에서 겹치면 아이콘이
+//   아니라 장식이 된다:
+//     독 셋   극독=낙인(단일 표식) · 감염=옮아감(줄로 이어진 셋) · 기생=문다(집게)
+//     불 넷   화염방사=원뿔 · 불자취=발자국 열 · 회염=되돌아오는 고리 · 회오리=소용돌이
+//     빙 셋   서릿발=부채 갈래 · 결정열=한 줄 연타 · 결빙=솟은 기둥/왕관
+//     융화 넷 기폭=터짐 · 공명=겹친 파 · 분열=갈라짐 · 암전=꺼짐
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// 독 ① 극독 — **낙인 하나.** 감염(셋이 이어짐)과 갈리는 자리는 **개수**다.
+ICON.mgPoisonBrand=function(c,S){const cx=S/2,cy=S/2;
+  iarc(c,cx,cy,S*.30,0,TAU,S*.115,IC.d,1);
+  const P=[];for(let i=0;i<3;i++){const a=i*TAU/3-Math.PI/2;
+    P.push([cx+Math.cos(a)*S*.19,cy+Math.sin(a)*S*.19]);}
+  ip(c,P,IC.b); ip(c,P.map(([x,y])=>[cx+(x-cx)*.52,cy+(y-cy)*.52]),IC.l);};
+/// 독 ② 감염 — **옮아간다.** 방울 셋이 줄로 이어지고 뒤로 갈수록 작아진다.
+ICON.mgPoisonSpread=function(c,S){const cy=S/2;
+  const P=[[S*.24,cy+S*.14],[S*.50,cy-S*.10],[S*.76,cy+S*.06]];
+  IKln(c,P,S*.075,IC.d);
+  P.forEach(([x,y],i)=>{const r=S*(.145-i*.028);
+    c.beginPath();c.arc(x,y,r,0,TAU);c.fillStyle=IC.d;c.fill();
+    c.beginPath();c.arc(x,y,r*.52,0,TAU);c.fillStyle=i?IC.b:IC.l;c.fill();});};
+/// 독 ③ 기생 — **문다.** 집게 둘이 안으로 물려 있다. 셋 중 유일하게 **닫힌다**.
+ICON.JDlatch=function(c,S){const cx=S/2,cy=S/2;
+  for(const sg of[-1,1]){
+    iarc(c,cx,cy,S*.28,sg>0?-1.25:1.89,sg>0?1.25:4.39,S*.135,IC.d,1);
+    iarc(c,cx,cy,S*.28,sg>0?-1.10:2.04,sg>0?1.10:4.24,S*.055,IC.b,1);}
+  c.beginPath();c.arc(cx,cy,S*.085,0,TAU);c.fillStyle=IC.l;c.fill();};
+
+/// 불 ① 화염방사 — **원뿔.** 넷 중 유일하게 **한 방향으로 뻗는다**.
+ICON.FLconeA=function(c,S){const cy=S/2;
+  const cone=(sc,col)=>ip(c,[[S*.14,cy],[S*.88,cy-S*.30*sc],
+                             [S*.74,cy],[S*.88,cy+S*.30*sc]],col);
+  cone(1,IC.d); cone(.55,IC.b);
+  c.beginPath();c.arc(S*.20,cy,S*.085,0,TAU);c.fillStyle=IC.l;c.fill();};
+/// 불 ② 불자취 — **발자국 열.** 지나간 자리라 **뒤로 갈수록 식는다**.
+ICON.FLtrail=function(c,S){const cy=S/2;
+  [[.20,.20],[.42,.155],[.63,.115],[.82,.080]].forEach(([x,r],i)=>{
+    c.beginPath();c.arc(S*x,cy+(i%2?S*.10:-S*.10),S*r,0,TAU);
+    c.fillStyle=IC.d;c.fill();
+    c.beginPath();c.arc(S*x,cy+(i%2?S*.10:-S*.10),S*r*.48,0,TAU);
+    c.fillStyle=i<2?IC.l:IC.b;c.fill();});};
+/// 불 ③ 회염 — **되돌아온다.** 갔다 오는 고리 하나 + 돌아오는 촉.
+ICON.FLret=function(c,S){const cx=S/2,cy=S/2;
+  iarc(c,cx,cy,S*.30,-2.55,1.95,S*.150,IC.d,1);
+  iarc(c,cx,cy,S*.30,-2.40,1.80,S*.060,IC.b,1);
+  itri(c,cx+Math.cos(-2.55)*S*.30,cy+Math.sin(-2.55)*S*.30,-2.55-Math.PI/2,
+       S*.26,S*.115,IC.l);};
+/// 불 ④ 화염회오리 — **소용돌이.** 넷 중 유일하게 **감긴다**.
+ICON.FVvortB=function(c,S){const cx=S/2,cy=S/2;
+  for(const [w,col,o] of [[S*.135,IC.d,0],[S*.055,IC.b,.12]]){
+    const P=[];for(let i=0;i<=26;i++){const p=i/26,a=p*TAU*1.45-1.2+o;
+      const r=S*(.06+.30*p);P.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r*.78]);}
+    IKln(c,P,w,col);}
+  c.beginPath();c.arc(cx,cy,S*.065,0,TAU);c.fillStyle=IC.l;c.fill();};
+
+/// 빙 ① 서릿발 — **부채 갈래.** 한 뿌리에서 다섯이 퍼진다(줄기이지 덩이가 아니다).
+ICON.SDspineD=function(c,S){const bx=S*.16,by=S/2;
+  for(let i=0;i<5;i++){const a=(i-2)*.30;
+    const L=S*(.60-Math.abs(i-2)*.06);
+    IKln(c,[[bx,by],[bx+Math.cos(a)*L,by+Math.sin(a)*L]],S*(.095-Math.abs(i-2)*.012),
+      i===2?IC.b:IC.d);}
+  IKln(c,[[bx,by],[bx+S*.44,by]],S*.038,IC.l);};
+/// 빙 ② 결정 열 — **한 줄 연타.** 서릿발이 퍼지는 것과 달리 **일렬**이다.
+ICON.SCspine=function(c,S){const cy=S/2;
+  [.20,.38,.56,.74].forEach((x,i)=>{
+    const h=S*(.20+.07*i);
+    ip(c,[[S*x,cy+h],[S*x+S*.055,cy-h],[S*x+S*.11,cy+h]],IC.d);
+    ip(c,[[S*x+S*.02,cy+h*.6],[S*x+S*.055,cy-h*.7],[S*x+S*.09,cy+h*.6]],
+       i===3?IC.l:IC.b);});};
+/// 빙 ③ 결빙 — **솟은 기둥 + 왕관.** 위에서 덮는 것이 이 계열의 정체다.
+ICON.ILpillar=function(c,S){const cx=S/2;
+  ip(c,[[cx-S*.20,S*.86],[cx-S*.13,S*.28],[cx+S*.13,S*.28],[cx+S*.20,S*.86]],IC.d);
+  ip(c,[[cx-S*.10,S*.80],[cx-S*.06,S*.38],[cx+S*.06,S*.38],[cx+S*.10,S*.80]],IC.b);
+  for(let i=0;i<3;i++){const x=cx+(i-1)*S*.15;
+    ip(c,[[x-S*.06,S*.30],[x,S*.08],[x+S*.06,S*.30]],i===1?IC.l:IC.d);}};
+ICON.POportal=ICON.ILpillar; ICON.POcrown=ICON.ILpillar;
+
+/// 융화 ① 기폭 — **터진다.** 안에서 밖으로 조각이 난다.
+ICON.mgNovaDetonate=function(c,S){const cx=S/2,cy=S/2;
+  for(let i=0;i<7;i++){const a=i*TAU/7+.3;
+    IKln(c,[[cx+Math.cos(a)*S*.16,cy+Math.sin(a)*S*.16],
+            [cx+Math.cos(a)*S*.42,cy+Math.sin(a)*S*.42]],S*.085,IC.d);}
+  c.beginPath();c.arc(cx,cy,S*.175,0,TAU);c.fillStyle=IC.b;c.fill();
+  c.beginPath();c.arc(cx,cy,S*.085,0,TAU);c.fillStyle=IC.l;c.fill();};
+/// 융화 ② 공명 — **겹친 파.** 같은 중심에 고리 셋, 간격이 같다(울린다).
+ICON.mgNovaChime=function(c,S){const cx=S/2,cy=S/2;
+  [.40,.28,.16].forEach((r,i)=>{
+    iarc(c,cx,cy,S*r,0,TAU,S*.085,IC.d,1);
+    iarc(c,cx,cy,S*r,-.9,1.5,S*.036,i===2?IC.l:IC.b,1);});};
+/// 융화 ③ 분열 — **갈라진다.** 하나가 둘로 벌어지는 Y.
+ICON.mgNovaSplit=function(c,S){const cx=S/2;
+  IKln(c,[[cx,S*.86],[cx,S*.52]],S*.135,IC.d);
+  IKln(c,[[cx,S*.52],[cx-S*.28,S*.14]],S*.135,IC.d);
+  IKln(c,[[cx,S*.52],[cx+S*.28,S*.14]],S*.135,IC.d);
+  IKln(c,[[cx,S*.80],[cx,S*.54]],S*.052,IC.b);
+  IKln(c,[[cx,S*.54],[cx-S*.22,S*.20]],S*.052,IC.l);
+  IKln(c,[[cx,S*.54],[cx+S*.22,S*.20]],S*.052,IC.b);};
+/// 융화 ④ 암전 — **꺼진다.** 원의 아래 절반이 통째로 사라진 것.
+ICON.mgNovaDusk=function(c,S){const cx=S/2,cy=S/2;
+  iarc(c,cx,cy,S*.32,Math.PI,TAU,S*.150,IC.d,1);
+  iarc(c,cx,cy,S*.32,Math.PI+.12,TAU-.12,S*.060,IC.b,1);
+  ibar(c,cx,cy+S*.02,S*.76,S*.075,IC.l,S*.037);
+  for(let i=0;i<3;i++)c.fillRect(cx-S*.28+i*S*.24,cy+S*.22,S*.10,S*.055);};
+
+// ── 마운트 — 기존 격자 그대로(#iconsm). ICL 표는 한 줄도 안 건드린다 ────────
+[["mgPoisonBrand","극독 劇毒"],["mgPoisonSpread","감염 感染"],["JDlatch","기생 寄生"],
+ ["FLconeA","화염방사 火炎放射"],["FLtrail","불자취 火跡"],["FLret","회염 廻炎"],
+ ["FVvortB","화염회오리 火旋"],
+ ["SDspineD","서릿발 D"],["SCspine","서릿발 · 결정 열"],["ILpillar","결빙"],
+ ["mgNovaDetonate","기폭 起爆"],["mgNovaChime","공명 共鳴"],
+ ["mgNovaSplit","분열 分裂"],["mgNovaDusk","암전 暗轉"]
+].forEach(([k,n])=>iconTile(ICON,k,n,"마법 공격"));
