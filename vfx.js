@@ -25,8 +25,26 @@ const $=(id)=>{
 /// ⭐ **속성을 입힐 수 있는 스킬**(2026-08-13 사용자 지정).
 /// 기본이 「무 無」라 속성을 골라 물들일 수 있다. 나머지는 제 속성이 정해져 있어
 /// 못 바꾼다 — 화염방사는 늘 염이고 결빙은 늘 빙이다.
-const TINTABLE={seeker:"tintphys",discus:"tintphys",
-  wisp:"tintmagic",mgBoltHalt:"tintmagic",ward:"tintguard"};
+// ⭐ **보조 공격이 제 페이지로 간다**(2026-08-13 사용자 판정 a안). 넷 다 옮긴다 —
+//   마법 페이지에서 정령·뇌광이 빠지고, 일반에서 유도탄·공전이 빠진다.
+//   ⚠️ 유도탄·정령은 **속성 입힘도 가능**하다. 그래서 보조 페이지에도 그 절을
+//     두고(`tintsupport`) 그리로 보낸다 — 안 그러면 「무 無 라 속성을 입힐 수
+//     있다」는 정보가 페이지를 옮기며 사라진다.
+const TINTABLE={
+  seeker:"tintsupport", wisp:"tintsupport", discus:"tintsupport",
+  orbit:"support", arc:"support", shotgun:"support",
+  // 2026-08-14 추가 이관 — 기생·부양·기폭
+  JDlatch:"support", mgGaleUplift:"support", mgNovaDetonate:"support",
+  mgBoltHalt:"support", mgNovaSplit:"support",
+  // ⚠️ 태그만 달고 라우팅을 빠뜨려 마법 페이지에 남아 있었다(2026-08-14 지적).
+  //   태그와 자리는 **같이** 움직여야 한다 — 표가 둘이면 한쪽만 고치게 된다.
+  // ⚠️ **칸의 키와 레벨표의 키가 다르다.** 화염방사는 칸이 `FCcone6`(레벨표는
+  //   `FLconeA`), 서릿발은 칸이 `ICspine4`(레벨표는 `SDspineD`) 다. 라우팅은
+  //   **칸 키**로 걸어야 한다 — 레벨표 키만 걸면 태그는 붙는데 자리는 안 옮겨진다
+  //   (2026-08-14 에 실제로 그랬다).
+  FCcone6:"phys", ICspine4:"phys", SCspine:"phys",
+  FLconeA:"phys", SDspineD:"phys",
+  ward:"tintguard"};
 
 const MOUNTS={
   // 완성 페이지 — 채택된 것만 선다
@@ -13999,18 +14017,40 @@ const VIS=window.IntersectionObserver?new IntersectionObserver(es=>{
 const SKTAG={
   // 일반 — 총구에서 곧장 나간다
   bolt:["일반"], smg:["일반"], scatter:["일반"], saber:["일반"],
-  lance:["일반"], shotgun:["일반"],
+  lance:["일반"],
   // 보조 — 몸에서 떨어져 스스로 친다
   seeker:["보조"], orbit:["보조","오라"], discus:["보조"],
+  shotgun:["보조"],
   // 마법
-  sanctum:["마법","마법진"], pulse:["마법"], lightfall:["마법"],
+  sanctum:["마법","오라"], pulse:["마법","오라"], lightfall:["마법"],
   arc:["마법","보조"], pillar:["마법","마법진"],
-  wisp:["마법","보조","오라"], flare:["마법"],
+  wisp:["마법","보조"], flare:["마법"],
+  // 융화·시안 계열
+  mgNovaDusk:["마법","오라"], mgNovaSplit:["마법","보조"],
+  mgNovaDetonate:["보조"], JDlatch:["보조"],
+  // 일반 — 총구에서 곧장 나간다
+  FLconeA:["일반"], SCspine:["일반"], SDspineD:["일반"],
+  FCcone6:["일반"], ICspine4:["일반"],
   // 방어
   ward:["방어","오라"],
   // 시안에만 있는 것 — 엔진 도감엔 아직 없다(린터 대조 대상 아님)
-  mgGaleUplift:["마법","보조"], JDlatch:["마법","보조"], mgBoltHalt:["마법","보조"],
+  mgGaleUplift:["보조"], mgBoltHalt:["보조"],
 };
+/// 라우팅되는 스킬의 **진짜 호스트**. 마운트 가드가 옛 페이지 호스트를 보면
+/// 옮긴 스킬이 새 페이지에서 안 뜬다(기생이 그랬다, 2026-08-14) — 표가 자리를
+/// 정한다면 가드도 그 표를 봐야 한다. 둘 다 없으면 null 이라 조용히 넘어간다.
+/// 계열 → 성장표 호스트. 칸이 옮겨가면 표도 따라가야 한다.
+const LVDEST={phys:"levels",support:"levelss",magic:"levelsm",
+              tintsupport:"levelss",tintguard:"levelsg",tintphys:"levels"};
+function MOUNTR(key,fallbackId){
+  const t=(typeof TINTABLE!=="undefined")&&TINTABLE[key];
+  return (t&&document.getElementById(t))||document.getElementById(fallbackId);}
+/// 성장표용 — 칸이 간 계열의 **성장표 호스트**를 준다. 칸만 옮기고 표를 안 옮기면
+/// 표가 옛 페이지에 남는다(2026-08-14, 검사 ⑭ 가 잡았다).
+function MOUNTRL(key,fallbackId){
+  const t=(typeof TINTABLE!=="undefined")&&TINTABLE[key];
+  const d=t&&LVDEST[t];
+  return (d&&document.getElementById(d))||document.getElementById(fallbackId);}
 const SKTAGCOL={"일반":"#8A8A96","보조":"#7FB2E5","마법":"#B08AE0",
                 "오라":"#E0A05A","마법진":"#5FC9A8","방어":"#E08A9A"};
 /// 칩 줄 — 태그가 없으면 빈 문자열이라 칸 높이가 안 변한다.
@@ -14026,7 +14066,13 @@ function tile(host,reg,key,nm,en,ds,S,W,H,lv){
   // 스킬을 옮길 때 마운트를 안 뒤져도 된다.
   if(typeof TINTABLE!=="undefined"&&TINTABLE[key]){
     const th=document.getElementById(TINTABLE[key]);
-    if(th)host=th;}
+    // ⚠️ 대상 호스트가 **이 페이지에 없으면 아예 안 그린다.** 전에는 원래
+    //   자리로 떨어뜨렸는데, 그러면 옮긴 스킬이 **옛 페이지에도 그대로 뜬다** —
+    //   유도탄·빛폭탄·빛원반을 보조로 옮겼는데 일반 페이지에 남아 있었다
+    //   (2026-08-14 사용자 지적). 표가 자리를 정한다면 그 자리 **하나뿐**이어야
+    //   한다. 린터는 모든 호스트를 한 스텁에 담아 돌려서 이 병을 못 봤다.
+    if(!th)return;
+    host=th;}
   asRow(host,W||TILE_W,!H);              // 넓은 칸(H 있음)은 트랙 폭 투표에서 빠진다
   const d=document.createElement("div");d.className="tile";asCell(d,W);
   if(H)d.classList.add("wide");                    // 보스 — 한 줄에 하나
@@ -14391,11 +14437,11 @@ const LVT1={
 /// 것은 **3칸으로 떨어지는 형태**를 세우는 데까지다. 칸 수만 바뀌면 되도록
 /// 레이아웃은 `--n` 하나로 받는다(무기 5칸과 같은 규칙).
 const LVN={"궁극기":3};
-const LVW=[["bolt","빛파동","물리"],["orbit","공전","물리"],["smg","빛따발총","물리"],
-["seeker","유도탄","물리"],["scatter","빛산탄총","물리"],["saber","광선검","물리"],
-["lance","레이저","물리"],["shotgun","빛폭탄","물리"],["bunroe","분뢰","물리"],["discus","빛원반","물리"],["sunpo","순포","물리"],["sanctum","성역","마법"],
-["pulse","파문","마법"],["lightfall","낙광","마법"],["arc","뇌광","마법"],
-["pillar","광주","마법"],["ward","결계","방어"],["wisp","정령","마법"],
+const LVW=[["bolt","빛파동","물리"],["orbit","공전","보조"],["smg","빛따발총","물리"],
+["seeker","유도탄","보조"],["scatter","빛산탄총","물리"],["saber","광선검","물리"],
+["lance","레이저","물리"],["shotgun","빛폭탄","보조"],["bunroe","분뢰","물리"],["discus","빛원반","물리"],["sunpo","순포","물리"],["sanctum","성역","마법"],
+["pulse","파문","마법"],["lightfall","낙광","마법"],["arc","뇌광","보조"],
+["pillar","광주","마법"],["ward","결계","방어"],["wisp","정령","보조"],
 ["flare","개안","궁극기"],
 ["chain","사슬","방어"],["mirror","경면","방어"],["boulder","거암","방어"],
 ["karma","응보","방어"],["gale","질풍","방어"],
@@ -14405,6 +14451,7 @@ const LVW=[["bolt","빛파동","물리"],["orbit","공전","물리"],["smg","빛
 // 마법 페이지엔 마법만** 간다. 한쪽 그릇이 없으면 $() 가 떨어진 요소를
 // 돌려주므로 그 줄은 조용히 안 그려진다.
 const LVHOSTS={"물리":$("levels"),"마법":$("levelsm"),
+  "보조":$("levelss"),
   "방어":$("levelsg"),"궁극기":$("levelsu"),
   // ⚠️ 「저주」 계열이 없어져(2026-08-13) 성장표 자리도 뺐다 — 빈 절이 된다.
   "회복":$("levelsh")};
@@ -14574,6 +14621,8 @@ const ICL=[["bolt","빛파동"],["orbit","공전"],["smg","빛따발총"],["seek
 ["ward","결계"],["wisp","정령"],["flare","개안"]];
 // 결계는 방어, 개안은 궁극기 — 아이콘도 제 페이지로 간다.
 const GUARDK=new Set(["ward"]), ULTK=new Set(["flare"]);
+/// 보조 넷 — 총구를 안 쓰고 몸에서 떨어져 스스로 친다(2026-08-13 판정).
+const SUPPK=new Set(["seeker","orbit","wisp","arc","shotgun","discus"]);
 const AICL=[["chain","체인갑옷"],["mirror","경면"],["arcane","마법갑옷"],["mirage","신기루"],
 ["dawn","여명"],["gale","질풍"],["karma","응보"],["boulder","거암"],["purity","정화"],
 ["dazzle","섬광"]];
@@ -14583,6 +14632,7 @@ const HICL=[["reap","수확"],["purity","정화"],["tithe","공물"]];
 // 아이콘은 **분류마다 제 페이지**로 간다(2026-08-10 재분류). 없는 페이지에서는
 // $() 가 떨어져 있는 캔버스를 돌려주므로 같은 스크립트가 전 페이지를 돈다.
 const ICONHOSTS={"일반 공격":$("icons"),"마법 공격":$("iconsm"),
+  "보조 공격":$("iconss"),
   "방어":$("aicons"),"궁극기":$("ulticon"),
   // ⚠️ 「저주」 아이콘 자리도 뺐다 — 계열이 없어졌다(2026-08-13).
   "회복":$("healicon")};
@@ -14602,6 +14652,9 @@ function iconTile(reg,key,nm,kind){
 // 저주·회복은 아직 한 종도 없어 페이지만 서 있다.
 const PHYSK=new Set(PHYS.map(w=>w[0]));
 ICL.forEach(([k,n])=>iconTile(ICON,k,n,
+  // ⭐ 보조가 먼저 걸린다 — 유도탄·공전은 물리 목록에, 정령·뇌광은 마법 목록에
+  //   있으므로 그 판정보다 **앞에** 서야 넷이 보조 페이지로 간다.
+  SUPPK.has(k)?"보조 공격":
   GUARDK.has(k)?"방어":ULTK.has(k)?"궁극기":PHYSK.has(k)?"일반 공격":"마법 공격"));
 AICL.forEach(([k,n])=>iconTile(AICON,k,n,"방어"));
 // **방어 스킬 여섯 중 다섯이 그대로 방어구**라 아이콘을 새로 안 그렸다 —
@@ -30543,7 +30596,7 @@ ICspine3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
       shards(c,x,y,Math.max(1,8*SC),4,j*5.1,dz*.5,"frost");});}
   drawP(c,st);hero(c,t,cx,cy);},
 
-// ── 서릿발 D · **파도처럼 번짐** ─────────────────────────────────────────
+// ── 서릿발 · **파도처럼 번짐** ─────────────────────────────────────────
 // 한 줄이 아니라 **파면**이 번진다. 부채꼴로 퍼지는 서리의 앞자락에서 결정이
 // 솟고, 파면이 지나간 자리에는 **낮은 서리가 남는다** — 넷 중 유일하게
 // 「지나온 자리」가 화면에 남고, 폭을 가진 것도 이것뿐이다.
@@ -30755,7 +30808,7 @@ const ICFI=[
 // (2026-08-12 사용자 판정). 윤곽 문법으로 다시 그린 [IBwall3]·[IBwall4]·
 // [IBspine2b] 가 채택돼 각자 제 페이지(방어 · 마법 공격)로 갔다.
 // 함수는 남는다 — 서릿발 3·4 는 아직 판정 전이라 고르기에서 쓴다.
-["ICspine4","서릿발 D · 파도처럼 번짐","FROST","부채꼴 파면이 번진다. 지나간 자리에 낮은 서리가 남는다"]];
+["ICspine4","서릿발","FROST","부채꼴 파면이 번진다. 지나간 자리에 낮은 서리가 남는다"]];
 ICFI.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -36753,6 +36806,14 @@ FZvortex3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 
 });
 
+// ⚠️ 화염방사는 **일반 공격으로 옮겼다**(2026-08-14). 그런데 위 묶음 블록의
+//   가드가 `MOUNT("magic")` 이라 그 안에 두면 **일반 페이지에서 블록째 안 돈다** —
+//   실제로 한 번 유실됐다. 가드를 통째로 바꾸면 이번엔 같은 블록의 결빙 셋·
+//   불자취·회염·회오리가 **딸려 온다**(그것도 겪었다). 그래서 **칸만 밖으로 뺀다.**
+{const M=MOUNTR("FCcone6","magic");
+ if(M)tile(M,FX,"FCcone6","화염방사 火炎放射","EMBER",
+   "앞으로 계속 뿜는다 — 서 있는 동안 점화가 덧칠된다(도포)",238);}
+
 // ── FZ 마운트 (임시) — 원본과 **나란히** 놓아야 판정이 된다 ────────────────
 // ── 채택 (2026-08-12 사용자 판정) — **마법 공격 페이지로 등록** ──────────
 // 결빙 셋과 회오리 하나가 채택됐다. 고르기에 두지 않고 일하는 페이지로 올린다.
@@ -36776,8 +36837,6 @@ Object.assign(FX,{
     "고리를 통과해 아래로 내려찍는다 — 유일하게 위에서 아래로 간다",238);
   tile(M,FX,"FZtomb3","결빙 · 얼음 왕관","FREEZE",
     "가시가 안쪽으로 물듯 **튀어오른다**. 셋 중 유일하게 위가 닫히지 않는다",238);
-  tile(M,FX,"FCcone6","화염방사 火炎放射","EMBER",
-    "앞으로 계속 뿜는다 — 서 있는 동안 점화가 덧칠된다(도포)",238);
   tile(M,FX,"FLtrailL5","불자취 火跡","EMBER",
     "지나온 자리가 탄다 — 미리 깔아 두는 불(퇴적)",238);
   tile(M,FX,"FLretL5","회염 廻炎","EMBER",
@@ -38606,7 +38665,9 @@ FLconeC(c,t,dt,W,H,st){FLconeDraw(c,t,dt,W,H,st,FLCC[LV-1]);},
 // ── 마운트 — **기존 MAGIC/LVW/ICL/FT/FC 표는 안 건드린다** ────────────────
 // 이 레포의 성장표 관례 그대로다: 칸이 전역 `LV` 를 갈아 끼우고 **같은 함수**를
 // 부른다. 레벨판을 따로 그리면 표가 거짓말을 한다(그림이 실제 성장과 갈린다).
-{const HOST=MOUNT("levelsm");
+{// ⚠️ 가드를 **안 건다.** 이 표는 줄마다 호스트가 다르고(hostOf), 가드를 걸면
+ //   일반 페이지에서 블록째 안 돌아 화염방사 줄이 유실된다(검사 ⑭ 가 잡았다).
+ const HOST=document.getElementById("levelsm");
  const FLROWS=[
  ["FLtrail","불자취","선 → 면 → 덩이",[
   "금이 간다 — 지나간 자리가 가늘게 갈라지고 뿌리에서 불이 조금 샌다",
@@ -38630,7 +38691,11 @@ FLconeC(c,t,dt,W,H,st){FLconeDraw(c,t,dt,W,H,st,FLCC[LV-1]);},
  // ⚠️ **`.lvset` 은 제 호스트에만 붙인다.** [tile] 이 이미 `.grid` 를 붙여
  // 놓은 `<div>` 에 겹쳐 붙이면 격자 규칙 둘이 싸워 **그 페이지의 낱칸이 전부
  // 2열로 무너진다**(2026-08-12 궁극기·마법 두 번 냈다). 덩어리는 따로 산다.
- lvTable({host:HOST,rows:FLROWS,name:"FLcell"});}
+ // ⚠️ 이 표엔 마법에 남는 셋(불자취·회염·회오리)과 **일반으로 간 화염방사**가
+ //   섞여 있다. `hostOf` 훅이 **줄마다** 자리를 정하므로 표를 안 쪼개도 된다 —
+ //   칸만 옮기고 성장표를 안 옮기면 표가 옛 페이지에 남는다(검사 ⑭ 가 잡았다).
+ lvTable({host:HOST,rows:FLROWS,name:"FLcell",
+   hostOf:(k)=>MOUNTRL(k,"levelsm")});}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GD — 접지 接地 를 **결계(ward)의 셸 문법**으로 다시 그린다 (2026-08-12)
@@ -43984,7 +44049,7 @@ JDlatch(c,t,dt,W,H,st){JDlatchRun(c,t,dt,W,H,st);},
 // 돌려주므로 조건이 필요 없다(`GL`·`WL` 과 같은 모양).
 
 // 기생 — 마법 공격 격자. **격자는 L5(완성형)** 다(2026-08-13 확정, `tile` 의 `lv`).
-{const M=MOUNT("magic");
+{const M=MOUNTR("JDlatch","magic");
  if(M)tile(M,JDFX,"JDlatch","기생 寄生 · 독 毒","LATCH",
    "가시가 아니라 <b>적이 마른다</b> — 빨린 만큼 몸이 42% 쪼그라들고 원래 크기의 "+
    "빈 껍질 윤곽이 남는다 · 지속형(역 疫)",238,undefined,undefined,5);}
@@ -44020,10 +44085,10 @@ JDlatch(c,t,dt,W,H,st){JDlatchRun(c,t,dt,W,H,st);},
   "각성 — 호 252°, <b>열린 쪽에 역풍</b>이 분다(막지는 못하고 느리게만 한다)"]]]});}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SD — 「서릿발 D」를 **부채 갈래**로 다시 만든다 (접두 `SD`)      (2026-08-13)
+// SD — 「서릿발」를 **부채 갈래**로 다시 만든다 (접두 `SD`)      (2026-08-13)
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// **순수 추가다.** 위의 어떤 줄도 안 고친다. 정본인 [ICspine4](서릿발 D · 파도
+// **순수 추가다.** 위의 어떤 줄도 안 고친다. 정본인 [ICspine4](서릿발 · 파도
 // 처럼 번짐)는 **한 글자도 안 건드린다** — 되살릴 수 있게 두라는 지시다.
 // 최상위 이름은 전부 `SD` 로 시작하고 등록은 `FX.SDspineD` 에 **대입만** 한다.
 //
@@ -44034,11 +44099,11 @@ JDlatch(c,t,dt,W,H,st){JDlatchRun(c,t,dt,W,H,st);},
 //   2차 · 원인 지목
 //         > **「기존 시안」을 활용해야 되는데 아예 새롭게 만들어 버렸다**는 게 문제야
 //   3차 · 정본 확정
-//         > 「서릿발 D · 부채 갈래」가 현재 **고드름처럼** 나가는데,
-//         > **「서릿발 D · 파도처럼 번짐」처럼 나가도록** 변경하는 거 맞지?
+//         > 「서릿발」가 현재 **고드름처럼** 나가는데,
+//         > **「서릿발」처럼 나가도록** 변경하는 거 맞지?
 //
 // ⇒ **정본 = [ICspine4]**(30245~30281). 고를 여지가 없다 — 사용자가 이름으로
-//    지목했고, 이름도 「서릿발 D」로 같다. 이 판이 하는 일은 하나뿐이다:
+//    지목했고, 이름도 「서릿발」로 같다. 이 판이 하는 일은 하나뿐이다:
 //
 //        [ICspine4] 의 본문을 그대로 옮기고 **`NA`·`FAN` 만 인자로 뺀다.**
 //
@@ -44207,7 +44272,7 @@ const SDFOES=[[-20,-58,10],[26,-84,11],[-48,-96,10],[8,-116,9],[54,-70,9],[43,-1
 Object.assign(FX,{
 
 // ══════════════════════════════════════════════════════════════════════════
-// 서릿발 D · **부채 갈래** — 다섯 칸
+// 서릿발 · **부채 갈래** — 다섯 칸
 // ══════════════════════════════════════════════════════════════════════════
 // ⚠️ 아래를 [ICspine4](30245줄)와 **나란히 놓고 읽어라.** 바뀐 것은 `NA` 가
 // 배열이라는 것, `FAN` 이 반각에서 나온다는 것, 발사 루프 `v` 가 하나 더 있다는
@@ -44264,9 +44329,9 @@ SDspineD(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 // ── 마운트 — **기존 표는 하나도 안 건드린다**(순수 추가) ───────────────────
 // 이 레포의 성장표 관례 그대로다: 칸이 전역 `LV` 를 갈아 끼우고 **같은 함수**를
 // 부른다([lvTable] 이 마크업을 통째로 쥐고 있으므로 손으로 조립하지 않는다).
-{const HOST=MOUNT("levelsm");
+{const HOST=MOUNTRL("SDspineD","levelsm");  // 칸을 따라 계열 페이지로 간다
  lvTable({host:HOST,name:"SDcell",color:"#7FD8FF",rows:[
- ["SDspineD","서릿발 D · 부채 갈래","갈래 수 — 각도도 사거리도 안 자란다",[
+ ["SDspineD","서릿발","갈래 수 — 각도도 사거리도 안 자란다",[
   "<b>한 갈래 · 한 번</b> — 파면이 폭 없이 정면으로만 번진다. "+
   "지나간 자리에 <b>서리 자국 한 줄</b>이 남는다",
   "<b>두 번째 발사가 생긴다</b> — 좁은 부채가 먼저 꿰고, "+
@@ -44278,7 +44343,7 @@ SDspineD(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
   "일곱 — 좁은 쪽은 <b>한 다발</b>이 되고, 넓은 쪽은 <b>빈틈이 없다</b>"]]]});}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SC — 서릿발 · 결정 열을 **연타 탄환**으로 다시                  (2026-08-13)
+// SC — 서리결정을 **연타 탄환**으로 다시                  (2026-08-13)
 //
 // 사용자가 채택한 그림은 `IBspine2b` 다. 여기서 바꾸는 것은 **배치와 규칙**뿐,
 // 그림체는 한 줄도 안 바꾼다(아래 「물려받은 것」 목록이 그 계약이다).
@@ -44389,7 +44454,7 @@ function SCcontact(F,RAD){
 
 Object.assign(FX,{
 
-// ── 서릿발 · 결정 열 — **연타 탄환** ──────────────────────────────────────
+// ── 서리결정 — **연타 탄환** ──────────────────────────────────────
 // 묶인 얼음 덩어리 사슬이 **통째로** 날아가 처음 맞은 적을 마디 수만큼 친다.
 SCspine(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
   mgInit(st,SC,SCFOE);
@@ -44531,8 +44596,8 @@ SCspine(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 // ⚠️ `IBspine2b` 의 마운트는 **안 건드린다.** 이건 새 이름으로 나란히 선다 —
 //    무엇을 버릴지는 사용자가 정한다.
 // 격자는 **L5(완성형)** 로 그린다(2026-08-13 확정, [tile] 의 `lv`).
-{const M=MOUNT("magic");
- if(M)tile(M,FX,"SCspine","서릿발 · 결정 열  (연타)","SPINE",
+{const M=MOUNTR("SCspine","magic");
+ if(M)tile(M,FX,"SCspine","서리결정","SPINE",
    "묶인 얼음 덩어리 사슬이 <b>통째로</b> 날아가, <b>처음 맞은 적</b>을 "+
    "마디 수만큼 친다 — 마디가 앞에서부터 부서지고 그 수가 곧 연타 수다",
    238,undefined,undefined,5);}
@@ -44541,7 +44606,7 @@ SCspine(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 // ⚠️ 마크업은 손으로 안 짠다. `lvTable` 한 줄이 전부다.
 {const HOST=MOUNT("levelsm");
  lvTable({host:HOST,name:"SCcell",rows:[
- ["SCspine","서릿발 · 결정 열","마법 — 연타 수 (5 · 7 · 9 · 9 · 11)",[
+ ["SCspine","서리결정","마법 — 연타 수 (5 · 7 · 9 · 9 · 11)",[
   "기준 — 사슬 <b>마디 5</b>. 처음 맞은 적에게 <b>5연타</b>. 직선 한 갈래고 사거리는 끝까지 안 는다",
   "<b>7연타</b> — 마디 둘이 붙는다. 사슬 굵기 10.4 → 11.4 (<b>+9.6%</b>)",
   "<b>9연타</b> — 마디 둘이 더. 굵기 11.4 → 12.4 (<b>+8.8%</b>)",
@@ -46958,7 +47023,621 @@ ICON.mgNovaDusk=function(c,S){const cx=S/2,cy=S/2;
 [["mgPoisonBrand","극독 劇毒"],["mgPoisonSpread","감염 感染"],["JDlatch","기생 寄生"],
  ["FLconeA","화염방사 火炎放射"],["FLtrail","불자취 火跡"],["FLret","회염 廻炎"],
  ["FVvortB","화염회오리 火旋"],
- ["SDspineD","서릿발 D"],["SCspine","서릿발 · 결정 열"],["ILpillar","결빙"],
+ ["SDspineD","서릿발"],["SCspine","서리결정"],["ILpillar","결빙"],
  ["mgNovaDetonate","기폭 起爆"],["mgNovaChime","공명 共鳴"],
  ["mgNovaSplit","분열 分裂"],["mgNovaDusk","암전 暗轉"]
 ].forEach(([k,n])=>iconTile(ICON,k,n,"마법 공격"));
+// ══════════════════════════════════════════════════════════════════════════
+// SH — 「결계 · 암 影」이 **맞았을 때** 무엇이 보이는가. 고르기 시안 다섯.
+//      (mockup-pick.html 의 `#shadepick` 전용. 고르고 나면 채택안만 방어 페이지로
+//       옮기고 이 블록은 통째로 지운다.)
+//
+// 사용자 판정(2026-08-13): 「지금 거 별로야 ㅠ **뒤에 배경 때문에 하나도 안 보여.**
+// **어두움을 유지하되 보일 수 있는 방법**을 찾아야 될 듯해.」 → 뒤이어 「**지금 거는 폐기**」.
+//
+// ⇒ 판정 기준은 **하나**다: 어둠인 채로 검은 배경(#0C0C12)에서 보이는가.
+//
+// ── 이미 세 번 반려된 길 — 여기로는 다시 안 간다 ──────────────────────────
+//   ① **어두운 원뿔**([celSpike] shade) — 검정 위 검정이라 아무것도 아니었다
+//   ② **곧은 밝은 획**(#C0A8E8) — 보이긴 했는데 「백광의 되쏘기」와 같은 말이 됐다
+//      (사용자: 「백광처럼 1자 에너지가 아니고 **암흑만의 스타일**을 하고 싶은데」)
+//   ③ **찢긴 틈**(톱니 가장자리 + 검은 속) — 「하나도 안 보여」 → **폐기**
+//
+//   ①②③ 이 공유하는 전제는 「어둠은 **칠해서** 보여야 한다」였고, 그 전제가 틀렸다.
+//   ①③ 은 배경과 같은 값을 배경 위에 칠했고(=아무것도 아니다), ② 는 칠을 밝혀
+//   해결했는데 그러면 암이 아니다. 아래 다섯은 **칠하지 않고 드러내는** 수법이라
+//   그 막다른 골목 밖에 있다 — 같은 것의 밝기 차이는 안(案)이 아니므로
+//   **원리가 겹치는 안은 하나도 없다.**
+//
+//   ① 베어 문다    덮은 것을 **지운다**                 밝기 안 올림
+//   ② 반그늘        둘레만 배경보다 한 단 밝힌다         대비만
+//   ③ 어긋난다      그늘에 든 것이 **밀린다**            밝기 안 올림
+//   ④ 빨아들인다    티끌이 빨려 들어가 사라진다          위치만
+//   ⑤ 밀려난 빛     지나간 자리가 잠깐 밝았다 **꺼진다** 짧은 전이만
+//
+// ── 규율 ──────────────────────────────────────────────────────────────────
+// ⚠️ **무대를 새로 안 짠다.** 다섯이 [WDstage]·[W3step]·[W3shade] 를 그대로
+//   부르고 **맞았을 때 그리는 부분만** 갈아 끼운다 — 무대가 갈리면 비교가 죽는다.
+// ⚠️ 기존 최상위 이름을 **하나도 안 고친다.** [WDDEF]·[W3*]·[GD*] 는 읽기만 한다.
+// ⚠️ 최상위 이름은 전부 `SH` 로 시작한다(같은 파일의 `WD`·`W3`·`GD`·`WL` 과 안 겹친다).
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── 수치 · 색 ─────────────────────────────────────────────────────────────
+/// 칸 바탕. [tile] 이 캔버스에 칠하는 그 값이고, **이 블록의 모든 판정 기준**이다.
+/// ⭐ 그림 루프가 매 프레임 이 값으로 칸을 채우고([frame]) 캔버스 CSS 배경도 같은
+///   값이라, `destination-out` 으로 **지운 자리 = 정확히 배경색**이다. ①이 「밝기를
+///   1도 안 올리고 형을 세운다」를 할 수 있는 근거가 이 한 줄이다.
+const SHBG   ="#0C0C12";
+/// 반그늘 — [TONE].shade 를 바탕 쪽으로 섞어 **배경보다 딱 한 단 위**에 세운다.
+/// 새 색상수 0(W3 블록의 규약 그대로 [mixHex] 로만 판다).
+///   SHHALO  ≈ #40305A — 배경(휘도 ~13) 대비 휘도 ~52. **절대값으로는 여전히 어둡다**
+///   SHHALO2 ≈ #241432 — 그 안쪽 한 단
+const SHHALO =mixHex(SHBG,toneOf("shade")[2],.52),
+      SHHALO2=mixHex(SHBG,toneOf("shade")[1],.70);
+
+const SHOPEN =.34,    // 아가리가 다 벌어지는 데 걸리는 몫(사건 수명 [WDEVL] 중)
+      SHWN   =15,     // 굴절 렌즈를 자르는 띠 수. 적으면 계단, 많으면 값만 든다
+      SHDN   =64,     // 티끌 수 — 사건이 없어도 늘 떠 있다(빨리는 것이 보이려면
+                      // **빨리기 전**이 화면에 있어야 한다)
+      // ⚠️ 처음엔 「가속 + 감쇠」로 물리처럼 풀었다가 **렌더 판정에서 반려**했다
+      //   (2026-08-13): 티끌이 그냥 별밭이고 빨림이 하나도 안 보였다. 재 보니
+      //   프레임당 .90 감쇠의 종단 속도가 가속의 1/6 이라 사건 수명(.78s) 안에
+      //   티끌이 5px 도 못 움직였다. **속도장으로 바꾼다** — 물리를 흉내 내는 것이
+      //   목적이 아니라 「어디로 빨려 드는가」를 읽히게 하는 것이 목적이다.
+      SHDSP  =240,    // 빨려 드는 **속도**(px/s, SC 배). 입에 가까울수록 빠르다
+      SHDR   =2.6,    // 빨아들이는 반경(RR 배)
+      SHDSPIN=.52,    // 접선 몫 — **감기며** 든다. 곧게 들면 그건 자석이지 어둠이 아니다
+      SHDEAT =.16;    // 입의 이 안(RR 배)에 들면 삼켜진다
+
+// ── 한 칸의 몸통 — [W3core] 를 본뜬다. **갈아 끼운 것은 한 줄뿐이다** ──────
+/// 뒤 껍질 → 표식(뒤) → 적 → 표식(앞) → 몸 → 앞 껍질 → 공통 반응 → **안(案)** → 티끌.
+/// ⚠️ 그늘이 **적 위에** 오는 것은 이 순서 덕분이다(앞 껍질이 적 다음이라 그렇다).
+/// ⚠️ 안(案)이 [WDreact] 뒤에 오므로 ①의 지우개는 **공통 [celSplash] 까지** 먹는다 —
+///   맞은 자리의 번쩍임이 통째로 삼켜지는 그 그림이 「삼킨다」의 제일 센 증거다.
+function SHcore(c,t,dt,W,H,st,hit){
+  const D=WDDEF[4];                                  // 암 — 표는 **읽기만** 한다
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,RR=WDRR*SC;
+  const spin=t*.40;
+  WDstage(t,dt,st,SC,cx,cy,RR,spin,W3sd(D));
+  W3step(t,dt,st,SC,cx,cy,RR,spin,D,true);
+  for(const q of st.cell)W3shade(c,t,st,SC,cx,cy,RR,spin,q,false,D);
+  if(D.pv)pvLayer(c,cx,cy,st.F,D.pv,t,D.k,SC,0);
+  drawFoes(c,t,cx,cy,st.F);
+  if(D.pv)pvLayer(c,cx,cy,st.F,D.pv,t,D.k,SC,1);
+  hero(c,t,cx,cy);
+  for(const q of st.cell)W3shade(c,t,st,SC,cx,cy,RR,spin,q,true,D);
+  WDreact(c,t,st,SC,cx,cy,RR,spin,W3sd(D));          // 다섯이 공유하는 [celSplash] 만
+  hit(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H);             // ← **여기가 안이 갈리는 자리 전부**
+  drawP(c,st);}
+
+/// 사건 하나를 「맞은 자리 O → 적 T」 한 쌍으로 편다. 다섯이 같은 기하를 쓴다 —
+/// 자리가 갈리면 「무엇이 달라지는가」가 아니라 「어디에 그렸는가」가 비교된다.
+function SHaim(st,e,spin,cx,cy,RR){
+  const f=e.src;if(!f)return null;
+  const O=GDorigin(st,e,spin,cx,cy,RR);
+  const tx=cx+f.ox+f.kx, ty=cy+f.oy+f.ky;
+  const u=Math.min(1,e.l/WDEVL);
+  return {f,u,fade:1-u,g:ease(u),ox:O[0],oy:O[1],tx,ty,
+          na:Math.atan2(ty-O[1],tx-O[0]),
+          dl:Math.hypot(tx-O[0],ty-O[1])};}
+
+/// 톱니 진 아가리 하나. 입구는 좁고 **적이 있는 자리에서 제일 벌어졌다** 다시 닫힌다.
+/// ⚠️ 톱니를 [hash] 로 뽑는다 — `t` 를 섞으면 프레임마다 이가 다시 나서 **지우개가
+///   떠는 것**으로 보인다(방전은 그래야 하고 어둠은 그러면 안 된다).
+function SHmouth(ox,oy,na,L,rw,seed,K){
+  const nx=-Math.sin(na),ny=Math.cos(na),N=K||12,hi=[],lo=[];
+  for(let i=0;i<=N;i++){
+    const p=i/N, ax=ox+Math.cos(na)*L*p, ay=oy+Math.sin(na)*L*p;
+    const w=rw*(.16+Math.sin(Math.PI*Math.pow(p,.66)));
+    const j1=w*(.66+.34*hash(seed+i*3.11)), j2=w*(.66+.34*hash(seed+i*7.73+1.3));
+    hi.push([ax+nx*j1,ay+ny*j1*.94]); lo.push([ax-nx*j2,ay-ny*j2*.94]);}
+  return hi.concat(lo.reverse());}
+
+// ── ① 베어 문다 — **덮은 것을 지운다** ────────────────────────────────────
+/// 그늘 자체는 **한 획도 안 그린다.** 그늘이 덮은 자리를 `destination-out` 으로
+/// 통째로 지우면, 거기 있던 것(적의 밝은 테 · 붉은 눈 · 실명 표식 · 껍질 획 ·
+/// 막은 번쩍임)이 **사라지는 것**으로 어둠의 형이 읽힌다.
+///
+/// ⭐ 「어둠을 어둠인 채로」에 제일 곧게 닿는 안이다: 지워진 자리는 **정확히
+///   배경색**이라 밝기를 1 도 안 올렸는데 형이 선다. 배경이 검은 것이 약점이
+///   아니라 **재료**가 된다 — 반려된 ①③ 이 정확히 뒤집힌 자리다.
+function SHbite(c,t,dt,st,SC,cx,cy,RR,spin,D){
+  if(!st.ev.length)return;
+  c.save();c.globalCompositeOperation="destination-out";
+  for(const e of st.ev){
+    const S=SHaim(st,e,spin,cx,cy,RR);if(!S)continue;
+    // 벌어지고 → 물고 있고 → 놓는다. **무는 동안은 알파 1** 이라야 「삼켰다」다
+    const L=(S.dl+S.f.r*1.9)*ease(Math.min(1,S.u/SHOPEN));
+    if(L<1)continue;
+    const al=S.u<SHOPEN?1:W3c((1-S.u)/(1-SHOPEN));
+    fillPoly(c,SHmouth(S.ox,S.oy,S.na,L,S.f.r*1.55+RR*.10,e.ia*7.3),
+             A("#000000",al));}
+  c.restore();}
+
+// ── ② 반그늘 — **둘레만 배경보다 한 단 밝다** ─────────────────────────────
+/// 속은 [W3INK](배경보다 어둡다)이고 그 둘레에 **배경보다 살짝 밝은 띠**를 두른다.
+/// 그림자에 반그늘이 있는 이치 그대로다 — 밝기를 안 올리고 **경계**만 만든다.
+/// 네 겹을 안에서 밖으로 벌려 놓아 띠가 딱딱한 테가 아니라 **번짐**으로 읽힌다.
+/// ⚠️ 제일 밝은 겹(SHHALO)도 **절대값으로는 어둡다**(휘도 ~52/255). 같은 자리에
+///   밝은 자주(#C0A8E8, 휘도 ~175)를 쓰면 그게 반려된 ②(백광의 되쏘기)다 —
+///   이 안과 그 안을 가르는 것은 **형이 아니라 그 한 단**이다.
+function SHrim(c,t,dt,st,SC,cx,cy,RR,spin,D){
+  for(const e of st.ev){
+    const S=SHaim(st,e,spin,cx,cy,RR);if(!S)continue;
+    const L=(S.dl+RR*.62)*S.g;if(L<1)continue;
+    const rw=S.f.r*1.30+RR*.12, sd=e.ia*7.3;
+    // 밖 → 안. 바깥 둘은 배경보다 **밝고**, 안쪽 둘은 배경보다 **어둡다**
+    fillPoly(c,SHmouth(S.ox,S.oy,S.na,L,rw*1.62,sd),A(SHHALO ,W3c(.42*S.fade)));
+    fillPoly(c,SHmouth(S.ox,S.oy,S.na,L,rw*1.28,sd),A(SHHALO2,W3c(.62*S.fade)));
+    fillPoly(c,SHmouth(S.ox,S.oy,S.na,L,rw*1.04,sd),A(W3PLM  ,W3c(.55*S.fade)));
+    fillPoly(c,SHmouth(S.ox,S.oy,S.na,L,rw* .82,sd),A(W3INK  ,W3c(.92*S.fade)));}}
+
+// ── ③ 어긋난다 — **그늘에 든 것이 밀린다** ────────────────────────────────
+/// 지우지도 칠하지도 않는다. 그늘이 든 자리의 **화면을 그대로 떠서 옮겨 붙인다** —
+/// 축을 따라 자른 띠마다 미는 양이 달라(가운데가 제일 많이) 껍질 획도 적 실루엣도
+/// **꺾인다.** 꺾인 획을 만드는 것은 배경이 아니라 화면에 이미 있는 밝은 것이라
+/// **배경이 검든 희든 똑같이** 보인다.
+/// ⚠️ 뜨는 것을 **프레임당 한 번만** 한다. 렌즈마다 캔버스를 다시 읽으면 앞 렌즈가
+///   민 결과를 뒤 렌즈가 또 읽어 그림이 눈덩이처럼 번진다.
+/// ⚠️ 밀기 전에 렌즈 안을 **비운다**(destination-out). 안 비우면 원본과 민 사본이
+///   같이 남아 **겹친 그림자**가 되고, 그건 굴절이 아니라 얼룩이다.
+function SHwarp(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H){
+  if(!st.ev.length)return;
+  const cv=c.canvas;if(!cv||!cv.width)return;
+  const dpr=cv.width/W;
+  if(!st.shbuf)st.shbuf=document.createElement("canvas");
+  const buf=st.shbuf;
+  const bw=Math.max(1,Math.round(W*dpr)), bh=Math.max(1,Math.round(H*dpr));
+  if(buf.width!==bw||buf.height!==bh){buf.width=bw;buf.height=bh;st.shbc=null;}
+  const bc=st.shbc||(st.shbc=buf.getContext("2d"));
+  if(!bc)return;
+  bc.setTransform(1,0,0,1,0,0);bc.clearRect(0,0,bw,bh);bc.drawImage(cv,0,0);
+  for(const e of st.ev){
+    const S=SHaim(st,e,spin,cx,cy,RR);if(!S)continue;
+    // 렌즈는 **맞은 자리와 적 사이**에 앉는다 — 양쪽에 그릴 것이 다 있는 유일한 자리
+    const mx=S.ox+(S.tx-S.ox)*.55, my=S.oy+(S.ty-S.oy)*.55;
+    const LR=Math.max(3,(S.f.r*1.9+RR*.46)*(.72+.28*S.fade));
+    const amp=(S.f.r*.90+RR*.34)*S.fade*S.fade;
+    if(amp<.7)continue;
+    c.save();
+    c.beginPath();c.ellipse(mx,my,LR,LR*.94,0,0,TAU);
+    c.clip();
+    c.globalCompositeOperation="destination-out";c.fillStyle="#000";c.fill();
+    c.globalCompositeOperation="source-over";
+    const hgt=(LR*1.88)/SHWN, y0=my-LR*.94;
+    for(let i=0;i<SHWN;i++){
+      const b=Math.sin(Math.PI*(i+.5)/SHWN);        // 가운데가 제일 많이 밀린다
+      const s0=Math.max(0,Math.min(bh-1,Math.round((y0+i*hgt)*dpr)));
+      const s1=Math.max(s0+1,Math.min(bh,Math.round((y0+(i+1)*hgt)*dpr)+1));
+      c.drawImage(buf,0,s0,bw,s1-s0,
+        Math.cos(S.na)*amp*b, s0/dpr+Math.sin(S.na)*amp*b*.94, W, (s1-s0)/dpr);}
+    c.restore();}}
+
+// ── ④ 빨아들인다 — **티끌이 그리로 사라진다** ─────────────────────────────
+/// 어둠은 한 획도 안 그린다. 화면에 늘 떠 있던 티끌이 **그쪽으로 빨려 들어가
+/// 없어지는 것**으로 자리가 읽힌다. 빨리는 것이 보이려면 **빨리기 전**이 화면에
+/// 있어야 하므로 티끌은 사건과 무관하게 항상 떠 있다.
+/// ⚠️ 티끌 자리는 [hash] 로만 판다 — [R](Math.random)을 쓰면 같은 칸이 새로 고칠
+///   때마다 달라져 「이 안이 무엇인가」가 프레임마다 흔들린다.
+function SHdustInit(st,W,H,SC){
+  st.shd=[];
+  for(let i=0;i<SHDN;i++)st.shd.push({i,gen:0,
+    x:hash(i*1.71)*W, y:hash(i*3.13+.37)*H,
+    bx:(hash(i*5.17)-.5)*8*SC, by:(hash(i*7.31)-.5)*8*SC,   // 늘 있는 느린 표류
+    vx:0, vy:0,                                              // 이번 프레임의 실제 속도
+    s:.55+.45*hash(i*9.71)});}
+
+/// 삼켜졌거나 밖으로 나간 티끌은 **가장자리에서 새로 든다.** 수를 안 채우면
+/// 몇 번 맞은 뒤 화면이 비어 「빨아들일 것이 없는 어둠」이 된다.
+function SHrespawn(p,W,H,SC){
+  p.gen++;
+  const sd=p.i*2.91+p.gen*13.17, side=Math.floor(hash(sd)*4), u=hash(sd+3.3);
+  if(side===0){p.x=u*W;p.y=-4;}
+  else if(side===1){p.x=u*W;p.y=H+4;}
+  else if(side===2){p.x=-4;p.y=u*H;}
+  else{p.x=W+4;p.y=u*H;}
+  p.bx=(hash(sd+5.9)-.5)*8*SC; p.by=(hash(sd+8.1)-.5)*8*SC;
+  p.vx=0;p.vy=0;}
+
+function SHdrain(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H){
+  if(!st.shd)SHdustInit(st,W,H,SC);
+  // 입 — 사건마다 하나. 적 쪽에 붙는다(맞은 자리에 두면 껍질이 빠는 것이 된다)
+  const M=[];
+  for(const e of st.ev){
+    const S=SHaim(st,e,spin,cx,cy,RR);if(!S)continue;
+    M.push({x:S.ox+(S.tx-S.ox)*.74, y:S.oy+(S.ty-S.oy)*.74,
+            p:S.fade*(.55+.75*S.f.r/(14*SC))});}
+  const RS=RR*SHDR, RE=RR*SHDEAT;
+  for(const p of st.shd){
+    // 제일 센 입 하나만 문다. 둘을 합치면 티끌이 **가운데로** 가서 어느 쪽으로
+    // 빨리는지가 사라진다 — 「빨림」은 목적지가 하나라야 읽힌다
+    let bs=0,bd=1e9,ux=0,uy=0;
+    for(const m of M){
+      const dx=m.x-p.x, dy=m.y-p.y, d=Math.hypot(dx,dy)||1;
+      if(d>RS)continue;
+      const s=Math.pow(1-d/RS,.55)*m.p;
+      if(s>bs){bs=s;bd=d;ux=dx/d;uy=dy/d;}}
+    let vx=p.bx, vy=p.by;
+    if(bs>0){const sp=SHDSP*SC*bs;
+      vx=(ux-uy*SHDSPIN)*sp; vy=(uy+ux*SHDSPIN)*sp;}
+    p.vx=vx;p.vy=vy;
+    p.x+=vx*dt; p.y+=vy*dt;
+    p.near=bs>0?Math.min(1,bd/(RE*2.4)):1;          // 입에 닿으며 **삭는다**
+    if((bs>0&&bd<RE)||p.x<-10||p.x>W+10||p.y<-10||p.y>H+10)SHrespawn(p,W,H,SC);}
+  // 입 — **안 밝힌다.** 배경보다 어두운 잉크라 적 위에서만 자국이 남는다
+  for(const m of M){
+    const rr=Math.max(.4,RR*.30*m.p);
+    c.beginPath();c.arc(m.x,m.y,rr,0,TAU);c.fillStyle=A(W3INK,W3c(.80*m.p));c.fill();}
+  // 티끌 — 빠를수록 **꼬리가 길어진다.** 그 꼬리들이 한 점을 가리키는 것이 전부다
+  for(const p of st.shd){
+    const sp=Math.hypot(p.vx,p.vy), nr=p.near===undefined?1:p.near;
+    const q=Math.min(1,sp/(SHDSP*SC)), rr=Math.max(.35,(.85+.5*p.s)*SC*(1-.3*q));
+    if(sp>40*SC){
+      const ln=Math.min(RR*.70,sp*.055);
+      celStroke(c,[[p.x-p.vx/sp*ln,p.y-p.vy/sp*ln],[p.x,p.y]],
+                Math.max(.5,rr*1.5),"W3ray",W3c((.30+.66*q)*nr));}
+    else{c.beginPath();c.arc(p.x,p.y,rr,0,TAU);
+         c.fillStyle=A(W3RAY[1],W3c((.34+.30*p.s)*nr));c.fill();}}}
+
+// ── ⑤ 밀려난 빛 — **지나간 자리가 잠깐 밝았다 꺼진다** ────────────────────
+/// 그늘이 껍질을 훑고 지나간다. 파면이 **닿는 순간만** 그 셀이 번쩍하고,
+/// 파면 **뒤는 검게 꺼진다** — 밝은 것이 밀려나 간 자국으로 어둠의 위치가 읽힌다.
+/// ⚠️ 밝힌 것은 **셀의 테**이지 뻗는 획이 아니다. 곧은 획을 그으면 그건 백광의
+///   되쏘기이고(반려 ②), 껍질이 제 몸으로 반응하는 것은 그것과 다른 말이다.
+/// ⚠️ 번쩍임은 짧고(파면 폭 .30RR) 어둠은 길다(1.05RR). 둘이 같으면 「빛나는 고리」가
+///   되어 축이 다시 밝기로 돌아간다 — **남는 것이 어둠**이라야 이 칸이 암이다.
+function SHflare(c,t,dt,st,SC,cx,cy,RR,spin,D){
+  for(const e of st.ev){
+    const S=SHaim(st,e,spin,cx,cy,RR);if(!S)continue;
+    const wr=RR*(.08+1.75*S.g), band=RR*.30;
+    for(const q of st.cell){
+      const P=GDproj(q,spin,cx,cy,RR);
+      if(P.dep<0)continue;                              // 앞면만 — 뒤는 적 뒤라 안 읽힌다
+      const d=Math.hypot(P.x-S.ox,(P.y-S.oy)/.94);
+      const r=RR*WDANG*.5*D.fill*(.62+.38*Math.abs(P.dep));
+      if(r<.4)continue;
+      const Sx=W3hexP(P,P.th*.25,r,1);
+      const fr=1-Math.min(1,Math.abs(d-wr)/band);       // 파면에 닿았는가
+      if(d<wr){                                          // ② 지나간 자리 — 꺼진다
+        const back=W3c(1-(wr-d)/(RR*1.05));
+        fillPoly(c,Sx,A(W3INK,W3c((.24+.74*back)*S.fade)));}
+      if(fr>.02)                                         // ① 파면 — 잠깐 밝다
+        celStroke(c,Sx.concat([Sx[0]]),Math.max(.5,(.9+2.6*fr)*SC),
+                  "W3ray",W3c(fr*fr*.90*(.30+.70*S.fade)));}}}
+
+// ── 다섯 칸 ───────────────────────────────────────────────────────────────
+/// ⚠️ **이름 있는 함수**로 싼다 — [mk] 가 `fn.name` 을 label 로 쓰고 그 label 이
+///   스모크의 예외 표시가 보는 유일한 이름이다. 화살표로 두면 전부 `anon` 이 된다.
+function SHwardBite (c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHbite);}
+function SHwardRim  (c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHrim);}
+function SHwardWarp (c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHwarp);}
+function SHwardDrain(c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHdrain);}
+function SHwardFlare(c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHflare);}
+const SHFX={SHwardBite,SHwardRim,SHwardWarp,SHwardDrain,SHwardFlare};
+
+const SHLIST=[
+ ["SHwardBite","암 影 — ① 베어 문다 · 지운다",
+  "**그늘을 한 획도 안 그린다.** 그늘이 덮은 자리를 통째로 지워, 거기 있던 적의 밝은 "+
+  "테·붉은 눈·실명 표식·막은 번쩍임이 **사라지는 것**으로 어둠의 형이 읽힌다"],
+ ["SHwardRim","암 影 — ② 반그늘 · 대비만",
+  "속은 배경보다 **어둡고** 둘레만 배경보다 **한 단 밝다**(#40305A — 여전히 어둡다). "+
+  "그림자에 반그늘이 있는 이치 — 밝기를 안 올리고 **경계**만 만든다"],
+ ["SHwardWarp","암 影 — ③ 어긋난다 · 굴절",
+  "지우지도 칠하지도 않는다. 그늘에 든 화면을 **떠서 밀어 붙인다** — 띠마다 미는 "+
+  "양이 달라 껍질 획도 적 실루엣도 **꺾인다.** 배경 밝기와 무관하게 보인다"],
+ ["SHwardDrain","암 影 — ④ 빨아들인다 · 입자 역상",
+  "어둠은 안 그리고, 늘 떠 있던 **티끌이 그쪽으로 빨려 들어가 사라진다.** 꼬리들이 "+
+  "한 점을 가리키는 것으로 자리가 읽힌다 — 화면에서 제일 밝은 것이 어둠이 아니다"],
+ ["SHwardFlare","암 影 — ⑤ 밀려난 빛 · 음영 반전",
+  "파면이 닿는 셀만 **잠깐 번쩍**하고 그 **뒤는 검게 꺼진다.** 빛이 밀려나 간 자국으로 "+
+  "위치가 읽힌다 — 번쩍임은 짧고(.30RR) 남는 어둠은 길다(1.05RR)"]];
+
+{const SHH=MOUNT("shadepick");
+ if(SHH)SHLIST.forEach(([k,nm,ds])=>tile(SHH,SHFX,k,nm,"",ds,238));}
+// ══════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════
+// WL — 결계 · **속성별 × 레벨별** 격자 (`#wardlv`)                (2026-08-13)
+//
+// 사용자 지시: 「무(원본)을 맨앞으로 두고 순서대로 무(원본)·무·염·빙·뇌·풍·
+//   독·암(비워두고)·백·플라즈마 이렇게 Lv1~Lv5까지 시안 잡아서 보여줘.
+//   결계의 속성마다 방어결계가있고 Lv1~Lv5까지의 변화가있을테니까
+//   **무(원본) 을 참고해서** 만들어주면 될듯」
+//
+// 물려받은 것 : FX.ward(무 원본 — 레벨을 **제가** 읽는 유일한 칸) · WDcore ·
+//   W2core · W3core · GDFX.GDground3/4 · WDstage · WDinit · WDhex · WDreact ·
+//   GDcells · GDproj · GDflat · GDorigin · W2hexP · WDRR · WDANG · WDTAIL ·
+//   WDEVL · GDRR · GDANG · GDEVL · lvTable · LV · atL · toneOf · fillPoly ·
+//   celStroke · celSplash · celHoop · celRibbon · jagPoly · arcPts · emit ·
+//   gAdd · drawFoes · hero · drawP · A · ease · TAU
+// 새로 그린 것 : **0** — 새 원시함수도 새 색상수도 없다. 레벨 층은 전부 위
+//   문법의 조합이고, **무대는 한 줄도 안 짰다**(전부 [WDstage]/[GDstage]).
+// 고친 것 : **0** — [WDDEF]·[W2*]·[W3*]·[GD*]·[FX.ward] 는 전부 **읽기만**
+//   한다. 최상위 이름은 규약대로 전부 `WL` 로 시작한다.
+//
+// ⚠️ **`WL` 은 이미 쓰이고 있다** — 빙벽(`WLwall1`~`4`·`WLstepWall`·`WLbrick`·
+//   `WLA`/`WLB`/`WLD`/`WLS`, 43375줄~)이 같은 접두를 쓴다. 전수로 재 보고
+//   겹치는 이름이 하나도 없게 골랐다. 특히 두 자리를 조심했다:
+//     · 표 이름을 `WLROW` 로 두면 저쪽 `WLROWS` 와 **한 글자 차이**라
+//       [WLTBL] 로 바꿨다(둘 다 살아 있으면 다음 사람이 반드시 헷갈린다).
+//     · [lvTable] 의 `name` 도 저쪽이 `"WLcell"` 을 쓴다. [mk] 가 그걸
+//       label 로 쓰므로 같이 두면 **스무 칸과 마흔다섯 칸이 로그에서 한 이름**이
+//       되어 어느 칸이 죽었는지 안 나온다 → `"WLwardcell"` 로 갈랐다.
+//
+// ── 레벨 뼈대 다섯 — **무(원본)의 것을 그대로 물려받는다** ────────────────
+// [FX.ward] 가 이미 표본이다: 각(ANG)이 매 레벨 좁아져 껍질이 메워지고, 그
+// 위에 L3 `REFL` · L4 `THICK` · L5 `BURST` 가 **새 사건**으로 얹힌다.
+// 아홉 줄이 **같은 뼈대**를 쓰고, 갈리는 것은 그 사건을 **제 속성으로 무엇이라
+// 번역했나**뿐이다 — 줄마다 딴 축을 쓰면 표가 안 읽힌다.
+//   L1 기준        성긴 껍질(22셀). 빈틈으로 몸이 보인다
+//   L2 메워진다    셀 22→35. 양만 는다(아직 결이 없다)
+//   L3 결이 선다   셀 표면에 **제 속성의 무늬** 하나 — 원본의 「거울 빗금」 자리
+//   L4 두꺼워진다  안쪽에 **한 겹 더** — 원본의 「셀마다 안쪽 심」 자리
+//   L5 파열        깨진 셀이 **제 속성으로** 터지고 재생 — 원본의 「파열」 자리
+//
+// ⚠️ **L3 이 곧 지금 확정된 여덟이다.** 각이 L3 에서 .50 이라 셀이 48개 —
+//   [WDDEF] 여섯과 [GDROW] 둘이 서 있는 바로 그 값이다. 그래서 표의 **가운데
+//   열**은 `#tintguard` 여덟 칸과 같은 그림이고, 좌우가 그 앞뒤가 된다.
+//   반려·승인된 그림을 한 톨도 안 건드리면서 성장선을 얹는 유일한 자리다.
+//
+// ⚠️ **한 축을 다섯으로 쪼개지 않았다.** 매 레벨 자라는 것은 밀도 하나뿐이고
+//   L3·L4·L5 는 전부 **없던 것이 생긴다**. 밀도만 다섯 단이면 그건 성장이
+//   아니라 「같은 그림 크게」다(이 레포의 규약).
+//
+// ── 「무(원본)」과 「무」는 **다르다** ─────────────────────────────────────
+// 둘 다 무속성 회백 육각이지만 **무대가 다르고**, 그 차이가 곧 두 줄이 따로
+// 서는 이유다:
+//   무(원본) [FX.ward] — 적이 **셸 밖에 서 있다**(2026-08-09: 무손상 상태로
+//     레벨 간 밀도를 비교하려고 그렇게 뒀다). 껍질이 안 깨진다. 열 줄 중
+//     레벨 다섯을 **제 손으로** 그리는 유일한 칸이라 이 표의 원본이다.
+//   무       [WLcore]  — [WDstage] 무대. 적 넷이 1.5초 주기로 **달려들어
+//     막히고**, 맞은 칸이 **몸 크기만큼** 깨졌다 [WDGROW] 뒤 돋는다.
+//     나머지 여덟이 전부 이 무대 위에 서 있으므로 이 줄이 **파생의 기준선**이다.
+// ⇒ 앞줄은 「레벨이 무엇을 바꾸나」의 기준, 뒷줄은 「속성이 무엇을 바꾸나」의
+//   기준이다. 합치면 둘 중 하나가 없어진다.
+//
+// ⚠️ **암은 빈칸이다**(2026-08-13 사용자: 폐기하고 다시 뽑는 중). 자리만 두고
+//   그림은 안 그린다 — 줄을 빼면 순서가 밀려 다음 판에서 자리를 다시 찾는다.
+// ══════════════════════════════════════════════════════════════════════════
+
+/// 레벨 다섯의 **각**과 그것이 낳는 셀 수. [FX.ward] 의 `ANG` 과 한 글자도
+/// 안 다르다 — 위도 밴드가 4·5·6·7·8 로 한 단씩 늘어 다섯이 눈에 갈린다.
+const WLANG=[.70,.58,.50,.44,.40],
+      WLNC =[22,35,48,64,80];
+
+/// 껍질을 **레벨의 각으로 다시 깐다.** [GDcells] 가 각 하나에서 밴드 수·줄마다
+/// 개수·셀 크기를 전부 뽑으므로 여기서 정할 것은 각 하나뿐이다.
+/// ⚠️ 셀 **반지름**은 그리는 쪽이 [WDANG](=.50) 상수에서 뽑는다 — 각이 좁아져도
+///   셀 크기는 그대로이고 개수만 는다. 그래서 성긴 껍질 → 메워진 껍질이 되고,
+///   원본의 `FILL` 이 하던 일을 격자 자체가 한다(값 하나를 덜 쓴다).
+/// ⚠️ 이웃 문턱(.62)은 각에 **비례해서** 좁힌다. 안 그러면 L5 에서 독의 가닥이
+///   셀 수의 제곱으로 늘어 껍질이 그물이 된다. L3(.50)에서는 .62 그대로라
+///   **확정된 그림이 한 톨도 안 바뀐다**.
+/// ⚠️ 한 번만 돈다(`st.WLang`). [lvTable] 이 칸마다 [LV] 를 고정하므로 밀도는
+///   칸의 일생에 한 번 정해진다 — 매 프레임 재면 O(n²) 짝짓기가 매번 돈다.
+function WLprep(st,SC,wd){
+  if(wd&&!st.cell)WDinit(st,SC);            // 무대 한 벌 — 원본 것 그대로 부른다
+  const ang=WLANG[LV-1];
+  if(st.WLang===ang)return;
+  st.WLang=ang;
+  st.cell=GDcells(ang);
+  for(const q of st.cell){q.bn=0;q.dead=0;q.fl=0;}
+  const th=.62*(ang/WDANG);
+  st.pair=[];
+  for(let i=0;i<st.cell.length;i++)for(let j=i+1;j<st.cell.length;j++){
+    const a=st.cell[i],b=st.cell[j];
+    if(Math.abs(b.ph-a.ph)>th)continue;
+    if(Math.abs(((b.th-a.th)%TAU+TAU+Math.PI)%TAU-Math.PI)>th)continue;
+    st.pair.push([i,j]);}}
+
+// ── 레벨 층 — 본체 **위에 덧그린다** ──────────────────────────────────────
+/// ⚠️ 본체([WDcore]/[W2core]/[W3core]/[GDcore])는 한 줄도 안 고친다. 레벨이
+/// **더하는 사건**만 그 위에 얹는 구조라, 아홉 줄의 L3 칸이 확정본 그대로다.
+
+/// L3 — 셀 표면의 **결.** 원본의 「거울 빗금」 자리를 속성마다 번역한 것이다.
+function WLskin(c,P0,rot,r,al,R,T,SC,q){
+  if(R.sk==="bar"){                          // 무 — 거울 빗금(원본 규약 그대로)
+    const M=W2hexP(P0,rot,r*.64);
+    celStroke(c,[M[3],M[0]],Math.max(.4,1.7*SC),R.k,Math.min(1,al*.95));return;}
+  if(R.sk==="bead"){                         // 독 — 가닥 끝에 방울이 맺힌다
+    fillPoly(c,jagPoly(P0.x,P0.y+r*.62,Math.max(.4,r*.30),7,q.id*5.3,1.15,1),
+             A(T[2],Math.min(1,al*.80)));return;}
+  if(R.sk==="gloss"){                        // 백광 — **획을 안 긋는다.** 면만
+    gAdd(c,cc=>{fillPoly(cc,W2hexP(P0,rot,r*.60),A(T[2],Math.min(1,al*.22)));});
+    return;}
+  for(let s=0;s<R.sn;s++){                   // 염 숯 결 · 빙 서리 · 플 아크 눈금
+    const a0=rot+s/R.sn*TAU+R.so;
+    celStroke(c,GDflat([[0,0],[Math.cos(a0)*r*.80,Math.sin(a0)*r*.80]],P0),
+              Math.max(.4,R.sw*SC),R.k,Math.min(1,al*R.sa));}}
+
+/// L4 — 안쪽에 **한 겹 더.** 원본의 「셀마다 안쪽 심이 박힌다」 그대로다
+/// (고리를 하나 더 두르면 셸과 무관한 원이 떠서 생뚱맞다 — 2026-08-09 반려).
+function WLthick(c,P0,rot,r,al,R,T,SC){
+  const S=W2hexP(P0,rot,r*.52);
+  fillPoly(c,S,A(T[1],Math.min(1,.24*al)));
+  // ⚠️ 백광만 **테를 안 긋는다** — 「획이 하나도 없다」가 그 칸의 정체이고,
+  //   여기서 한 줄 그으면 L4 가 그 정체를 지운다.
+  if(!R.noln)celStroke(c,S.concat([S[0]]),Math.max(.4,1.0*SC),R.k,
+                       Math.min(1,al*.60));}
+
+/// 고리 껍질(풍 · 뇌)의 L3·L4 — 셀이 없으므로 **위도 줄**에 얹는다.
+/// 갈리는 것은 개수와 길이뿐이다: 뇌는 짧은 눈금 여섯, 풍은 긴 획 둘.
+function WLband(c,t,st,SC,cx,cy,RR,spin,R){
+  const nb=st.cell.nb;
+  for(let bi=0;bi<nb;bi++){
+    const ph=-Math.PI/2+(bi+.5)*Math.PI/nb;
+    const rr=Math.cos(ph)*RR, yy=cy+Math.sin(ph)*RR*.94;
+    if(rr<1.2)continue;
+    if(atL(3))for(let s=0;s<R.sn;s++){
+      const a0=t*(.70+bi*.19)*(bi%2?1:-1)+s/R.sn*TAU+bi*1.3;
+      const P=arcPts(cx,yy,rr,a0,a0+R.sl,9).map(([x,y])=>[x,yy+(y-yy)*.30]);
+      celRibbon(c,P,Math.max(.5,R.sw*SC),R.k,.60,false);}
+    if(atL(4))
+      celHoop(c,cx,yy,Math.max(1,rr*.78),.30,0,Math.max(.5,1.1*SC),R.k,.42);}}
+
+/// L5 — **파열.** 사건 하나에 ① 터져 퍼지는 고리 ② 껍질의 번쩍임 ③ 속성마다
+/// 다른 알갱이 한 벌. ③ 만 표에서 갈리고 ①②는 아홉 줄이 **공유한다** —
+/// 파열이 줄마다 딴 물건이면 「같은 레벨」로 안 읽힌다.
+/// ⚠️ 알갱이는 **한 번만** 뿜는다(`e.wl`). [W2step]·[W3step] 과 같은 규율이다 —
+///   `l<=dt` 로 새것을 가려내면 dt 가 흔들릴 때 같은 사건이 두 번 터진다.
+function WLburst(c,st,SC,cx,cy,RR,spin,R){
+  const EVL=R.gd?GDEVL:WDEVL;
+  for(const e of st.ev||[]){
+    const O=GDorigin(st,e,spin,cx,cy,RR);
+    if(!e.wl){e.wl=1;
+      emit(st,O[0],O[1],R.bn,{k:R.k,sp:R.bs*SC,r:2.4*SC,life:R.bl,g:R.bg*SC,
+                              a:e.ia,spread:R.bd,spikeP:.7});}
+    const u=Math.min(1,e.l/EVL);if(u>=1)continue;
+    const g=ease(u),fade=1-u;
+    celHoop(c,O[0],O[1],Math.max(1,RR*(.08+.40*g)),.62,e.ia,
+            Math.max(.5,(1.2+2.8*fade)*SC),R.k,fade*.72);
+    celSplash(c,O[0],O[1],Math.max(1,(5+11*fade)*SC),7,e.ia*4.7,R.k,fade*.70);}}
+
+/// 한 칸의 레벨 층 전부. L1·L2 는 밀도가 이미 [WLprep] 에서 갈렸으므로
+/// 여기서 할 일이 없다 — **없는 것이 그 두 레벨의 그림**이다.
+function WLlv(c,t,st,SC,cx,cy,RR,spin,R){
+  if(LV<3||!st.cell)return;
+  const T=toneOf(R.k);
+  if(R.s===1){WLband(c,t,st,SC,cx,cy,RR,spin,R);}
+  else{
+    const ANG=R.gd?GDANG:WDANG;
+    for(const q of st.cell){
+      const P0=GDproj(q,spin,cx,cy,RR);
+      if(P0.dep<0)continue;                  // 앞면만 — 뒤 결은 픽셀 면적만 먹는다
+      const dead=q.dead||0;
+      if(dead>WDTAIL)continue;               // 깨져 비어 있다
+      const gr=dead>0?1-dead/WDTAIL:1;       // 마지막 .5초에 같이 솟아 돋는다
+      const r=RR*ANG*.5*R.fill*(.62+.38*P0.dep)*(1+q.fl*.22)*gr;
+      if(r<.6)continue;
+      const al=Math.min(1,.30+.46*P0.dep+q.fl*.34), rot=P0.th*.25;
+      if(atL(3))WLskin(c,P0,rot,r,al,R,T,SC,q);
+      if(atL(4))WLthick(c,P0,rot,r,al,R,T,SC);}}
+  if(atL(5))WLburst(c,st,SC,cx,cy,RR,spin,R);}
+
+// ── 무 — [WDDEF] 에 무속성 줄이 **없다** ──────────────────────────────────
+/// 여덟이 전부 그 표에서 나오는데 기준선 하나가 표에 없다. 이 칸만 정의를
+/// 여기서 만든다 — [WDDEF] 를 늘리면 `#tintguard` 여덟 칸이 아홉이 된다.
+/// ⚠️ 그리는 차례는 [WDcore] 것 **그대로**다. `e:""` 라 [WDhex]·[WDreact] 의
+///   원소 분기가 전부 꺼지고, 남는 것이 「빈틈없는 육각 + 막았다」뿐이다.
+/// ⚠️ [hurtFlash] 가 여기도 하나도 없다 — 결계는 막으므로 몸이 안 맞는다.
+const WLMU={key:"WLwardVoid",k:"gold",s:0,e:"",pv:"",fill:1.02,face:.13,kb:30};
+function WLcore(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,RR=WDRR*SC,spin=t*.40;
+  WDstage(t,dt,st,SC,cx,cy,RR,spin,WLMU);
+  for(const q of st.cell)WDhex(c,t,st,SC,cx,cy,RR,spin,q,false,WLMU);
+  drawFoes(c,t,cx,cy,st.F);
+  hero(c,t,cx,cy);
+  for(const q of st.cell)WDhex(c,t,st,SC,cx,cy,RR,spin,q,true,WLMU);
+  WDreact(c,t,st,SC,cx,cy,RR,spin,WLMU);
+  drawP(c,st);}
+
+/// 암 — **비움.** 아무것도 안 그리면 「죽은 칸」과 구별이 안 되므로 **끊긴 테**
+/// 하나만 둔다: 자리는 있고 그림이 아직 없다는 뜻이다.
+function WLtbd(c,t,W,H){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2;
+  celHoop(c,cx,cy,Math.max(1,WDRR*SC),.94,t*.16,Math.max(.5,1.2*SC),"gold",
+          .26,.46);}
+
+// ── 표 — **여기가 단일 출처다.** 줄마다 함수를 새로 쓰지 않는다 ────────────
+///   fn    본체(레벨은 전역 [LV] 로 들어간다). 없으면 [FX] 에서 그대로 쓴다
+///   k     톤 · s 껍질 0판 · 1고리 · 2뜬판 · fill 셀 겹침(본체 것과 같은 값)
+///   gd    [GDcore] 무대인가 — 반경·회전·사건 수명이 그쪽 한 벌로 갈린다
+///   sk    L3 결: "bar" 빗금 · "ray" 방사 · "bead" 방울 · "gloss" 면(획 없음)
+///   sn/so/sw/sa/sl  결의 개수 · 각 오프셋 · 굵기 · 알파 · (고리) 호 길이
+///   noln  L4 에서 테를 안 긋는다(백광 — 「획이 하나도 없다」)
+///   b*    L5 알갱이: 개수 · 속도 · 수명 · 중력(**음수면 오른다**) · 퍼짐
+const WLTBL=[
+ {key:"ward",k:"gold",s:0,fill:1.02,
+  nm:"결계 · 무 無 (원본)",sub:"기준 — 적이 셸 밖에 서 있어 안 깨진다",
+  t3:"반사 — 셀 표면에 거울 빗금이 선다",
+  t4:"두께 — 셀마다 안쪽에 심이 박힌다",
+  t5:"파열 — 깨진 셀이 터졌다 재생한다"},
+ {key:"WLwardVoid",k:"gold",s:0,fill:1.02,fn:(c,t,dt,W,H,st)=>WLcore(c,t,dt,W,H,st),
+  nm:"결계 · 무 無",sub:"파생의 기준선 — 적이 달려들어 막힌다",
+  sk:"bar",sw:1.7,bn:7,bs:78,bl:.42,bg:0,bd:2.2,
+  t3:"거울 빗금 — 원본의 그 획 그대로. 여덟이 이 자리를 제 속성으로 바꿔 쓴다",
+  t4:"안쪽에 한 겹 — 겉이 깨져도 심이 남는다",
+  t5:"파열 — 깨진 칸이 터져 퍼지고 회백 알갱이가 흩어진다"},
+ {key:"WLwardEmber",k:"ember",s:0,fill:1.02,fn:(c,t,dt,W,H,st)=>W2core(c,t,dt,W,H,st,0),
+  nm:"결계 · 염 炎",sub:"면이 곧 불이다 — 두 겹까지 옮아붙는다",
+  sk:"ray",sn:3,so:.40,sw:2.6,sa:.60,bn:8,bs:72,bl:.55,bg:-46,bd:2.0,
+  t3:"숯 결 — 표면이 세 갈래로 갈라져 그 틈으로 속불이 비친다",
+  t4:"속불 한 겹 — 안쪽이 벌겋게 남아 지나간 자리가 안 죽는다",
+  t5:"파열 — 깨진 셀이 **불을 뿜으며** 터진다. 불티는 오른다"},
+ {key:"WLwardFrost",k:"frost",s:0,fill:1.02,fn:(c,t,dt,W,H,st)=>W2core(c,t,dt,W,H,st,1),
+  nm:"결계 · 빙 氷",sub:"속이 비치는 두꺼운 판 — 안 밀고 붙잡는다",
+  sk:"ray",sn:3,so:0,sw:1.1,sa:.95,bn:8,bs:94,bl:.42,bg:150,bd:2.2,
+  t3:"서리 결정 — 판 표면에 결정 갈래 셋이 돋는다",
+  t4:"두 겹 유리 — 안쪽 면이 하나 더. 겹침이 곧 두께다",
+  t5:"파열 — 깨진 판이 **조각째 흩어진다**. 조각은 떨어진다"},
+ {key:"WLwardVolt",k:"volt",s:1,gd:1,fill:1.02,fn:(c,t,dt,W,H,st)=>GDFX.GDground3(c,t,dt,W,H,st),
+  nm:"결계 · 뇌 雷 — 접지 · 코일",sub:"셀을 버린다 — 위도 고리 + 세로 방전",
+  sn:6,sl:.34,sw:2.0,bn:8,bs:120,bl:.30,bg:0,bd:1.2,
+  t3:"눈금 방전 — 고리를 타고 짧은 방전 여섯이 돈다",
+  t4:"이중 고리 — 줄마다 안쪽에 고리 하나 더",
+  t5:"파열 — 맞은 줄이 통째로 **되뿜는다**. 전하는 곧게 튄다"},
+ {key:"WLwardGale",k:"gale",s:1,fill:1.02,fn:(c,t,dt,W,H,st)=>WDcore(c,t,dt,W,H,st,2),
+  nm:"결계 · 풍 風",sub:"판이 없다 — 흐르는 고리, 비껴 흘린다",
+  sn:2,sl:1.15,sw:2.8,bn:7,bs:84,bl:.46,bg:0,bd:2.6,
+  t3:"흐름 획 — 고리를 타고 도는 획이 한 겹 는다",
+  t4:"이중 고리 — 줄마다 안쪽에 고리 하나 더",
+  t5:"파열 — 맞은 줄이 **바깥으로 터져 부푼다**(끝까지 안 깨진다)"},
+ {key:"WLwardToxin",k:"toxin",s:2,fill:.46,fn:(c,t,dt,W,H,st)=>WDcore(c,t,dt,W,H,st,3),
+  nm:"결계 · 독 毒",sub:"판이 떨어져 있다 — 늘어진 가닥",
+  sk:"bead",bn:6,bs:30,bl:.95,bg:170,bd:1.6,
+  t3:"방울 — 판마다 아래에 방울이 맺혀 매달린다",
+  t4:"판이 두꺼워진다 — 안쪽에 심이 한 겹",
+  t5:"파열 — 맞은 판에서 **방울이 쏟아져** 발밑에 고인다(안 꺼진다)"},
+ {key:"WLwardShade",k:"shade",s:0,fill:1.02,off:1,
+  nm:"결계 · 암 影",sub:"비움 — 폐기하고 다시 뽑는 중",
+  t3:"—",t4:"—",t5:"—"},
+ {key:"WLwardWhite",k:"white",s:0,fill:1.12,noln:1,fn:(c,t,dt,W,H,st)=>W3core(c,t,dt,W,H,st,5),
+  nm:"결계 · 백광 白光",sub:"획이 없다, 면만 있다 — 되받아친다",
+  sk:"gloss",bn:7,bs:132,bl:.34,bg:0,bd:1.1,
+  t3:"광택 — **획을 안 긋는다.** 면 위에 광이 한 겹 더 얹힌다",
+  t4:"면이 두 겹 — 안쪽 면 하나 더. 여기도 테는 없다",
+  t5:"파열 — 되받아친 상이 **하얗게 터져** 되돌아간다"},
+ {key:"WLwardPlasma",k:"blast",s:2,gd:1,fill:.46,fn:(c,t,dt,W,H,st)=>GDFX.GDground4(c,t,dt,W,H,st),
+  nm:"결계 · 플라즈마 漿 — 방패",sub:"판이 떨어져 있고 **아크**가 닫는다",
+  sk:"ray",sn:2,so:.60,sw:1.6,sa:.88,bn:7,bs:118,bl:.34,bg:0,bd:1.3,
+  t3:"아크 눈금 — 판마다 짧은 아크 둘이 선다",
+  t4:"판이 두꺼워진다 — 안쪽에 심이 한 겹",
+  t5:"파열 — 릴레이가 **터지며** 판에서 판으로 건너간다"}];
+
+/// L1·L2 문구는 아홉 줄이 **한 벌**이다 — 여기서 갈리는 것은 밀도뿐이므로
+/// 줄마다 다른 말을 쓰면 「같은 뼈대」가 화면에서 깨진다.
+const WLT1="기준 — 성긴 껍질 "+WLNC[0]+"셀. 빈틈으로 몸이 보인다",
+      WLT2="메워진다 — 셀 "+WLNC[0]+"→"+WLNC[1]+". 양만 늘고 결은 아직 없다";
+const WLtxt=R=>R.off
+  ?["비움 — 폐기하고 다시 뽑는 중. 자리만 둔다","—","—","—","—"]
+  :[WLT1,WLT2,R.t3+" · 셀 "+WLNC[2],R.t4+" · 셀 "+WLNC[3],R.t5+" · 셀 "+WLNC[4]];
+
+/// ⚠️ **이름을 준다.** [mk] 가 `fn.name` 을 label 로 쓰고, 그 label 이 예외
+/// 표시와 스모크 필터(`--only=`)가 보는 유일한 이름이다 — 익명이면 쉰 칸이
+/// 전부 "anon" 이 되어 어느 칸이 죽었는지 화면에 안 나온다.
+/// ⚠️ 밀도를 [WLprep] 이 **본체보다 먼저** 깔고, 레벨 층은 **본체 뒤에** 얹는다.
+///   순서가 바뀌면 결이 껍질 밑에 깔려 안 보인다.
+function WLmk(R){
+  return {[R.key]:function(c,t,dt,W,H,st){
+    if(R.off){WLtbd(c,t,W,H);return;}
+    const SC=Math.min(W,H)/238,cx=W/2,cy=H/2;
+    const RR=(R.gd?GDRR:WDRR)*SC, spin=t*(R.gd?.42:.40);
+    WLprep(st,SC,!R.gd);
+    R.fn(c,t,dt,W,H,st);
+    WLlv(c,t,st,SC,cx,cy,RR,spin,R);}}[R.key];}
+
+/// 등록 — 무(원본)만 [FX] 것을 **그대로** 쓴다. 레벨을 제가 읽으므로 얹을 것이
+/// 없고, 얹으면 원본이 원본이 아니게 된다.
+const WLFX={};
+WLTBL.forEach(R=>{WLFX[R.key]=(R.fn||R.off)?WLmk(R):FX[R.key];});
+
+// ── 배치 — `#wardlv` 에 [lvTable] 로 붙인다 ───────────────────────────────
+// ⚠️ 격자는 **손으로 안 짠다.** [lvTable] 이 줄·칸·라벨·[LV] 갈아끼우기를 전부
+//   하므로, 여기서 주는 것은 표 하나와 호스트 하나뿐이다.
+{const WLmade=lvTable({
+   host:"wardlv",
+   rows:WLTBL.map(R=>[R.key,R.nm,R.sub,WLtxt(R)]),
+   reg :WLFX,
+   name:"WLwardcell"});
+ void WLmade;}
+// ══════════════════════════════════════════════════════════════════════════

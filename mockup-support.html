@@ -1,0 +1,39 @@
+<meta charset="utf-8">
+<!-- ⚠️ 이게 없으면 폰이 980px 로 렌더한 뒤 축소한다 — `max-width` 질의가
+     한 번도 안 걸려 반응형이 통째로 죽는다. -->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Light Survival — 보조 공격</title>
+<link rel="stylesheet" href="vfx.css">
+
+<div class="wrap">
+<nav class="toc">
+  <div class="nav1"><span class="lbl">시안</span><a href="mockup.html">캐릭터</a><a href="mockup-basic.html">기본·발현·융화</a><a href="mockup-weapon.html">일반 공격</a><a href="mockup-support.html" class="cur">보조 공격</a><a href="mockup-magic.html">마법 공격</a><a href="mockup-guard.html">방어</a><a href="mockup-curse.html">상태이상</a><a href="mockup-heal.html">회복</a><a href="mockup-ult.html">궁극기</a><a href="mockup-meta.html">성좌·아이템</a><a href="mockup-foes.html">우주괴물</a><a href="mockup-ui.html">인터페이스</a><a href="mockup-map.html">심우주 유니버스</a><a href="mockup-map2.html">행성 유니버스</a><a href="mockup-lobby.html">로비</a><a href="mockup-flow.html">흐름·타이틀</a><a href="mockup-pick.html">고르기</a></div>
+  <div class="nav2"><span class="lbl">이 페이지</span><a href="#s-support">보조 공격 8종</a><a href="#s-tintable">속성 입힘 가능</a><a href="#s-levelss">레벨 성장표</a><a href="#s-iconss">아이콘</a><a href="#" id="bare" class="bare">설명 접기</a></div>
+</nav>
+<header>
+  <p class="kicker">Light Survival · 보조 공격</p>
+  <h1>총구를 안 쓰는 것</h1>
+  <p class="def">일반 공격은 <b>전부 한 구멍에서 나간다.</b> 쌓일수록 이펙트가
+  한쪽에 몰려 화면 전체 그림이 망가진다 — 그래서 일반은 <b>한 개만</b> 든다.
+  보조는 다르다: <b>몸에서 떨어져 스스로 친다.</b> 총구를 안 쓰니 여럿이어도
+  안 몰리고, 그것이 이 계열이 따로 선 이유다.</p>
+</header>
+
+<h2 id="s-support">보조 공격 8종</h2>
+<div class="grid" id="support"></div>
+
+<h2 id="s-tintable">속성 입힘 가능</h2>
+<p class="def">⭐ <b>기본이 「무 無」</b>라 속성을 입힐 수 있는 것들이다. 속성을
+입히면 <a href="mockup.html#s-affinity">상성</a>이 자동으로 따라온다.</p>
+<div class="grid" id="tintsupport"></div>
+
+<h2 id="s-levelss">레벨 성장표</h2>
+<div id="levelss"></div>
+
+<h2 id="s-iconss">아이콘</h2>
+<div class="grid" id="iconss"></div>
+
+</div>
+<!-- ⚠️ file:// 에서 브라우저가 vfx.js 를 세게 캐시한다. 매 로드마다 쿼리를 갈아
+     항상 새로 읽게 한다. file:// 에서도 쿼리 문자열은 먹는다(확인함). -->
+<script>document.write(unescape("%3Cscript src=\"vfx.js?t=")+Date.now()+unescape("\"%3E%3C/script%3E"));</script>
