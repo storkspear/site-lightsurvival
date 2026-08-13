@@ -41628,6 +41628,473 @@ ILwall(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 // ⚠️ **빙벽만 방어 페이지로 간다**(손이 스스로 적어 둔 것). 빙벽은 마법이
 // 아니라 방어 스킬이라 마법 성장표에 서면 계열이 어긋난다. 줄마다 제 호스트를
 // 고르게 해서 한 표가 두 페이지로 갈린다.
+// ═══════════════════════════════════════════════════════════════════════════
+// PO — 결빙 B 「포탈 낙하」 재설계 · 결빙 C 「얼음 왕관」 크기   접두사 `PO`
+//                                                                (2026-08-13)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. `FZtomb2`·`FZtomb3`·
+// `ILportal`·`ILcrown` 원본 넷은 **한 글자도 안 건드렸다**(되살릴 수 있게).
+// 갈아 끼우는 것은 `ILROWS` 의 **두 줄**뿐이고 그 전문은 이 파일 맨 아래에 있다.
+//
+// ── 놓는 자리 ─────────────────────────────────────────────────────────────
+// **`{const HM=MOUNT("levelsm");` 바로 앞.** 이 문자열은 파일에 **1개뿐**이라
+// 안전한 앵커다(`origin/stats-20260810@6599077` 기준 41631줄).
+// ⚠️ **줄 번호로 찾지 마라.** 이 파일은 하루에 여러 번 앞으로 간다 —
+// 이 블록을 짜는 동안에도 원본이 `addb81e`→`24c7f04`→`6599077` 로 두 번 갔다.
+// ⚠️ **`// ── 마운트 — ` 을 앵커로 쓰면 안 된다.** 파일에 **10곳**이라 첫 번째
+// (`mg` 블록 한가운데, 16572줄)를 문다. 그렇게 넣어도 `node --check` 는 통과하고
+// 함수도 돌아서 **린트 ⑥(호스트별 칸 수)까지 가서야** 잡힌다(실제로 밟았다).
+//
+// 왜 이 자리라야 하나: `lvTable` 이 `FX[key]` 를 찾으므로 마운트가 돌기 **전에**
+// `FX.POportal`/`FX.POcrown` 이 등록돼 있어야 한다. 반대로 이 블록은 `IL*` 상수를
+// **하나도 안 쓴다**(왕관 표까지 `POC_*` 로 제 것을 가졌다) — 그래서 `IL` 블록보다
+// 앞이든 뒤든 상관없고, `IB*`·`FZ*`·`mg*` 만 있으면 된다.
+//
+// ── 사용자 지시 (원문) ────────────────────────────────────────────────────
+// 결빙 B: 「바닥에 마법진이 그려지고, 이후 **공중에서 포탈이 열리고 0.2초 뒤에
+//   스킬이 발동**한다.
+//     Lv1 위에서 떨어지는 얼음 기둥 사이즈를 엄청 얇게(고드름 수준), 고드름
+//         3개가 불규칙하게 투두둑 하고 떨어지도록
+//     Lv2 고드름 5개
+//     Lv3 고드름 3개 + 중간 사이즈 얼음 기둥 1개 낙하 후 펑!
+//     Lv4 고드름 5개 + 큰 사이즈 얼음 기둥 1개 낙하 후 펑!
+//     Lv5 동시 2마리 몹 공격, 고드름 5개, 큰 얼음 기둥 2개 낙하 후 펑!」
+// 결빙 C: 「Lv1 에서 Lv5 로 변경될 때 커지는 사이즈 2배로 변경. Lv5 사이즈도
+//   지금보다 2배로 키워 줘야 할 듯」
+//
+// ── 지킨 것 ───────────────────────────────────────────────────────────────
+// · 면으로 그린다(전부 `IB*` 호출부) · 이미지 0개 · `globalCompositeOperation`
+//   **직접** 호출 0회 · 색은 `"frost"` 키 하나(하드코딩 0)
+// · **새 원시함수 0개.** 자리를 나누는 것은 함수 **안의 지역 클로저**뿐이다
+//   (`geo`/`ground`/`sky`) — 최상위에 새 그리기 함수를 안 만들었다.
+// · ⚠️ **속을 순검정으로 안 채운다.** `IBcrys` 의 기본 `BODY=mixHex(T[0],T[1],.28)`
+//   을 그대로 쓴다(`o.body` 를 안 넘긴다). 앞 손이 밟은 「철사 도형」 함정이 여기다.
+// · 성장은 `LV` 전역을 읽어 `[..][LV-1]` 로 갈라진다(IL/FL 관례 그대로)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── ① 결빙 B · 포탈 낙하 — 스케줄 손잡이 ─────────────────────────────────
+//
+// ⭐ **새 규칙 = 포탈이 열리고 「0.2초 기다린 뒤」 떨어진다.** 앞 회차는 포탈
+// 열림과 낙하가 이어져 있었다. 이 틈이 **피할 시간**이고, 게임성이 여기 걸린다.
+// 그래서 상수 하나(`HOLD`)로 못 박고 이름을 준다 — 흥정할 값이 아니다.
+//
+//   u=0     t=0.000  바닥 마법진이 그려지기 시작
+//   u=.055  t=0.165  마법진 완성 · **공중에서 포탈이 열리기 시작**
+//   u=.115  t=0.345  포탈 완전 개방
+//           ┌──────────────────────────────────────────┐
+//           │ ⭐ 0.200초 — 아무것도 안 떨어진다.        │
+//           │ 이 구간에 움직이는 것은 **조준 고리**뿐   │
+//           │ (오므라들며 「여기 온다」를 말한다)        │
+//           └──────────────────────────────────────────┘
+//   u=.1817 t=0.545  발동 — 첫 고드름
+//   u=.3350 t=1.005  기둥 출발 (L3~L5)
+//   u=.4050 t=1.215  기둥 착탄 · **펑**
+//   u=.60~.80        기둥이 부서진다
+//   u=.88~.99        전체 소등 → u=1 의 알파가 0 이라 u=0 과 이어붙는다
+//
+// ⚠️ **기둥 출발 시각은 다섯 칸이 같다**(`POB_PIL0` 고정, 고드름 수와 무관).
+// ⓐ L3 은 고드름이 셋뿐이라 「투두둑 … (틈 0.30초) … 쿵」이 되어 본체가 더 크게
+//    오고 ⓑ 레벨 시트에서 L3/L4/L5 가 **같은 순간**을 보여 비교가 성립한다.
+const POB={PER:3.0,
+  RUNE :.055,   // 바닥 마법진이 다 그려지기까지 (0.165초)
+  PORT0:.055, PORT1:.115,   // 공중 포탈이 열리는 구간 (0.180초)
+  HOLD :.0667,  // ⭐ 0.200초 — 열리고 기다리는 틈. **이 줄이 새 규칙이다**
+  IFALL:.045,   // 고드름 하나의 낙하 (0.135초)
+  PGAP :.0123,  // 마지막 고드름이 닿고 기둥이 뜨기까지 (0.037초)
+  PFALL:.070,   // 기둥의 낙하 (0.210초)
+  BRK0 :.60, BRK1:.80,      // 기둥이 부서지는 구간
+  OUT0 :.88, OUT1:.99};     // 소등 — 주기 끝과 처음을 잇는다
+
+/// 발동 시각. **포탈이 다 열린 뒤 `HOLD` 를 더한 것**이라 0.2초가 식에 산다.
+const POB_CAST=POB.PORT1+POB.HOLD;                 // .1817 = 0.545초
+
+// ── 「투두둑」 — 고드름 다섯 슬롯 ────────────────────────────────────────
+//
+// ⚠️ **셋이 한꺼번에 떨어지면 투두둑이 아니다.** 간격을 수치로 못 박는다.
+//
+//   출발 시각(초)  0 · .048 · .126 · .170 · .288
+//   사이 간격      48ms · 78ms · 44ms · 118ms      (60fps 로 2.9 · 4.7 · 2.6 · 7.1프레임)
+//   전체 폭        5개 288ms · 3개 126ms
+//
+// 근거 넷:
+//   · **하한 44ms** — 2.6프레임. 두 낙하가 2프레임 이내면 눈이 하나로 합친다
+//     (시각 시간통합 역치 ≈ 40ms). 그 아래는 「동시」라 투두둑이 안 된다.
+//   · **상한 118ms** — 이 위로 가면 한 덩어리의 연타가 아니라 「하나… 둘… 셋」으로
+//     **세게 된다**. 연타가 한 마디로 묶이는 상한이 대략 150ms 인데 다섯까지
+//     묶어야 하므로 여유를 뒀다.
+//   · **평균 72ms** — 하한·상한의 기하중앙 √(44×118)=72ms 에 맞췄다.
+//   · **불규칙도 max/min = 118/44 = 2.7배.** 균등(72/72/72/72)이면 기계가 된다.
+// 그리고 낙하 시간(0.135초)이 간격보다 **길어서 공중에 늘 2~3개가 겹쳐 있다** —
+// 이것이 「투두둑」의 시각 실체다. 하나씩 완결되면 「똑… 똑… 똑」이 된다.
+const POB_T=[0,.048,.126,.170,.288];      // 출발 시각(초)
+/// 가로 어긋남도 불규칙하다(포탈 반지름 대비). 슬롯 0·3 만 표적(반지름 1.25r)을
+/// 직격하고 1·2·4 는 빗나간다 — 「조준한 것」이 아니라 **「쏟아진 것」**이다.
+/// ⚠️ 1차 렌더(shots/portal.png, t=0.88) 판정: 폭이 ±.62RN(±20SC)이라 **L1(셋)과
+/// L2(다섯)가 정지 화면에서 안 갈렸다** — 착탄 섬광(`IBroot` 반경 최대 1.45r)이
+/// 서로 겹쳐 자국을 하나로 뭉갰다. 폭을 **−.88 ~ +.80 RN(−28.7 ~ +26.1 SC, 55SC)**
+/// 로 벌려 포탈 지름(65SC)을 거의 채운다. 이러면 자국이 안 겹쳐 **셀 수 있다**.
+const POB_X=[-.12,.80,-.62,.38,-.88];
+/// ⚠️ 2차 렌더 판정(shots/portal_zoom.png, 520px): 1.38~1.72r 은 **너무 뭉툭했다**.
+/// 폭 대비 5:1 이라 「짧은 쐐기」로 보이지 고드름이 아니다 — 실제 고드름은 길다.
+/// 1.5배로 늘려 **7.6:1** 로 맞췄다. **폭은 한 자도 안 건드렸다** — 사용자가 얇게
+/// 하라고 한 것은 굵기지 길이가 아니고, 길어질수록 오히려 더 얇아 보인다.
+const POB_L=[2.43,2.07,2.58,2.18,2.33];   // 길이 ÷ T.r
+/// ⚠️ **「엄청 얇게(고드름 수준)」의 수치 정의.** 반폭 .135~.165r → 실폭 3.0~3.6SC.
+/// 큰 기둥 지름(3.40r = 37.4SC)의 **9%** 다. 이보다 굵으면 「가는 기둥」이 되고
+/// 고드름이 아니다.
+const POB_W=[.150,.135,.165,.140,.155];   // 반폭 ÷ T.r
+/// L5 에서 **두 자리가 슬롯을 나눠 갖는다.** 「고드름 5개」를 *전체 5개*로 읽었다
+/// (자리마다 5개면 10개가 된다 — 사용자가 5라고 한 수를 지킨다). 시각은 슬롯의
+/// 것이라 두 자리의 낙하가 **서로 엇갈려** 무대 전체가 한 번 투두둑 한다.
+const POB_S=[[0,1,2],[3,4]];
+const POB_PIL0=POB_CAST+POB_T[4]/POB.PER+POB.IFALL+POB.PGAP;  // .3350 = 1.005초
+const POB_IMP =POB_PIL0+POB.PFALL;                            // .4050 = 1.215초
+
+// ── ① 결빙 B · 포탈 낙하 — 레벨 표 ───────────────────────────────────────
+// 축 = **떨어지는 것**(고드름만 → 고드름 + 본체 → 무대가 둘로).
+//
+// ⚠️ **L3 에서 고드름이 5 → 3 으로 준다. 오타가 아니다.**
+// 그것이 그 칸의 사건이다 — 「잔챙이가 줄고 **본체가 온다**」. 5·5·5 로 고치면
+// 사건이 사라지고 「기둥이 하나 붙었다」만 남는다.
+const POB_IC =[3,5,3,5,5];   // 고드름 수          ⚠️ L3 에서 **줄어드는 것이 사건**
+const POB_PL =[0,0,1,1,2];   // 낙하 기둥 수(무대 전체)
+const POB_PR =[0,0,1.05,1.70,1.70]; // 기둥 반지름 ÷ T.r — 중간 / 큰   ←큰 것은 채택본
+const POB_PH =[0,0,2.00,2.65,2.65]; // 기둥 높이  ÷ T.r                ←큰 것은 채택본
+const POB_TG =[1,1,1,1,2];   // 표적 수 — L5 만 **동시 2마리**
+const POB_KB =[4,5,9,13,13]; // 넉백(SC) — 기둥이 붙는 칸에서 뛴다
+const POB_MST=[0,0,6,8,8];   // 펑 — 밖으로 번지는 냉기 (기둥 있는 칸만)
+const POB_SPK=[3,4,5,6,6];   // 반짝이
+
+// ── ② 결빙 C · 얼음 왕관 — 레벨 표 ───────────────────────────────────────
+//
+// ⭐ **사용자 지시대로 L5 를 지금의 정확히 2배로 키웠다.** L1(2.15r)은 그대로
+// 두고 L5 만 4.30r 로 올린 뒤 사이를 등차로 다시 그었다(+0.5375r/칸). 그래서
+// **성장 폭이 0 → 2.15r** 이 되고 만렙 절대 크기가 2배가 된다.
+// ⚠️ **L1 을 같이 키우면 안 된다** — 그러면 성장 폭이 도로 0 이 된다.
+// 반지름을 선형으로 두는 이유: 「둘레가 커진다」는 반지름의 일이지 면적의 일이
+// 아니다. 면적 선형(√)으로 두면 L2~L4 가 L5 쪽에 몰려 성장이 늦게 보인다.
+//
+// ⚠️ **이 변경은 원래 문서화된 설계 원칙 하나를 사용자 지시로 덮는 것이다.**
+// 원문(vfx.js 41140~41142): 「반지름 RR=2.15r 은 다섯 칸이 다 같다. 왕관이
+// 커지면 축이 **크기**가 되어 기둥과 겹친다」. 이제 축이 「무는 방향」에서
+// **「크기 + 무는 방향」**으로 바뀌고 결빙 A(키)와 부분적으로 겹친다. 사용자가
+// 알고 고른 것이므로 그대로 둔다.
+//
+// ⚠️ **238칸을 넘는다 — 알고 고른 것이다**(2026-08-13 사용자 판정: 「칸 넘어도
+// 된다」). 실측한 최상단 y(0 이 칸 위 모서리, `FZpop` 정점 g=1.1772 기준):
+//     L1 2.15r  +17.6   칸 안
+//     L2 2.69r   +5.4   칸 안
+//     L3 3.23r   −5.1   **5.1px 밖**
+//     L4 3.76r  −15.4   **15.4px 밖**
+//     L5 4.30r  −57.8   **57.8px 밖** (가시 몫 26.4 + 눈송이 몫 31.4)
+// 가로는 L5 에서도 24~202 로 칸 안이다 — **넘치는 것은 위쪽뿐**이다.
+const POC_RR=[2.15,2.69,3.23,3.76,4.30];  // ⭐ 왕관 반지름 ÷ T.r — L5 가 지금의 2배
+
+// 아래 여섯은 채택본(`ILcrown`)의 값을 **그대로 복제**한 것이다. 값을 옮겨 적은
+// 이유는 하나뿐 — 이 블록을 자족적으로 만들어 `IL` 블록과의 **순서 의존을
+// 없애기** 위해서다. 숫자는 한 자도 안 바꿨다.
+const POC_RANK=[8,6,4,2,0,1,3,5,7];  // 슬롯 i 가 몇 번째로 서나 (앞부터)
+const POC_K  =[2,4,6,8,9];        // 서는 가시 수
+const POC_LN =[.04,.10,.17,.22,.26]; // 안쪽으로 무는 정도
+const POC_CRK=[0,0,1,1,1];        // 밑동 금
+const POC_CR =[0,0,0,3,3];        // 안에 갇혀 뜨는 결정
+const POC_FL =[0,0,0,0,3];        // 눈송이
+const POC_SPK=[0,2,4,6,8];        // 반짝이
+
+Object.assign(FX,{
+
+// ══════════════════════════════════════════════════════════════════════════
+// 결빙 B · 포탈 낙하 — 다섯 칸 (**레벨을 통째로 다시 짠 것**)
+// ══════════════════════════════════════════════════════════════════════════
+// 앞 회차(`ILportal`)와 갈린 것 셋:
+//   ① **0.2초 틈** — 포탈이 열리고 기다린다. 앞 회차는 이어져 있었다.
+//   ② **떨어지는 것이 고드름이다** — 원통 하나가 아니라 얇은 것 셋~다섯이
+//      불규칙한 시차로 쏟아지고, L3 부터 그 뒤에 **본체**가 온다.
+//   ③ **L5 는 무대가 둘이다** — 마법진도 포탈도 기둥도 표적도 둘.
+POportal(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const NT=POB_TG[LV-1];
+  // ⚠️ **표적이 둘인 칸은 배치가 다르다.** 마법진 반지름이 2.96r = 32.6SC 라
+  // 원래 자리(x=-6)에 둘을 세우면 포탈이 겹쳐 무대가 안 읽힌다. ±42 로 벌리면
+  // 두 포탈 사이 **19px**, 좌우 여백 44px, 위 여백 11px 로 전 구간이 칸 안이다.
+  // `F[0]`·`F[1]` 이 **둘 다 고정 표적**이고 `F[2]`·`F[3]` 만 배회한다.
+  mgInit(st,SC, NT>1
+    ? [[-42,-54,11],[42,-54,11],[-70,-16,9],[16,-104,9]]
+    : [[-6,-52,11],[-58,-26,9],[54,-38,9],[18,-96,10]]);
+  stepFoes(st.F,dt);
+  const PER=POB.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const cl=(a,b)=>Math.min(1,Math.max(0,(u-a)/(b-a)));
+  const rg=cl(0,POB.RUNE), op=cl(POB.PORT0,POB.PORT1);
+  const brk=cl(POB.BRK0,POB.BRK1), out=1-cl(POB.OUT0,POB.OUT1);
+  const el=(u-POB_IMP)*PER;                    // 기둥이 찍힌 뒤 흐른 시간(초)
+  const IC=POB_IC[LV-1], PLn=POB_PL[LV-1]/NT;  // 자리 하나가 맡는 기둥 수
+  // 표적은 안 움직인다. 배회는 표적 아닌 것들만.
+  for(let i=0;i<st.F.length;i++){const f=st.F[i];
+    if(i<NT){f.ox=f.hx;f.oy=f.hy;continue;}
+    const a0=-t*.5+i*2.4,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-28*SC;}
+  /// 자리 하나의 기하. 「마법진·포탈·낙하」가 전부 이 다섯 수에서 나온다.
+  /// 앞 회차의 `RN=RR*1.74`·`py=gy-(0.86+2.65+1.95)r` 를 **같은 자리**에 두었다 —
+  /// 무대 상자를 안 바꿔야 앞 회차와 나란히 놓고 비교가 된다.
+  const geo=(s)=>{const T=st.F[s],x=cx+T.ox,gy=cy+T.oy+T.r*1.34;
+    return{T,x,gy,r:T.r,RN:T.r*2.96,py:gy-T.r*5.46};};
+  const slots=(s)=>{if(NT===1){const L=[];for(let j=0;j<IC;j++)L.push(j);return L;}
+    return POB_S[s];};
+  const icT0 =(j)=>POB_CAST+POB_T[j]/PER;      // 고드름 j 의 출발 시각(u)
+  const icEnd=(j)=>icT0(j)+POB.IFALL;          // 닿는 시각(u)
+  // 포탈이 닫히는 시각 — **마지막으로 지나간 것** 뒤다. 기둥이 없는 칸은
+  // 마지막 고드름이 닿은 뒤 닫힌다(문이 할 일이 끝났다).
+  const CLOSE=(PLn>0?POB_IMP:icEnd(IC-1))+.02;
+
+  // ── 상태의 마디 — 프레임마다 한 번씩만 ────────────────────────────────
+  for(let s=0;s<NT;s++){const G=geo(s);
+    // 문이 열리는 순간 냉기가 **위로** 샌다 — 열렸다는 신호
+    if(pu<POB.PORT0&&u>=POB.PORT0)
+      emit(st,G.x,G.py,8,{k:"frost",sp:70*SC,r:2.2*SC,life:.40,g:60*SC,spikeP:.5,
+        a:-Math.PI/2,spread:1.9});
+    // ⭐ 고드름 착탄 — **슬롯마다 따로** 터진다. 이 「따로」가 투두둑의 정체다.
+    // 한 번에 몰아 터뜨리면 아무리 시차를 줘도 소리가 하나가 된다.
+    for(const j of slots(s)){const L=icEnd(j);
+      if(pu<L&&u>=L){const ix=G.x+POB_X[j]*G.RN;
+        IBpushFrag(st,ix,G.gy,G.r*.42,SC,2);
+        emit(st,ix,G.gy,4,{k:"frost",sp:120*SC,r:2.0*SC,life:.34,g:180*SC,spikeP:.8,
+          a:-Math.PI/2,spread:2.2});
+        if(Math.abs(POB_X[j]*G.RN)<G.r*1.25)
+          hitFoe(st,G.T,cx,cy,0,1,POB_KB[LV-1]*.45*SC,"frost");}}
+    if(PLn>0){
+      // 펑 — 파편이 튀고 먼지가 좌우로 깔린다
+      if(pu<POB_IMP&&u>=POB_IMP){
+        hitFoe(st,G.T,cx,cy,0,1,POB_KB[LV-1]*SC,"frost");
+        IBpushFrag(st,G.x,G.gy,G.r*.95,SC,6);
+        emit(st,G.x,G.gy,14,{k:"frost",sp:210*SC,r:2.7*SC,life:.48,g:230*SC,
+          spikeP:.6,a:0,spread:.85});
+        emit(st,G.x,G.gy,14,{k:"frost",sp:210*SC,r:2.7*SC,life:.48,g:230*SC,
+          spikeP:.6,a:Math.PI,spread:.85});}
+      // 끝에 기둥이 부서진다
+      if(pu<POB.BRK0&&u>=POB.BRK0){
+        emit(st,G.x,cy+G.T.oy,14,{k:"frost",sp:180*SC,r:2.8*SC,life:.55,g:130*SC,spikeP:.9});
+        IBpushFrag(st,G.x,cy+G.T.oy,G.r,SC,5);}}
+    // 언 표식 — 첫 고드름이 닿은 뒤부터 기둥이 부서질 때까지
+    G.T.pv=(u>=icEnd(0)&&u<POB.BRK1)?2:Math.max(0,(G.T.pv||0)-dt);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+
+  // 화면 흔들림 — **기둥이 있는 칸만.** 중간 기둥은 큰 것의 62%만 흔든다
+  // (`POB_PR` 비율 그대로 — 무게가 그림과 흔들림에서 같은 수로 나와야 한다).
+  st.sk=(st.sk||0)+dt;
+  const shkA=(PLn>0?POB_PR[LV-1]/1.70:0);
+  const shk=(shkA&&el>=0&&el<.30)?Math.exp(-el*10)*(1-el/.30)*shkA:0;
+  c.save();
+  if(shk>.002)c.translate(Math.sin(st.sk*57)*6.4*SC*shk,Math.cos(st.sk*44)*4.4*SC*shk);
+
+  // ── ① 바닥 — 마법진 · 조준 고리 · 금 ──────────────────────────────────
+  const ground=(s)=>{const G=geo(s);
+    IBrune(c,G.x,G.gy,G.RN*(.42+.58*rg),t,"frost",rg*out*(1-brk*.35),2.3,.44);
+    IBflake(c,G.x,G.gy,G.RN*.94*rg,-t*.05,"frost",rg*out*(1-brk*.35),2.0*SC,.44);
+    IBroot(c,G.x,G.gy,G.RN*.80,"frost",.26*rg*out,.28);
+    // ⭐ **0.2초 틈에 움직이는 것은 이것 하나다.** 문이 열리는 순간부터 오므라들어
+    // 발동 시각에 정확히 다 닫힌다 — 「멈췄다」가 아니라 **「온다」**로 읽히게 하는
+    // 유일한 획이다. 이게 없으면 0.2초가 그냥 버벅임이 된다.
+    const aq=cl(POB.PORT0,POB_CAST);
+    if(aq>0&&aq<1)FZring(c,G.x,G.gy,G.RN*(.42+1.05*(1-aq)),.44,(1.2+1.6*aq)*SC,
+      "frost",.35+.6*aq);
+    // 발동 순간 한 번 번쩍 — 틈이 끝났다는 마침표
+    {const fl=cl(POB_CAST,POB_CAST+.022);
+     if(fl>0&&fl<1)IBroot(c,G.x,G.gy,G.RN*(.55+.7*fl),"frost",(1-fl)*.85,.30);}
+    if(PLn>0&&el>=0&&el<1.0)
+      FZcrack(c,G.x,G.gy,G.RN*1.28,.44,"frost",Math.min(1,el*7+.3),(1-el)*.95,SC,7);};
+
+  // ── ② 하늘 — 포탈 · 고드름 · 기둥 · 펑 ────────────────────────────────
+  const sky=(s)=>{const G=geo(s);
+    const PR=G.RN*FZpop(op,1.9);                 // 넘어갔다 오는 개방(정점 1.12)
+    const pa=op*out*Math.min(1,Math.max(0,(CLOSE+.045-u)/.045));
+    if(pa>.02){
+      IBroot(c,G.x,G.py,PR*.88,"frost",pa*(.30+.55*(1-op)),.26);
+      IBrune(c,G.x,G.py,PR,t,"frost",pa,2.3,.26);   // 아래와 **같은 씨앗·같은 t**
+      IBflake(c,G.x,G.py,PR*.94,-t*.05,"frost",pa*.92,2.0*SC,.26);
+      if(op<1)FZring(c,G.x,G.py,PR*(1.04+.42*(1-op)),.26,(.9+1.9*op)*SC,"frost",
+        pa*(.30+.55*op));
+      for(let i=0;i<3;i++){const a0=i*TAU/3+t*.5;
+        IBspark(c,G.x+Math.cos(a0)*PR*.99,G.py+Math.sin(a0)*PR*.99*.26,
+          (2.0+1.6*hash(i*6.3))*SC,"frost",pa*(.35+.45*Math.sin(t*3+i)),t*1.4+i);}}
+    // ── 고드름 — 얇고, 끝이 아래를 보고, 시차가 불규칙하다 ───────────────
+    for(const j of slots(s)){
+      const q=cl(icT0(j),icEnd(j));
+      const ix=G.x+POB_X[j]*G.RN, LNj=G.r*POB_L[j], WDj=G.r*POB_W[j];
+      if(q>0&&q<1){
+        const ff=q*(.35+.65*q);                  // 떨어지며 빨라진다
+        const tip=G.py+(G.gy-G.py)*ff;
+        const top=Math.max(G.py,tip-LNj), len=tip-top;
+        // 속도선 — **얇은 것은 빠를 때만 보인다.** 이 두 획이 없으면 고드름이
+        // 프레임마다 순간이동한 것처럼 보인다(한 프레임에 제 길이의 절반을 간다).
+        // ⚠️ 2차 렌더 판정: 속도선이 **고드름보다 길어** 주인공이 뒤바뀌었다.
+        // 3.24r → 2.43r 로 줄이고 알파도 낮춰 고드름 본체를 앞세운다.
+        const sp=.35+1.0*q;
+        for(let m=0;m<2;m++){const px=ix+(m?WDj*1.6:-WDj*1.6);
+          const ln=Math.min(G.r*1.8*sp,top-G.py);
+          if(ln>1)IBline(c,[[px,top-ln],[px,top+len*.5]],(.5+.5*q)*SC,"frost",
+            .18+.26*q,0);}
+        if(len>1.5)IBneedle(c,ix,top,Math.PI/2,len,WDj,j*3.7,"frost",out,
+          {mos:1,tip:.10,slant:.5});
+      }else if(q>=1){
+        // 닿은 뒤 — 밑동이 **박힌 채로** 서 있다가 스러진다. 이것이 남아야
+        // 「몇 개가 떨어졌나」를 셀 수 있다.
+        // ⚠️ 1차 렌더 판정(shots/portal.png t=0.88): L1(셋)·L2(다섯)가 안 갈렸다.
+        // 원인을 수로 재니 0.26초에서는 **다섯이 동시에 서 있는 창이 −28ms** —
+        // 즉 **한 번도 다 서 있던 적이 없다**(첫 자국이 0.940s 에 사라지는데
+        // 마지막이 0.968s 에 닿는다). 그러면 무엇을 캡처해도 못 센다.
+        //   0.26s → −28ms · 0.36s → +72ms · **0.44s → +152ms(9프레임)** · 0.52s → +232ms
+        // 0.44 를 골랐다. 창이 [0.968, 1.120]s 라 레벨 시트를 t=1.00 에서 뽑으면
+        // 다섯이 다 서 있고, 기둥이 뜨는 1.005s 와도 겹쳐 「잔챙이가 아직 박혀
+        // 있는데 본체가 온다」가 된다.
+        const le=(u-icEnd(j))*PER;
+        // ⚠️ 2차 렌더 판정: 길이를 `*v` 로 줄였더니 셀 때쯤(le=0.18) **13px** 로
+        // 오그라들어 못 셌다. **길이는 고정**하고 **알파만** 뺀다 — 땅에 박힌
+        // 것은 작아지는 게 아니라 **녹아 없어지는** 것이다. v=0 에서 알파가
+        // 정확히 0 이라 주기 이음매도 안 튄다.
+        if(le<.44){const v=1-le/.44;
+          IBneedle(c,ix,G.gy,-Math.PI/2,LNj*.62,WDj*(.72+.28*v),j*3.7,"frost",
+            out*v*.95,{mos:1,tip:.14,slant:.5});
+          // ⚠️ 섬광은 **자국보다 작아야** 한다. 크면 이웃과 겹쳐 자국을 지운다.
+          IBroot(c,ix,G.gy,G.r*(.40+.55*(1-v)),"frost",v*.62*out,.30);
+          FZring(c,ix,G.gy,G.r*(.30+1.10*(1-v)),.40,1.3*SC*v,"frost",v*.70);}}}
+    // ── 기둥 — 본체. 고드름이 다 닿고 **틈을 하나 두고** 온다 ─────────────
+    if(PLn>0){
+      const fq=cl(POB_PIL0,POB_IMP);
+      if(fq>0){
+        const RRp=G.r*POB_PR[LV-1], HHp=G.r*POB_PH[LV-1];
+        const sqAt=yy=>.26+.18*Math.min(1,Math.max(0,(yy-G.py)/(G.gy-G.py)));
+        const bo=(el>=0&&el<.42)?Math.exp(-el*11)*Math.cos(el*23):0;
+        const HH=HHp*(1-.20*Math.max(0,bo)), RRw=RRp*(1+.13*Math.max(0,bo));
+        const fall=fq*(.30+.70*fq), spd=.35+1.20*fq;
+        const byF=G.py+(G.gy-G.py)*fall;
+        const tyRaw=byF-HH, tyF=Math.max(G.py,tyRaw), thru=tyRaw<G.py-.5;
+        const sqB=sqAt(byF), sqT=thru?0:sqAt(tyF);   // 통과 중엔 윗면이 **평평**
+        if(fq<1){
+          for(let m=1;m<=2;m++){
+            const gb=Math.max(G.py+HH,byF+G.r*1.9*spd*m), gt=Math.max(G.py,gb-HH);
+            IBpane(c,[[G.x-RRw,gt],[G.x+RRw,gt],[G.x+RRw,gb],[G.x-RRw,gb]],"frost",
+              .22/m*(1-fq*.45),m*7.1,1.0*SC);}
+          for(let i=0;i<5;i++){const px=G.x+(hash(i*3.7)-.5)*RRp*2.0;
+            const ln=Math.min(G.r*2.6*spd*(.55+.45*hash(i*8.3)),tyF-G.py);
+            if(ln>1)IBline(c,[[px,tyF-ln],[px,tyF+RRp*.30]],(.9+.8*fq)*SC,"frost",
+              .34+.50*fq,0);}}
+        const NC=9;
+        for(let i=0;i<NC;i++){const a0=i/NC*TAU-Math.PI/2+t*.05;
+          const a1=(i+1)/NC*TAU-Math.PI/2+t*.05;
+          const c0=Math.cos(a0),c1=Math.cos(a1),s0=Math.sin(a0),s1=Math.sin(a1);
+          const fr=(s0+s1)*.5>0;
+          const ic=G.r*(.55+.62*hash(i*3.1))*(thru?.30:1);
+          const P=[[c0*RRw,tyF+s0*RRw*sqT],[c1*RRw,tyF+s1*RRw*sqT],
+                   [c1*RRw,byF+s1*RRw*sqB],
+                   [(c0+c1)*.5*RRw,byF+(s0+s1)*.5*RRw*sqB+ic],
+                   [c0*RRw,byF+s0*RRw*sqB]].map(v=>[G.x+v[0],v[1]]);
+          IBcrys(c,P,"frost",(fr?.95:.62)*(1-brk*.9)*out,i*4.7,
+            {thru:fr?.26:.16,mos:2,w:1.3*SC,grain:-Math.PI/2});}
+        if(!thru){
+          IBrune(c,G.x,tyF,RRw*1.06,t*1.6,"frost",(1-brk*.7)*out,5.1,sqT);
+          IBroot(c,G.x,tyF,RRw*.90,"frost",.62*(1-brk)*out,sqT);
+          gAdd(c,cc=>{cc.beginPath();cc.ellipse(G.x,tyF,RRw,Math.max(.1,RRw*sqT),0,0,TAU);
+            cc.lineWidth=2.0*SC;cc.strokeStyle=A("#FFFFFF",.85*(1-brk)*out);cc.stroke();});}
+        else{                                    // 문턱이 달아오르고 냉기가 샌다
+          IBroot(c,G.x,G.py,RRw*1.15,"frost",.80*out,.26);
+          for(let i=0;i<4;i++){const a0=i*TAU/4+t*.9;
+            IBmist(c,G.x+Math.cos(a0)*RRw*1.15,G.py+Math.sin(a0)*RRw*1.15*.26,
+              G.r*.40,i*3.1,.55,.62);}}
+        for(let i=0;i<POB_SPK[LV-1];i++){const ph=(t*.55+i*.31)%1;
+          IBspark(c,G.x+(hash(i*3.7)-.5)*RRw*2.6,tyF+hash(i*8.1)*(byF-tyF),
+            (2.4+1.8*hash(i*6.3))*SC,"frost",
+            (.3+.7*Math.sin(ph*Math.PI))*(1-brk)*out,t*1.5+i);}}
+      // ── **펑** — 밖으로 번지는 냉기 · 섬광 · 충격 고리 ────────────────
+      if(el>=0&&el<.55){const d=el/.55,MR=POB_MST[LV-1];
+        for(let i=0;i<MR;i++){const a0=i*TAU/MR+.35;
+          IBmist(c,G.x+Math.cos(a0)*G.RN*(.30+.95*d),
+            G.gy+Math.sin(a0)*G.RN*(.30+.95*d)*.36,G.r*(.50+.85*d),i*3.1,(1-d)*.90,.68);}
+        IBroot(c,G.x,G.gy,G.RN*(.9+.8*d),"frost",(1-d)*.75,.30);
+        FZring(c,G.x,G.gy,G.RN*(.34+1.10*d),.44,(2.4-1.9*d)*SC,"frost",(1-d)*.85);}}};
+
+  for(let s=0;s<NT;s++)ground(s);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let s=0;s<NT;s++)sky(s);
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);
+  c.restore();},
+
+// ══════════════════════════════════════════════════════════════════════════
+// 결빙 C · 얼음 왕관 — 다섯 칸 (`ILcrown` 에서 **크기 하나만** 갈린 것)
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️ `ILcrown` 과 다른 줄은 **`RR` 한 줄뿐이다.** 나머지 그림 코드·타이밍·표는
+// 글자 그대로 같다(표 이름만 `ILC_*` → `POC_*` 로 복제). 그래서 이 안에서 갈리는
+// 것은 오직 **크기**이고, 그것이 사용자가 요청한 변경이다.
+//   `RR=T.r*2.15` (다섯 칸 고정)  →  `RR=T.r*POC_RR[LV-1]` (2.15 → 4.30)
+POcrown(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-70,11],[-56,-44,9],[54,-58,9],[16,-116,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=FZDUR.t3.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const R0=FZDUR.t3.R0,RD=FZDUR.t3.RD;
+  const p=Math.min(1,Math.max(0,(u-R0)/RD)),g=FZpop(p,2.4);
+  const brk=u>=.84?(u-.84)/.16:0;
+  const el=(u-R0)*PER;
+  T.ox=T.hx;T.oy=T.hy;T.pv=(u>.32&&u<.84)?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=t*.6+i*1.9,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-30*SC;}
+  if(pu<R0&&u>=R0){
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.15,14,
+      {k:"frost",sp:145*SC,r:2.3*SC,life:.40,g:190*SC,spikeP:.7,a:0,spread:1.5});
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.15,14,
+      {k:"frost",sp:145*SC,r:2.3*SC,life:.40,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});}
+  if(pu<.84&&u>=.84){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,18,{k:"frost",sp:165*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.8,SC,6);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  // ⭐ **여기 한 줄이 이 안의 전부다.** `ILcrown` 은 `T.r*2.15` 고정이었다.
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.15,RR=T.r*POC_RR[LV-1];
+  const rg=Math.min(1,u/.038);
+  IBrune(c,x,gy,RR*1.25*(.60+.40*rg),t,"frost",.85*rg*(1-brk*.8),3.3,.42);
+  IBroot(c,x,gy,RR*1.2,"frost",.60*g*(1-brk*.6),.32);
+  if(POC_CRK[LV-1]&&el>0&&el<.80){const cf=Math.max(0,1-el/.80);
+    FZcrack(c,x,gy,RR*1.45,.42,"frost",Math.min(1,el*8+.3),cf*.88,SC,6);}
+  if(el>0&&el<.28){const fl=1-el/.28;
+    IBroot(c,x,gy,RR*(1.1+.7*(1-fl)),"frost",fl*.85,.32);
+    FZring(c,x,gy,RR*(.50+1.10*(1-fl)),.42,1.6*SC*fl,"frost",fl*.9);
+    for(let i=0;i<6;i++){const a0=i*TAU/6+.55;
+      IBmist(c,x+Math.cos(a0)*RR*(.40+.80*(1-fl)),
+             gy+Math.sin(a0)*RR*(.40+.80*(1-fl))*.42,
+             T.r*(.45+.55*(1-fl)),i*3.1,fl*.70,.72);}}
+  const N=9,K=POC_K[LV-1],LN=POC_LN[LV-1];
+  const spike=(i,back)=>{
+    if(POC_RANK[i]>=K)return;
+    const a0=i/N*TAU-Math.PI/2;
+    const ca=Math.cos(a0),sa=Math.sin(a0);
+    if((sa<0)!==back)return;
+    const pi=Math.min(1,Math.max(0,(u-R0-i*RD*.077)/RD)),gi=FZpop(pi,2.4);
+    const vi=FZpopV(pi,2.4);
+    const px=x+ca*RR,py=gy+sa*RR*.42;
+    const L=RR*(.95+.55*hash(i*3.7))*gi;
+    const lean=Math.atan2(-1,0)+(-ca)*(gi*LN);
+    const nar=1-Math.max(-.08,Math.min(.26,vi*.070));
+    IBneedle(c,px,py,lean,L,RR*(.095+.05*hash(i*8.1))*nar,i*2.9,"frost",
+      (back?.72:1)*(1-brk*.85),{mos:2,tip:.18,slant:.6});};
+  for(let i=0;i<N;i++)spike(i,true);
+  for(let i=0;i<POC_CR[LV-1];i++){const a0=t*.4+i*TAU/3;
+    const bx=x+Math.cos(a0)*RR*.42,by=gy-RR*(.30+.18*i)*g+Math.sin(a0)*RR*.14;
+    const P=[];for(let j=0;j<8;j++){const aa=j/8*TAU;
+      P.push([bx+Math.cos(aa)*RR*.20,by+Math.sin(aa)*RR*.20]);}
+    IBcrys(c,P,"frost",.9*g*(1-brk),i*6.1,{mos:1,thru:.55,w:1.1*SC});}
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let i=0;i<N;i++)spike(i,false);
+  IBroot(c,x,gy,RR*.62,"frost",.30*g*(1-brk),.28);
+  for(let i=0;i<POC_FL[LV-1];i++){const ph=t*.45+i*2.1;
+    IBflake(c,x+Math.cos(ph)*RR*1.5,gy-RR*(1.05+.35*i)*g+Math.sin(ph*1.3)*4*SC,
+      RR*(.24+.07*i),t*.07+i,"frost",.8*g*(1-brk),1.0*SC);}
+  for(let i=0;i<POC_SPK[LV-1];i++){const ph=(t*.6+i*.27)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.8,gy-RR*1.5*hash(i*8.1)*g,
+      (2.2+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.6+i);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
 {const HM=MOUNT("levelsm");
  const HG=(document.getElementById("levelsg")||HM);
  const HOST=HM;
@@ -41644,18 +42111,18 @@ ILwall(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
   "<b>뚜껑이 덮인다</b> — 3.3r. 꼭대기에 눈송이가 앉아 기둥이 <b>닫힌다</b>",
   "<b>밑동이 갈라진다</b> — 4.0r. 땅에 금이 가고 꼭대기에서 조각이 떨어진다",
   "<b>끝까지 솟는다</b> — 4.6r · 판 여섯 · 나선 둘 · 반짝이 일곱"]],
- ["ILportal","결빙 B · 포탈 낙하","무게 — 닿았을 때 나는 일",[
-  "툭 놓인다 — 같은 높이에서 떨어지는데 <b>아무 일도 안 난다</b>",
-  "<b>금이 간다</b> — 바닥이 갈라지고, 떨어지기 전에 조준 고리가 오므라든다",
-  "<b>깨진다</b> — 찍힐 때 파편이 튀고 마지막에 기둥이 부서진다",
-  "<b>무겁게 떨어진다</b> — 낙하에 잔상·속도선이 붙고 얼음 조각이 떠다닌다",
-  "<b>땅이 흔들리고 서리가 퍼진다</b> — 화면이 흔들리고 냉기 고리 여덟이 <b>밖으로</b> 번진다"]],
- ["ILcrown","결빙 C · 얼음 왕관","무는 방향 — 둘레가 닫힌다",[
+ ["POportal","결빙 B · 포탈 낙하","떨어지는 것 — 고드름에서 본체로",[
+  "고드름 셋 — 포탈이 열리고 <b>0.2초</b> 뒤, 아주 얇은 것 셋이 <b>투두둑</b> 떨어진다",
+  "<b>다섯으로 는다</b> — 같은 0.29초 안에 다섯이 쏟아진다. 늘 둘셋이 겹쳐 떨어진다",
+  "<b>본체가 온다</b> — 고드름은 <b>셋으로 줄고</b>, 틈을 두고 중간 기둥이 내려와 <b>펑</b>",
+  "<b>큰 기둥</b> — 고드름 다섯 + 큰 기둥 하나. 찍힐 때 <b>땅이 흔들린다</b>",
+  "<b>둘을 동시에</b> — 마법진도 포탈도 <b>둘</b>. 큰 기둥 둘이 표적 두 마리를 한 번에 찍는다"]],
+ ["POcrown","결빙 C · 얼음 왕관","크기 — 둘레가 커지며 닫힌다",[
   "앞에서 둘 — 가시 둘이 앞을 물 뿐, 둘레가 <b>거의 다 열려 있다</b>",
-  "<b>양옆이 선다</b> — 넷. 앞이 아가리처럼 벌어진다",
-  "<b>뒤에서도 선다</b> — 여섯. 처음으로 <b>뒤쪽</b> 가시가 돋아 감싼다",
-  "<b>원이 닫힌다</b> — 여덟. 안쪽에 갇힌 결정 셋이 뜬다",
-  "<b>다 물고 서리가 핀다</b> — 아홉이 안으로 <b>0.26</b> 만큼 문다 + 눈송이·반짝이"]],
+  "<b>양옆이 서고 커진다</b> — 넷. 지름이 <b>1.25배</b>가 된다",
+  "<b>뒤에서도 선다</b> — 여섯. 처음으로 <b>뒤쪽</b> 가시가 돋아 감싼다 (1.5배)",
+  "<b>원이 닫힌다</b> — 여덟. 안쪽에 갇힌 결정 셋이 뜬다 (1.75배)",
+  "<b>다 물고 서리가 핀다</b> — 아홉이 안으로 0.26 만큼 문다. 지름이 L1 의 <b>2배</b>"]],
  ["ILwall","빙벽 ⚠️ 방어","버팀 — 얼마나 넓게·오래",[
   "겨우 붙들고 있다 — 눈송이 하나. 폭 20SC, <b>닿자마자</b> 깨진다(1.95초)",
   "<b>실이 꿴다</b> — 서리 실 한 가닥이 걸리며 폭 32SC · 2.8초",
