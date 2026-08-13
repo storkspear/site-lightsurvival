@@ -46162,13 +46162,14 @@ function W3fan(c,cx,cy,SC,na,rho,len,k,a){
   fillPoly(c,quad(r0,r2),A(W3INK,W3c(a*W3FINK)));       // ② 본그늘 — 지움
   // ③ 모서리 — **밝은 림.** 어둠이 검은 배경에서 보이는 이유가 이 두 줄이다.
   // ⚠️ 굵기 1.15 → **1.95**, 알파 .44 → **.72** 로 올렸다(2026-08-14 사용자:
-  //   「마름모 모양 빔의 **양쪽 테두리**를 조금 더 찐하게」). 채움은 그대로 둔다 —
+  //   「마름모 모양 빔의 **양쪽 테두리**를 조금 더 찐하게」) → 2차로 **2.70·.95**
+  //   까지 올렸다(「좀만 더」). 채움은 그대로 둔다 —
   //   속까지 밝히면 「가린다」가 죽는다. 진해지는 것은 **변 두 줄뿐**이다.
-  const w=Math.max(.5,1.95*SC);
-  celStroke(c,[pt(r0,na-W3FHW),pt(r1,na-W3FHW)],w,k,W3c(a*.72));
-  celStroke(c,[pt(r0,na+W3FHW),pt(r1,na+W3FHW)],w,k,W3c(a*.72));
+  const w=Math.max(.6,2.70*SC);
+  celStroke(c,[pt(r0,na-W3FHW),pt(r1,na-W3FHW)],w,k,W3c(a*.95));
+  celStroke(c,[pt(r0,na+W3FHW),pt(r1,na+W3FHW)],w,k,W3c(a*.95));
   // 끝을 **닫는다.** 열어 두면 두 실선이 허공으로 달아나 다시 빛살이 된다.
-  celStroke(c,[pt(r1,na-W3FHW),pt(r1,na),pt(r1,na+W3FHW)],w*.70,k,W3c(a*.40));}
+  celStroke(c,[pt(r1,na-W3FHW),pt(r1,na),pt(r1,na+W3FHW)],w*.66,k,W3c(a*.55));}
 
 function W3shade(c,t,st,SC,cx,cy,RR,spin,q,front,D){
   const P0=GDproj(q,spin,cx,cy,RR);
