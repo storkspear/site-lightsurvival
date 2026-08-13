@@ -45136,6 +45136,10 @@ function WDstage(t,dt,st,SC,cx,cy,RR,spin,D){
   st.p=st.p||[];
   if(!st.cell)WDinit(st,SC);
   const tang=(D.e==="gale");
+  // ⚠️ [W2sd] 가 `e` 를 **"W2"+e** 로 바꿔 넘긴다(원소 분기를 새 손이 받으려고).
+  //   그래서 `D.e==="frost"` 로 쓴 첫 판이 **한 번도 안 걸렸다** — 얼려도
+  //   적이 계속 움직인 원인이 이것이다(2026-08-13). 둘 다 받게 한 줄로 못박는다.
+  const FRZ=(D.e==="frost"||D.e==="W2frost");
   for(const f of st.F){
     // ⚠️ 빙만 **적의 시계가 선다**(2026-08-13 사용자: 「얼면 언 거지」). 표식이
     //   「얼어붙어 멈춘다」인데 몸이 계속 돌면 표식과 그림이 서로를 부정한다.
@@ -45145,7 +45149,7 @@ function WDstage(t,dt,st,SC,cx,cy,RR,spin,D){
     //   (2026-08-13 사용자: 「빙결이면 얼어버린 즉시 그 자리에 있어야지」).
     //   전용 시계 `fz` 로 분리한다 — 얼면 **4.2초 통째로 정지**하고 그동안
     //   표식도 계속 켜 둔다. 달려듦 한 주기(WDPER)보다 길어야 「멈췄다」가 된다.
-    if(D.e==="frost"&&f.frz>0){f.frz-=dt;f.pv=1;continue;}
+    if(FRZ&&f.frz>0){f.frz-=dt;f.pv=1;continue;}
     const pu=f.u;f.u=(f.u+dt/WDPER)%1;
     const dash=Math.sin(Math.PI*Math.min(1,f.u/WDDASH));
     const ang=f.a0+t*f.sp, rad=f.rh-dash*(f.rh-(RR+f.r*.86));
@@ -45163,7 +45167,7 @@ function WDstage(t,dt,st,SC,cx,cy,RR,spin,D){
            Math.abs(((q.th-q0.th)%TAU+TAU+Math.PI)%TAU-Math.PI)<.80)
           q.fl=Math.max(q.fl,.55);
       if(D.e==="ember")q0.bn=1;                     // 불이 붙는다 — 아래서 번진다
-      if(D.e==="frost"){q0.dead=WDGROW;f.frz=4.2;      // 깨져 비었다 다시 돋는다 · 적은 언다
+      if(FRZ){q0.dead=WDGROW;f.frz=4.2;                // 깨져 비었다 다시 돋는다 · 적은 언다
         emit(st,cx+Math.cos(fa)*RR,cy+Math.sin(fa)*RR*.94,7,
           {k:D.k,sp:96*SC,r:2.8*SC,life:.42,g:150*SC,spikeP:.85});}
       if(D.e==="toxin"){st.pool=Math.min(1,st.pool+.34);
@@ -45486,8 +45490,15 @@ const WDMAP=Object.assign({},WDFX);
 // ── 수치 ──────────────────────────────────────────────────────────────────
 /// 염 — 번짐의 시계. 셀 48개(6줄)에서 한쪽 끝→반대쪽 끝이 6~7세대이므로
 /// `SPRD` 가 한 바퀴 도는 시간을 정한다(.13 × 7 ≈ .91s).
-const W2SPRD =.13,   // 한 세대가 옆으로 붙는 간격(s) — **세대마다 안 약해진다**
-      W2CATCH=.58,   // 이 세기 위로 타는 셀만 옆에 옮긴다
+// ⚠️ **「끝까지 번진다」를 버렸다**(2026-08-13 사용자: 「적군이 부딪히면 전체
+//   동그라미가 다 빨개진다니까? 이거 의도한 거야?」). 첫 설계는 불의 정체를
+//   「안 약해지고 한 바퀴 돈다」로 잡았는데, 그러면 **어디를 맞았는지가 사라진다** —
+//   결계는 맞은 자리를 보여 주는 물건이라 그게 더 중요하다.
+//   이제 붙는 세기가 **세대마다 .52 로 준다** — 직격 1 → .52 → .27(CATCH 미만,
+//   여기서 죽는다). 즉 **맞은 칸 + 두 겹**만 타고 나머지는 어둡게 남는다.
+const W2SPRD =.13,   // 한 세대가 옆으로 붙는 간격(s)
+      W2GEN  =.52,   // 세대마다 약해지는 비 — 이 값이 「몇 겹까지 번지나」를 정한다
+      W2CATCH=.30,   // 이 세기 위로 타는 셀만 옆에 옮긴다
       W2BNX  =.38,   // [WDstage] 의 .62 위에 더 얹는 감쇠 — 합 1.0/s 라 불머리가 선다
       W2CHUP =1.15,  // 숯이 앉는 속도(/s) — 타는 동안
       W2CHDN =.95,   // 숯이 식는 속도(/s) — 다 타고 난 뒤
@@ -45581,9 +45592,12 @@ function W2step(t,dt,st,SC,cx,cy,RR,spin,D,ember){
     const lit=[];
     for(const pr of st.pair){
       const a=cell[pr[0]],b=cell[pr[1]];
-      if(a.bn>W2CATCH&&b.bn<.05&&(b.ch||0)<W2CHSP)lit.push(b);
-      else if(b.bn>W2CATCH&&a.bn<.05&&(a.ch||0)<W2CHSP)lit.push(a);}
-    for(const q of lit){q.bn=1;W2spark(st,q,spin,cx,cy,RR,SC,D);}}
+      if(a.bn>W2CATCH&&b.bn<.05&&(b.ch||0)<W2CHSP)lit.push([b,a.bn]);
+      else if(b.bn>W2CATCH&&a.bn<.05&&(a.ch||0)<W2CHSP)lit.push([a,b.bn]);}
+    // ⚠️ **1 로 안 켠다.** 옮겨 붙은 불은 옮겨 준 불보다 약해야 앞이 두 겹에서
+    //   죽는다 — 1 로 켜면 사슬이 안 끊겨 껍질을 한 바퀴 돈다(반려된 그림).
+    for(const [q,src] of lit){q.bn=Math.max(q.bn||0,src*W2GEN);
+      W2spark(st,q,spin,cx,cy,RR,SC,D);}}
   if(st.w2s>=W2SPRD)st.w2s=0;}                   // 탭이 잠들었다 깬 프레임
 
 // ── 염 — **면이 곧 불이다** ───────────────────────────────────────────────
@@ -45613,7 +45627,11 @@ function W2ember(c,t,st,SC,cx,cy,RR,spin,q,front,D){
     // 성한 판 / 숯 — **지나간 자리가 남아야** 「번졌다」가 그림에 남는다.
     // 숯일수록 면이 **더 진해진다**(알파 +) — 다 탄 자리가 구멍처럼 비면
     // 껍질에 빵꾸가 난 것으로 읽힌다. 결계는 끝까지 안 뚫린다.
-    fillPoly(c,S,A(W2char(D.k,ch),W2c((D.face+ch*.30)*al+q.fl*.30)));
+    // ⚠️ 숯이 알파를 **올리고** 있었다(+ch*.30). 다 탄 자리가 되레 밝아져
+    //   맞은 자리가 지나간 뒤에도 주황으로 남고, 여섯 번 맞으면 껍질이 통째로
+    //   빨개졌다(2026-08-13 반려). 숯은 **꺼진 것**이라 내려야 맞다 — 다만
+    //   0 으로 내리면 구멍처럼 비니 바닥(.62배)까지만 내린다.
+    fillPoly(c,S,A(W2char(D.k,ch),W2c(D.face*(1-.38*ch)*al+q.fl*.30)));
     // **속불** — 다 탄 판은 한동안 속이 벌겋다. 이게 없으면 불이 지나간 뒤
     // 화면에서 제일 밝은 것이 다시 테가 되어 「테두리에 불붙은 육각」으로
     // 돌아간다 — 껍질이 쉬는 그 0.3초가 하필 그 그림이면 안 된다.
