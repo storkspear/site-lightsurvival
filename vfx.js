@@ -8,6 +8,37 @@ const $=(id)=>{
   const w=document.createElement("div"),c=document.createElement("canvas");
   w.appendChild(c);return c;};
 
+/// ⭐ **마운트 호스트의 단일 출처** (2026-08-13 신설).
+///
+/// 값은 「이 id 가 **어느 페이지에 있어야 하는가**」다. `tools/mockup_lint.js` 가
+/// 이 표를 HTML 열여섯 장과 대조해 **유령 호스트**를 잡는다.
+///
+/// ⚠️ 이게 생기기 전에는 스물여섯 곳이 id 문자열을 각자 들고 있었고, 그래서
+/// **호스트는 A 를 잡고 조건은 B 를 보는** 사고를 하루에 네 번 냈다
+/// (호빙벽 · 방어막 · 속성방어15 · 궁극기16 — 넷 다 통째로 0칸이 됐는데
+/// 예외가 안 나서 스모크가 통과했다). [MOUNT] 를 쓰면 **호스트와 조건이
+/// 같은 식**이라 그 사고를 낼 방법이 없다:
+///
+/// ```
+/// {const H=MOUNT("guard"); if(H){ … }}      // 한 모양으로 통일
+/// ```
+const MOUNTS={
+  // 완성 페이지 — 채택된 것만 선다
+  magic  :"mockup-magic.html",  levelsm:"mockup-magic.html",
+  guard  :"mockup-guard.html",  levelsg:"mockup-guard.html",
+  heal   :"mockup-heal.html",   levelsh:"mockup-heal.html",
+  ult    :"mockup-ult.html",    ultvar :"mockup-ult.html",
+  foes   :"mockup-foes.html",   emfoes :"mockup-foes.html",
+  // 고르기 — 아직 안 고른 제안
+  ba:"mockup-pick.html", bb:"mockup-pick.html", re:"mockup-pick.html",
+  wb:"mockup-pick.html", "ib-ice":"mockup-pick.html",
+  "fc-cone":"mockup-pick.html", "ft-trail":"mockup-pick.html",
+  "fz-tomb":"mockup-pick.html", "fz-vortex":"mockup-pick.html"};
+
+/// 호스트를 문다. **없으면 `null`** — [$] 와 달리 조용히 캔버스를 만들지 않는다.
+/// 부르는 쪽이 `if(H)` 로 한 번만 재면 되므로 호스트와 조건이 어긋날 수 없다.
+const MOUNT=(id)=>document.getElementById(id);
+
 const TAU=Math.PI*2,R=Math.random;
 const hash=n=>{const s=Math.sin(n*127.1)*43758.5453;return s-Math.floor(s);};
 // 3단 계조 팔레트 — 진한 바탕 / 중간 / 흰 앞날. 셀 스타일의 전부다.
@@ -28,6 +59,14 @@ const TONE={
   // 민다. 색상 30° 차이는 나란히 놓았을 때 갈리는 최소치다.
   volt :["#4A3606","#FFE03A","#FFFCE0"],
   toxin:["#123D1C","#57D96B","#E6FFEA"],
+  // 항체 抗體 전용 두 톤 (2026-08-12 사용자 지시). 고리의 성한 토막이 무채
+  // 강철이었는데 「기본색을 **연한 연두**로」, 맞은 토막은 「채도를 더 올려
+  // **더 밝게 빛나며** 튕겨내는」 것으로 바꾼다.
+  // ⚠️ 둘이 **같은 색상(120°)에서 채도로만** 갈린다 — 성한 쪽 S .28 ·
+  // 맞은 쪽 S .86. 색상까지 벌리면 두 물건이 되고, 채도로만 갈라야
+  // 「같은 막인데 여기가 달아올랐다」로 읽힌다.
+  toxCalm:["#2A3D24","#A8D98C","#EAFBE0"],   // 연한 연두 — 성한 토막
+  toxHot :["#0C4A14","#3BF25A","#DCFFE2"],   // 채도 올린 초록 — 맞은 토막
   gale :["#0F3D3A","#5FD9C6","#E4FFFA"],
   ember:["#5E1A06","#FF6A1E","#FFE7CC"],
   // 그림자 — **유일하게 어두워지는 속성.** 밝은 앞날이 없다는 것이 정체성이라
@@ -815,7 +854,15 @@ const PASSIVE={
   volt:"shock",   magnet:"shock",                 // 감전 — 공속 저하 + 0.05s 경직
   blast:"decomp",                                 // 감전 + **분해**(도트 중첩 상한 +1)
   toxin:"poison", murk:"poison",                  // 중독 — 약하고 길다, 자동 중첩
-  aqua:"blind",   gale:"blind",  smoke:"blind",   // 실명 — 원거리 발사각에 오차
+  aqua:"blind",   smoke:"blind",                   // 실명 — 원거리 발사각에 오차
+  // ⚠️ 풍은 **둔화**다(2026-08-12 사용자 확정: 「바람에 밀리는 거니까」).
+  // 전엔 수·연과 같이 실명이었는데 셋을 묶던 근거가 「흩날려 앞을 가린다」였고,
+  // 바람은 가리는 게 아니라 **민다**. 이름과 효과가 같은 말을 해야 외울 게 없다.
+  //
+  // ⚠️ 그래서 상태가 여덟에서 **아홉**이 됐다. 동상과 겹쳐 보이지만 갈린다 —
+  // 동상은 **얼어붙어 멈추는 쪽**(겹치면 빙결)이고 둔화는 **밀려서 느린 쪽**이라
+  // 겹쳐도 안 얼고 대신 **뒤로 밀린다**. 그림도 그렇게 갈랐다(끌리는 잔상 대 성에).
+  gale:"slow",
   plague:"curse", numb:"curse",                   // 저주 — 받는 피해 증가 + 약한 도트
   thunder:"silence",                              // 침묵 — 원거리 공격만 중지
   // 어둠 — **실명**(2026-08-11 사용자 정정). 처음엔 출혈이었는데 어둠의 정체는
@@ -859,16 +906,9 @@ const MANIDESC={
 ///
 /// ⚠️ 속성 키가 없다. **셋뿐이고 18칸 전부가 이 셋을 공유한다** — 속성은 색과
 /// [PASSIVE] 로만 얹힌다. 여기에 속성별 줄을 추가하고 싶어지면 그건 이미
-/// 18종으로 돌아가는 것이다(그 판단의 근거는 `FX.manicRecall` 위의 머리말에).
-const MANICDESC={
-  recall:["회귀 回歸","되돌아옴",
-    "원반이 **적이 몰린 쪽**으로 날아갔다 **다른 길로 돌아온다** — 가는 길·오는 길에 한 번씩, 같은 적도 두 번 문다. 쿨 2.4초"],
-  wall  :["경계 境界","지형",
-    "적 앞에 **빛의 벽**을 세운다. **못 넘고**, 붙어 있는 동안 지진다. 5초 · 최대 2장 · 쿨 2.6초"],
-  halt  :["정지 停止","시간",
-    "고리가 퍼지며 **닿은 적이 그 자리에 굳는다**(1.3초). 감속이 아니라 **0** 이고, 풀릴 때 부서진다. 쿨 3.2초"]};
+/// 18종으로 돌아가는 것이다(그 판단의 근거는 `FX.discus` 위의 머리말에).
 const PVNAME={burn:"점화",frost:"동상",shock:"감전",decomp:"감전+분해",
-  poison:"중독",blind:"실명",curse:"저주",silence:"침묵",
+  poison:"중독",blind:"실명",curse:"저주",silence:"침묵",slow:"둔화",
   pierceAll:"방어 무시 · 피해 ×2 · 1회 튕김"};
 
 /// 맞은 적에게 붙는 표식. **엔진이 거는 상태를 화면에 번역한 것**이라,
@@ -927,6 +967,28 @@ function pvMark(c,x,y,r,kind,f,t,k,SC,layer){
     for(let i=0;i<3;i++){const p=((t*.7+i*.33)%1);
       celSplash(c,x+Math.cos(t*1.2+i*2.1)*r*.6,y-r*.3-p*r*1.3,
         (4.5-2*p)*SC,7,i*3+1,k,al*(1-p)*.9);}}
+  else if(kind==="slow"){
+    // 둔화 — **뒤로 끌리는 잔상**. 2026-08-12 신설(풍이 실명에서 옮겨 왔다).
+    //
+    // 이 상태를 다는 것은 **풍 風** 하나뿐이라 그림이 속성 하나만 말하면 된다.
+    // 이웃 둘과 반드시 갈려야 한다:
+    //   실명 — 머리 둘레를 **스치고 지나가는** 자락. 가린다
+    //   동상 — 몸에 **붙어 자라는** 성에. 굳는다
+    //   둔화 — 몸에서 **뒤로 떨어지는** 잔상. 못 따라온다
+    // 셋의 동사가 다르다(지나간다 · 자란다 · 뒤처진다). 그래서 겹쳐 걸려도
+    // 무엇이 걸렸는지 읽힌다.
+    //
+    // ⚠️ 잔상은 **몸보다 느려야** 뜻이 산다 — 지금 자리가 아니라 **지나온 자리**에
+    // 남는다. 칸에서는 적이 제자리라 「뒤」를 못 재므로 위상만 뒤로 민다.
+    for(let i=0;i<3;i++){
+      const lag=.16+i*.19;                       // 뒤처진 만큼 뒤로 간다
+      const dx=Math.cos(t*1.3)*r*lag*1.5, dy=Math.sin(t*1.3+.4)*r*lag*.6;
+      celHoop(c,x-dx,y-dy,r*(1+lag*.5),.62,t*.5,1.3,k,al*(.34-i*.09));}
+    // 끌린 자국 — 짧은 선 둘이 뒤로 눕는다. 「밀렸다」는 방향을 이것이 말한다
+    for(let i=0;i<2;i++){
+      const a=Math.PI*(.18+i*.64)+Math.sin(t*.9)*.25;
+      celStroke(c,[[x+Math.cos(a)*r*.95 ,y+Math.sin(a)*r*.62],
+                   [x+Math.cos(a)*r*1.62,y+Math.sin(a)*r*1.05]],1.6,k,al*.5);}}
   else if(kind==="blind"){
     // ⚠️ 세 번째 판(2026-08-10 사용자 판정: 「바람과 컨셉이 안 맞음」).
     //
@@ -1040,6 +1102,37 @@ function manicBar(c,W,H,SC,KEY){
   c.fillStyle=A("#1E1E26",.9);c.fillRect(gx,gy,gw,4*SC);
   c.fillStyle=A(toneOf(KEY)[2],.95);c.fillRect(gx,gy,gw,4*SC);
 }
+
+/// 파문의 파동 **배역**. 셋이 태어나는 때 · 속도 · 폭 · 최대 반경 · 넉백
+/// 다섯에서 전부 갈린다 — 「같은 것을 세 번」이 아니라 선파 → 본파 → 종파다.
+///
+///   배역   태어남  속도  폭     최대 반경    넉백   읽히는 것
+///   선파   +0.00  245  0.50×  0.92×PMAX    34   먼저 지나가는 얇고 빠른 경고
+///   본파   +0.13  195  1.00×  1.00×PMAX    56   가운데를 잡는 본체(원본 속도)
+///   종파   +0.26  118  1.34×  0.76×PMAX    84   느리고 굵게, 짧게 미는 망치
+///
+/// ⚠️ **셋이 동시에 보이는 창이 있어야 「3연타」다.** 시차만 두면 앞의 것이
+/// 죽고 나서 뒤가 나와 그냥 「세 번 반복」이 된다. 태어나는 때와 수명을 맞춰
+/// L5(PMAX 150) 에서 **0.26s ~ 0.514s 의 0.254초(15프레임)** 동안 셋이 함께
+/// 떠 있다 — t=0.40s 의 세 반경 110.0 · 64.7 · 28.5 로 45px · 36px 벌어진다.
+const WAVEROLE={
+  her  :Object.freeze({d:.00,sp:245,wm: .50,rm: .92,kb:34}),
+  main :Object.freeze({d:.00,sp:195,wm:1.00,rm:1.00,kb:56}),
+  main2:Object.freeze({d:.13,sp:195,wm:1.00,rm:1.00,kb:56}),   // 선파 뒤로 밀린 본파
+  tail :Object.freeze({d:.26,sp:118,wm:1.34,rm: .76,kb:84})};
+/// L1~L3 본파 하나 · L4 선파+본파(「2중 파문」) · L5 셋. **새 사건이 하나씩.**
+/// ⚠️ 원본 L4 의 둘째 파동은 속도 310 · 폭 .55× 였다. 선파를 245 · .50× 로
+/// 늦춘 것이 **L4 에서 바뀐 유일한 값**이다 — 310 이면 L5 에서 종파가 나오기도
+/// 전에 죽어 셋이 절대 안 겹친다.
+const PULSESET=[[WAVEROLE.main],[WAVEROLE.main],[WAVEROLE.main],
+  [WAVEROLE.her,WAVEROLE.main2],[WAVEROLE.her,WAVEROLE.main2,WAVEROLE.tail]];
+/// 주기 = **마지막 파동이 죽는 시각** + 쿨타임. 상수로 박아 두면 사다리를
+/// 고칠 때 주석의 표와 코드가 조용히 갈라진다.
+///
+/// ⚠️ 원본은 주기가 `.55` 로 고정이라 **L2 부터 쿨타임이 음수**였다(딜레이
+/// .708 > .55). 앞 파동이 안 죽었는데 다음이 나가 「한 발」이 안 읽혔다.
+const pulsePer=(SET,PMAX,CD)=>
+  SET.reduce((m,w)=>Math.max(m,w.d+(PMAX*w.rm-12)/w.sp),0)+CD;
 
 const FX={
 bolt(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
@@ -2268,7 +2361,7 @@ basicMani(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
 // ⚠️ 면적을 아낀다. 이 게임의 병목은 채우기(raster)이고 **화려함의 비용은
 // 개수가 아니라 픽셀 면적**이다 — 셋 다 화면을 덮지 않는다: 회귀는 선 하나,
 // 경계는 얇은 판, 정지는 스쳐 지나는 고리 하나와 적 둘레의 작은 표식이다.
-manicRecall(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
+discus(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
   // ── 회귀 回歸 — **나갔다 돌아온다** ─────────────────────────────────────
   //
   // 몸에서 원반 한 장이 **적이 제일 몰린 쪽**으로 날아갔다 돌아온다. 가는 길과
@@ -2280,35 +2373,82 @@ manicRecall(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
   // 그 고리 하나가 이 스킬의 전부를 설명한다 — 정지 화면에서도 읽힌다.
   const SC=Math.min(W,H)/238, KEY=TK("gold");
   const PER=2.4, FLY=1.15;                 // 쿨 2.4초 중 1.15초를 날아 있다
+  // ── 레벨 성장 ───────────────────────────────────────────────────────────
+  // 한 축만 키우면 성장이 안 보인다. 셋을 같이 움직인다 —
+  //   **개수**가 늘고, **원반이 커지고**, **고리가 넓고 길어진다.**
+  // ⚠️ L1 은 전보다 **절반 크기**다(2026-08-12 사용자 판정). 처음이 이미 크면
+  // 커지는 것이 안 보인다 — 성장표는 첫 칸이 작아야 다섯 칸이 이야기가 된다.
+  const NDK  =[1,2,3,4,5][LV-1];
+  const DSZ  =[.50,.62,.74,.87,1.00][LV-1];   // 원반 크기 배수
+  const REACH=[.30,.34,.38,.42,.46][LV-1];    // 얼마나 멀리 — 고리가 길어진다
+  const WIDE =[.26,.30,.34,.39,.44][LV-1];    // 얼마나 옆으로 — 고리가 넓어진다
   // ⚠️ 엔진 절대값이 아니라 **칸 비례**. 반너비가 93~210px 이라 엔진 값을
   // 그대로 쓰면 한 프레임에 칸을 가로지른다.
   // ⚠️ 원반을 13 → 18 로 키웠다(2026-08-11 렌더 판정). 13 은 300px 칸에서
   // 지름 16px 이라 **불티와 구별이 안 됐다** — 던진 물건은 손에 잡히는 크기로
   // 보여야 「되돌아온다」가 물건의 이야기가 된다.
-  const RANGE=Math.min(W,H)*.38, DR=18*SC;
+  const RANGE=Math.min(W,H)*REACH, DR=18*SC*DSZ;
   manicWalk(st,dt,SC);
-  st.acc=(st.acc||0)+dt;
-  if(st.acc>PER&&!st.dk){st.acc=0;
-    st.dk={a:manicAim(st),l:0,tr:[],id:(st.n=(st.n||0)+1),fl:0,x:cx,y:cy};}
-  const q=st.dk;
-  if(q){q.l+=dt;
+  // ── 원반은 **사라지지 않는다** (2026-08-12 사용자 판정) ─────────────────
+  //
+  // 「돌아왔다가 뚝 끊기면서 몸 주변에 달라붙는」 것이 아니라, **한 몸이
+  // 이어진다** — 몸 둘레를 천천히 선회하다가 제 차례가 오면 빠르게 날아
+  // 나갔다 돌아와 **떠난 그 자리에서 다시 선회에 붙는다.**
+  //
+  // 이어지는 것이 공짜인 이유: 비행 곡선이 `sin(πu)`·`sin(2πu)` 라 **u=0 과
+  // u=1 에서 둘 다 0** 이다. 출발점을 「그때 선회하던 자리」로 잡으면 떠날
+  // 때도 돌아올 때도 위치가 정확히 같아, 잇는 코드가 따로 필요 없다.
+  //
+  // ⚠️ 차례는 **원반마다 따로**다. 같이 나가면 장수가 늘어도 「굵은 한 덩어리」
+  // 로만 보인다 — 흩어져 나가야 개수가 개수로 읽힌다.
+  // ⚠️ **딱 붙는 것을 없앤다** (2026-08-12 사용자 판정). 원인은 자리가 아니라
+  // **속도**였다 — 빠르게 들어오다 갑자기 느린 선회로 바뀌니 「붙었다」로 읽힌다.
+  // 선회 한 바퀴 동안 각속도를 **빠름 → 느림 → 빠름**으로 흘린다: 들어온 기세가
+  // 그대로 이어지고, 반 바퀴에서 제일 느려졌다가, 다시 붙은 속도로 날아간다.
+  //   w = ORB · (1 + SW·(cos(2π·lap/TAU)/2 + 1/2))
+  // lap=0 과 lap=TAU 에서 최대, 반 바퀴에서 최소. **한 바퀴를 다 돌면 떠난다.**
+  const ORB=3.0, SW=1.2;
+  if(!st.dks||st.dks.length!==NDK){
+    st.dks=[];
+    for(let i=0;i<NDK;i++){const id=i+1;
+      st.dks.push({id, fid:0, R0:(38+10*hash(id*2.3))*SC,
+        oa:(i/NDK)*TAU, a:0, l:-1, lap:TAU*hash(id*1.7),
+        tr:[], fl:0, x:cx, y:cy, sx:cx, sy:cy});}}
+  for(const q of st.dks){
+    if(q.l<0){                                // ── 선회 한 바퀴 ──
+      const w=ORB*(1+SW*(Math.cos(TAU*q.lap/TAU)*.5+.5));
+      q.oa+=w*dt; q.lap+=w*dt;
+      q.x=cx+Math.cos(q.oa)*q.R0; q.y=cy+Math.sin(q.oa)*q.R0;
+      if(q.tr.length)q.tr.length=0;
+      if(q.lap>=TAU){                         // 한 바퀴 돌았다 — 떠난다
+        q.fid=(st.n=(st.n||0)+1);
+        // 방향은 **돌던 접선에서 갈라진다.** 완전 난수로 두면 여기서 또 꺾여
+        // 「붙었다 튕겼다」가 된다 — 가던 쪽으로 나가야 이어진 하나로 보인다.
+        q.a=q.oa+Math.PI/2+(hash(q.fid*3.1)-.5)*1.5;
+        q.sx=q.x; q.sy=q.y; q.l=0;}
+      continue;}
+    q.l+=dt;
     const u=Math.min(1,q.l/FLY);
     // 앞으로: sin(πu) — 0 에서 나가 중간에 제일 멀고 다시 0 으로 돌아온다.
     // 옆으로: sin(2πu) — 앞 절반은 한쪽, 뒤 절반은 반대쪽. 두 길이 갈린다.
-    const d=Math.sin(Math.PI*u)*RANGE, side=Math.sin(TAU*u)*RANGE*.34;
-    q.x=cx+Math.cos(q.a)*d-Math.sin(q.a)*side;
-    q.y=cy+Math.sin(q.a)*d+Math.cos(q.a)*side;
+    const d=Math.sin(Math.PI*u)*RANGE, side=Math.sin(TAU*u)*RANGE*WIDE;
+    // 원점은 몸 중심이 아니라 **그 원반이 떠난 자리**다.
+    q.x=q.sx+Math.cos(q.a)*d-Math.sin(q.a)*side;
+    q.y=q.sy+Math.sin(q.a)*d+Math.cos(q.a)*side;
     q.tr.push([q.x,q.y]);if(q.tr.length>34)q.tr.shift();
     // 가는 길(0)과 오는 길(1)을 **다른 표로 센다.** 하나로 두면 한 번 문 적을
     // 돌아오는 길에 못 물어 「두 번 벤다」가 거짓말이 된다.
-    const pass=u<.5?0:1, tok=q.id*2+pass, sg=pass?-1:1;
+    const pass=u<.5?0:1, tok=q.fid*2+pass, sg=pass?-1:1;
     for(const f of st.F){
       if(f.rc===tok)continue;
       if(Math.hypot(cx+f.ox+f.kx-q.x,cy+f.oy+f.ky-q.y)<f.r+DR){
         f.rc=tok;f.pv=1.0;q.fl=.16;
         hitFoe(st,f,cx,cy,Math.cos(q.a)*sg,Math.sin(q.a)*sg,9*SC);}}
     q.fl=Math.max(0,q.fl-dt);
-    if(u>=1)st.dk=null;}
+    if(u>=1){                                 // 돌아왔다 — 떠난 자리에서 선회 재개
+      q.l=-1; q.lap=0;                        // lap=0 이라 **들어온 기세대로** 돈다
+      q.oa=Math.atan2(q.sy-cy,q.sx-cx);
+      q.R0=Math.hypot(q.sx-cx,q.sy-cy);}}
   for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
   stepP(st,dt);
   const PK=PASSIVE[KEY];
@@ -2323,7 +2463,10 @@ manicRecall(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
     for(let b=0;b<2;b++){const a0=spin+b*Math.PI;
       celRibbon(c,arcPts(x,y,rr,a0,a0+1.9,12),rr*.40,"gold",al);}
     gAdd(c,c=>gHalo(c,x,y,rr*1.15,"gold",al*.8));};
-  if(q){
+  for(const q of (st.dks||[])){
+    // 선회 중에는 자국 없이 날만 돈다 — 자국은 「날아간다」의 표시라, 붙어서
+    // 도는 동안에도 남기면 몸 둘레가 실타래가 된다.
+    if(q.l<0){blade(q.x,q.y,DR*.72,t*5+q.id,.8);continue;}
     // 지나온 자국 — 닫힌 고리를 그린다. 이 한 줄이 「나갔다 온다」를 통째로 말한다.
     //
     // 두 겹이다. **전 구간**은 가늘고 옅게(고리의 모양을 맡는다), **끝 12점**은
@@ -2341,104 +2484,9 @@ manicRecall(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
     // 가리는 것이 아니다: 갈래를 줄이고 원반 크기 안에서 끝낸다.
     if(q.fl>0){const ff=q.fl/.16;
       gAdd(c,c=>gFlare(c,q.x,q.y,DR*(.30+.55*(1-ff)),"gold",ff*.75,t*8,5));}}
-  else{
-    // 돌아온 원반은 **몸 옆에 붙어 돈다.** 쿨 1.25초를 빈 화면으로 두면
-    // 「스킬이 없다」로 보인다 — 쥐고 있는 것이 보여야 다음이 예고된다.
-    // ⚠️ 24 로 두었더니 **몸의 광휘 안**(반지름 1.5×RR)이라 안 보였다. 몸에서
-    // 확실히 떼어 놓아야 「쥐고 있는 다른 물건」으로 읽힌다.
-    const a0=t*2.0;
-    blade(cx+Math.cos(a0)*42*SC,cy+Math.sin(a0)*42*SC,DR*.60,t*5,.75);}
   drawP(c,st);
   manicBar(c,W,H,SC,KEY);},
-manicWall(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
-  // ── 경계 境界 — **벽을 세운다** ────────────────────────────────────────
-  //
-  // 적이 제일 몰린 쪽 앞에 빛의 판을 한 장 세운다. 5초간 남고, 적은 **못 넘고**
-  // 붙어 있는 동안 지진다. 이 게임에 **막는 것이 하나도 없다** — 결계는 몸을
-  // 두르는 구이고 성역은 밟으면 느려지는 장판이라, 둘 다 「지나갈 수는 있다」다.
-  // 못 지나가는 것은 이것 하나뿐이라 축이 안 겹친다.
-  //
-  // ⚠️ [celBeam] 으로 그리지 않는다. 캡슐 + 안쪽 소용돌이는 **레이저의 문법**
-  // 이라, 같은 도형을 옆으로 눕히면 「누운 레이저」로 읽힌다. 벽은 **판**이므로
-  // 좌우 대칭 리본([celRibbonEven])으로 깔고, 그 위에 **위로 선 결**을 세운다 —
-  // 탑다운에서 「서 있다」를 말하는 것은 두께가 아니라 위로 뻗은 것이다
-  // (염의 불길이 위로 솟아 서 있는 것과 같은 장치).
-  const SC=Math.min(W,H)/238, KEY=TK("gold");
-  const PER=2.6, LIFE=5.0, MAXW=2;
-  // ⚠️ 판 두께를 4.0 → 5.6 으로 올렸다(2026-08-11 렌더 판정). 얇게 두었더니
-  // **결(위로 선 획)만 보이고 판이 안 보여** 「벽」이 아니라 「빗」이 됐다 —
-  // 서 있는 것을 말하는 것은 결이지만, 그것이 **무엇의** 결인지를 말하는 것은
-  // 판이다. 둘 중 하나만 있으면 물건이 아니다.
-  const LEN=Math.min(W,H)*.34, TH=5.6*SC, DIST=Math.min(W,H)*.21;
-  manicWalk(st,dt,SC);
-  st.wl=st.wl||[];
-  st.acc=(st.acc||0)+dt;
-  if(st.acc>PER){st.acc=0;
-    const a=manicAim(st);
-    // 벽은 **진행 방향에 직각**으로 선다(a+π/2). 몸에서 조금 떨어뜨려 세우는
-    // 것은, 몸에 붙이면 벽이 아니라 「두른 것」(결계)으로 보이기 때문이다.
-    const w0={x:cx+Math.cos(a)*DIST,y:cy+Math.sin(a)*DIST,a:a+Math.PI/2,l:0,sd:R()*9};
-    st.wl.push(w0);
-    // 세워지는 순간의 파편 — 「솟았다」를 여기서 한 번 못 박는다. 위로 튀게
-    // 방향을 고정한 것은, 사방으로 흩으면 「터졌다」가 되기 때문이다.
-    for(let i=0;i<10;i++){const u=(i/9-.5)*LEN;
-      emit(st,w0.x+Math.cos(w0.a)*u,w0.y+Math.sin(w0.a)*u,1,
-        {k:KEY,sp:70*SC,r:2.4*SC,life:.42,spikeP:.8,a:-Math.PI/2,spread:1.3});}
-    // ⚠️ **두 장까지만.** 5초 × 2.6초 쿨이면 세 장이 동시에 살 수 있는데,
-    // 그러면 몸 둘레가 통째로 막혀 「벽」이 아니라 「방」이 된다.
-    if(st.wl.length>MAXW)st.wl.shift();}
-  st.wl=st.wl.filter(w=>(w.l+=dt)<LIFE);
-  for(const w of st.wl){
-    const g=Math.min(1,w.l/.22);                    // 솟는 중
-    const dx=Math.cos(w.a),dy=Math.sin(w.a),nx=-dy,ny=dx,half=LEN*.5*g;
-    for(const f of st.F){
-      const rx=(cx+f.ox+f.kx)-w.x, ry=(cy+f.oy+f.ky)-w.y;
-      const s=rx*dx+ry*dy, n=rx*nx+ry*ny;
-      if(Math.abs(s)>half+f.r)continue;
-      const pen=(f.r+TH*1.5)-Math.abs(n);
-      if(pen<=0)continue;
-      // **밀어낸다** — 넉백([kx]) 이 아니라 자리([ox]) 를 민다. 넉백은 감쇠라
-      // 시간이 지나면 벽을 뚫고 들어와 버린다: 못 넘는다는 것은 감쇠하는
-      // 힘이 아니라 **매 프레임 지켜지는 조건**이다.
-      const sg=n<0?-1:1;
-      f.ox+=nx*sg*pen;f.oy+=ny*sg*pen;f.pv=1.0;
-      // 붙어 있으면 지진다 — 틱으로 준다. 매 프레임 [hitFoe] 를 부르면 흰
-      // 섬광이 계속 터져 「연타로 두들긴다」가 된다(빨대에서 같은 판정).
-      f.wt=(f.wt||0)+dt;
-      if(f.wt>.42){f.wt=0;hitFoe(st,f,cx,cy,nx*sg,ny*sg,5*SC);}
-      if(R()<dt*22)emit(st,w.x+dx*s+nx*sg*(f.r*.4),w.y+dy*s+ny*sg*(f.r*.4),1,
-        {k:KEY,sp:60*SC,r:2*SC,life:.34,spikeP:.7,a:Math.atan2(ny*sg,nx*sg),spread:1.7});}}
-  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
-  stepP(st,dt);
-  // 바닥에 번지는 빛 — **적보다 아래**. 벽이 땅에 닿아 있다는 것을 이것이 말한다.
-  for(const w of st.wl){
-    const g=Math.min(1,w.l/.22), fade=Math.min(1,(LIFE-w.l)/.6);
-    const P=[];for(let i=0;i<=8;i++){const u=(i/8-.5)*LEN*g;
-      P.push([w.x+Math.cos(w.a)*u,w.y+Math.sin(w.a)*u]);}
-    gAdd(c,c=>gStroke(c,P,TH*4.2,KEY,fade*.16));}
-  const PK=PASSIVE[KEY];
-  const mark=(L)=>{if(!PK)return;
-    for(const f of st.F)if(f.pv>0)
-      pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,PK,f.pv,t,KEY,SC,L);};
-  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
-  manicBody(c,t,dt,W,H,st,KEY);
-  // 판 + 결 — **적보다 위.** 서 있는 것이라 뒤에 선 적을 가려야 한다.
-  for(const w of st.wl){
-    const g=Math.min(1,w.l/.22), fade=Math.min(1,(LIFE-w.l)/.6);
-    const P=[];for(let i=0;i<=8;i++){const u=(i/8-.5)*LEN*g;
-      P.push([w.x+Math.cos(w.a)*u,w.y+Math.sin(w.a)*u]);}
-    celRibbonEven(c,P,TH*g,KEY,fade*.95);
-    // 결 — 위로 선 짧은 획. **아홉 개를 열넷으로 늘리고 낮췄다**(2026-08-11
-    // 렌더 판정): 길고 성기면 낱개가 독립한 창으로 보여 「말뚝 아홉 자루」가
-    // 된다. 촘촘하고 낮아야 판 위의 **결**로 붙어 읽힌다.
-    // 흔들림은 아주 약하게: 벽은 흔들리는 것이 아니라 **버티는** 것이다.
-    for(let i=0;i<14;i++){const u=((i+.5)/14-.5)*LEN*g;
-      const px=w.x+Math.cos(w.a)*u,py=w.y+Math.sin(w.a)*u;
-      const h=LEN*(.068+.038*hash(w.sd+i*3.1))*g*(.92+.08*Math.sin(t*2.6+i));
-      celSpike(c,px,py,-Math.PI/2,h,TH*.92,KEY,fade*.9);}}
-  drawP(c,st);
-  manicBar(c,W,H,SC,KEY);},
-manicHalt(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
+waveHalt(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
   // ── 정지 停止 — **멎게 한다** ──────────────────────────────────────────
   //
   // 몸에서 고리가 퍼지고, 그 고리에 닿은 적이 **그 자리에 굳는다**(1.3초).
@@ -2530,9 +2578,11 @@ manicHalt(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
   // 부서짐
   for(const s0 of st.sh){const ff=1-s0.l/.28;
     celSplash(c,s0.x,s0.y,Math.max(.5,s0.r*(.7+1.1*ease(1-ff))),9,7,KEY,ff*ff);}
-  manicBody(c,t,dt,W,H,st,KEY);
+  // ⚠️ 발현 몸통·게이지를 뺐다(2026-08-12 사용자 판정: 「캐릭터가 혼자서
+  // 발현인데 일반 무속성으로 바꿔 줘」). 정지는 **전용기가 아니라 방어 스킬**로
+  // 편입됐으니 몸이 발현 상태일 이유가 없다 — 평소 몸으로 선다.
   drawP(c,st);
-  manicBar(c,W,H,SC,KEY);},
+  hero(c,t,cx,cy);},
 sunpo(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
   // ── 순포 盾砲 — **돌면서 쏘는 방패** (2026-08-10 신설) ──────────────────
   //
@@ -2838,73 +2888,174 @@ shotgun(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
         bl.r*(.20+.20*hash(s2*9.3))*f,bl.r*.06*f,"gold",f*.85);}}
   drawP(c,st);hero(c,t,cx,cy);},
 
+// ── 성역 — 다섯 칸에 걸쳐 넓어진다 (2026-08-13 사용자 판정) ────────────────
+// 원본은 L1 이 이미 반경 84(= L5 의 77%) · 폭 7 · 2겹 · 창 12 라 **첫 칸에서
+// 정체가 다 완성**돼 있었다. 사건 넷(안쪽 링 · 서리 결정 · 창 12 + 틱 .15 ·
+// 잔류 링)은 원본 그대로 두고 **반경 · 폭 · 창 수만** 사다리로 갈랐다.
+// 안쪽 링만 L1 에서 L2 로 밀린다 — 「2겹」이 L2 의 보상이 된다.
+//
+// ⚠️ 링은 `squash .45` 라 **세로 반지름이 `RR*.45`** 다. 몸은 `jagPoly(17*b,…,
+// spikeMul 1.35)` 로 반지름 24.1px 까지 뻗으므로, 세로 반지름이 그 아래로
+// 내려가면 링이 통째로 몸 뒤에 묻혀 「발밑의 좁은 테」가 된다. L1 은
+// 68*.45 = 30.6 으로 그 위다 — **RR 55 아래로는 내려가지 마라.**
+//
+// ⚠️ **적 하나를 안으로 옮겼다** — 원본 `[-54,20]`(포함 반경 69.8) →
+// `[-34,12]`(43.2). 안 옮기면 L1(68) 이 아무도 안 물어 「초라하다」가 아니라
+// 「안 켜졌다」로 보인다. 나머지 둘(75.1 · 120.6)은 원본 그대로라 반경이
+// 자라며 하나씩 편입된다(무는 수 L1~L5 = 1 2 2 2 2).
 sanctum(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
-  st.F=st.F||mkFoes([[48,-26,11],[-54,20,10],[12,54,9]]);stepFoes(st.F,dt);
+  st.F=st.F||mkFoes([[48,-26,11],[-34,12,10],[12,54,9]]);stepFoes(st.F,dt);
   st.tk=(st.tk||0)+dt;
-  const RR=atL(2)?109:84,TICK=[.24,.24,.24,.15,.15][LV-1];
+  const RR =[68,80,92,101,109][LV-1];     // 링 반경
+  const HW =[5,5.5,6,6.5,7][LV-1];        // 링 폭 — L5 가 원본 값(7)
+  const SW =[3.4,3.8,4.2,4.6,5][LV-1];    // 창 폭 — L5 가 원본 값(5)
+  const NSP=[6,8,8,12,12][LV-1];          // 창 수 — L4 에 원본 값(12)으로 붙는다
+  const TICK=[.24,.24,.24,.15,.15][LV-1];
   if(st.tk>TICK){st.tk=0;for(const f of st.F)if(Math.hypot(f.ox,f.oy/.45)<RR){
     hitFoe(st,f,cx,cy,0,0,0);emit(st,cx+f.ox,cy+f.oy+8,3,{k:"gold",sp:26,r:2.6,life:.7,g:-90,spikeP:.2});}}
-  if(R()<dt*22){const a=R()*TAU,r=R()*RR;
+  // 티끌도 **면적을 따라간다** — 작은 원에 원본과 같은 수를 뿌리면 밀도가 되레
+  // 올라 「작지만 더 화려한」 칸이 나온다(줄이는 목적과 정반대).
+  if(R()<dt*22*(RR/109)){const a=R()*TAU,r=R()*RR;
     emit(st,cx+Math.cos(a)*r,cy+Math.sin(a)*r*.45,1,{k:"gold",sp:6,r:3,life:1,g:-70,spikeP:.15});}
   stepP(st,dt);
   if(atL(5))celHoop(c,cx,cy,RR*1.12,.45,0,3,"frost",.30);   // L5 잔류
-  celHoop(c,cx,cy,RR,.45,0,7,"gold",.9);
-  celHoop(c,cx,cy,RR*.66,.45,0,4,"gold",.65);
+  celHoop(c,cx,cy,RR,.45,0,HW,"gold",.9);
+  // **2겹이 L2 의 보상이다.** 폭 비율(4/7)은 원본 그대로라 L5 에서 4 가 된다.
+  if(atL(2))celHoop(c,cx,cy,RR*.66,.45,0,HW*(4/7),"gold",.65);
   if(atL(3))for(let i=0;i<6;i++){const a=i/6*TAU-t*.35;   // L3 감속 — 서리 결정
     const x=cx+Math.cos(a)*RR*.5,y=cy+Math.sin(a)*RR*.5*.45;
     c.save();c.translate(x,y);c.rotate(t*.8+i);
+    const hr=6*RR/109;        // 결정도 반경을 따라간다 — 작은 링에 6px 은 혹이다
     const hx=(rr,col)=>{c.beginPath();
       for(let j=0;j<6;j++){const b2=j/6*TAU;
         j?c.lineTo(Math.cos(b2)*rr,Math.sin(b2)*rr):c.moveTo(Math.cos(b2)*rr,Math.sin(b2)*rr);}
       c.closePath();c.fillStyle=col;c.fill();};
-    hx(6,A(TONE.frost[0],.9));hx(3.6,A(TONE.frost[2],1));c.restore();}
+    hx(hr,A(TONE.frost[0],.9));hx(hr*.6,A(TONE.frost[2],1));c.restore();}
   c.save();c.translate(cx,cy);c.scale(1,.45);c.rotate(t*.5);
-  for(let i=0;i<12;i++){const a=i/12*TAU;
-    celSpike(c,Math.cos(a)*RR*.8,Math.sin(a)*RR*.8,a,RR*.19,5,"gold",.9);}
+  for(let i=0;i<NSP;i++){const a=i/NSP*TAU;
+    celSpike(c,Math.cos(a)*RR*.8,Math.sin(a)*RR*.8,a,RR*.19,SW,"gold",.9);}
   c.restore();
   drawFoes(c,t,cx,cy,st.F);drawP(c,st);hero(c,t,cx,cy);},
 
+// ── 파문 — 반경·폭을 확 줄이고 L5 에서 3연타 (2026-08-13 사용자 판정) ──────
+// ⚠️ **적 하나 추가 + 하나 이동.** 원본 넷은 거리가 62.4~68.4 로 다 같은 띠에
+// 몰려 있어 반경이 얼마든 「전부 맞거나 전혀 안 맞거나」였다. 사다리로 흩어
+// 놓으면 **반경이 곧 「몇 마리를 쓸었나」로 읽힌다**:
+//   41.2(신규) · 66.5 · 68.4 · 73.3 (원본 `[-12,64]` → `[-14,72]`)
+//   → L1(52) 1마리 · L2(76) 이상 4마리
+//
+// ── 초 단위 (전 → 후) ─────────────────────────────────────────────────────
+//        원본  L1   L2   L3   L4   L5        후  L1   L2   L3   L4   L5
+//   딜레이   .554 .708 .708 .708 .708         .205 .328 .451 .715 1.124
+//   쿨타임   .013 -.14 -.14 -.14 -.14          .400 .360 .320 .300 .260
+//   주기     .567 .567 .567 .567 .567          .605 .688 .771 1.015 1.384
+// ⚠️ **L5 한 벌 주기가 원본의 2.44배**다(.567 → 1.384). 파동 수가 2 → 3 으로
+// 늘어도 초당 파동은 3.53 → 2.17 로 **39% 준다.** 3연타 한 벌이 통째로 지나갈
+// 자리를 내주는 값이라 「자주 나가는가」와 「한 벌로 읽히는가」를 맞바꾼
+// 것이다(2026-08-13 사용자가 수치를 알고 고른 값).
 pulse(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
-  st.F=st.F||mkFoes([[62,-24,11],[-54,-42,10],[-12,64,9],[42,46,10]]);stepFoes(st.F,dt);
-  st.r=st.r||[];st.acc=(st.acc||0)+dt;
-  const PMAX=atL(2)?150:120,PW=atL(3)?16:12;
-  if(st.acc>.55){st.acc=0;st.r.push({R:12,hit:new Set(),i:0});
-    if(atL(4))st.r.push({R:12,hit:new Set(),i:1});}
-  for(let i=st.r.length-1;i>=0;i--){const w=st.r[i],pr=w.R;w.R+=(w.i?310:195)*dt;
+  st.F=st.F||mkFoes([[38,-16,10],[62,-24,11],[-54,-42,10],[-14,72,9]]);stepFoes(st.F,dt);
+  const PMAX=[52,76,100,126,150][LV-1];        // 최대 반경 — L5 가 원본 값(150)
+  const PW  =[5,7.5,10,13,16][LV-1];           // 링 폭   — L5 가 원본 값(16)
+  const NSP =[6,7,8,10,10][LV-1];              // 창 수   — L4 에 원본 값(10)
+  const SPL =[10,12,14,16,18][LV-1];           // 창 길이 — L5 가 원본 값(18)
+  const SPW =[3,3.5,4,4.5,5][LV-1];            // 창 폭   — L5 가 원본 값(5)
+  const SET=PULSESET[LV-1];
+  const PER=pulsePer(SET,PMAX,[.40,.36,.32,.30,.26][LV-1]);
+  st.r=st.r||[];st.T=(st.T||0)+dt;st.fired=st.fired||0;
+  if(st.T>=PER){st.T-=PER;st.fired=0;}
+  // 파동마다 **제 시각에** 태어난다. 비트 하나로 「이번 벌에서 이미 나갔나」를
+  // 재므로 프레임이 길어도 두 번 안 나간다.
+  for(let i=0;i<SET.length;i++)
+    if(st.T>=SET[i].d&&!(st.fired&(1<<i))){st.fired|=(1<<i);
+      st.r.push({R:12,hit:new Set(),w:SET[i]});}
+  for(let i=st.r.length-1;i>=0;i--){const q=st.r[i],pr=q.R;q.R+=q.w.sp*dt;
     st.F.forEach((f,k)=>{const d=Math.hypot(f.ox+f.kx,f.oy+f.ky);
-      if(!w.hit.has(k)&&pr<d&&w.R>=d){w.hit.add(k);const L=d||1;
-        hitFoe(st,f,cx,cy,(f.ox+f.kx)/L,(f.oy+f.ky)/L,56);}});
-    if(w.R>PMAX)st.r.splice(i,1);}
+      if(!q.hit.has(k)&&pr<d&&q.R>=d){q.hit.add(k);const D=d||1;
+        hitFoe(st,f,cx,cy,(f.ox+f.kx)/D,(f.oy+f.ky)/D,q.w.kb);}});
+    if(q.R>PMAX*q.w.rm)st.r.splice(i,1);}
   stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
   if(atL(5))celHoop(c,cx,cy,PMAX,1,0,4,"frost",.30);     // L5 감속 지대
-  for(const w of st.r){const f=Math.max(0,1-w.R/PMAX);
-    celHoop(c,cx,cy,w.R,1,0,(w.i?PW*.55:PW)*f+1.5,"gold",f);
-    for(let i=0;i<10;i++){const a=i/10*TAU+w.R*.01;
-      celSpike(c,cx+Math.cos(a)*w.R,cy+Math.sin(a)*w.R,a,18*f,5*f,"gold",f*.9);}}
+  for(const q of st.r){const f=Math.max(0,1-q.R/(PMAX*q.w.rm));
+    celHoop(c,cx,cy,q.R,1,0,PW*q.w.wm*f+1.5,"gold",f);
+    for(let i=0;i<NSP;i++){const a=i/NSP*TAU+q.R*.01;
+      celSpike(c,cx+Math.cos(a)*q.R,cy+Math.sin(a)*q.R,a,
+        SPL*q.w.wm*f,SPW*q.w.wm*f,"gold",f*.9);}}
   drawP(c,st);hero(c,t,cx,cy);},
 
+// ── 낙광 — 굵기를 줄이고 「고정」을 넣어 늦게 떨군다 (2026-08-13 판정) ──────
+// 「깜빡임」은 새 사건이 아니다 — 원본의 `bl=.25+.6*|sin(p*13)|` 가 그것이고
+// L1 에 이미 4.1번 깜빡였다. 못 읽히던 이유는 둘이다:
+//   ① **등속**이라 「점점 다가온다」는 정보가 없다
+//   ② 예고가 끝나는 순간과 기둥이 오는 순간 사이에 아무 표시가 없다
+// 그래서 새로 넣는 것은 깜빡임이 아니라 **한 단계**다 — 네 구간으로 끊는다:
+//   ① 깜빡임 TELE  주파수가 **B0 → 2·B0** 로 가속한다(깜빡이 → 부저)
+//   ② 고정   LOCK  깜빡임이 멎고 바깥 조준링이 1.55r → 1.0r 로 좁혀 든다
+//   ③ 기둥   FALL  고정이 끝나는 **그 프레임에 피격**
+//   ④ 쿨타임 CD    아무것도 안 그린다 — 이 빈자리가 「끝났다」는 신호다
+//
+// ⚠️ **원본은 피격 시각이 `.45` 로 박혀 있었다.** 예고는 `TELE=atL(4)?.30:.45`
+// 인데 피격만 리터럴이라, L4/L5 에서 **기둥이 피격보다 0.30초 먼저** 떴다
+// (u .30 부터 기둥, 피격은 .45 → 주기 2s 기준 0.30s). 예고가 거짓말을 하던
+// 자리다. 지금은 `HIT=TE+LK` 하나가 그림과 판정을 같이 정한다.
+//
+// ⚠️ **「굵기 −71%」는 파라미터 얘기지 화면 얘기가 아니다.** `celBeam` 에 가는
+// 값은 `굵기*f+3` 이고 그 `+3`(원본 상수, 안 건드림)이 바닥이라 L1 의 실제
+// 최대 심지폭(=2w)은 원본 40px → 16px(−60%) 이다.
+//
+// ── 초 단위 (전 → 후) ─────────────────────────────────────────────────────
+//        원본  L1   L2   L3   L4   L5        후  L1   L2   L3   L4   L5
+//   깜빡임    .90  .90  .90  .60  .60          1.05  .96  .86  .62  .56
+//   고정        —    —    —    —    —           .30  .28  .26  .20  .18
+//   기둥     1.10 1.10 1.10 1.40 1.40           .78  .80  .84  .90 1.10
+//   쿨타임    .00  .00  .00  .00  .00           .62  .54  .46  .36  .16
+//   주기     2.00 2.00 2.00 2.00 2.00          2.75 2.58 2.42 2.08 2.00
+//   깜빡 속도 4.6  4.6  4.6  6.9  6.9        3.0→6.0 3.2→6.4 3.4→6.8
+//   (회/초, 예고 안에서 두 배로 가속)         4.0→8.0 4.6→9.2
+// ⚠️ **L5 주기 2.00s 는 원본과 같다.** 낮은 칸일수록 느려지고, L4 의 「예고
+// 단축」(원본 성장표 문구)이 경고 1.35s → .82s 로 그대로 살아 있다.
 lightfall(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
   st.F=st.F||mkFoes([[-50,-26,11],[44,-54,10],[16,38,9]]);stepFoes(st.F,dt);
-  const DROPS=atL(2)?4:3,TELE=atL(4)?.30:.45,HUGE=atL(5);
-  st.s=st.s||Array.from({length:4},(_,k)=>({f:st.F[k%st.F.length],u:k*.26,i:k}));
-  for(let si=0;si<DROPS;si++){const s=st.s[si];const pu=s.u;s.u=(s.u+dt*.5)%1;
-    if(pu<.45&&s.u>=.45){hitFoe(st,s.f,cx,cy,0,1,10);
+  const T4=[[1.05,.30,.78,.62],[.96,.28,.80,.54],[.86,.26,.84,.46],
+            [.62,.20,.90,.36],[.56,.18,1.10,.16]][LV-1];   // TELE·LOCK·FALL·CD
+  const TE=T4[0],LK=T4[1],FA=T4[2],CD=T4[3];
+  const PER=TE+LK+FA+CD,HIT=TE+LK;
+  const DROPS=[3,4,4,4,4][LV-1];
+  const BW  =[5,8,11,14,17][LV-1];       // 기둥 굵기 — L5 가 원본 값(17)
+  const RING=[20,22,24,26,28][LV-1];     // 예고링 반경 — L5 가 원본 값(28)
+  const SPL =[18,21,24,27,30][LV-1];     // 착탄 반경 — L5 가 원본 값(30)
+  const B0  =[1.5,1.6,1.7,2.0,2.3][LV-1];// 깜빡임 시작 주파수(Hz). 끝에서 2배
+  st.s=st.s||Array.from({length:4},(_,k)=>({f:st.F[k%st.F.length],u:0,i:k}));
+  // 주기가 레벨마다 달라 위상 간격도 같이 움직인다(원본의 `k*.26` 을 초로 옮김).
+  if(st.per!==PER){st.per=PER;for(const s of st.s)s.u=(s.i*PER*.26)%PER;}
+  for(let si=0;si<DROPS;si++){const s=st.s[si],pu=s.u;s.u=(s.u+dt)%PER;
+    if(pu<HIT&&s.u>=HIT){hitFoe(st,s.f,cx,cy,0,1,10);
       emit(st,cx+s.f.ox,cy+s.f.oy,18,{k:"gold",sp:220,r:3,life:.5,spikeP:.6});}}
   stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
-  for(let si=0;si<DROPS;si++){const s=st.s[si];const big=HUGE&&si===0;
+  for(let si=0;si<DROPS;si++){const s=st.s[si],big=atL(5)&&si===0,u=s.u;
     const x=cx+s.f.ox,y=cy+s.f.oy;
+    // 거대 기둥의 배율은 원본 비율 그대로 — 링 60/28 · 굵기 42/17.
+    const rr=RING*(big?60/28:1),bw=BW*(big?42/17:1),hw=big?7:4;
     // **몸보다 아래면 몸 앞이다.** 기둥은 화면 위에서 내려오지만 착탄점이
     // 아래면 기둥 아랫도리가 몸을 가려야 한다.
     dep(c,y,cy,(c,dz)=>{
-    if(s.u<TELE){const p=s.u/TELE,bl=.25+.6*Math.abs(Math.sin(p*13));
-      celHoop(c,x,y,big?60:28,.42,0,big?7:4,"gold",bl*dz);}
-    else{const p=(s.u-TELE)/(1-TELE),f=Math.pow(1-p,1.3)*dz;
-      celBeam(c,x,-10,x,y,(big?42:17)*f+3,"gold",f);
+    if(u<TE){                       // ① 깜빡임 — 뒤로 갈수록 빨라진다
+      const p=u/TE,ph=TAU*B0*TE*(p+.5*p*p);
+      celHoop(c,x,y,rr,.42,0,hw,"gold",(.20+.72*Math.abs(Math.sin(ph)))*dz);}
+    else if(u<HIT){                 // ② 고정 — 안 깜빡이고 조준이 좁혀 든다
+      const q=(u-TE)/LK;
+      celHoop(c,x,y,rr,.42,0,hw,"gold",dz);
+      celHoop(c,x,y,rr*(1.55-.55*q),.42,0,hw*.6,"gold",(.35+.55*q)*dz);}
+    else if(u<HIT+FA){              // ③ 기둥
+      const p=(u-HIT)/FA,f=Math.pow(1-p,1.3)*dz;
+      celBeam(c,x,-10,x,y,bw*f+3,"gold",f);
       if(atL(3))celPuff(c,x,y,20*f+6,8,si*7+3,"gold",f);
       // 착탄은 **적이 맞는 것**이지 땅이 파이는 게 아니다. 왕관 물보라와
       // 지면 파편을 걷어냈다 — 솟아오르는 느낌은 안 나면서 군더더기만
       // 남았다(2026-08-09 실기 판정). 기둥이 내리치고 적이 펑 하면 끝이다.
-      celSplash(c,x,y,30*f,10,s.i*5+3,"gold",f);}});}
+      celSplash(c,x,y,SPL*f,10,s.i*5+3,"gold",f);}
+    // ④ 쿨타임 — 아무것도 안 그린다
+    });}
   drawP(c,st);hero(c,t,cx,cy);},
 
 arc(c,t,dt,W,H,st){const cx=W/2,cy=H/2;
@@ -13427,6 +13578,7 @@ const PHYS=[["bolt","빛파동","WAVE","하나의 초승달 파도가 앞으로 
 ["lance","레이저","LANCE","짧은 빔이 부채를 훑는다 — 지나간 자리에 잔열이 남는다"],
 ["shotgun","빛폭탄","BOMB","굵고 느린 덩어리 한 발이 날아가 넓게 터진다"],
 ["bunroe","분뢰","BUNROE","가장 가까운 적에게 꽂고 — 조용히 빨다가 크게 터뜨린다. 죽을 때까지 반복"],
+["discus","빛원반","DISCUS","원반이 적이 몰린 쪽으로 날아갔다 다른 길로 돌아온다 — 가는 길·오는 길에 한 번씩, 같은 적도 두 번 문다"],
 ["sunpo","순포","SUNPO","굽은 빛 조각이 공전하며 사방으로 쏜다 — 달아오를수록 빨라지다 멈춘다"]];
 const MAGIC=[["sanctum","성역","SANCTUM","두꺼운 룬 링 2겹 + 도는 창"],
 ["pulse","파문","PULSE","두꺼운 링이 퍼지며 가장자리에 창이 선다"],
@@ -13453,7 +13605,8 @@ const MAGIC=[["sanctum","성역","SANCTUM","두꺼운 룬 링 2겹 + 도는 창"
 //   · 여명 · 정화 — 동사가 회복이다. 회복 분류로 옮겼다.
 //   · 섬광 — 피격 순간 적을 늦추고 눈멀게 한다. 그건 저주의 어휘(감속·실명)라
 //     봉인·암막과 겹친다. 방어구로는 남고 스킬로는 안 올린다.
-const GUARD=[["ward","결계","WARD","육각이 빈틈없이 붙은 구 방벽. 맞은 셀에서 번진다"],
+const GUARD=[["waveHalt","파동정지","HALT","고리가 퍼지며 닿은 적이 그 자리에 굳는다(1.3초). 감속이 아니라 0 이고, 풀릴 때 부서진다"],
+["ward","결계","WARD","육각이 빈틈없이 붙은 구 방벽. 맞은 셀에서 번진다"],
 ["chain","사슬","CHAIN","몸을 두른 마디가 닿는 순간 달아오른다 — 작은 것은 0 이 된다"],
 ["mirror","경면","MIRROR","정면 원호의 거울판. 등 뒤는 그대로 맞는다"],
 ["boulder","거암","BOULDER","각진 판 다섯. 잡몹은 그대로 아프고 거구만 받아 낸다"],
@@ -13476,8 +13629,7 @@ const CURSE=[["curse","저주","CURSE","각인이 박힌 놈만 물보라가 두
 // 길은 회복량을 깎는 것이 아니라 **입력을 붙이는 것**이다 — 넷 다 무조건
 // 흐르지 않는다. 그래서 잔불은 여전히 유일한 자동 재생원이다.
 // 바꿀 수 있는 것이 넷(시간·죽음·오염·자원)뿐이라 넷이다.
-const HEAL=[["dawn","여명","DAWN","안 맞은 시간이 회복이 된다. 닿아 있으면 절대 안 흐른다"],
-["reap","수확","REAP","처치가 회복이 된다. 안 싸우면 0 — 여명의 정확한 반대"],
+const HEAL=[["reap","수확","REAP","처치가 회복이 된다. 안 싸우면 0 — 여명의 정확한 반대"],
 ["purity","정화","PURITY","**피를 안 채우는 회복.** 되돌리는 것은 몸의 상태다"],
 ["tithe","공물","TITHE","암흑물질을 태운다 — 지금의 피와 다음 레벨을 맞바꾼다"]];
 // 개안은 **궁극기**다 — 화면 전역 즉발이라 주기로 도는 것이 아니라 게이지로 터진다.
@@ -13548,8 +13700,15 @@ const BIG_W=240;       // 전용기 — 도는 그림이라 조금 크되, 화�
 // 이제 크기는 **값**으로만 넘기고(`--cell`), 폭·줄바꿈은 CSS 가 정한다. 아티팩트로
 // 올릴 일이 생기면 `vfx.css` 머리 주석의 되돌리는 법을 따르면 된다 — 그때도
 // **한 곳만** 고치면 된다.
-function asRow(host,w){host.classList.add("grid");
-  if(w)host.style.setProperty("--cell",w+"px");}
+// ⚠️ **격자의 칸 폭은 「제일 넓은 칸」이 아니라 「보통 칸」이 정한다.**
+// [tile] 이 칸마다 이걸 다시 부르는데, 예전엔 마지막 칸이 무조건 이겼다. 그래서
+// 980 짜리 실화면 칸 하나가 섞이면 **그 줄 전체가 980 트랙**이 되어 나머지 칸
+// 옆에 거대한 빈자리가 생겼다(2026-08-12 심우주 페이지가 그렇게 깨졌다).
+// 넓은 칸은 어차피 `.wide` 로 한 줄을 통째로 쓰므로 트랙 폭에 **투표하지 않는다**.
+function asRow(host,w,vote=true){host.classList.add("grid");
+  if(w&&vote){
+    const cur=parseFloat(host.dataset.cell||0);
+    if(w>cur){host.dataset.cell=w;host.style.setProperty("--cell",w+"px");}}}
 function asCell(el,w){el.classList.add("tile");
   if(w)el.style.setProperty("--cell",w+"px");}
 
@@ -13588,8 +13747,13 @@ const VIS=window.IntersectionObserver?new IntersectionObserver(es=>{
     a.vis=e.isIntersecting;
     if(a.vis)mkAlloc(a);else mkFree(a);}},
   {rootMargin:"300px"}):null;
-function tile(host,reg,key,nm,en,ds,S,W,H){
-  asRow(host,W||TILE_W);
+/// ⚠️ `lv` 는 **선택 인자**다 — 안 주면 전역 `LV`(기본 1) 그대로다.
+/// 2026-08-13 사용자 확정: **스킬 격자는 L5(완성형)로 그린다.** L1 을 초라하게
+/// 너프하고 나니 격자에 제일 약한 그림이 서서 「이 스킬이 무엇인가」가 안 읽혔다.
+/// ⚠️ **`tile()` 전부에 걸면 안 된다** — 129곳이 쓰고 유니버스·우주괴물·아이콘도
+/// 그 안에 있다. 스킬 목록 표들만 `5` 를 넘긴다.
+function tile(host,reg,key,nm,en,ds,S,W,H,lv){
+  asRow(host,W||TILE_W,!H);              // 넓은 칸(H 있음)은 트랙 폭 투표에서 빠진다
   const d=document.createElement("div");d.className="tile";asCell(d,W);
   if(H)d.classList.add("wide");                    // 보스 — 한 줄에 하나
   const cv=document.createElement("canvas");
@@ -13605,8 +13769,9 @@ function tile(host,reg,key,nm,en,ds,S,W,H){
   d.appendChild(cap);host.appendChild(d);
   // **무기 고유색.** reg 가 FX 일 때만 입힌다(속성 몸·융화는 자기 색이 있다).
   const fn=reg[key],tk=(reg===FX)?WTONE[key]:null;
-  mk(cv,[S,H||S],tk?(c,t,dt,W,H,st)=>{const sv=RECOLOR;RECOLOR=tk;
-      try{fn(c,t,dt,W,H,st);}finally{RECOLOR=sv;}}:fn);}
+  mk(cv,[S,H||S],(tk||lv)?(c,t,dt,W,H,st)=>{const sv=RECOLOR,sl=LV;
+      if(tk)RECOLOR=tk; if(lv)LV=lv;
+      try{fn(c,t,dt,W,H,st);}finally{RECOLOR=sv;LV=sl;}}:fn);}
 const vocHost=$("voc");asRow(vocHost,VOC_W);
 VOCL.forEach(([k,nm,ds])=>{const d=document.createElement("div");d.className="v";asCell(d);
   const cv=document.createElement("canvas");
@@ -13630,7 +13795,7 @@ FOEDEF.filter(d=>d[0].startsWith("boss")).forEach(([k,nm,rad,eyes,ds])=>
   tile($("bossgrid"),FOE,k,`${nm} · r${rad} · 눈 ${eyes}`,"",ds,S));
 FOEDEF.filter(d=>d[0].startsWith("boss")).forEach(([k,nm,rad,eyes,ds])=>
   tile($("bosses"),FOE,k,nm,"",ds,980,0,640));
-PHYS.forEach(w=>tile($("phys"),FX,w[0],w[1],w[2],w[3],S));
+PHYS.forEach(w=>tile($("phys"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
 // 기본 공격이 쓰는 속성 목록 — **평소 칸과 발현 칸이 같은 목록을 본다.**
 // 둘이 갈라지면 「이 속성은 발현 그림이 없네」가 조용히 생긴다.
 const BASICELEMS=[["gold","무속성"],["ember","염 炎"],["frost","빙 氷"],["volt","뇌 雷"],
@@ -13675,79 +13840,6 @@ if($("basicmani")){const BM=$("basicmani");asRow(BM,TILE_W);
 // 세 칸이 전부다. **속성 목록을 안 돈다** — 그것이 「셋뿐」이라는 판단을
 // 코드에서도 한 번 더 말한다(18칸을 도는 위의 블록과 나란히 놓고 보면
 // 규모 차이가 그대로 보인다).
-const MANICK=["recall","wall","halt"];
-const MANICFN={recall:FX.manicRecall,wall:FX.manicWall,halt:FX.manicHalt};
-/// 전용기 칸 하나. [k] 는 전용기, [el] 은 입힐 속성(null 이면 무속성).
-/// 크기만 다르고 그리는 것은 같다 — 3택 카드와 큰 칸이 **같은 그림**이라야
-/// 「카드에서 본 그것이 판에서 나온다」가 이어진다.
-///
-/// ⚠️ 폭 인자(옛 [wcss])를 **뺐다** (2026-08-12). 「한 줄에 정확히 넷」은 칸에
-/// 고정폭을 박아서가 아니라 **격자의 열 수**로 지킨다 — 속성 표는 `.gridn` 에
-/// `--n:4` 를 준다. 칸에 폭을 박으면 그것이 스타일시트를 이겨 어떤 미디어
-/// 질의도 안 먹는다(모바일에서 2열로 접을 수가 없다).
-function manicTile(host,k,el,px,cap){
-  const d=document.createElement("div");d.className="tile";
-  const cv=document.createElement("canvas");
-  box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
-  d.appendChild(cv);
-  if(cap)d.insertAdjacentHTML("beforeend",cap);
-  host.appendChild(d);
-  mk(cv,[px,px],(c,t,dt,W,H,st)=>{const sr=RECOLOR,sl=LV;RECOLOR=el;LV=3;
-    try{MANICFN[k](c,t,dt,W,H,st);}finally{RECOLOR=sr;LV=sl;}});}
-if($("manic")){const MH=$("manic");asRow(MH,BIG_W);
-  MANICK.forEach(k=>{const m=MANICDESC[k];
-    manicTile(MH,k,null,480,
-      `<div class="cap" style="padding:9px 11px 10px;border-top:1px solid #26262F">`+
-      `<div style="font-size:14.5px;font-weight:600;color:#EDEDF2">${m[0]}`+
-      `<span style="font-size:10.5px;color:#5A5A68;font-weight:500;margin-left:7px">축 · ${m[1]}</span></div>`+
-      `<div style="font-size:11px;color:#FFB43C;margin-top:3px;line-height:1.45">${
-        m[2].replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}</div></div>`);});}
-// 속성이 얹히는 것을 확인하는 줄 — **18칸을 다 그리지 않는 이유가 이 줄이다.**
-// 18칸은 네 층(무속성 · 기본 6 · 융화 10 · 백광)으로 나뉘는데, 층마다 하나씩만
-// 봐도 갈리는 것이 **색과 상태**뿐이라는 것이 확인된다. 다 그리면 확인이 아니라
-// 나열이고, 나열은 유지비만 는다.
-const MANICEL=[[null,"무속성"],["ember","염 炎"],["magnet","자 磁"],["white","백광 白光"]];
-if($("manictint")){const MT=$("manictint");
-  box(MT,{display:"flex",flexDirection:"column",gap:"9px",width:"100%"});
-  // ⚠️ **줄을 명시로 나눈다.** 열둘을 한 통에 넣고 감기게 두었더니 창 너비에
-  // 따라 여섯씩 감겨 「줄이 전용기」가 거짓이 됐다(2026-08-11 렌더 판정).
-  // 25% 폭으로 넷을 맞추는 방법도 있는데, 그러면 칸이 360px 이 되어 **칠할
-  // 면적이 세 배**다 — 이 페이지가 「면적을 아낀다」고 적어 놓고 스스로 어기는
-  // 꼴이라, 칸은 작게 두고 줄만 나눈다.
-  // 이 줄은 **열 수가 뜻을 진다** — 칸이 속성 넷이므로 폭을 따라 감기면 안 된다.
-  MANICK.forEach(k=>{const row=document.createElement("div");
-   row.className="gridn";row.style.setProperty("--n",MANICEL.length);MT.appendChild(row);
-   MANICEL.forEach(([el,nm])=>{
-    manicTile(row,k,el,420,
-      `<div class="cap" style="padding:7px 9px 8px;border-top:1px solid #26262F">`+
-      `<div style="font-size:12px;font-weight:600;color:#EDEDF2">${MANICDESC[k][0].split(" ")[0]} · ${nm}</div>`+
-      `<div style="font-size:9.5px;color:#9494A2;margin-top:2px">${
-        PVNAME[PASSIVE[el||"gold"]]||"— 패시브 없음"}</div></div>`);});});}
-// 발현 각인 3택 — **판당 한 번, 첫 발현의 순간.** 카드의 그림이 위 칸과 같은
-// 함수라, 「카드에서 고른 그것」과 「판에서 나오는 그것」이 어긋날 수가 없다.
-if($("manicpick")){const MP=$("manicpick");
-  box(MP,{display:"grid",gap:"14px",width:"100%",maxWidth:"760px",
-    gridTemplateColumns:"repeat(auto-fit,minmax(min(224px,100%),1fr))"});
-  MANICK.forEach((k,i)=>{const m=MANICDESC[k];
-    const d=document.createElement("div");d.className="card"+(i===1?" pick":"");
-    box(d,{background:"linear-gradient(180deg,#1A1A24,#101018)",
-      border:"1px solid "+(i===1?"#FF8A3D":"#26262F"),borderRadius:"4px",
-      padding:"17px 14px 15px",display:"flex",flexDirection:"column",
-      alignItems:"center",gap:"10px",textAlign:"center",boxSizing:"border-box"});
-    const cv=document.createElement("canvas");
-    box(cv,{width:"150px",height:"150px",borderRadius:"50%",
-      background:"#0C0C12",border:"1px solid #262630"});
-    d.appendChild(cv);
-    d.insertAdjacentHTML("beforeend",
-      `<div style="font-size:15.5px;font-weight:600;color:#EDEDF2">${m[0]}</div>`+
-      `<div style="font-size:10.5px;letter-spacing:.2em;color:#FF8A3D">발현 전용 · 축 ${m[1]}</div>`+
-      `<div style="font-size:11.5px;color:#9494A2;line-height:1.5;min-height:4.5em">${
-        m[2].replace(/\*\*(.+?)\*\*/g,"<b style='color:#EDEDF2'>$1</b>")}</div>`+
-      `<div style="font-size:10px;letter-spacing:.1em;color:#5A5A68;`+
-      `border-top:1px solid #26262F;padding-top:8px;width:100%">슬롯을 안 먹는다 · 판당 한 번만 고른다</div>`);
-    MP.appendChild(d);
-    mk(cv,[300,300],(c,t,dt,W,H,st)=>{const sr=RECOLOR,sl=LV;RECOLOR=null;LV=3;
-      try{MANICFN[k](c,t,dt,W,H,st);}finally{RECOLOR=sr;LV=sl;}});});}
 // ── 속성마다 셋 — 기본 · 발현 · 전용기 (`#elem3`, 캐릭터 페이지) ─────────
 //
 // 사용자 판정(2026-08-12): 「기본·발현 쪽의 **속성별 나열**은 오히려 캐릭터에서
@@ -13768,13 +13860,13 @@ if($("elem3")){const E3=$("elem3");
   E3.classList.add("lvset");
   E3.style.setProperty("--block","420px");
   E3.style.setProperty("--blockmax","560px");
-  const E3STEP=[["기본","기본 공격"],["발현","발현 중"],["전용","발현 전용기"]];
+  const E3STEP=[["기본","기본 공격"],["발현","발현 중"]];
   BASICELEMS.forEach(([k,nm])=>{
     const blk=document.createElement("div");blk.className="lvblock";
     blk.insertAdjacentHTML("beforeend",
-      `<div class="hd"><b>${nm}</b><span>기본 · 발현 · 전용기</span></div>`);
+      `<div class="hd"><b>${nm}</b><span>기본 · 발현</span></div>`);
     const cells=document.createElement("div");
-    cells.className="cells";cells.style.setProperty("--n",3);
+    cells.className="cells";cells.style.setProperty("--n",2);
     E3STEP.forEach(([tag,lbl],i)=>{
       const cell=document.createElement("div");cell.className="cell";
       const cv=document.createElement("canvas");cell.appendChild(cv);
@@ -13789,12 +13881,7 @@ if($("elem3")){const E3=$("elem3");
         const sr=RECOLOR,sl=LV;RECOLOR=k;LV=3;
         try{
           if(i===0)FX.basic(c,t,dt,W,H,st);
-          else if(i===1)FX.basicMani(c,t,dt,W,H,st);
-          else{
-            const mk3=MANICK[Math.floor(t/5)%MANICK.length];
-            if(dsc&&dsc.dataset.k!==mk3){dsc.dataset.k=mk3;
-              dsc.textContent=MANICDESC[mk3][0]+" · "+MANICDESC[mk3][1];}
-            MANICFN[mk3](c,t,dt,W,H,st);}
+          else FX.basicMani(c,t,dt,W,H,st);
         }finally{RECOLOR=sr;LV=sl;}});});
     blk.appendChild(cells);E3.appendChild(blk);});}
 
@@ -13832,11 +13919,11 @@ if($("basicelem")){const BE=$("basicelem"),BEF=$("basicelemf");
     mk(cv,[420,420],(c,t,dt,W,H,st)=>{const sr=RECOLOR,sl=LV;RECOLOR=k;LV=3;
       try{FX.basic(c,t,dt,W,H,st);}finally{RECOLOR=sr;LV=sl;}});});}
 
-MAGIC.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[3],S));
-GUARD.forEach(w=>tile($("guard"),FX,w[0],w[1],w[2],w[3],S));
-CURSE.forEach(w=>tile($("curse"),FX,w[0],w[1],w[2],w[3],S));
-HEAL .forEach(w=>tile($("heal"), FX,w[0],w[1],w[2],w[3],S));
-ULT.forEach(w=>tile($("ult"),FX,w[0],w[1],w[2],w[3],S));
+MAGIC.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
+GUARD.forEach(w=>tile($("guard"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
+CURSE.forEach(w=>tile($("curse"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
+HEAL .forEach(w=>tile($("heal"), FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
+ULT.forEach(w=>tile($("ult"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
 ELEMS.forEach(w=>tile($("elem"),ELEM,w[0],w[1],w[2],w[3],S));
 MORPHS.forEach(w=>tile($("morph"),ELEM,w[0],w[1],w[2],w[3],S));
 const TINT=[["gold","무속성","BASE"],["ember","염 炎","EMBER"],["frost","빙 氷","FROST"],
@@ -13857,7 +13944,7 @@ TINT.forEach(([k,nm,en])=>{
 
 const hc=$("hero");
 box(hc,{width:"100%",height:"auto",display:"block",aspectRatio:"16/7",background:"#0C0C12"});
-box(hc.parentElement,{width:"100%",flex:"1 1 100%",background:"#13131A",
+box(hc.parentElement,{width:"100%",flex:"1 1 100%",gridColumn:"1/-1",background:"#13131A",
   border:"1px solid #26262F",borderRadius:"4px",overflow:"hidden",boxSizing:"border-box"});
 mk(hc,[980,430],combat);
 
@@ -13936,6 +14023,9 @@ const fvCell=(host,el,vi,tag,col)=>{
       row.appendChild(d);
       mk(cv,[186,186],(c,t,dt,W,H,st)=>fvBody(c,t,dt,W,H,st,el,vi));});});
   sec.appendChild(row);
+  // ⚠️ `wip` 절은 **어느 페이지에도 없다**(2026-08-13 린터가 잡았다). [$] 가
+  // 떨어진 요소를 돌려주므로 아래 숨김 코드는 아무 일도 안 하고 조용히 돈다.
+  // 남겨 두는 이유: `FVKEEPALL` 이 다시 차면 절만 만들면 되살아난다.
   const wipHost=$("wip");
   if(!wipKeys.length){const h=wipHost.previousElementSibling;
     for(let e=h;e;e=e.previousElementSibling){e.style.display="none";
@@ -13977,7 +14067,11 @@ CARDS.forEach(([k,nm,lv,ds,slot,pick])=>{
 // 바꿔 같은 함수를 부른다) 안 보이는 것을 적으면 표가 거짓말을 한다:
 // 「보이는 것만 레벨에 둔다」. 그리고 실명은 L3 특전에서 **L1 기본**으로
 // 내렸다 — 눈을 뜨면 남이 눈을 잃는 것이 궁극기의 정체지 레벨 보상이 아니다.
-const LVT={"bolt": ["더 빨리 나가고 부채각이 살짝 넓어진다 (최대 3)", "파동 2개 — 뒤따라 한 번 더. 각자 따로 문다 (최대 3)", "파동 3개 (최대 4)", "각성 — 마루에 갈퀴가 서고 범위가 넓어진다 (최대 5)"], "orbit": ["궤도선이 난다 — 선에 닿은 적에게 틱 피해 (바깥 2)", "이중 궤도 — 안쪽에 역방향 (안 2 · 바깥 2)", "안쪽 3 · 바깥 2", "각성 — 갈퀴가 서고 안 3 · 바깥 4"], "smg": ["2가닥 1자", "2가닥 + 약한 유도탄 1", "3가닥 V자(가운데만 1자) + 유도탄 2", "각성 — 4가닥 V자, 가운데 둘은 과열되어 붉다"], "seeker": ["유도탄 2발", "유도탄 3발 — 탄속·피해 증가, 탄도 두꺼워진다", "분열 — 명중하면 다른 적을 무는 자탄 1발이 갈라져 나온다", "각성 — 유도탄 4발, 자탄 2발로 쪼개진다"], "scatter": ["산탄 5발 → 7발", "근거리 집탄 — 가까울수록 피해 집중", "산탄 9발 + 부채 65°", "더블 탭 — 0.1s 간격 2연발"], "saber": ["길이 +40%", "검이 두꺼워짐 — 전방 반원 전체", "2연속 베기 — 좌→우, 우→좌", "참격 잔상 — 벤 자리에 남아 추가 피해"], "lance": ["사거리 +50% — 칸을 넘어간다", "잔열 — 훑고 지나간 자리가 남아 계속 탄다", "훑는 폭 2배(69°) + 빔이 굵어진다", "각성 — 뒤로도 하나(양방향), 굵기 최대"], "sunpo": ["판 2기 — 막는 각도도 같이 는다", "판 3기 — **2갈래** 발사", "판 4기 — **3갈래**, 과부하 구간도 길다", "각성 — 판 5기 · 가운데 셀이 **파랗게 벼려져 굵은 광탄**을 쏜다, 그리고 **과열이 없다**"], "bunroe": ["실 3가닥 + 터진 자리에 잔광 고리", "빨대 2개 동시 — 실 4가닥", "빨대 3개 · 터짐 2배", "각성 — 빨대 4개 · 실 8가닥"], "shotgun": ["범위 +35%", "넉백 — 맞은 적이 밀려남", "사거리 +40%", "착탄 폭발 — 2차 피해"], "sanctum": ["반경 +30%", "감속 35%", "틱 0.4→0.25s", "3초 잔류 — 나가도 남는다"], "pulse": ["반경 +25%", "넉백 +80%", "2중 파문 — 안쪽에 빠른 것 하나 더", "최대 반경에 감속 지대"], "lightfall": ["낙하 지점 +1", "착탄 소폭발", "예고 단축 — 더 빨리 떨어진다", "거대 기둥 1회 섞임 — 화면 1/4"], "arc": ["튕김 5→7", "분기 — 첫 튕김에서 두 갈래", "튕김 7→10", "회귀 — 마지막 적에서 돌아오며 경로 전부 재타격"], "pillar": ["기둥 +2", "경직 0.6s", "반경 +35%", "2차 분출 — 꺼진 자리에서 한 번 더"], "ward": ["빈틈이 메워진다 — 셀 21→29, 회전 +30%", "반사 — 셀 표면에 거울 빗금", "이중 껍질 — 안쪽에 고리 하나 더, 셀 +40%", "파열 — 깨진 셀이 터지고 재생"], "wisp": ["정령 +1", "적을 관통하며 지나감", "정령 +1 (셋째)", "정령끼리 빛의 선으로 연결 — 선도 피해"], "flare": ["눈 둘 — 개안이 겹쳐 섬광이 두 겹이 된다", "눈 셋 + 고리 한 겹 — 파동이 화면 모서리를 넘어간다", "두 번 친다 — 한 박자 뒤 같은 것이 한 번 더", "잔상 — 창이 열려 있는 동안 화면이 계속 밝다(전역 지속 피해)"], "ignite": ["연소 지속 +50%", "전염 — 연소 중 죽으면 옮겨붙는다", "폭발 반경 +40%", "3중첩 — 연소가 겹쳐 쌓인다"],
+const LVT={"discus": ["원반 2장 — 부챗살로 갈라 던진다. 원반이 조금 커진다","원반 3장 — 더 멀리 나가 고리가 길어진다","원반 4장 — 고리가 넓어져 왕복이 갈라진다","각성 — 원반 5장. 제일 크고, 제일 넓고 길게 돈다"],
+"bolt": ["더 빨리 나가고 부채각이 살짝 넓어진다 (최대 3)", "파동 2개 — 뒤따라 한 번 더. 각자 따로 문다 (최대 3)", "파동 3개 (최대 4)", "각성 — 마루에 갈퀴가 서고 범위가 넓어진다 (최대 5)"], "orbit": ["궤도선이 난다 — 선에 닿은 적에게 틱 피해 (바깥 2)", "이중 궤도 — 안쪽에 역방향 (안 2 · 바깥 2)", "안쪽 3 · 바깥 2", "각성 — 갈퀴가 서고 안 3 · 바깥 4"], "smg": ["2가닥 1자", "2가닥 + 약한 유도탄 1", "3가닥 V자(가운데만 1자) + 유도탄 2", "각성 — 4가닥 V자, 가운데 둘은 과열되어 붉다"], "seeker": ["유도탄 2발", "유도탄 3발 — 탄속·피해 증가, 탄도 두꺼워진다", "분열 — 명중하면 다른 적을 무는 자탄 1발이 갈라져 나온다", "각성 — 유도탄 4발, 자탄 2발로 쪼개진다"], "scatter": ["산탄 5발 → 7발", "근거리 집탄 — 가까울수록 피해 집중", "산탄 9발 + 부채 65°", "더블 탭 — 0.1s 간격 2연발"], "saber": ["길이 +40%", "검이 두꺼워짐 — 전방 반원 전체", "2연속 베기 — 좌→우, 우→좌", "참격 잔상 — 벤 자리에 남아 추가 피해"], "lance": ["사거리 +50% — 칸을 넘어간다", "잔열 — 훑고 지나간 자리가 남아 계속 탄다", "훑는 폭 2배(69°) + 빔이 굵어진다", "각성 — 뒤로도 하나(양방향), 굵기 최대"], "sunpo": ["판 2기 — 막는 각도도 같이 는다", "판 3기 — **2갈래** 발사", "판 4기 — **3갈래**, 과부하 구간도 길다", "각성 — 판 5기 · 가운데 셀이 **파랗게 벼려져 굵은 광탄**을 쏜다, 그리고 **과열이 없다**"], "bunroe": ["실 3가닥 + 터진 자리에 잔광 고리", "빨대 2개 동시 — 실 4가닥", "빨대 3개 · 터짐 2배", "각성 — 빨대 4개 · 실 8가닥"], "shotgun": ["범위 +35%", "넉백 — 맞은 적이 밀려남", "사거리 +40%", "착탄 폭발 — 2차 피해"], // ⚠️ 마법 셋(성역·파문·낙광)은 **다섯 칸이 다 갈린다**(2026-08-13 판정을 이식).
+//   반경·폭·굵기가 칸마다 자라므로 「반경 +30%」처럼 한 칸에만 붙는 말로는
+//   표가 그림을 못 따라간다. L1 문구는 [LVT1] 에 있다.
+"sanctum": ["안쪽 링이 붙는다 — 「룬 링 2겹」이 여기서 완성된다. 반경 80", "서리 결정 6개 — 감속. 반경 92, 둘째 적이 편입된다", "창이 6 → 12 · 틱 .24 → .15s — 처음으로 「빽빽하다」가 된다", "바깥에 잔류 링 — 반경 109 · 폭 7"], "pulse": ["반경 76 · 폭 7.5 — 나머지 셋이 한꺼번에 사정권에 든다", "반경 100 · 폭 10 · 창 8 — 반경·폭이 한 단씩", "2중 파문 — 얇고 빠른 선파가 본파보다 먼저 지나간다. 반경 126", "3연타 — 느리고 굵은 종파가 뒤따른다. 최대 반경에 감속 지대. 반경 150"], "lightfall": ["낙하 지점 3 → 4. 굵기 8 · 경고 1.24s", "착탄 소폭발. 굵기 11 · 경고 1.12s", "예고 단축 — 경고가 .82s 로 줄어 처음으로 「빨리 떨어진다」. 굵기 14", "거대 기둥 1회 섞임 — 굵기 17 · 거대 42 · 경고 .74s"], "arc": ["튕김 5→7", "분기 — 첫 튕김에서 두 갈래", "튕김 7→10", "회귀 — 마지막 적에서 돌아오며 경로 전부 재타격"], "pillar": ["기둥 +2", "경직 0.6s", "반경 +35%", "2차 분출 — 꺼진 자리에서 한 번 더"], "ward": ["빈틈이 메워진다 — 셀 21→29, 회전 +30%", "반사 — 셀 표면에 거울 빗금", "이중 껍질 — 안쪽에 고리 하나 더, 셀 +40%", "파열 — 깨진 셀이 터지고 재생"], "wisp": ["정령 +1", "적을 관통하며 지나감", "정령 +1 (셋째)", "정령끼리 빛의 선으로 연결 — 선도 피해"], "flare": ["눈 둘 — 개안이 겹쳐 섬광이 두 겹이 된다", "눈 셋 + 고리 한 겹 — 파동이 화면 모서리를 넘어간다", "두 번 친다 — 한 박자 뒤 같은 것이 한 번 더", "잔상 — 창이 열려 있는 동안 화면이 계속 밝다(전역 지속 피해)"], "ignite": ["연소 지속 +50%", "전염 — 연소 중 죽으면 옮겨붙는다", "폭발 반경 +40%", "3중첩 — 연소가 겹쳐 쌓인다"],
 // ── 방어 5 (결계는 위에) ────────────────────────────────────────────────
 // armor.dart 는 L2·L4 를 둘 다 「+40%」로 두었는데, 굵기를 두 번 키우면
 // 성장표에서 두 칸이 같은 그림이 되어 표가 거짓말을 한다. 두 번째 +40% 는
@@ -13999,6 +14093,17 @@ const LVT={"bolt": ["더 빨리 나가고 부채각이 살짝 넓어진다 (최�
 "purity": ["해독 — 독이 몸에 붙지 못한다", "씻김 — 상태이상이 두 배로 빨리 마른다(물결 둘)", "해빙 — 동상이 반 박자 안에 깨진다", "각성 — 반향. 씻어낸 것을 적에게 되쏜다"],
 "tithe": ["요구 젬 4 → 3", "자동 — 위기(HP 45% 이하)엔 모자라도 태운다", "회복량 +40%", "각성 — 대공물. 모아둔 전부를 한 번에 태운다"]};
 
+/// L1 문구. **[LVT] 는 L2 부터**라는 계약을 안 깬다 — 다섯 칸이 다 갈리는 줄만
+/// 여기에 첫 칸을 적고, 안 적힌 줄은 그대로 「기준 디자인」이다.
+///
+/// ⚠️ 왜 [LVT] 에 다섯째를 못 붙이나: 그 표를 **L2 부터로 읽는 곳이 둘**이다
+/// ([lvTable] 로 조립하는 곳과 신설 마법 줄의 `[L-2]`). 한 줄만 다섯 칸으로
+/// 만들면 나머지 한 곳이 문구를 통째로 한 칸씩 밀어 읽는다.
+const LVT1={
+  sanctum  :"반경 68 · 폭 5 · 창 6 — 한 겹. 밟고 선 하나만 문다",
+  pulse    :"반경 52 · 폭 5 — 제일 가까운 하나만 쓸고 만다",
+  lightfall:"굵기 5 · 낙하 지점 3 — 깜빡임이 두 배로 빨라지고, 멎고, 떨어진다"};
+
 // ── 레벨 성장표 ───────────────────────────────────────────────────────────
 // 17행 × 5열. 각 칸은 **전역 LV 를 자기 값으로 바꿔놓고** 같은 FX 함수를 부른다
 // — 레벨판을 따로 그리면 기준 디자인과 어긋나고, 그러면 이 표가 거짓말을 한다.
@@ -14012,7 +14117,7 @@ const LVT={"bolt": ["더 빨리 나가고 부채각이 살짝 넓어진다 (최�
 const LVN={"궁극기":3};
 const LVW=[["bolt","빛파동","물리"],["orbit","공전","물리"],["smg","빛따발총","물리"],
 ["seeker","유도탄","물리"],["scatter","빛산탄총","물리"],["saber","광선검","물리"],
-["lance","레이저","물리"],["shotgun","빛폭탄","물리"],["bunroe","분뢰","물리"],["sunpo","순포","물리"],["sanctum","성역","마법"],
+["lance","레이저","물리"],["shotgun","빛폭탄","물리"],["bunroe","분뢰","물리"],["discus","빛원반","물리"],["sunpo","순포","물리"],["sanctum","성역","마법"],
 ["pulse","파문","마법"],["lightfall","낙광","마법"],["arc","뇌광","마법"],
 ["pillar","광주","마법"],["ward","결계","방어"],["wisp","정령","마법"],
 ["flare","개안","궁극기"],["ignite","점화","마법"],
@@ -14020,7 +14125,7 @@ const LVW=[["bolt","빛파동","물리"],["orbit","공전","물리"],["smg","빛
 ["karma","응보","방어"],["gale","질풍","방어"],
 ["curse","저주","저주"],["plague","역병","저주"],["shackle","속박","저주"],
 ["seal","봉인","저주"],["veil","암막","저주"],
-["dawn","여명","회복"],["reap","수확","회복"],["purity","정화","회복"],
+["reap","수확","회복"],["purity","정화","회복"],
 ["tithe","공물","회복"]];
 // 시안이 페이지로 갈린 뒤(2026-08-09), 성장표도 **무기 페이지엔 물리만 ·
 // 마법 페이지엔 마법만** 간다. 한쪽 그릇이 없으면 $() 가 떨어진 요소를
@@ -14051,6 +14156,106 @@ const LVBLOCKMIN=520;
 /// 기준으로는 1.47배 초과표본이다.
 const LVD=220;
 
+/// ⭐⭐ **레벨 덩어리 표를 찍는 단 하나의 손** (2026-08-13 신설).
+///
+/// 이 함수가 생기기 전에는 **같은 마크업을 열다섯 곳에서 손으로 조립**했다.
+/// 손마다 앞의 것을 베껴 갔고 **베낄 때마다 조금씩 다르게 틀렸다** — 하루에
+/// 시안 페이지가 네 번 깨졌는데 원인이 셋뿐이었고 셋 다 이 복붙에서 났다:
+///
+///   A `.lvset` 을 [tile] 이 이미 `.grid` 를 붙인 호스트에 얹었다
+///     → 격자 규칙 둘이 싸워 **그 페이지 낱칸이 통째로 2열로 무너진다**
+///   B 격자 안에서 `flex:1 1 100%` 로 전폭을 만들려 했다
+///     → 격자에서 flex 는 아무 일도 안 해 **덩어리가 칸 하나(≈186px)에 구겨진다**
+///   C 호스트는 A 를 잡고 조건은 B 를 봤다 → **통째로 0칸**
+///
+/// ⚠️ **셋 다 예외를 안 낸다.** A·B 는 CSS 라 캔버스가 멀쩡하고, C 는 [$] 가
+/// 떨어져 있는 캔버스를 돌려주며 삼킨다. 스모크 1153칸이 예외 0 으로 통과하는
+/// 채로 화면만 깨져 있었다. 그래서 **마크업을 여기 한 곳에 가둔다** — 손이
+/// 마크업을 볼 일이 없으면 A·B 를 낼 방법이 없다.
+///
+/// ```
+/// lvTable({host:"levelsg", rows:GLROWS})           // 대부분 이 두 줄이면 된다
+/// lvTable({host:"levelsm", rows:ILROWS, hostOf:k=>k==="ILwall"?"levelsg":null})
+/// ```
+///
+/// | 인자 | 뜻 | 기본 |
+/// |---|---|---|
+/// | `host` | id 문자열 또는 요소 | — |
+/// | `rows` | `[[키, 이름, 부제, [칸설명…]], …]` | — |
+/// | `reg` | 그림 레지스트리 | `FX` |
+/// | `n` | 열 수 | 칸설명 길이 또는 5 |
+/// | `cell` | 캔버스 변(px) | `LVD` |
+/// | `tone` | `null`(안 물들임) · `"wtone"` · 고정 키 | `null` |
+/// | `label` | `"L"`(L1·L2…) · `"안"`(1안·2안…) | `"L"` |
+/// | `sub` | 머리 오른쪽 글씨. 줄이 제 것을 주면 그게 이긴다 | — |
+/// | `hostOf` | `(키)=>다른 호스트 id`. 줄 하나를 딴 페이지로 보낸다 | — |
+/// | `color` | 강조 칸 글자색 | `#FFA83C` |
+/// | `first` | 첫 칸 설명이 비었을 때 채울 말 | — |
+/// | `name` | 스모크 `--only=` 가 무는 이름 | `"LVcell"` |
+function lvTable(o){
+  const rows=o.rows||[];
+  const reg=o.reg||FX;
+  const CELL=o.cell||LVD;
+  const COLOR=o.color||"#FFA83C";
+  const NAME=o.name||"LVcell";
+  // ⚠️ **`.lvset` 은 여기서만 건다.** 호스트가 이미 `.grid` 면(=[tile] 이
+  // 다녀갔으면) 덮어쓰지 않고 **껍데기를 하나 끼운다** — 사고 A 를 구조적으로 막는다.
+  // CSS 의 `.grid>*:not(.tile):not(.v){grid-column:1/-1}` 가 전폭을 주므로
+  // 인라인 `flex` 를 걸 이유도 없다(사고 B).
+  const wrapOf=(id)=>{
+    const h=(typeof id==="string")?document.getElementById(id):id;
+    if(!h)return null;
+    if(h.__lv)return h.__lv;                       // 같은 호스트엔 껍데기 하나만
+    const w=h.classList.contains("grid")?document.createElement("div"):h;
+    w.classList.add("lvset");
+    w.style.setProperty("--block",LVBLOCKMIN+"px");
+    w.style.setProperty("--blockmax",LVBLOCKMAX+"px");
+    if(w!==h)h.appendChild(w);
+    h.__lv=w;return w;};
+  const main=wrapOf(o.host);
+  if(!main)return 0;
+  let made=0;
+  for(const r of rows){
+    const [key,nm,sub,txt]=r;
+    const fn=reg[key];
+    if(!fn)continue;                               // 없는 그림은 조용히 건너뛴다
+    const W=(o.hostOf&&o.hostOf(key)) ? wrapOf(o.hostOf(key)) : main;
+    if(!W)continue;
+    // `n` 은 수 또는 **줄마다 재는 함수**다 — 원본 성장표는 계열마다 단수가
+    // 다르다(`LVN={"궁극기":3}`).
+    const N=(typeof o.n==="function"?o.n(key,r):o.n)||(Array.isArray(txt)?txt.length:5);
+    const row=document.createElement("div");
+    row.className="lvblock";
+    row.insertAdjacentHTML("beforeend",
+      `<div class="hd"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
+      `<span style="font-size:10px;color:#5A5A68">${sub||o.sub||""}</span></div>`);
+    const cells=document.createElement("div");
+    cells.className="cells";cells.style.setProperty("--n",N);
+    for(let L=1;L<=N;L++){
+      const cell=document.createElement("div");
+      cell.className="cell";
+      const cv=document.createElement("canvas");
+      box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
+      cell.appendChild(cv);
+      const lb=(o.label==="안")?(L+" 안"):("L"+L);
+      const ds=(Array.isArray(txt)?(txt[L-1]||""):"")||((L===1&&o.first)?o.first:"");
+      cell.insertAdjacentHTML("beforeend",
+        `<div class="lb">`+
+        `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
+        `color:${L===1?"#9494A2":COLOR}">${lb}</div>`+
+        `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
+        `min-height:3.6em">${ds}</div></div>`);
+      cells.appendChild(cell);
+      // ⚠️ 이름 있는 함수식이라야 [mk] 가 label 을 잡는다 —
+      // `mockup_smoke.js --only=…` 가 이 줄만 골라 돌 수 있다.
+      const TK=(typeof o.tone==="function")?o.tone(key):((o.tone==="wtone")?WTONE[key]:(o.tone||null));
+      const f={[NAME]:function(c,t,dt,W2,H2,st){const sl=LV,sr=RECOLOR;
+        LV=L;RECOLOR=TK;
+        try{fn(c,t,dt,W2,H2,st);}finally{LV=sl;RECOLOR=sr;}}}[NAME];
+      mk(cv,[CELL,CELL],f);}
+    row.appendChild(cells);W.appendChild(row);made++;}
+  return made;}
+
 // 덩어리 격자. **덩어리 수가 화면 폭을 따라간다** — 5칸이 10칸, 15칸으로
 // 늘 뿐 덩어리는 절대 안 쪼개진다. 폭은 `vfx.css` 가 정하고 여기서는 값만 준다.
 for(const h of Object.values(LVHOSTS)){
@@ -14062,43 +14267,21 @@ for(const h of Object.values(LVHOSTS)){
 /// 칸이 `flex:0 0` 이라 늘어나지 않으므로 캔버스가 확대되지 않는다.
 ///
 
-LVW.forEach(([key,nm,kind])=>{
-  const LVHOST=LVHOSTS[kind]||LVHOSTS["물리"];
-  const LVMAX=LVN[kind]||5;
-  const row=document.createElement("div");
-  row.className="lvblock";
-  row.insertAdjacentHTML("beforeend",
-    `<div class="hd"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
-    `<span style="font-size:10px;color:#5A5A68">${kind}</span></div>`);
-  const cells=document.createElement("div");
-  // ⚠️ **덩어리는 안 쪼개진다.** 다섯 칸이 한 줄에 나란해야 비교가 되므로
-
-  // 열 수를 `--n` 으로 고정한다. 화면이 좁으면 덩어리가 통째로 다음 줄로
-
-  // 가고, 모바일에서만 2열 + 완성형(L5) 전폭으로 접힌다(`vfx.css`).
-
-  cells.className="cells";cells.style.setProperty("--n",LVMAX);
-  for(let L=1;L<=LVMAX;L++){
-    const cell=document.createElement("div");
-    cell.className="cell";
-    const cv=document.createElement("canvas");
-    box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
-    cell.appendChild(cv);
-    // L1 은 기준이라 설명이 없다 — 나머지 넷은 무기 정의의 levelText 그대로.
-    const txt=L===1?"기준 디자인":((LVT[key]||[])[L-2]||"");
-    cell.insertAdjacentHTML("beforeend",
-      `<div class="lb">`+
-      `<div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
-      `color:${L===1?"#9494A2":"#FFA83C"}">L${L}</div>`+
-      `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
-      `min-height:3.6em">${txt}</div></div>`);
-    cells.appendChild(cell);
-    const fn=FX[key],tk=WTONE[key];
-    mk(cv,[LVD,LVD],(c,t,dt,W,H,st)=>{const sl=LV,sr=RECOLOR;LV=L;RECOLOR=tk;
-      try{fn(c,t,dt,W,H,st);}finally{LV=sl;RECOLOR=sr;}});
-  }
-  row.appendChild(cells);LVHOST.appendChild(row);
-});
+// 원본 성장표. **줄마다 호스트도 열 수도 다르다** — 계열이 페이지로 갈려 있고
+// (`LVHOSTS`), 궁극기만 3단이다(`LVN`). 둘 다 [lvTable] 의 훅으로 준다.
+//
+// ⚠️ L1 설명이 표에 없다 — `LVT` 는 **L2 부터**라 앞에 한 칸을 끼워 「칸마다
+// 한 줄」 모양으로 맞춘다. 제 L1 문구가 있는 줄은 [LVT1] 이 준다.
+lvTable({
+  host  : LVHOSTS["물리"],
+  rows  : LVW.map(([key,nm,kind])=>[key,nm,kind,
+            [LVT1[key]||"기준 디자인"].concat(LVT[key]||[])]),
+  hostOf: (k)=>{const w=LVW.find(x=>x[0]===k);
+                return w?(LVHOSTS[w[2]]||LVHOSTS["물리"]):null;},
+  n     : (k)=>{const w=LVW.find(x=>x[0]===k);
+                return w?(LVN[w[2]]||5):5;},
+  tone  : "wtone",
+  name  : "LVcell"});
 
 // ── 레이저 재설계 후보 — 안 × L1~L5 ──────────────────────────────────────
 //
@@ -14121,7 +14304,7 @@ const AICL=[["chain","체인갑옷"],["mirror","경면"],["arcane","마법갑옷
 ["dazzle","섬광"]];
 const CICL=[["curse","저주"],["plague","역병"],["shackle","속박"],["seal","봉인"],
 ["veil","암막"]];
-const HICL=[["dawn","여명"],["reap","수확"],["purity","정화"],["tithe","공물"]];
+const HICL=[["reap","수확"],["purity","정화"],["tithe","공물"]];
 // 아이콘은 **분류마다 제 페이지**로 간다(2026-08-10 재분류). 없는 페이지에서는
 // $() 가 떨어져 있는 캔버스를 돌려주므로 같은 스크립트가 전 페이지를 돈다.
 const ICONHOSTS={"일반 공격":$("icons"),"마법 공격":$("iconsm"),
@@ -14767,7 +14950,7 @@ const STCON_FV = [
 // 세로 — 일반 6. 세 번째가 그 속성이 남기는 상태 키(PASSIVE 와 같은 이름).
 const STCON_EL = [
   ["ember","염 炎","burn"], ["frost","빙 氷","frost"], ["volt","뇌 雷","shock"],
-  ["toxin","독 毒","poison"], ["gale","바람 風","blind"], ["shade","어둠 影","blind"]];
+  ["toxin","독 毒","poison"], ["gale","바람 風","slow"], ["shade","어둠 影","blind"]];
 // 상태 → 「축」의 이름. 겹침 판정이 FVSYN 의 계열명과 맞대 보는 값이다.
 const STCON_AXIS = {burn:"염", frost:"빙", shock:"뇌", poison:"독", blind:"바람·어둠"};
 
@@ -15548,7 +15731,7 @@ MAPP.black=function map_black(c,t,dt,W,H,st){
 function mapTile(hostId,fn,nm,ds,W,H,wide){
   const host=$(hostId);asRow(host,W);
   const d=document.createElement("div");d.className="tile";asCell(d,W);
-  if(wide)box(d,{flex:"1 1 100%",width:"100%"});
+  if(wide)box(d,{flex:"1 1 100%",gridColumn:"1/-1",width:"100%"});
   const cv=document.createElement("canvas");
   box(cv,{width:"100%",height:"auto",display:"block",
     aspectRatio:W+"/"+(H||W),background:"#0C0C12"});
@@ -15606,7 +15789,6 @@ if(typeof window!=="undefined")window.MAPP=MAPP;
 //
 // | 키 | 이름 | 속성 | 축 — 이 아홉 안에서 유일해야 하는 것 | 상태(확정 8) |
 // |---|---|---|---|---|
-// | mgPoisonCreep  | 만연 蔓延 | 독 毒       | **자란다** — 지면 넝쿨이 뻗고 자란 자리가 남는다 | 중독 |
 // | mgPoisonLatch  | 기생 寄生 | 독 毒       | **붙는다** — 적 몸에 박혀 적과 같이 움직인다 | 중독 |
 // | mgPoisonBrand  | 극독 劇毒 | 독 毒       | **조인다** — 한 마리의 표식이 겹겹이 깊어진다 | 중독 |
 // | mgPoisonSpread | 감염 感染 | 독 毒       | **옮는다** — 발원지가 플레이어가 아니라 **적**이다 | 중독 |
@@ -15654,101 +15836,6 @@ if(typeof window!=="undefined")window.MAPP=MAPP;
 // 창작의 자리는 융화·어둠·백광이다(`FVNAME`/`FVWHY` 의 정체를 지킨다).
 // ══════════════════════════════════════════════════════════════════════════
 const MGFX={
-
-// ── 독 1 · 만연 蔓延 ──────────────────────────────────────────────────────
-// **자란다.** 성역이 「원을 깔아 두고 그 안을 때리는 것」이라면 이쪽은 「기어가서
-// 닿는 것」이다 — 넝쿨이 지면을 따라 뻗고, **끝이 닿은 적에게만** 겹이 하나씩
-// 박힌다. 조준이 없다는 것이 독의 성격이고, 넝쿨이 어디로 갔느냐가 곧 「누가
-// 물렸나」다.
-//
-// 넝쿨은 **한 번만 굴린다.** 매 프레임 새로 굴리면 자라는 게 아니라 **떠는** 것이
-// 된다 — 뇌의 「경로가 매번 다시 굴려진다」와 정확히 반대라야 한다. 그쪽이 방전이고
-// 이쪽은 식물이다.
-mgPoisonCreep(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
-  st.F=st.F||mkFoes([[76,-34,11],[-72,-16,10],[14,66,10],[-36,-62,9]]
-    .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
-  stepFoes(st.F,dt);
-  // 레벨 — 한 단에 **보이는 것 하나씩만** 바뀐다.
-  //   L1 싹 1·분기 0·시든다 / L2 싹 2 / L3 안 시든다 / L4 분기 1 / L5 분기 2 + 꽃
-  const SEED=[1,2,2,2,2][LV-1],SPLIT=[0,0,0,1,2][LV-1],
-        KEEP=atL(3),BLOOM=atL(5),CAP=[3,3,4,4,5][LV-1];
-  if(!st.v||st.vk!==LV){
-    st.vk=LV;st.v=[];st.u=0;
-    // ⚠️ 마디 시간을 고정하면 **깊은 나무일수록 다 자라는 데 세 배가 걸려**,
-    // 레벨 표에서 L5 만 늘 「자라는 중」인 칸이 된다(2026-08-11 렌더 판정).
-    // 세대가 깊을수록 빨리 뻗게 해 다섯 칸의 주기를 비슷하게 맞춘다.
-    const SEGT=.34/(1+SPLIT*.45);
-    // 마디 셋이 한 줄기. 마디마다 각이 조금씩 틀어져야 「기어간 자국」이 된다.
-    const push=(x,y,a,g,tt,len)=>{
-      let px=x,py=y,pa=a,pt=tt;
-      for(let k=0;k<3;k++){const sd=st.v.length*3.7+k*1.9;
-        const na=pa+(hash(sd)-.5)*1.15,L=len*(.78+.44*hash(sd+2.3));
-        // y 를 .52 로 눌러 **바닥에 눕힌다** — 안 누르면 공중에 뜬 덩굴이 된다.
-        const nx=px+Math.cos(na)*L,ny=py+Math.sin(na)*L*.52;
-        st.v.push({x0:px,y0:py,x1:nx,y1:ny,g,t0:pt,t1:pt+SEGT,
-                   bow:(hash(sd+5.1)-.5)*9*SC,tip:0,hit:0});
-        px=nx;py=ny;pa=na;pt+=SEGT;}
-      if(g<SPLIT)for(let b=0;b<2;b++)push(px,py,pa+(b?.86:-.86),g+1,pt,len*.66);
-      else st.v[st.v.length-1].tip=1;};
-    // ⚠️ 싹이 둘일 때 `s/SEED*TAU` 는 정확히 180° 라 **한 줄로 이어져 보인다**
-    // (2026-08-11 렌더 판정: L2 가 「긴 선 하나」였다). 2.4rad 로 벌려 둘인 것이
-    // 보이게 하고, 길이도 줄인다 — L5 는 세 세대라 칸 밖으로 나가고 있었다.
-    for(let s=0;s<SEED;s++)push(0,0,s*2.4+.55,0,0,23*SC);
-    st.vT=st.v.reduce((m,q)=>Math.max(m,q.t1),1);}
-  // L3 「안 시든다」는 **머무는 시간**으로 낸다 — 같은 그림이 오래 남아 있으면
-  // 화면에서 그대로 「남는 것」으로 읽힌다.
-  const HOLD=KEEP?3.4:1.5,FADE=.6,TOT=st.vT+HOLD+FADE;
-  const pu=st.u;st.u=(st.u+dt)%TOT;
-  if(st.u<pu){for(const q of st.v)q.hit=0;for(const f of st.F)f.stk=0;}
-  const fade=st.u>st.vT+HOLD?Math.max(0,1-(st.u-st.vT-HOLD)/FADE):1;
-  // **자동 중첩.** 끝이 닿기만 하면 한 겹, 꽃이 핀 끝은 두 겹.
-  for(const q of st.v){if(q.hit||st.u<q.t1)continue;
-    for(const f of st.F)if(Math.hypot(q.x1-f.ox-f.kx,q.y1-f.oy-f.ky)<f.r+13*SC){
-      q.hit=1;f.stk=Math.min(CAP,(f.stk||0)+(BLOOM&&q.tip?2:1));
-      hitFoe(st,f,cx,cy,0,0,4*SC,"toxin");f.pv=1;break;}}
-  // 중독 틱 — **약하고 길다.** 겹 수에 비례하되 한 대가 크면 안 된다.
-  st.tk=(st.tk||0)+dt;
-  if(st.tk>.62){st.tk=0;for(const f of st.F)if(f.stk>0){f.pv=1;
-    emit(st,cx+f.ox+f.kx,cy+f.oy+f.ky,f.stk,
-      {k:"toxin",sp:44*SC,r:2.4*SC,life:.5,g:-30,spikeP:.35});}}
-  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
-  stepP(st,dt);
-  // 넝쿨은 **적보다 먼저** — 지면에 깔린 것이 몸 위로 올라오면 공중에 뜬다.
-  for(const q of st.v){if(st.u<q.t0)continue;
-    const rv=Math.min(1,(st.u-q.t0)/(q.t1-q.t0));
-    const ex=q.x0+(q.x1-q.x0)*rv,ey=q.y0+(q.y1-q.y0)*rv;
-    const mx=(q.x0+ex)/2,my=(q.y0+ey)/2,ax=ex-q.x0,ay=ey-q.y0;
-    const al=Math.hypot(ax,ay)||1;
-    celStroke(c,[[cx+q.x0,cy+q.y0],
-                 [cx+mx-ay/al*q.bow*rv,cy+my+ax/al*q.bow*rv],
-                 [cx+ex,cy+ey]],(7.2-q.g*1.7)*SC,"toxin",.92*fade);
-    // 마디마다 가시 한 쌍 — 매끈한 선은 관이지 넝쿨이 아니다.
-    if(rv>.55){const a=Math.atan2(ay,ax);
-      for(const s of[-1,1])
-        celSpike(c,cx+mx,cy+my,a+s*1.25,(9-q.g*1.6)*SC,3*SC,"toxin",.8*fade);}
-    // L3 「안 시든다」 — 마디마다 **뿌리혹**이 앉는다. 「오래 남는다」는 시간이라
-    // 정지 화면에서는 L2 와 똑같아 보였다(2026-08-11 렌더 판정) — 뿌리를 내렸다는
-    // 것을 **모양**으로 말해야 표가 다섯 칸을 다 쓴다.
-    if(KEEP&&rv>=1)celSplash(c,cx+q.x1,cy+q.y1,
-      (3.2+.8*Math.sin(t*2+q.t0*4))*SC,6,q.t0*9+2,"toxin",.9*fade);
-    // L5 각성 — 끝마다 꽃. 벌어진 채 포자를 뿜는다.
-    if(BLOOM&&q.tip&&rv>=1){const b=(6.5+2.5*Math.sin(t*4+q.t0*5))*SC;
-      celSplash(c,cx+q.x1,cy+q.y1,b,7,q.t0*7,"toxin",.95*fade,.72);
-      if(R()<dt*7)emit(st,cx+q.x1,cy+q.y1,1,
-        {k:"toxin",sp:20*SC,r:2.4*SC,life:1.2,g:-42,spikeP:.15});}}
-  // 상태 표식은 **확정본을 그대로** 부른다(뒤 층 → 적 → 앞 층).
-  const mark=(L)=>{for(const f of st.F)if(f.pv>0)
-    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"poison",f.pv,t,"toxin",SC,L);};
-  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
-  // 겹 수는 **적 둘레의 알갱이**로 적는다. pvMark 는 「중독이다」만 말하지
-  // 「몇 겹이다」는 못 말하는데, 이 마법은 겹 수가 곧 정체라 한 줄이 더 필요하다.
-  // **빈 칸도 그린다.** 찬 것만 그리면 상한이 화면에 없어, 상한이 오른 레벨과
-  // 「지금 마침 덜 쌓인」 레벨이 구분되지 않는다(2026-08-11 렌더 판정).
-  for(const f of st.F)for(let i=0;i<CAP;i++){const a=i/CAP*TAU-t*1.1,on=i<(f.stk||0);
-    celSplash(c,cx+f.ox+f.kx+Math.cos(a)*(f.r+9*SC),
-                cy+f.oy+f.ky+Math.sin(a)*(f.r+9*SC),
-                (on?3.8:2.2)*SC,5,i*3+1,"toxin",(on?.95:.3)*fade);}
-  drawP(c,st);hero(c,t,cx,cy,"gold",SC);},
 
 // ── 독 2 · 기생 寄生 ──────────────────────────────────────────────────────
 // **붙는다.** 화면에서 이 마법의 위치는 「어디」가 아니라 「누구」다 — 가시가 적
@@ -16316,10 +16403,7 @@ mgNovaDusk(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
 // 위의 `MAGIC.forEach(...)` 는 손대지 않는다. 같은 호스트에 이어 붙기만 하므로
 // 다른 손이 자기 블록을 아래에 또 붙여도 서로 안 부딪힌다.
 const MGDEF=[
-["mgPoisonCreep","만연 蔓延 · 독 毒","CREEP",
- "지면 넝쿨이 기어가 <b>남는다</b> — 끝이 닿은 적마다 겹이 하나씩 박힌다 · 중첩형(연 煙)"],
-["mgPoisonLatch","기생 寄生 · 독 毒","LATCH",
- "가시가 적 몸에 <b>박혀 같이 움직인다</b> — 오래 붙을수록 아프다 · 지속형(역 疫)"],
+// ⚠️ 기생 — [RElatch2]「말라간다」가 자리를 물려받았다(2026-08-13 사용자 채택). 함수는 남긴다.
 ["mgPoisonBrand","극독 劇毒 · 독 毒","BRAND",
  "한 마리에게만 표식이 <b>겹겹이 조여든다</b> — 다 조이면 무너진다 · 한방형(마 痲)"],
 ["mgPoisonSpread","감염 感染 · 독 毒","SPREAD",
@@ -16327,23 +16411,19 @@ const MGDEF=[
 ["mgNovaDetonate","기폭 起爆 · 마 痲","DETONATE",
  "쌓인 겹을 <b>태워 즉발로 바꾼다</b> — 혼자 쓰면 미지근하고 독 위에 얹으면 판이 뒤집힌다"],
 ["mgNovaChime","공명 共鳴 · 뢰명 雷鳴","CHIME",
- "종이 각자 파를 낸다 — <b>파가 겹치는 교점</b>에서만 마디가 서고, 링에는 판정이 없다"],
+ "종을 여러 개 놓으면 각자 파가 퍼진다. <b>파와 파가 만나는 자리에만</b> 피해가 들어간다 — 링 위는 안 아프다. 종을 어디 놓느냐가 곧 딜링 자리다"],
 ["mgNovaSplit","분열 分裂 · 플라즈마 漿","SPLIT",
  "하나가 둘, 둘이 넷 — 부모가 사라지므로 화면에는 <b>늘 한 세대만</b> 있다"],
-["mgNovaCycle","오행 五行 · 백광 白光","CYCLE",
- "염→빙→뢰→풍→독을 <b>차례로</b> 두르고, 한 바퀴를 다 돌아야 백광이 터진다"],
+// ⚠️ 오행 — **스킬 삭제**(2026-08-13 사용자 판정). ⚠️ [MGDEF] 의 「돌아간다」 축과
+// 백광을 쓰는 유일한 마법이 같이 비었다 — 대신할 스킬이 아직 없다. 함수는 남긴다.
 ["mgNovaDusk","암전 暗轉 · 어둠 影","DUSK",
  "<b>빛을 끈다</b> — 어두워진 자리에서 적은 테두리만 남고, 어두운 동안에만 문다"]];
-MGDEF.forEach(w=>tile($("magic"),MGFX,w[0],w[1],w[2],w[3],S));
+MGDEF.forEach(w=>tile($("magic"),MGFX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
 
 // 레벨 성장표 — **수치만 오르는 레벨은 반려**라, 한 단마다 화면에서 하나씩
 // 달라진다. 칸은 전역 LV 만 바꿔놓고 **같은 함수**를 부른다(위 성장표와 같은
 // 수법) — 레벨판을 따로 그리면 표가 거짓말을 한다.
 const MGLVT={
-mgPoisonCreep:["싹이 둘 — 각자 다른 쪽으로 기어간다",
-  "뿌리를 내린다 — 마디마다 뿌리혹이 앉고 넝쿨이 안 시든다 (상한 4)",
-  "가지가 한 번 갈라진다 — 끝이 둘에서 넷으로",
-  "각성 — 두 번 갈라지고 끝마다 꽃이 벌어진다 (겹 2씩 · 상한 5)"],
 mgPoisonLatch:["가시 3자루 — 한 마리에 둘도 박힌다",
   "안 빠진다 — 한 번 박히면 끝까지 붙어 있다",
   "실뿌리 — 박힌 자리에서 돋아 적 몸을 덮어 간다",
@@ -16446,7 +16526,6 @@ MGDEF.forEach(([key,nm])=>{
 //     빙벽     mgIceWall    차단 — 길을 막는다(지형 설치)
 //     서릿발   mgIceSpine   돌기 — 땅에서 줄지어 솟아 꿰뚫는다(순차 열)
 //     결빙     mgIceTomb    구속 — 한 놈을 관에 가둔다(단일 대상)
-//     빙판     mgIceSlick   제어 박탈 — **가고 싶은 쪽으로 못 꺾는다**(미끄러짐)
 //
 // ⚠️ **폐기한 둘**(2026-08-11): 「낙인(부착→시한→전파)」과 「파쇄(동상 기폭)」는
 // 독·창작 계열의 **기생·감염·기폭**, 그리고 백광의 **시한**과 정면으로 겹쳐
@@ -17008,109 +17087,25 @@ mgIceTomb(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
     shards(c,s.x,s.y+s.r*.6,s.r*1.6,7,19,f*.7,"frost");}
   drawP(c,st);hero(c,t,cx,cy);},
 
-// ── 빙 4 · 빙판 氷板 ───────────────────────────────────────────────────────
-// **축 = 미끄러뜨린다(제어 박탈).** 서른 종을 통틀어 **적의 조향을 뺏는** 것은
-// 이것뿐이다. 감속(동상)은 「느려진다」, 끌어당김은 「모인다」, 넉백은 「밀린다」
-// — 전부 **속도**를 건드리는데 빙판만 **방향**을 건드린다. 판 위의 적은 가고
-// 싶은 쪽으로 못 꺾고 관성대로 미끄러져 나를 지나친다.
-// ⚠️ 원래 이 자리는 「파쇄(동상을 소비하는 기폭)」였는데 **폐기**했다
-// (2026-08-11): 독·창작 계열이 **기폭 = 소비한다**를 가져갔고, 예고 뒤 터지는
-// 부분은 백광 발현의 **시한**과도 겹쳤다. 둘 다 안 밟는 동사를 새로 찾았다.
-// ⚠️ 성역(장판)과 형태가 붙어 보일 자리라 **판은 피해를 거의 안 준다** — 성역은
-// 「밟으면 아픈 원」이고 빙판은 「밟으면 못 서는 바닥」이다. 그림에서도 갈랐다:
-// 성역은 룬 고리(테두리만), 빙판은 **채운 면 + 미끄럼 자국**.
-// 얼음이 「멈추게도 하고 못 멈추게도 한다」는 것이 이 스킬의 농담이고,
-// 판 위에서는 동상이 계속 덧칠되므로 설 雪 의 감속 +40% 가 그대로 물린다.
-mgIceSlick(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
-  mgInit(st,SC,[[-92,-52,10],[86,-46,10],[-24,-104,10],[30,100,9],
-    [-100,34,9],[96,40,9]]);
-  stepFoes(st.F,dt);
-  const NP=[1,1,2,2,3][LV-1], LIP=atL(2), THICK=atL(4), BRIDGE=atL(5);
-  const PR=[34,34,34,40,40][LV-1]*SC, SPD=46*SC;
-  // 판 자리는 **고정**이다. 무작위로 깔면 레벨 비교가 그 판의 운이 된다.
-  const SPOT=[[0,-30],[-46,22],[46,20]].map(v=>[cx+v[0]*SC,cy+v[1]*SC]);
-  const onIce=(x,y)=>{for(let i=0;i<NP;i++){
-    const dx=x-SPOT[i][0],dy=(y-SPOT[i][1])/.55;
-    if(dx*dx+dy*dy<PR*PR)return i;}return -1;};
-  for(const f of st.F){
-    const fx=cx+f.ox,fy=cy+f.oy;
-    const ice=onIce(fx,fy)>=0;
-    const d=Math.hypot(f.ox,f.oy)||1;
-    const tx=-f.ox/d*SPD, ty=-f.oy/d*SPD;      // 가고 싶은 방향(몸 쪽)
-    f.vx=f.vx||tx;f.vy=f.vy||ty;
-    // **조향력**이 전부다. 맨바닥에서는 즉시 방향을 바꾸고(6), 얼음 위에서는
-    // 거의 못 바꾼다(0.5) — 그래서 지나쳐 미끄러진다.
-    const k=Math.min(1,(ice?.5:6)*dt);
-    f.vx+=(tx-f.vx)*k;f.vy+=(ty-f.vy)*k;
-    f.ox+=f.vx*dt;f.oy+=f.vy*dt;
-    if(ice){f.pv=Math.min(1.6,(f.pv||0)+dt*(THICK?1.3:.9));
-      f.sk=1;
-      // L2 턱 — 판 밖으로 미끄러져 나가려는 놈이 **테에 걸려 되돌아온다**.
-      // 판이 「그냥 지나가는 바닥」이 아니라 「빠져나오기 어려운 곳」이 된다.
-      if(LIP){const i2=onIce(fx,fy),dx=fx-SPOT[i2][0],dy=(fy-SPOT[i2][1])/.55;
-        const dd=Math.hypot(dx,dy);
-        if(dd>PR*.82){const nx=dx/(dd||1),ny=dy/(dd||1);
-          if(f.vx*nx+f.vy*ny>0){f.vx-=nx*2*(f.vx*nx+f.vy*ny);
-            f.vy-=ny*2*(f.vx*nx+f.vy*ny);
-            f.pv=Math.min(1.8,(f.pv||0)+.2);}}}}
-    else f.sk=Math.max(0,(f.sk||0)-dt*3);
-    if(f.pv>0)f.pv-=dt*.28;
-    // 몸에 닿거나 칸 밖으로 나가면 제자리로(시안은 적이 안 죽는다).
-    if(d<22*SC||Math.abs(f.ox)>W*.62||Math.abs(f.oy)>H*.62){
-      f.ox=f.hx;f.oy=f.hy;f.vx=0;f.vy=0;}}
-  stepP(st,dt);
-  // 판 — **채운 면 + 빗금.** 테두리만 그리면 성역(룬 고리)과 같은 그림이 된다.
-  const plate=(x,y,r,al)=>{
-    fillPoly(c,jagPoly(x,y,r,10,x*.31,1.06,.55),A(TONE.frost[0],.55*al));
-    fillPoly(c,jagPoly(x,y,r*.74,10,x*.31+1.7,1.04,.55),A(TONE.frost[1],.26*al));
-    for(let k=0;k<3;k++)celStroke(c,[[x-r*.62+k*r*.42,y+r*.14],
-      [x-r*.24+k*r*.42,y-r*.16]],1.7*SC,"frost",.5*al);   // 매끈하다는 유일한 신호
-    if(LIP)celHoop(c,x,y,r,.55,0,r*.11,"frost",.75*al);
-    if(THICK)for(let k=0;k<5;k++){const a=k/5*TAU+x*.01;   // 두꺼워진 판 — 결정이 돋는다
-      fillPoly(c,jagPoly(x+Math.cos(a)*r*.66,y+Math.sin(a)*r*.36,r*.13,6,k*3.7,1.3),
-        A(TONE.frost[2],.55*al));}};
-  // L5 각성 — 판이 **이어진다.** 사이가 다리로 붙으면 세 판이 하나의 빙원이 되어
-  // 「돌아서 피한다」가 막힌다.
-  if(BRIDGE)for(let i=0;i<NP;i++){const a=SPOT[i],b=SPOT[(i+1)%NP];
-    const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1;
-    fillPoly(c,[[a[0]-dy/L*PR*.3,a[1]+dx/L*PR*.3],[b[0]-dy/L*PR*.3,b[1]+dx/L*PR*.3],
-      [b[0]+dy/L*PR*.3,b[1]-dx/L*PR*.3],[a[0]+dy/L*PR*.3,a[1]-dx/L*PR*.3]],
-      A(TONE.frost[0],.4));}
-  for(let i=0;i<NP;i++)plate(SPOT[i][0],SPOT[i][1],PR,1);
-  // **빈 자리도 그린다** — 상한이 화면에 있어야 「아직 안 깔렸다」와 「더는 못
-  // 깐다」가 갈린다(2026-08-11 규약). 안 쓰는 자리는 점선 테로만.
-  for(let i=NP;i<3;i++){const s0=SPOT[i];
-    for(let k=0;k<8;k++){if(k%2)continue;
-      const a0=k/8*TAU;
-      c.save();c.translate(s0[0],s0[1]);c.scale(1,.55);
-      c.beginPath();c.arc(0,0,PR,a0,a0+.5);
-      c.strokeStyle=A(TONE.frost[1],.18);c.lineWidth=2*SC;c.stroke();c.restore();}}
-  // 미끄럼 자국 — **정지 화면에서 「미끄러지는 중」을 말하는 유일한 장치**다.
-  // 움직임은 스크린샷에 안 남으므로 자국을 남긴다(뒤로 두 줄).
-  for(const f of st.F){if(!(f.sk>0))continue;
-    const x=cx+f.ox,y=cy+f.oy,L=Math.hypot(f.vx,f.vy)||1;
-    const ux=f.vx/L,uy=f.vy/L;
-    for(const s0 of[-1,1])celStroke(c,
-      [[x-ux*f.r*2.6+ -uy*s0*f.r*.42,y-uy*f.r*2.6+ux*s0*f.r*.42],
-       [x-ux*f.r*.9+ -uy*s0*f.r*.42,y-uy*f.r*.9+ux*s0*f.r*.42]],
-      2.2*SC,"frost",.5*f.sk);}
-  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
-  drawP(c,st);hero(c,t,cx,cy);},
-
 });
 
 // ── 마운트 — **기존 MAGIC.forEach·LVW·ICL 은 안 건드린다** ─────────────────
 // 같은 시각에 다른 계열(뢰·풍·독·창작)이 같은 파일에 붙는다. 기존 표를 고치면
 // 네 사람이 같은 줄을 고쳐 충돌이 난다 — 여덟은 자기 블록에서만 붙인다.
-const MGFI=[
-["mgFireCone","화염방사 火炎放射","EMBER","앞으로 계속 뿜는다 — 서 있는 동안 점화가 덧칠된다(도포)"],
-["mgFireTrail","불자취 火跡","EMBER","지나온 자리가 탄다 — 미리 깔아 두는 불(퇴적)"],
-["mgFireVortex","화염회오리 火旋","EMBER","떠도는 불기둥이 적을 붙잡아 데리고 다닌다(연행)"],
-["mgFireReturn","회염 廻炎","EMBER","던진 불덩이가 호를 그리며 돌아온다 — 같은 줄을 두 번(왕복)"],
-["mgIceWall","빙벽 氷壁","FROST","길을 막는 얼음 판. 막다가 깨지고, 뚫리면 들어온다(차단)"],
-["mgIceSpine","서릿발 霜柱","FROST","발밑에서 줄지어 솟아 앞으로 꿰뚫는다(돌기)"],
-["mgIceTomb","결빙 結氷","FROST","한 놈을 얼음관에 가둔다. 깨는 것이 마무리다(구속)"],
-["mgIceSlick","빙판 氷板","FROST","바닥이 얼어 적이 못 선다 — 가고 싶은 쪽으로 못 꺾는다(제어 박탈)"]];
+// ⚠️ **비었다.** 옛 불 넷(mgFireCone·Trail·Vortex·Return)과 얼음 셋은
+// 2026-08-12 사용자 판정으로 전부 물러났다. 이 배열이 **타일 · 레벨 성장표 ·
+// 아이콘 세 마운트를 동시에** 먹이므로, 여기서 빼면 셋이 같이 빠진다 —
+// 「28종과 성장표의 싱크」가 이 배열 하나로 지켜진다는 뜻이다.
+//
+//   화염방사 → [FCcone6]                      · 성장 3안 FLconeA/B/C
+//   불자취   → [FLtrail]  L1~L5
+//   회염     → [FLret]    L1~L5
+//   화염회오리 → [FZvortex1]                    · 성장은 FV 손이 만드는 중
+//   빙벽     → [IBwall3] + 호 넷              · 방어 페이지
+//   서릿발   → [IBspine2b]
+//   결빙     → [FZtomb1]·[FZtomb2]·[FZtomb3]
+const MGFI=[];
+
 
 Object.assign(LVT,{
 mgFireCone:["분사가 3갈래로 벌어진다 — 원뿔 폭 2배",
@@ -17140,13 +17135,9 @@ mgIceSpine:["가시 5 → 8. 줄이 더 멀리 뻗는다",
 mgIceTomb:["파쇄 — 관이 깨질 때 옆의 적도 벤다",
   "동시 2명",
   "3겹 껍질 — 더 오래 가둔다",
-  "각성 — 3명 + 깨진 자리에 서리 고리가 남는다"],
-mgIceSlick:["턱 — 테두리에 고드름이 서서, 미끄러져 나가려던 적이 걸려 되돌아온다",
-  "판 2개",
-  "판이 두꺼워진다 — 결정이 돋고 위에 선 적에게 동상이 더 빨리 덧칠된다",
-  "각성 — 판 3개가 다리로 **이어진다**. 돌아서 피할 길이 막힌다"]});
+  "각성 — 3명 + 깨진 자리에 서리 고리가 남는다"],});
 
-MGFI.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[3],S));
+MGFI.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
 
 // 성장표 — 기존 LVW 루프와 **같은 수법**(전역 LV 를 칸마다 갈아끼우고 같은 FX 를
 // 부른다). 레벨판을 따로 그리면 표가 거짓말을 한다.
@@ -17251,18 +17242,7 @@ mgIceTomb(c,S){const cx=S/2,cy=S/2;                  // 세로 육각 결정 + �
     [cx,cy+h],[cx-w,cy+h*.44],[cx-w,cy-h*.44]],col);
   cry(S*.26,S*.42,MGIC.fd);cry(S*.19,S*.34,MGIC.fb);
   c.beginPath();c.arc(cx,cy+S*.03,S*.09,0,TAU);c.fillStyle="#1A1020";c.fill();
-  ip(c,[[cx-S*.13,cy-S*.20],[cx-S*.03,cy-S*.24],[cx-S*.06,cy+S*.10],[cx-S*.14,cy+S*.04]],MGIC.fl);},
-mgIceSlick(c,S){const cx=S/2,cy=S/2+S*.06;           // 채운 판 + 미끄럼 자국 둘
-  const plate=(r,col)=>{const p=[];
-    for(let i=0;i<10;i++){const a0=i/10*TAU,a1=(i+.5)/10*TAU;
-      p.push([cx+Math.cos(a0)*r,cy+Math.sin(a0)*r*.5]);
-      p.push([cx+Math.cos(a1)*r*.86,cy+Math.sin(a1)*r*.43]);}
-    ip(c,p,col);};
-  plate(S*.40,MGIC.fd);plate(S*.28,MGIC.fb);
-  c.lineCap="round";c.strokeStyle=MGIC.fl;c.lineWidth=S*.05;
-  for(const s of[-1,1]){c.beginPath();
-    c.moveTo(cx-S*.26,cy+s*S*.07);c.lineTo(cx+S*.20,cy+s*S*.07-S*.05);c.stroke();}},
-};
+  ip(c,[[cx-S*.13,cy-S*.20],[cx-S*.03,cy-S*.24],[cx-S*.06,cy+S*.10],[cx-S*.14,cy+S*.04]],MGIC.fl);},};
 MGFI.forEach(w=>iconTile(MGICON,w[0],w[1],"마법 공격"));
 
 
@@ -17537,69 +17517,6 @@ FX.mgBoltHalt=function(c,t,dt,W,H,st){
           f.r*.6*(1-rel),7,j*5.1,"volt",(1-rel)*.8*dz);}});}
   drawP(c,st); hero(c,t,cx,cy,"gold",U);};
 
-// ── ④ 굴절 屈折 — 「꺾인다」 ─────────────────────────────────────────────
-// 축은 **한 번에 그어지는 꺾인 길**이다. 적을 안 고르고, 잇지 않고, **자라지
-// 않는다** — 길 전체가 한 프레임에 그어져 잠시 남았다 사라진다. 그래서
-// 「누구를 때리나」가 아니라 **「어디를 지나가나」**가 이 마법의 질문이다.
-//
-// ⚠️ 여기 있던 「가지」(자라 나가는 방전 나무)는 **버렸다**(2026-08-11).
-// 독 계열의 「만연」이 **자란다**를 가져갔고, 층이 달라도 자라 나가는 그림이
-// 둘이면 같은 마법으로 보인다. 축을 바꿀 때 그림도 통째로 바꾼 이유다:
-// 자라는 것은 **시간**이 축이고 굴절은 **형태**가 축이다.
-//
-// 갈리는 자리 셋:
-//   뇌광(연쇄)  적을 골라 그 사이를 잇는다 · 무작위 지그재그
-//   분뢰(연결)  한 놈에게 꽂아 두고 빤다 · 실이 남는다
-//   굴절        적과 무관 · **직각으로만** 꺾인다 · 즉발
-// 직각은 이 게임에서 여기 하나뿐이라 실루엣만으로 갈린다 — 「번개는 각진
-// 덩어리」라는 문법의 극단이고, 무작위 지그재그와 정반대로 **의도된 꺾임**이다.
-//
-// 레벨은 **길의 모양**으로 읽힌다: 꺾임 2 → 3 → 길 2개 → 마디 폭발 → 꺾임 6.
-FX.mgBoltRefract=function(c,t,dt,W,H,st){
-  const U=W/238,cx=W/2,cy=H/2;
-  if(!st.F)st.F=bgFoes(U,[[74,-30,11],[-70,-34,10],[-16,68,9],[48,54,9],[-54,28,9]]);
-  stepFoes(st.F,dt);
-  const TURN=[2,3,3,3,6][LV-1], PATHS=atL(3)?2:1, NODE=atL(4), BARB=atL(5),
-        WID=(atL(5)?9:6.5)*U, SEG=[34,44,44,44,40][LV-1]*U;
-  const PER=1.15, u=saw(t,PER);
-  // ⚠️ 주기 이음매 — 밝기가 u=0 과 u=1 에서 **둘 다 0** 이라야 한다. 즉발은
-  // 계단이 아니라 **아주 짧은 오름**(0.03=18ms)으로 낸다: 눈에는 즉발이고
-  // 스케줄은 이어져 주기 경계에서 안 튄다(2026-08-10 규약).
-  const al=Math.min(1,u/.03)*(u<.58?1:Math.max(0,1-(u-.58)/.42));
-  const mark=bgMarker(c,t,dt,cx,cy,st,"volt",U);
-  stepP(st,dt); mark(0); drawFoes(c,t,cx,cy,st.F); mark(1);
-  if(al>0){
-    const cyc=(t/PER)|0, tick=((t*14)|0);
-    // 길 하나 = 직각 마디의 사슬. 시작 방향과 꺾는 손(좌/우)을 주기마다 굴려
-    // 같은 그림이 반복되지 않게 한다 — 굴절은 **매번 다른 길**이라야 한다.
-    for(let pi=0;pi<PATHS;pi++){
-      let x=cx,y=cy,dir=((cyc+pi*2)%4);          // 0:→ 1:↓ 2:← 3:↑
-      const pts=[[x,y]];
-      for(let s=0;s<=TURN;s++){
-        const L=SEG*(.72+.5*hash(cyc*3.1+pi*7.7+s*2.3));
-        x+=[1,0,-1,0][dir]*L; y+=[0,1,0,-1][dir]*L;
-        pts.push([x,y]);
-        dir=(dir+(hash(cyc*5.3+pi*2.1+s*9.1)<.5?1:3))%4;}
-      for(let s=0;s<pts.length-1;s++){
-        const a0=pts[s],b0=pts[s+1];
-        const P=bgJag(a0[0],a0[1],b0[0],b0[1],pi*29+s*13.3+tick,7*U,5);
-        dep(c,(a0[1]+b0[1])/2,cy,(c,dz)=>celRibbon(c,P,WID,"volt",al*dz));
-        // 마디 — 꺾이는 자리마다 각진 매듭. L4 부터 그 자리가 터진다.
-        if(s>0)dep(c,a0[1],cy,(c,dz)=>{
-          bgChip(c,a0[0],a0[1],5.2*U,pi*3.7+s,"volt",al*dz,1);
-          if(NODE)celSplash(c,a0[0],a0[1],15*U*al,9,pi*5+s*3,"volt",al*.85*dz);
-          if(BARB)for(let j=0;j<4;j++)celSpike(c,a0[0],a0[1],j/4*TAU+Math.PI/4,
-            11*U,2.2*U,"volt",al*.8*dz);});
-        // 판정은 **그려지는 마디 그대로** — 점-선분 거리로 문다.
-        for(const f of st.F){
-          const px=cx+f.ox-a0[0],py=cy+f.oy-a0[1];
-          const vx=b0[0]-a0[0],vy=b0[1]-a0[1],vv=vx*vx+vy*vy||1;
-          const h=Math.max(0,Math.min(1,(px*vx+py*vy)/vv));
-          if(Math.hypot(px-vx*h,py-vy*h)<f.r+9*U&&R()<dt*10){
-            hitFoe(st,f,cx,cy,vx/Math.sqrt(vv),vy/Math.sqrt(vv),12,"volt");
-            f.pv=1.0;}}}}}
-  drawP(c,st); hero(c,t,cx,cy,"gold",U);};
-
 // ── ⑤ 풍벽 風壁 — 「막는다」 ─────────────────────────────────────────────
 // 축은 **통행 차단**이다. 열아홉은 전부 「적을 어떻게 때리나」인데 이것만
 // 「적을 어디로 못 가게 하나」다 — 피해는 곁다리고, 값은 **길을 지우는 것**에
@@ -17739,69 +17656,6 @@ FX.mgGaleStream=function(c,t,dt,W,H,st){
         celSpike(c,p[0]+g.n[0]*o,p[1]+g.n[1]*o,ang,13*U,2.6*U,"gale",al*.8*dz);});}}
   drawP(c,st); hero(c,t,cx,cy,"gold",U);};
 
-// ── ⑦ 취풍 醉風 — 「방향을 뺏는다」 ──────────────────────────────────────
-// 축은 **조종**이다. 열아홉 중 적의 *의지*를 건드리는 것은 하나도 없었다 —
-// 늦추거나 밀거나 죽일 뿐이다. 여기서는 머리 위에 소용돌이가 얹히고 그 놈은
-// 제 갈 길을 잃고 비틀거린다.
-//
-// ⚠️ **소용돌이(스킬)와 자락(상태)은 다른 층이다.** 확정 실명은 「원거리 적의
-// 발사각에 오차」이고 그 그림은 `pvMark` 의 스치는 자락 한 벌로 못 박혀 있다.
-// 여기서 실명을 새로 그리면 같은 상태가 마법마다 달라 보인다 — 스킬이 그리는
-// 것은 **머리 위 소용돌이**뿐이고, 실명은 표식 시스템이 얹는다.
-//
-// 취한 것이 보이려면 **경로가 휘어야 한다.** 제자리 흔들림은 감전(③정지)의
-// 문법이라, 여기는 진행 방향 자체가 천천히 굴러가야 갈린다.
-FX.mgGaleDaze=function(c,t,dt,W,H,st){
-  const U=W/238,cx=W/2,cy=H/2;
-  if(!st.F){st.F=bgFoes(U,[[66,-44,11],[-62,-30,10],[-10,62,10],[52,44,9]]);
-    st.F.forEach((f,i)=>{f.hx=f.ox;f.hy=f.oy;f.wa=hash(i*3.7)*TAU;});}
-  stepFoes(st.F,dt);
-  const NT=[1,2,2,3,3][LV-1], DUR=[1.4,2.1,2.1,2.1,2.1][LV-1],
-        BLIND=atL(3), WOB=atL(4)?1.8:1, BARB=atL(5), EXILE=atL(5);
-  const PER=DUR+.7, T=saw(t,PER)*PER;
-  if(T<(st.pv0||0))st.sel=null;
-  st.pv0=T;
-  if(!st.sel){st.sel=[];const o=((t/PER)|0);
-    for(let i=0;i<NT;i++)st.sel.push(st.F[(i+o)%st.F.length]);}
-  const live=T<DUR;
-  for(let i=0;i<st.sel.length;i++){const f=st.sel[i];
-    if(!live)continue;
-    f.wa+=(hash(t*13+i*5.1)-.5)*dt*7*WOB;
-    if(EXILE){                              // L5 각성 — 플레이어 반대쪽으로만
-      const away=Math.atan2(f.oy,f.ox);
-      f.wa+=(((away-f.wa+Math.PI*3)%TAU)-Math.PI)*dt*1.7;}
-    f.ox+=Math.cos(f.wa)*36*U*dt; f.oy+=Math.sin(f.wa)*36*U*dt;
-    if(Math.hypot(f.ox,f.oy)>W*.40){f.ox*=.982;f.oy*=.982;}
-    // ⚠️ **정지 화면에서는 「비틀거림」이 안 보인다**(첫 렌더에서 그랬다) —
-    // 움직임은 프레임 사이에만 있는 정보라, 시안 한 장으로 판정하는 이 표에서는
-    // 아무 일도 안 일어나는 것처럼 보인다. 그래서 지나온 자리를 **꼬리로 남긴다**:
-    // 휜 경로가 화면에 남으면 그림 하나로 「제 갈 길을 잃었다」가 읽힌다.
-    // ⚠️ 18프레임(0.3초)은 **7px 짜리 점**이라 안 보였다. 초당 36U 로 걸으니
-    // 1초는 돼야 휜 것이 휜 것으로 보인다 — 64프레임을 문다.
-    f.tr=f.tr||[]; f.tr.push([cx+f.ox,cy+f.oy]); if(f.tr.length>64)f.tr.shift();
-    if(BLIND)f.pv=1.0;                      // L3 실명 — 그림은 pvMark 가 얹는다
-    for(const g of st.sel){if(g===f)continue;      // 취한 놈끼리 부딪힌다
-      const d=Math.hypot(f.ox-g.ox,f.oy-g.oy);
-      if(d<f.r+g.r&&R()<dt*5){
-        hitFoe(st,f,cx,cy,(f.ox-g.ox)/(d||1),(f.oy-g.oy)/(d||1),30,"gale");
-        hitFoe(st,g,cx,cy,(g.ox-f.ox)/(d||1),(g.oy-f.oy)/(d||1),30,"gale");}}}
-  const mark=bgMarker(c,t,dt,cx,cy,st,"gale",U);
-  stepP(st,dt); mark(0); drawFoes(c,t,cx,cy,st.F); mark(1);
-  for(let i=0;i<st.sel.length;i++){const f=st.sel[i];
-    const x=cx+f.ox+f.kx, y=cy+f.oy+f.ky, al=live?1:Math.max(0,1-(T-DUR)/.5);
-    if(al<=0)continue;
-    dep(c,y,cy,(c,dz)=>{
-      if(f.tr&&f.tr.length>3)celRibbon(c,f.tr,5.6*U,"gale",.55*al*dz);  // 휜 발자국
-      const hy=y-f.r-16*U;
-      for(let j=0;j<3;j++)
-        windStroke(c,t,x,hy,(20-j*4.6)*U,.42,t*(2.3+j*.8)+i,2.5,(6-j*1.4)*U,"gale",
-          (j?.75:1)*al*dz);
-      if(BARB)for(let j=0;j<4;j++){const a2=j/4*TAU+t*1.6;
-        celSpike(c,x+Math.cos(a2)*21*U,hy+Math.sin(a2)*21*U*.42,a2,10*U,2.4*U,
-          "gale",al*.85*dz);}
-      celHoop(c,x,y+f.r*.66,f.r*1.25,.32,0,2*U+1,"gale",al*.45*dz);});}
-  drawP(c,st); hero(c,t,cx,cy,"gold",U);};
-
 // ── ⑧ 부양 浮揚 — 「띄운다」 ─────────────────────────────────────────────
 // 축은 **수직**이다. 열아홉은 전부 바닥 평면에서 논다 — 위로 가는 것은 이
 // 하나뿐이라 축이 겹칠 수가 없다. 뜬 놈은 아무것도 못 하고, 값의 절반은
@@ -17891,16 +17745,7 @@ ICON.mgBoltHalt=function(c,S){const cx=S/2,cy=S/2;    // 안으로 박히는 못
   for(let i=0;i<4;i++){const a=i/4*TAU+Math.PI/4;
     itri(c,cx+Math.cos(a)*S*.42,cy+Math.sin(a)*S*.42,a+Math.PI,S*.24,S*.075,IC.b);}
   c.beginPath();c.arc(cx,cy,S*.155,0,TAU);c.fillStyle=IC.d;c.fill();
-  c.beginPath();c.arc(cx,cy,S*.075,0,TAU);c.fillStyle=IC.l;c.fill();};
-ICON.mgBoltRefract=function(c,S){                     // 직각으로 두 번 꺾인 길
-  const P=[[.14,.78],[.14,.36],[.56,.36],[.56,.74],[.88,.74]];
-  const line=(w,col)=>{c.beginPath();
-    P.forEach((q,i)=>i?c.lineTo(q[0]*S,q[1]*S):c.moveTo(q[0]*S,q[1]*S));
-    c.strokeStyle=col;c.lineWidth=w;c.lineCap="butt";c.lineJoin="miter";c.stroke();};
-  line(S*.155,IC.d); line(S*.075,IC.b); line(S*.028,IC.l);
-  // 마디 — 꺾이는 자리에만 매듭. 직각 + 매듭이 이 실루엣의 전부다.
-  for(const q of[P[1],P[2],P[3]])ihex(c,q[0]*S,q[1]*S,S*.085,IC.l,.4);};
-ICON.mgGaleWall=function(c,S){                        // 세로 깃이 선 울타리
+  c.beginPath();c.arc(cx,cy,S*.075,0,TAU);c.fillStyle=IC.l;c.fill();};ICON.mgGaleWall=function(c,S){                        // 세로 깃이 선 울타리
   for(let i=0;i<5;i++){const x=S*(.16+i*.17);
     iarc(c,x,S*.50,S*.16,-2.5,.4,S*.075,i===2?IC.l:IC.b,1.3);}
   ibar(c,S/2,S*.80,S*.76,S*.05,IC.d,S*.025);};
@@ -17909,13 +17754,7 @@ ICON.mgGaleStream=function(c,S){                      // 비스듬한 강 + 흐�
   ibar(c,0,-S*.20,S*.94,S*.055,IC.d,S*.03);
   ibar(c,0, S*.20,S*.94,S*.055,IC.d,S*.03);
   for(let i=0;i<3;i++)iarc(c,-S*.26+i*S*.26,0,S*.12,-1.5,1.5,S*.075,i===1?IC.l:IC.b,.9);
-  c.restore();};
-ICON.mgGaleDaze=function(c,S){const cx=S/2;           // 머리 위 소용돌이 + 몸
-  c.beginPath();c.arc(cx,S*.72,S*.155,0,TAU);c.fillStyle=IC.d;c.fill();
-  c.beginPath();c.arc(cx,S*.72,S*.075,0,TAU);c.fillStyle=IC.b;c.fill();
-  iarc(c,cx,S*.32,S*.30,-2.8,.6,S*.085,IC.b,.44);
-  iarc(c,cx,S*.32,S*.17,.2,3.3,S*.07,IC.l,.44);};
-ICON.mgGaleUplift=function(c,S){const cx=S/2;         // 뜬 덩어리 + 납작한 그림자
+  c.restore();};ICON.mgGaleUplift=function(c,S){const cx=S/2;         // 뜬 덩어리 + 납작한 그림자
   iarc(c,cx,S*.86,S*.22,0,TAU,S*.05,IC.d,.30);
   for(let i=-1;i<=1;i+=2)iarc(c,cx+i*S*.26,S*.58,S*.13,-2.2,1.0,S*.06,IC.b,.8);
   const ring=(r,col)=>{const p=[];
@@ -17928,60 +17767,30 @@ ICON.mgGaleUplift=function(c,S){const cx=S/2;         // 뜬 덩어리 + 납작�
 // 같은 시각에 다른 속성 팀이 같은 파일을 고치므로 여덟은 자기 블록에서만
 // 붙는다. 붙는 자리는 기존 그리드 그대로(#magic · #levelsm · #iconsm).
 const MGW=[
-["mgBoltBrand","낙인 烙印","BRAND","volt",
- "적 스스로 전하가 차오르고 눈금이 다 차면 그 자리에서 터진다 — 젖은 적은 두 칸씩"],
-["mgBoltBlink","도약 跳躍","BLINK","volt",
- "한 순간에 한 곳에만 있다. 떠난 자리엔 빈 윤곽만, 두 자리를 잇는 것은 없다"],
-["mgBoltHalt","정지 靜止","HALT","volt",
- "각진 못이 사방에서 박혀 적을 꿴다. 발이 아니라 공격 시계가 멈춘다(감전)"],
-["mgBoltRefract","굴절 屈折","REFRACT","volt",
- "직각으로만 꺾이는 길이 한 번에 그어진다. 적을 안 고르고, 잇지 않고, 자라지 않는다"],
-["mgGaleWall","풍벽 風壁","WALL","gale",
- "깃이 선 바람의 벽. 적의 길을 지우고 부딪히는 놈을 되민다 — 가두는 결계"],
-["mgGaleStream","기류 氣流","STREAM","gale",
- "기슭이 있는 바람의 강. 띠에 든 적은 실려 흘러가 무리가 통째로 재배치된다"],
-["mgGaleDaze","취풍 醉風","DAZE","gale",
- "머리 위 소용돌이가 방향을 뺏는다. 비틀거리다 서로 부딪힌다"],
+["mgBoltHalt","단전 斷電","HALT","volt",
+ "<b>멎게 한다.</b> 걸린 적은 여전히 걸어오지만 <b>공격을 못 한다</b> — 피해가 아니라 시간을 뺏는 스킬"],
+// ⚠️ 풍벽 — **방어 스킬로 옮겼다**(2026-08-13 사용자 확인). 마법 표에서 뺀다.
+// ⚠️ 이로써 [MGW] 에 남는 풍 계열은 「부양 浮揚」 하나뿐이다. 함수는 남긴다.
 ["mgGaleUplift","부양 浮揚","UPLIFT","gale",
  "적을 띄운다 — 유일한 수직 축. 그림자가 작아지고, 값의 절반은 떨어질 때 온다"]];
 // 레벨 4줄(L2~L5). **수치만 오르는 줄은 두지 않는다** — 칸마다 개수·형태·
 // 단계 중 하나가 눈으로 달라져야 고를 맛이 난다.
 const MGBGLVT={
-mgBoltBrand:["눈금 4칸 → 3칸 — 같은 속도로도 더 빨리 터진다",
- "전도 — 젖거나 언 적은 눈금이 두 칸씩 오른다 (뇌 ×2 · 융화 수 水 자리)",
- "눈금 2칸 + 터짐 반경 +40%",
- "각성 — 과충전. 칸 하나가 더 붙고, 넘겨 쌓았다 두 배로 터진다"],
-mgBoltBlink:["도약 2회 → 3회",
- "잔상이 문다 — 떠난 자리가 한 번 더, 윤곽이 채워지고 밝아진다",
- "도약 5회 + 간격이 회를 거듭할수록 짧아진다 (끝에 몰아친다)",
- "각성 — 갈퀴가 서고, 도착 반경 안의 적이 전부 감전된다"],
 mgBoltHalt:["못 4 → 6개, 붙잡는 시간 +50%",
  "대상 2마리",
  "파열 — 풀릴 때 못이 튕겨 나가며 터진다",
  "각성 — 대상 3마리, 못마다 갈퀴가 서고 꿰인 동안 피해가 계속 든다"],
-mgBoltRefract:["꺾임 2 → 3 — 길이 더 멀리 돌아 나간다",
- "길 2개 — 반대 방향으로 하나 더 그어진다",
- "마디 폭발 — 꺾이는 자리마다 터진다",
- "각성 — 꺾임 6, 길이 굵어지고 마디마다 갈퀴가 선다"],
 mgGaleWall:["벽이 길어지고 깃이 촘촘해진다",
  "벽 2장 — ㄱ자 모서리로 몰아넣는다",
  "벽 3장 — 삼각 우리",
  "각성 — 우리가 닫히고, 부딪힌 자리마다 넉백이 터진다"],
-mgGaleStream:["폭 +45% — 강이 넓어져 무리째 실린다",
- "굽이 — 강이 휘어 더 오래 싣고 간다",
- "두 갈래",
- "각성 — 세 갈래 + 역류. 흐름이 주기마다 뒤집혀 실려 나간 무리가 되돌아온다"],
-mgGaleDaze:["대상 2마리, 지속 +50%",
- "실명 — 원거리 적의 조준이 흐트러진다 (자락이 얼굴을 스친다)",
- "대상 3마리 + 비틀거림이 커진다",
- "각성 — 갈퀴가 서고 취한 적은 플레이어 반대쪽으로만 밀려난다"],
 mgGaleUplift:["대상 2마리, 더 높이",
  "낙하 피해 — 떨어진 자리에 파편이 튄다",
  "대상 3마리 + 체공 +60%",
  "각성 — 뜬 동안 갈퀴가 서고 착지에 충격파가 퍼진다"]};
 // 마법은 자기 색을 갖는다 — 뇌 volt(레몬 55°) · 풍 gale(청록 170°).
 MGW.forEach(w=>{WTONE[w[0]]=w[3];});
-MGW.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[4],S));
+MGW.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[4],S,undefined,undefined,5));
 // 성장표 — LVW 의 행 조립을 그대로 따른다. **레벨판을 따로 그리지 않는다**:
 // 칸이 전역 LV 만 바꿔놓고 같은 FX 함수를 부른다(안 그러면 표가 거짓말을 한다).
 {const HOST=$("levelsm");
@@ -22972,9 +22781,9 @@ HICON.HL1beat=function(c,S){
   c.strokeStyle=IC.l;c.lineWidth=S*.028;c.stroke();};
 
 // ── 배치 — 타일 · 성장표 줄 · 아이콘 ────────────────────────────────────
-{tile($("heal"),FX,"HL1beat","맥박","PULSE",
-  "박자마다 맥동이 한 번 크게 돈다 — 그때 닿은 적만큼 걷혀 온다. 박 사이엔 아무것도 안 흐른다",S);
- iconTile(HICON,"HL1beat","맥박","회복");
+// ⚠️ 「맥박」 타일은 뺐다(2026-08-12 사용자 판정) — 같은 페이지에 [HLbeat0]
+// 「맥박 (기존)」이 있어 **둘이 겹쳤다.** 아이콘은 남긴다. 기존 쪽이 쓴다.
+{iconTile(HICON,"HL1beat","맥박","회복");
  // 성장표 한 줄 — LVW 의 줄과 같은 골격. 순수 수치 칸 0: 넷 다 개수(겹박) ·
  // 성질(빠른맥·울림) · 형태(되돌이)가 눈으로 바뀐다.
  const HL1LVT=["겹박 — 한 박이 두 번 친다(두근). 맥동이 두 겹으로 나간다",
@@ -23386,7 +23195,7 @@ mapTile("nb-mini",MAP.nb1Mini,"성운 회랑 + 빛파동 + 미니맵",
   }catch(e){zs=[];}
   const ok=v=>v?"#7ED08A":"#FF7A6A";
   const row=document.createElement("div");
-  box(row,{flex:"1 1 100%",width:"100%",border:"1px solid #26262F",borderRadius:"4px",
+  box(row,{flex:"1 1 100%",gridColumn:"1/-1",width:"100%",border:"1px solid #26262F",borderRadius:"4px",
     background:"#13131A",padding:"9px 12px",marginTop:"6px",fontSize:"11.5px",
     color:"#9494A2",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",
     lineHeight:"1.7",boxSizing:"border-box"});
@@ -29465,3 +29274,13928 @@ mapTile("pl-proof",PL06proof,"산호초 위에서","파문 — 바깥층 L .181,
 mapTile("pl-mini",MAPP.demo("coral",0,1),"산호초 + 미니맵","적 밀도 한 겹.",MAP_S,MAP_S);
 mapTile("pl-num",PL06num,"산호초 · 밝기 실측",
   "중간 톤(L .05~.15) 15~30% · 평균 L ≤ .075 · 봉우리 ≤ .17 · L>.35 ≤ 0.5%.",MAP_S,MAP_S);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FR — 불 마법 넷 다시 그리기 (2026-08-12)
+//
+// 반려 사유는 하나였다: **「화염이 화염 같지가 않고 탄환 같다」.**
+// 원인은 도구가 없어서가 아니라 **안 쓴 것**이다 — 이 파일에는 셀 스타일 불
+// 실루엣(`firePath`/`fireBody`)이 처음부터 있는데, 불 마법 넷은 그걸 한 번도
+// 안 쓰고 전부 `celRibbon`(리본)·`celPuff`(뭉게)·`celRound`(탄)로 그려져 있었다.
+//   리본으로 그린 불 → **띠**   · 뭉게로 그린 불 → **연기**
+//   둥근 탄으로 그린 불 → **탄환**
+// 불은 **갈래가 날카롭게 찢어진 실루엣**이라야 불이다. 열여섯 안 전부가
+// `firePath`(=`FRtongue`) 또는 `fireBody` 로만 불을 그린다. 그 외의 원시는
+// 불이 **아닌 것**(재·연기·금·자국·궤적)에만 쓴다.
+//
+// 레벨은 안 넣는다 — LV 를 한 번도 안 읽고 **LV=3 한 장면**으로 고정했다.
+// 스킬 하나의 안들은 적 배치·시간축·판정이 **완전히 같다**(`FR*Sim` 하나를
+// 공유한다). 다른 것은 **그리기뿐**이라야 비교가 성립한다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// fireBody 가 쓰는 것과 **같은** 3단 계조. 불의 색은 여기 한 벌뿐이다.
+const FRT=[FIRE_DARK,FIRE_BASE,FIRE_LIT];
+const FRDIR=-Math.PI/2;                       // 고정 조준(위)
+
+/// **방향을 가진 불혀 하나.** `fireAura` 가 각도마다 하는 것(translate+rotate 후
+/// firePath 3패스)을 각도만 받게 묶은 것이다 — 새 원시가 아니라 `firePath` 의
+/// 호출부다(`split` 이 COLD 3색을 firePath 에 먹이는 것과 같은 수법).
+/// [dir] 은 **혀가 뻗는 방향**(-π/2 = 위). [T] 를 갈면 같은 실루엣이 재·과열이 된다.
+function FRtongue(c,t,x,y,dir,w,h,seed,a=1,ph=0,T){
+  T=T||FRT;
+  c.save();c.translate(x,y);c.rotate(dir+Math.PI/2);
+  firePath(c,0,0,w,h,t,seed,ph);                    c.fillStyle=A(T[0],.88*a);c.fill();
+  firePath(c,0,-w*.10,w*.84,h*.96,t,seed,ph);       c.fillStyle=A(T[1],.97*a);c.fill();
+  firePath(c,0,-w*.18,w*.46,h*.70,t*1.22,seed+7.3,ph+.9);
+  c.fillStyle=A(T[2],a);c.fill();
+  c.restore();
+}
+
+// ═══ 염 1 · 화염방사 — 「원뿔을 무엇으로 채우나」 ═══════════════════════════
+// 적 배치·조준·판정 틱은 원본 `mgFireCone`(LV3) 그대로. 네 안이 이 함수를
+// 공유하므로 화면에서 다른 것은 **채우는 방법뿐**이다.
+const FRCONE_F=[[-46,-70,10],[10,-92,11],[52,-62,10],[-8,-46,9],[40,-100,9]];
+function FRconeSim(st,t,dt,cx,cy,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FRCONE_F);stepFoes(st.F,dt);
+  const LEN=95*SC,HALF=.30;                    // LV3 = 3갈래 · 반각 .30
+  st.tk=(st.tk||0)+dt;
+  if(st.tk>.16){st.tk=0;                       // 0.16s 틱 — 매 프레임이면 한 번에 3중첩
+    for(const f of st.F){const dx=f.ox+f.kx,dy=f.oy+f.ky,d=Math.hypot(dx,dy)||1;
+      if(d>=LEN+f.r)continue;
+      let ad=Math.atan2(dy,dx)-FRDIR;
+      while(ad>Math.PI)ad-=TAU;while(ad<-Math.PI)ad+=TAU;
+      if(Math.abs(ad)>HALF+.12)continue;
+      hitFoe(st,f,cx,cy,dx/d,dy/d,5*SC,"ember");mgBurn(f,.8);}}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  if(R()<dt*26)emit(st,cx+(R()-.5)*14*SC,cy-5*SC,1,
+    {k:"ember",sp:14*SC,r:2.6*SC,life:.8,g:-120*SC,spikeP:.15});
+  stepP(st,dt);
+  return {LEN,HALF};
+}
+
+// ═══ 염 2 · 불자취 — 「흔적이 무엇인가」 ═══════════════════════════════════
+// 8자 주행·잔류 2.6초·밟으면 탄다는 원본 `mgFireTrail`(LV3) 그대로.
+// 다섯 안이 **같은 길**을 지나고, 그 길에 무엇이 남는지만 다르다.
+const FRTRAIL_F=[[58,-14,10],[-58,14,10],[40,44,9],[-40,-44,9],[-6,-78,10],[74,54,9]];
+const FRTRAIL_TTL=2.6;
+function FRtrailSim(st,t,dt,cx,cy,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FRTRAIL_F);stepFoes(st.F,dt);
+  const TTL=FRTRAIL_TTL;
+  const hx=cx+Math.cos(t*2.4)*64*SC, hy=cy+Math.sin(t*4.8)*40*SC;
+  st.tr=st.tr||[];
+  let fresh=null;
+  st.dp=(st.dp||0)+dt;
+  if(st.dp>.045){st.dp=0;
+    const vx=-Math.sin(t*2.4)*2.4, vy=Math.cos(t*4.8)*4.8, L=Math.hypot(vx,vy)||1;
+    fresh={x:hx,y:hy,l:0,dx:vx/L,dy:vy/L,i:(st.ni=(st.ni||0)+1)};
+    st.tr.push(fresh);}
+  for(let i=st.tr.length-1;i>=0;i--){st.tr[i].l+=dt;if(st.tr[i].l>TTL)st.tr.splice(i,1);}
+  st.tk=(st.tk||0)+dt;
+  if(st.tk>.18){st.tk=0;
+    for(const f of st.F){const fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;let on=false;
+      for(let i=0;i<st.tr.length;i+=2)
+        if(Math.hypot(st.tr[i].x-fx,st.tr[i].y-fy)<f.r+7*SC){on=true;break;}
+      if(on){hitFoe(st,f,cx,cy,0,0,3*SC,"ember");mgBurn(f,.9);}}}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  return {hx,hy,TTL,fresh};
+}
+
+// ═══ 염 3 · 화염회오리 — 「회오리를 무엇이 만드나」 ═════════════════════════
+// 배회·붙잡아 데려가기는 원본 `mgFireVortex`(LV3: 둘 · 반지름 33) 그대로.
+// ⚠️ 넷 다 **세로로 솟는다.** 평면에서 도는 것은 소용돌이지 회오리가 아니다 —
+// 그래서 네 안의 축은 전부 「무엇이 위로 올라가는가」로 잡았다.
+const FRVORT_F=[[-70,-52,10],[62,-46,10],[-24,-96,9],[38,74,10],[-58,58,9],[6,-16,9]];
+function FRvortSim(st,t,dt,cx,cy,W,H,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FRVORT_F);stepFoes(st.F,dt);
+  const NV=2,RAD=33*SC,LIFE=3.2,MAR=RAD*1.2;
+  st.v=st.v||[];
+  while(st.v.length<NV){const i=(st.sq=(st.sq||0)+1);
+    const g=i/NV*TAU+hash(i*9.3);
+    st.v.push({x:cx+Math.cos(g)*W*.22,y:cy+Math.sin(g)*H*.17,
+      a:g+Math.PI*.5,l:0,rot:hash(i*7.7)*TAU});}
+  for(let i=st.v.length-1;i>=0;i--){const v=st.v[i];
+    v.l+=dt;v.rot+=dt*3.4;
+    v.x+=Math.cos(v.a)*31*SC*dt;v.y+=Math.sin(v.a)*21*SC*dt;
+    if(v.x<MAR||v.x>W-MAR){v.a=Math.PI-v.a;v.x=Math.min(W-MAR,Math.max(MAR,v.x));}
+    if(v.y<MAR||v.y>H-MAR){v.a=-v.a;v.y=Math.min(H-MAR,Math.max(MAR,v.y));}
+    if(v.l>LIFE){for(const f of st.F)if(f.cap===v)f.cap=null;st.v.splice(i,1);continue;}
+    for(const f of st.F){if(f.cap&&f.cap!==v)continue;
+      const dx=v.x-(cx+f.ox),dy=v.y-(cy+f.oy),d=Math.hypot(dx,dy)||1;
+      if(!f.cap&&d<RAD*1.5){f.cap=v;f.ca=Math.atan2(-dy,-dx);f.cr=d;}}}
+  for(const f of st.F){
+    if(f.cap){f.ca+=dt*3.4;f.cr+=(RAD*.8-f.cr)*dt*1.6;
+      f.ox=(f.cap.x-cx)+Math.cos(f.ca)*f.cr;
+      f.oy=(f.cap.y-cy)+Math.sin(f.ca)*f.cr*.55;
+      if(R()<dt*3.4){hitFoe(st,f,cx,cy,0,0,3*SC,"ember");mgBurn(f,.7);}}
+    else{f.ox+=(f.hx-f.ox)*Math.min(1,dt*1.1);f.oy+=(f.hy-f.oy)*Math.min(1,dt*1.1);}
+    if(f.pv>0)f.pv-=dt*.55;}
+  stepP(st,dt);
+  return {V:st.v,RAD,LIFE,RISE:RAD*2.1};
+}
+/// 바닥 자국 — 넷이 공유한다. 회오리가 **땅에 붙어 있다**는 것을 이 고리 하나가
+/// 말하고, 그 위로 솟는 것이 안마다 다르다.
+function FRvortFoot(c,v,RAD,al){celHoop(c,v.x,v.y,RAD*.34,.5,0,RAD*.12,"ember",al*.55);}
+
+// ═══ 염 4 · 회염 — 「왕복이 무엇을 남기나」 ════════════════════════════════
+const FRRET_F=[[-44,-72,10],[16,-94,11],[54,-58,10],[-74,-18,9],[70,8,9],
+  [-18,-42,9],[34,-24,9]];
+function FRretSim(st,t,dt,cx,cy,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FRRET_F);stepFoes(st.F,dt);
+  const N=2,BOW=32*SC,RANGE=100*SC,PER=1.5,FLY=.72,LANE=.44;   // LV3
+  st.tr=st.tr||[];st.hh=st.hh||[];
+  while(st.tr.length<N){st.tr.push([]);st.hh.push({a:new Set(),b:new Set()});}
+  const B=[];
+  for(let i=0;i<N;i++){
+    const u=(t/PER+i/N)%1, ang=FRDIR+(i-(N-1)/2)*LANE;
+    const cs=Math.cos(ang),sn=Math.sin(ang);
+    if(u>=FLY){st.tr[i].length=0;st.hh[i].a.clear();st.hh[i].b.clear();continue;}
+    const q=u/FLY;
+    // 나가는 길과 돌아오는 길 — sin(πq) 가 거리, sin(2πq) 가 좌우 벌어짐.
+    const d0=RANGE*Math.sin(Math.PI*q), s0=BOW*Math.sin(TAU*q);
+    const x=cx+cs*d0-sn*s0, y=cy+sn*d0+cs*s0;
+    const back=q>=.5, set=back?st.hh[i].b:st.hh[i].a;
+    if(!back&&st.hh[i].b.size)st.hh[i].b.clear();
+    for(let k=0;k<st.F.length;k++){const f=st.F[k];
+      if(set.has(k))continue;
+      const dx=cx+f.ox+f.kx-x,dy=cy+f.oy+f.ky-y;
+      if(Math.hypot(dx,dy)>f.r+11*SC)continue;
+      set.add(k);
+      hitFoe(st,f,cx,cy,-dx/(f.r||1),-dy/(f.r||1),18*SC,"ember");
+      mgBurn(f,1.3);}                                   // 두 번 지나면 2중첩
+    const T0=st.tr[i];T0.push([x,y]);if(T0.length>16)T0.shift();
+    B.push({i,x,y,q,ang,T:T0});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  return {B,N,BOW,RANGE,PER,FLY,LANE};
+}
+/// 대기 고리 + 돌아올 길 예고선 — 셋이 공유한다(무엇이 남는지와 무관한 규칙이라
+/// 안마다 다르면 비교가 안 된다).
+function FRretGuide(c,t,cx,cy,SC,S){
+  for(let i=0;i<S.N;i++){const ang=FRDIR+(i-(S.N-1)/2)*S.LANE;
+    const u=(t/S.PER+i/S.N)%1, out=u<S.FLY;
+    const sx=cx+Math.cos(ang)*26*SC, sy=cy+Math.sin(ang)*26*SC;
+    celHoop(c,sx,sy,5.5*SC,.6,ang,2*SC,"ember",out?.28:.85);
+    const cs=Math.cos(ang),sn=Math.sin(ang),P0=[];
+    for(let k=0;k<=30;k++){const q=k/30;
+      const d0=S.RANGE*Math.sin(Math.PI*q), s0=S.BOW*Math.sin(TAU*q);
+      P0.push([cx+cs*d0-sn*s0, cy+sn*d0+cs*s0]);}
+    celStroke(c,P0,1.6*SC,"ember",.2);}
+}
+
+Object.assign(FX,{
+
+// ── FRcone1 · 혀 여럿 ─────────────────────────────────────────────────────
+// 유일점: 원뿔이 **뿌리에서 자란 긴 불혀 아홉**으로 채워진다 — 채우는 것이
+// 알갱이가 아니라 갈래 자체라, 넷 중 유일하게 「타고 있는 것」이 정지 화면에서
+// 통째로 보인다(날아가는 것이 하나도 없다).
+FRcone1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN,HALF}=FRconeSim(st,t,dt,cx,cy,SC);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  const NT=9;
+  // 가운데가 길고 가장자리가 짧다 = 부채. 바깥 갈래부터 그려 가운데를 위에 얹는다
+  // (제일 밝고 긴 것이 앞이라야 「뿜는 중심」이 생긴다).
+  const ord=[];for(let j=0;j<NT;j++)ord.push(j);
+  ord.sort((a,b)=>Math.abs(b-(NT-1)/2)-Math.abs(a-(NT-1)/2));
+  for(const j of ord){
+    const u=(j-(NT-1)/2)/((NT-1)/2);            // -1..1
+    const la=FRDIR+u*HALF;
+    const sd=j*2.11;
+    const len=LEN*(1-.34*u*u)*(.84+.20*Math.sin(t*3.1+j*1.7));
+    const w=(8.5+3.2*hash(sd))*SC*(1-.22*Math.abs(u));
+    // ⚠️ 뿌리를 한 점에 모으면 **기둥**으로 보인다(2026-08-12 렌더 판정) —
+    // 반각 .30 에서 뿌리 간격이 ±3px 라 부채가 안 열렸다. 뿌리를 법선으로
+    // 벌려 **밑변**을 만들면 같은 반각에서도 원뿔로 읽힌다.
+    const nx=-Math.sin(FRDIR),ny=Math.cos(FRDIR);
+    const rx=cx+Math.cos(la)*11*SC+nx*u*12*SC, ry=cy+Math.sin(la)*11*SC+ny*u*12*SC;
+    FRtongue(c,t,rx,ry,la,w,len,sd,1,j*1.7);}
+  // 속불 — 짧은 크림 갈래 셋. 뿌리 쪽이 제일 뜨겁다는 것이 원뿔의 무게를 앞에 둔다.
+  for(let j=0;j<3;j++){const la=FRDIR+(j-1)*HALF*.5;
+    FRtongue(c,t*1.3,cx+Math.cos(la)*9*SC,cy+Math.sin(la)*9*SC,la,
+      6*SC,LEN*.42,j*3.7+5,.9,j*.8,[FIRE_BASE,FIRE_LIT,FIRE_LIT]);}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FRcone2 · 한 덩이가 밀려 나감 ─────────────────────────────────────────
+// 유일점: 원뿔을 채우는 것이 **이동하는 질량**이다 — 덩이 셋이 총구에서 나서
+// 커지며 밀려 나가고, 원뿔 폭은 그 덩이가 자란 결과로만 생긴다(고정된 부채가
+// 없는 유일한 안이라, 끊고 켜는 것이 화면에 그대로 나온다).
+FRcone2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN}=FRconeSim(st,t,dt,cx,cy,SC);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  // 총구를 원점으로 눕힌다 — 덩이의 갈래가 **진행 방향으로** 찢어져야 한다.
+  c.save();c.translate(cx,cy-4*SC);c.rotate(FRDIR+Math.PI/2);
+  for(let g=2;g>=0;g--){                        // 먼 것부터(뒤에 깔린다)
+    const ph=(t*.85+g/3)%1;
+    const d=LEN*Math.pow(ph,.85);
+    const s=SC*(.30+.62*ph), al=Math.min(1,ph*4.5)*Math.min(1,(1-ph)*3.2);
+    fireBody(c,t+g*1.7,0,-d,s,al,4);}
+  c.restore();
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FRcone3 · 층이 겹침 ───────────────────────────────────────────────────
+// 유일점: 원뿔이 **가로로 늘어선 불의 띠 네 겹**으로 채워진다 — 층이 하나씩
+// 밀려 나가므로 넷 중 유일하게 **박자**(뿜는 리듬)가 보인다.
+FRcone3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN,HALF}=FRconeSim(st,t,dt,cx,cy,SC);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  const NS=4;
+  for(let k=0;k<NS;k++){
+    const p=((t*.62+k/NS)%1);
+    const r=LEN*(.10+.92*p);
+    const al=Math.min(1,p*5)*Math.min(1,(1-p)*3.0);
+    if(al<=.02)continue;
+    const M=4+Math.round(4*p);                  // 멀수록 넓어지니 갈래도 는다
+    for(let m=0;m<M;m++){
+      const uu=M>1?(m-(M-1)/2)/((M-1)/2):0;
+      const a=FRDIR+uu*HALF;
+      const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+      FRtongue(c,t,x,y,a,(4.6+3.4*p)*SC,LEN*(.20+.16*p),k*3.1+m*1.7,al,m*.9);}}
+  // 총구 — 층이 태어나는 자리
+  fireBody(c,t,cx,cy-7*SC,SC*.42,.95,3);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FRcone4 · 끝에서만 핌 ─────────────────────────────────────────────────
+// 유일점: 뿌리는 **가늘고 어두운 분출**이고 불은 **끝에서만 활짝 핀다** —
+// 넷 중 유일하게 원뿔의 무게가 앞에 있어, 사거리 끝이 어디인지가 그림으로 박힌다.
+FRcone4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN,HALF}=FRconeSim(st,t,dt,cx,cy,SC);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  const bd=LEN*.54, bx=cx+Math.cos(FRDIR)*bd, by=cy+Math.sin(FRDIR)*bd;
+  // ① 대(줄기) — 가는 갈래 셋. 아직 안 붙은 연료라 어둡다.
+  for(let j=0;j<3;j++){const la=FRDIR+(j-1)*.05;
+    FRtongue(c,t*1.6,cx+Math.cos(la)*10*SC,cy+Math.sin(la)*10*SC,la,
+      3.4*SC,bd*.92,j*4.3,.9,j*1.1,[FIRE_DARK,FIRE_DARK,FIRE_BASE]);}
+  // ② 개화 — 끝의 작은 호에서 넓게 편다. 바깥 갈래부터 그려 가운데를 앞에 둔다.
+  const NB=9;
+  const ord=[];for(let j=0;j<NB;j++)ord.push(j);
+  ord.sort((a,b)=>Math.abs(b-(NB-1)/2)-Math.abs(a-(NB-1)/2));
+  for(const j of ord){
+    const u=(j-(NB-1)/2)/((NB-1)/2);
+    const a=FRDIR+u*HALF*1.55;
+    const sd=j*2.7+1.3;
+    const len=LEN*(.50-.16*u*u)*(.86+.18*Math.sin(t*3.4+j*1.3));
+    FRtongue(c,t,bx+Math.cos(a)*7*SC,by+Math.sin(a)*7*SC,a,
+      (7.5+3*hash(sd))*SC,len,sd,1,j*1.4);}
+  fireBody(c,t,bx,by-2*SC,SC*.46,.95,3);        // 핀 자리의 심
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FRtrail4 · 연기가 오름 ────────────────────────────────────────────────
+// 유일점: 자취가 **위로 자란다** — 바닥의 불은 낮고, 지나온 시간이 **공중의
+// 연기 기둥 높이**로 보인다. 다섯 중 유일하게 자취가 바닥을 떠나 있어, 적이
+// 겹쳐 서도 「여기 지나갔다」가 안 가려진다.
+FRtrail4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {hx,hy,TTL}=FRtrailSim(st,t,dt,cx,cy,SC);
+  // 바닥 불 — 낮고 넓게. 주역이 아니므로 짧다.
+  for(let i=0;i<st.tr.length;i+=3){const q=st.tr[i],a0=1-q.l/TTL;
+    FRtongue(c,t,q.x,q.y+2*SC,-Math.PI/2,7*SC*(.4+.6*a0),13*SC*a0,q.i*1.7,a0*.95,q.i*.5);}
+  // 연기 — 나이만큼 올라가고 퍼진다. 오래된 것부터 그려 위가 뒤로 물러난다.
+  for(let i=0;i<st.tr.length;i+=2){const q=st.tr[i],age=q.l/TTL;
+    const rise=age*52*SC, dx=Math.sin(t*1.2+q.i*.4)*7*SC*age;
+    celPuff(c,q.x+dx,q.y-rise,(3.4+11*age)*SC,7,q.i*3.7,"smoke",
+      (1-age)*.55,.9);}
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  drawP(c,st);hero(c,t,hx,hy);},
+
+// ── FRvortex4 · 빨려드는 잔불 ─────────────────────────────────────────────
+// 유일점: 형태를 **바깥이** 말한다 — 중심의 불은 가늘고, 둘레에서 감겨 들어오는
+// 잔불의 궤적이 깔때기의 벽이 된다. 넷 중 유일하게 **범위**(어디까지 빨려드나)가
+// 그림에 나온다.
+FRvortex4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FRvortSim(st,t,dt,cx,cy,W,H,SC);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  const NE=18;
+  for(const v of S.V){
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FRvortFoot(c,v,S.RAD,al);
+      // 빨려드는 잔불 — 바깥에서 감기며 들어오고 동시에 올라간다.
+      // ⚠️ 바깥 반지름 2.25R · 상승 .85 로는 **납작한 원반**으로 보였다(2026-08-12
+      // 렌더 판정) — 궤적의 대부분이 낮고 넓은 구간에 있어 위로 안 갔다.
+      // 바깥을 좁히고 상승을 **앞당긴다**(u^.65) — 빨려드는 것이 곧바로 솟는다.
+      const P=(u,i)=>{const a=v.rot*.5+i*1.73+u*1.9*TAU, r=S.RAD*(1.75-1.42*u);
+        return [v.x+Math.cos(a)*r, v.y+Math.sin(a)*r*.42-Math.pow(u,.65)*S.RISE];};
+      for(let i=0;i<NE;i++){
+        const u=((t*.7+i/NE)%1);
+        const aa=al*Math.min(1,u*5)*Math.min(1,(1-u)*2.2);
+        if(aa<=.02)continue;
+        const tail=[];for(let s2=0;s2<5;s2++)tail.push(P(Math.max(0,u-s2*.045),i));
+        celStroke(c,tail,(1.1+1.4*u)*SC,"ember",aa*.55);
+        const h=P(u,i),h2=P(Math.max(0,u-.02),i);
+        celSpike(c,h[0],h[1],Math.atan2(h[1]-h2[1],h[0]-h2[0]),
+          (7+5*u)*SC,(1.6+1.4*u)*SC,"ember",aa);}
+      // 중심 — 가늘게 선 불 셋. 벽이 아니라 심지다.
+      for(let m=0;m<3;m++){const a=v.rot*1.3+m/3*TAU;
+        FRtongue(c,t,v.x+Math.cos(a)*S.RAD*.20,v.y+Math.sin(a)*S.RAD*.09,
+          -Math.PI/2+Math.cos(a)*.3,S.RAD*.15,S.RISE*.78,m*3.7,al*.95,m*1.1);}});
+    if(R()<dt*24)emit(st,v.x+(R()-.5)*S.RAD*2,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ── 다안 비교 (임시) — 고르고 나면 채택안만 남기고 이 블록째 지운다 ──────
+// 원본을 **맨 앞**에 둔다. 「지금 이게 문제다」와 「이렇게 바꾼다」가 같은 줄에
+// 있어야 판정이 된다.
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IC · 얼음 원시함수 한 벌 + 얼음 셋 다시 그리기                (2026-08-12)
+//
+// 사용자 판정: 「얼음 계열이 진짜 얼음 같지가 않다」.
+// 원인을 코드로 쟀다 — **불에는 전용 실루엣 함수가 있는데 얼음에는 없었다.**
+//   불   `firePath` → `fireBody` 가 3패스로 묶는다
+//   얼음  (없음)     → 빙벽 fillPoly×3 · 서릿발 celSpike×4 · 결빙 jagPoly×2
+// 즉 얼음은 **범용 다각형**으로만 그려져 있었다. 그래서 「각진 무언가」로만
+// 보인다. 불이 불로 보이는 이유가 `firePath` 라면 얼음에도 같은 자리의
+// 물건이 필요하다 — 그것이 `ICicePath` / `ICiceBody` 다.
+//
+// ⚠️ 공통 계약의 「새 원시함수 금지」에 대한 **유일한 예외**다(계획에서 승인).
+// 이 한 벌 말고는 하나도 안 만들었다 — 나머지는 fillPoly · jagPoly · celSpike ·
+// celStroke · shards · emit/stepP/drawP · mgInit/mgMarks · dep · hero 를 쓴다.
+// 가산 합성(`lighter`)은 이 블록에서 **0회**다(celSplash·celHoop·celRibbon 은
+// 안에서 쓰므로 일부러 안 불렀다. hero/drawFoes 가 쓰는 것은 기존 코드다).
+//
+// ── `ICicePath` 의 설계 근거 ───────────────────────────────────────────────
+// 「얼음으로 읽히는 조건」을 다섯으로 못 박고 그것만 그린다:
+//
+// ① **육각 축.** 가지 여섯이 60° 간격. 물 분자의 결합각이 만드는 실제 대칭이자
+//    「눈 결정」의 관습이다. 사각·오각이면 즉시 **유리 파편**이 된다.
+// ② **가지 길이가 제각각.** `hash(seed+i)` 로 0.58~1.00 배를 흔든다. 여섯이
+//    같으면 그건 결정이 아니라 **별표(도형)** 다. `firePath` 가 갈래마다
+//    `hash` 로 길이를 흔드는 것과 같은 규율.
+// ③ **곧게 좁아진다.** 반폭이 `hw(u)=r*W0*(1-u)` — **선형**이다.
+//    `firePath` 의 `half(u)` 안에는 `sin` 이 들어 있어 **흔들리며** 좁아진다.
+//    이 한 줄이 불과 얼음을 가른다: 불의 모서리는 물결치고 얼음의 모서리는
+//    자로 그은 직선이다.
+// ④ **곁가지가 60° 로 뻗는다.** 가지의 38%·68% 지점에서 좌우로. 60° 는 얼음
+//    결정의 실제 분지각이고, 이것 하나 때문에 육각 별이 **눈 결정**으로
+//    읽힌다. 곁가지 길이도 가지마다 다르다(②의 연장).
+// ⑤ **가지 수(arms)가 습성을 가른다.** 얼음의 두 습성이 같은 함수에서 나온다:
+//    `arms:6` = 수지상(dendrite, 눈 결정) · `arms:2` = 기둥(column, 프리즘).
+//    빙벽의 판·서릿발의 기둥·결빙의 관이 전부 `arms:2`, 무더기·송이·씨앗이
+//    `arms:6` 이다. 축소본을 돌려 쓰는 게 아니다.
+//
+//    ⚠️ **처음엔 ⑤를 「늘임축(elong)」으로 적었고 그건 틀렸다.**(2026-08-12
+//    렌더 판정) 6가지 별을 한 축으로 늘이면 여섯 가지가 **전부 바깥을 향한
+//    덩어리**가 되지 프리즘이 안 된다 — 「늘린 별」로 보였다. 프리즘의 정체는
+//    **평행한 두 변 + 뭉툭한 양 끝**이고, 그건 가지를 **둘로 줄여야** 나온다.
+//    `elong` 은 남겨 두되 역할이 다르다 — 살짝 눌러 찌그러뜨리는 정도다.
+//
+// 그리고 **시간이 거의 안 흐른다**(기본 회전 t*0.05). 불은 `t*2.4` 로 흔들린다.
+// 정지가 얼음의 정보라는 것은 이 파일이 이미 아는 규약이다(`pvMark` frost:
+// 「얼음은 바쁘지 않다」). 나란히 놓았을 때 **움직임의 양**만으로도 갈린다.
+//
+// ── `ICiceBody` 의 3패스 ───────────────────────────────────────────────────
+// `fireBody` 의 규율을 그대로 옮긴다: 같은 경로를 **크기·씨앗·회전을 어긋내**
+// 세 번 겹친다(어두움 → 바탕 → 밝은 앞날). 다만 마지막 층은 **축소본이
+// 아니라 따로 뜬 섬**이고, 얼음의 섬은 불의 크림과 정반대다:
+//   불   — 둥글게 흐르는 혀, 위상만 어긋낸 같은 실루엣, 면적이 크다
+//   얼음 — **곁가지 없는 육각 면** 하나, 중심을 벗어난 자리, 면적이 작고 각지다
+// 「면이 빛을 받은 자리」로 읽혀야 하므로 가지가 있으면 안 된다(가지가 있으면
+// 작은 결정이 하나 더 붙은 것으로 보인다).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// 얼음 결정 실루엣 — 경로만 만든다(채우기는 부르는 쪽). `firePath` 와 같은 자리.
+/// [rot] 은 늘임축의 방향, [seed] 가 가지 길이 분포를 정한다.
+/// [o] = {arms, elong, wid, branch, core, vary}
+function ICicePath(c,cx,cy,r,rot,seed,o){
+  o=o||{};
+  const N=o.arms||6, EL=o.elong||1,
+        W0=(o.wid==null?.17:o.wid), BR=(o.branch==null?.34:o.branch),
+        COR=(o.core==null?.30:o.core), VAR=(o.vary==null?.42:o.vary),
+        // [tap] 1 = 끝이 **한 점**으로 모인다(가지의 규율 ③). 1 보다 작으면
+        // 끝에 폭이 남아 **면(facet)** 이 된다 — 실제 결정도 가지는 뾰족하고
+        // 판면(basal facet)은 육각형이다. 밝은 앞날과 기둥이 이 값을 쓴다.
+        TAP=(o.tap==null?1:o.tap);
+  const cs=Math.cos(rot),sn=Math.sin(rot),P=[];
+  // 결정 좌표 → 화면 좌표. **늘임은 한 축에만** 준다 = 판과 기둥이 한 함수에서.
+  const put=(x,y)=>{const X=x*EL;P.push([cx+X*cs-y*sn,cy+X*sn+y*cs]);};
+  for(let i=0;i<N;i++){
+    const a=i*TAU/N,ca=Math.cos(a),sa=Math.sin(a);
+    const Li=r*(1-VAR+VAR*hash(seed+i*2.7));      // ② 가지마다 길이가 다르다
+    const at=(d,w)=>put(ca*d-sa*w,sa*d+ca*w);     // 가지 국소좌표(따라/직각)
+    const hw=u=>r*W0*(1-u*TAP);                   // ③ **선형** — 곧게 좁아진다
+    const va=(i-.5)*TAU/N;
+    put(Math.cos(va)*r*COR,Math.sin(va)*r*COR);   // ① 골 — 육각 심이 드러난다
+    // ④ 곁가지 둘 — 60° 로 뻗는다. 길이는 가지마다 다르다.
+    const B=BR>.001?[[.38,BR*Li*(.70+.55*hash(seed+i*5.1))],
+                     [.68,BR*Li*(.38+.40*hash(seed+i*8.3))]]:[];
+    at(Li*.06,-hw(.06));
+    for(let j=0;j<B.length;j++){const u=B[j][0],bl=B[j][1];
+      at(Li*u,-hw(u));                            // 곁가지 뿌리
+      at(Li*u+bl*.50,-(hw(u)+bl*.87));            // 60° 방향 끝(cos60,sin60)
+      at(Li*(u+.10),-hw(u+.10));}                 // 곧은 모서리로 복귀
+    at(Li,-hw(1));at(Li,hw(1));                   // 끝 — TAP=1 이면 한 점, 아니면 면
+    for(let j=B.length-1;j>=0;j--){const u=B[j][0],bl=B[j][1];
+      at(Li*(u+.10),hw(u+.10));
+      at(Li*u+bl*.50,hw(u)+bl*.87);
+      at(Li*u,hw(u));}
+    at(Li*.06,hw(.06));
+  }
+  c.beginPath();
+  for(let i=0;i<P.length;i++)i?c.lineTo(P[i][0],P[i][1]):c.moveTo(P[i][0],P[i][1]);
+  c.closePath();
+  return P;
+}
+
+/// 결정 하나 — 어두움 · 바탕 · **따로 뜬 육각 면**. `fireBody` 와 같은 자리.
+function ICiceBody(c,t,cx,cy,r,rot,seed,k,a,o){
+  if(!(r>.4)||!(a>.01))return;
+  a=a==null?1:a;o=o||{};
+  const T=toneOf(k),EL=o.elong||1,BR=(o.branch==null?.34:o.branch),
+        WID=o.wid,COR=o.core,ARM=o.arms,TAP=o.tap,VAR=o.vary;
+  const R=rot+t*(o.turn==null?.05:o.turn);         // 얼음은 거의 안 돈다
+  // ① 어두움 — 제일 크다. 눈에 들어오는 넓이는 이 층이 가진다.
+  ICicePath(c,cx,cy,r,R,seed,
+    {elong:EL,branch:BR,wid:WID,core:COR,arms:ARM,tap:TAP,vary:VAR});
+  c.fillStyle=A(T[0],.95*a);c.fill();
+  // ② 바탕 — **축소본이 아니다.** 씨앗과 회전을 어긋내 다시 자란 결정.
+  ICicePath(c,cx,cy,r*.70,R+.13,seed+3.7,
+    {elong:EL,branch:BR*.78,wid:WID,core:COR,arms:ARM,tap:TAP,vary:VAR});
+  c.fillStyle=A(T[1],.96*a);c.fill();
+  // ③ 밝은 앞날 — **따로 뜬 섬**이자 **곁가지 없는 육각 면.**
+  //
+  // ⚠️ 여기서 두 번 틀렸다(2026-08-12 렌더 판정, 300px 로 격리해 봐야 보였다):
+  //   1차 — `tap` 이 없어 끝이 점으로 모여 **뾰족한 작은 별**이 됐다.
+  //   2차 — `core:.90` 은 가지 길이(0.88~1.0)와 거의 같아서 **골까지 바깥으로
+  //         튀어나왔다.** 가지 6 + 골 6 = **12각 로제트**, 즉 장식용 별이지
+  //         육각 면이 아니었다. 「면적이 작고 각지다」를 코드로만 믿고
+  //         픽셀로 안 본 대가다.
+  // 답은 **골을 가지 사이의 곧은 변 위에 앉히는 것**이다: 정육각형은 꼭짓점
+  // 거리 L 일 때 변의 중점이 L·cos30°=0.866L 이므로 `core≈.83`(가지 평균
+  // 0.95 의 0.87배). 옆으로 부푸는 것도 없애야 하므로 `wid` 를 0 가깝게 둔다.
+  // 그러면 남는 것은 **꼭짓점 여섯이 조금씩 다른 육각 면** — 이게 「면이 빛을
+  // 받은 자리」다. 불의 크림이 둥글게 흐르는 것과 정반대다.
+  const fx=cx+Math.cos(R+2.15)*r*.24*EL,fy=cy+Math.sin(R+2.15)*r*.24;
+  ICicePath(c,fx,fy,r*.36,R-.44,seed+8.1,
+    {elong:1,branch:0,core:.83,wid:.03,vary:.10,tap:1});
+  c.fillStyle=A(T[2],a);c.fill();
+}
+
+Object.assign(FX,{
+
+// ═══ 빙벽 氷壁 — 「판이 무엇으로 서 있나」 ═════════════════════════════════
+// 넷 다 같은 적 배치·같은 시간축·LV 무관(L3 기준 한 장면). 갈리는 것은 오직
+// **벽의 정체**다. 그리고 넷 다 어딘가에서 깨진다 — 깨지는 것이 얼음이다.
+
+// ── 빙벽 A · **한 장** ────────────────────────────────────────────────────
+// 벽이 **결정 한 장**이다. 가로로 누운 큰 결정 하나가 길을 통째로 막고,
+// 깎이면 **판을 가로지르는 금**이 자라다가, 한 번에 **큰 조각 다섯**으로
+// 갈라져 떨어진다. 국소 파괴가 없다 — 서 있거나 없거나 둘 중 하나다.
+ICwall1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-46*SC,PW=60*SC,PH=24*SC,SPD=31*SC;   // 판 하나 — 반길이 PW · 반높이 PH
+  if(st.hp===undefined){st.hp=1;st.dead=0;st.fr=[];}
+  const up=st.dead<=0;
+  for(const f of st.F){
+    const stopY=WY-PH*1.05-f.r;
+    if(up&&Math.abs(f.ox)<PW*1.02&&f.oy+SPD*dt>stopY){
+      f.oy=stopY;f.kx+=(f.ox<0?-1:1)*.5*SC;
+      st.hp-=dt*.22;                                  // 한 장이라 다 같이 깎는다
+      f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+    }else{const d=Math.hypot(f.ox,f.oy)||1;
+      f.ox-=f.ox/d*SPD*dt;f.oy-=f.oy/d*SPD*dt;
+      if(d<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  if(up&&st.hp<=0){                                   // **한 번에 다섯 조각으로**
+    st.dead=1.15;st.hp=1;
+    for(let i=0;i<5;i++){const q=(i-2)/2;
+      st.fr.push({x:cx+q*PW*.78,y:cy+WY+(hash(i*3.1)-.5)*PH*.6,
+        vx:q*74*SC+(hash(i*7.7)-.5)*30*SC,vy:-38*SC-40*SC*hash(i*5.3),
+        ro:hash(i*2.3)*TAU,vr:(hash(i*9.1)-.5)*5,r:PH*(.62+.30*hash(i*4.7)),l:0,m:.72});}
+    emit(st,cx,cy+WY,18,{k:"frost",sp:190*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});}
+  if(st.dead>0)st.dead-=dt;
+  for(let i=st.fr.length-1;i>=0;i--){const g=st.fr[i];g.l+=dt;
+    if(g.l>=g.m){st.fr.splice(i,1);continue;}
+    g.vy+=340*SC*dt;g.x+=g.vx*dt;g.y+=g.vy*dt;g.ro+=g.vr*dt;}
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const gw=st.dead>0?(st.dead<.5?1-st.dead/.5:0):1;    // 다시 한 장으로 자란다
+  if(gw>.02){
+    // **한 장** — 가로로 누운 프리즘(arms:2). 6가지 별을 늘이면 「덩어리」가 되지
+    // 판이 안 된다(2026-08-12 렌더 판정). 판의 정체는 평행한 두 변이다.
+    ICiceBody(c,t,cx,cy+WY,PW*gw,0,4.1,"frost",1,
+      {arms:2,wid:PH/PW,branch:.24,tap:.50,vary:.10});
+    // 금 — 내구가 닳을수록 는다. 숫자를 안 보여주고 「곧 깨진다」를 말한다.
+    const nc=st.hp<.72?(st.hp<.38?3:2):0;
+    for(let k=0;k<nc;k++){const sd=k*4.1+1.7,x0=cx+(hash(sd)-.5)*PW*1.3;
+      celStroke(c,[[x0,cy+WY-PH*.9*gw],[x0+(hash(sd+1)-.5)*PH*.9,cy+WY],
+        [x0+(hash(sd+2)-.5)*PH*1.3,cy+WY+PH*.85*gw]],1.5*SC,"white",.8);}
+    shards(c,cx,cy+WY+PH*.7*gw,PW*1.05,7,3.3,.5,"frost");}
+  for(const g of st.fr){const f=1-g.l/g.m;
+    ICiceBody(c,t,g.x,g.y,g.r,g.ro,g.x*.03+2.2,"frost",f,
+      {arms:2,wid:.55,branch:.20,tap:.50,turn:0});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 빙벽 B · **결정 여럿** ────────────────────────────────────────────────
+// 벽이 **엉겨 붙은 결정 무더기**다. 결정마다 내구가 따로라, 적이 미는 자리만
+// 깎여 **구멍이 뚫린다** — 벽이 통째로 없어지는 게 아니라 **틈이 생기고 그
+// 틈으로만 들어온다.** 정지 화면에서도 「어디가 얇은가」가 보이는 것이 정체다.
+ICwall2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-46*SC,NC=9,GAP=15.5*SC,SPD=31*SC;
+  if(!st.cr){st.cr=[];
+    for(let i=0;i<NC;i++)st.cr.push({
+      x:(i-(NC-1)/2)*GAP,y:WY+(hash(i*3.7)-.5)*11*SC,
+      r:(11+5*hash(i*5.1))*SC,ro:hash(i*8.3)*TAU,sd:i*2.9+1.3,hp:1,dead:0});}
+  for(const f of st.F){
+    let best=null,bd=1e9;
+    for(const p of st.cr){if(p.dead>0)continue;
+      const d=Math.abs(f.ox-p.x);if(d<bd){bd=d;best=p;}}
+    const stopY=best?best.y-best.r*.95-f.r:-1e9;
+    if(best&&bd<best.r*1.25&&f.oy+SPD*dt>stopY){
+      f.oy=stopY;f.kx+=(f.ox-best.x)*.05;
+      best.hp-=dt*.62;                                  // **미는 결정 하나만** 깎인다
+      f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+      if(best.hp<=0){best.hp=1;best.dead=1.35;
+        emit(st,cx+best.x,cy+best.y,12,
+          {k:"frost",sp:160*SC,r:2.8*SC,life:.5,g:150*SC,spikeP:.9});}
+    }else{const d=Math.hypot(f.ox,f.oy)||1;
+      f.ox-=f.ox/d*SPD*dt;f.oy-=f.oy/d*SPD*dt;
+      if(d<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  for(const p of st.cr)if(p.dead>0)p.dead-=dt;
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  // 뒤에서 앞으로 — 큰 것이 뒤, 작은 것이 앞이라야 무더기가 겹쳐 보인다.
+  const ord=st.cr.slice().sort((a,b)=>b.r-a.r);
+  for(const p of ord){
+    const g=p.dead>0?(p.dead<.55?1-p.dead/.55:0):1;
+    if(g<=.03)continue;
+    ICiceBody(c,t,cx+p.x,cy+p.y,p.r*g,p.ro,p.sd,"frost",1,{branch:.36,elong:1.12});
+    if(p.hp<.6){const sd=p.sd+4.4;                      // 깎인 결정에 금이 간다
+      celStroke(c,[[cx+p.x-p.r*.5,cy+p.y-p.r*.6],[cx+p.x+p.r*.1,cy+p.y],
+        [cx+p.x-p.r*.3,cy+p.y+p.r*.7]],1.3*SC,"white",.75);}}
+  shards(c,cx,cy+WY+13*SC,GAP*NC*.52,9,6.1,.45,"frost");
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 빙벽 C · **솟아오름** ─────────────────────────────────────────────────
+// 벽이 서 있는 게 아니라 **밀려 올라오는 중**이다. 바닥의 균열선에서 기둥이
+// 하나씩 올라오고, 다 오르기 전에는 낮아서 못 막는다. 적이 밀면 **끝이 부러져**
+// 다시 낮아지고 또 올라온다 — 「세운 물건」이 아니라 **계속 일어나는 사건**이다.
+ICwall3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-40*SC,NC=7,GAP=18*SC,HMAX=30*SC,SPD=31*SC;
+  if(!st.cl){st.cl=[];
+    for(let i=0;i<NC;i++)st.cl.push({x:(i-(NC-1)/2)*GAP,
+      h:hash(i*4.3)*.8,sd:i*3.3+2.7,ro:(hash(i*6.1)-.5)*.3});}
+  for(const p of st.cl)p.h=Math.min(1,p.h+dt*.44);       // 늘 밀려 올라온다
+  for(const f of st.F){
+    let best=null,bd=1e9;
+    for(const p of st.cl){const d=Math.abs(f.ox-p.x);if(d<bd){bd=d;best=p;}}
+    const hh=best?HMAX*best.h:0;
+    const stopY=best?WY-hh*.9-f.r:-1e9;
+    if(best&&bd<GAP*.62&&best.h>.34&&f.oy+SPD*dt>stopY){
+      f.oy=stopY;
+      best.h-=dt*.52;                                    // 미는 만큼 깎인다
+      f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+      if(best.h<=.16){best.h=.04;                        // **끝이 부러진다**
+        emit(st,cx+best.x,cy+WY-HMAX*.5,10,
+          {k:"frost",sp:150*SC,r:2.6*SC,life:.46,g:150*SC,spikeP:.9});}
+    }else{const d=Math.hypot(f.ox,f.oy)||1;
+      f.ox-=f.ox/d*SPD*dt;f.oy-=f.oy/d*SPD*dt;
+      if(d<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  // 바닥 균열 — **어디서 올라오는지**를 말한다. 기둥보다 먼저 눈에 든다.
+  for(let i=0;i<NC;i++){const x=cx+(i-(NC-1)/2)*GAP;
+    celStroke(c,[[x-GAP*.46,cy+WY+3*SC],[x-GAP*.1,cy+WY+(hash(i)-.5)*4*SC],
+      [x+GAP*.46,cy+WY+3*SC]],1.5*SC,"frost",.6);}
+  for(const p of st.cl){
+    const h=Math.max(0,p.h),hh=HMAX*h;
+    if(h<=.03)continue;
+    // 기둥 — **arms:2 프리즘.** 밑동을 바닥에 두고 위로 자란다.
+    ICiceBody(c,t,cx+p.x,cy+WY-hh*.5,hh*.5,-Math.PI/2+p.ro,p.sd,"frost",1,
+      {arms:2,wid:.52,branch:.20,tap:.42,turn:0});
+    shards(c,cx+p.x,cy+WY+2*SC,GAP*.5,4,p.sd+1.1,.5,"frost");}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 빙벽 D · **얼어붙는 과정** ────────────────────────────────────────────
+// 벽이 처음부터 벽인 게 아니다. **떠 있는 서리 씨앗**이 먼저 놓이고, 자라서
+// 서로 닿으면 그 사이가 **면으로 메워지며** 비로소 한 장이 된다. 다 얼기
+// 전에는 틈으로 지나간다 — 넷 중 **시간이 조건인** 유일한 벽이고, 깨지면
+// 씨앗부터 다시다.
+ICwall4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-46*SC,NS=7,GAP=19*SC,SPD=31*SC,PER=3.4;
+  if(!st.sd){st.sd=[];
+    for(let i=0;i<NS;i++)st.sd.push({x:(i-(NS-1)/2)*GAP,
+      y:WY+(hash(i*5.9)-.5)*9*SC,r0:(9.5+3.5*hash(i*2.1))*SC,
+      sd:i*3.1+5.5,ro:hash(i*7.3)*TAU});}
+  const u=saw(t,PER),pu=st.pu===undefined?u:st.pu;st.pu=u;
+  // 0 → .30 씨앗만 · .30 → .62 자라 서로 닿는다 · .62 → .90 한 장 · .90 → 1 파열
+  const grow=Math.min(1,Math.max(0,(u-.06)/.56)), solid=Math.min(1,Math.max(0,(u-.34)/.30));
+  const brk=u>.90?(u-.90)/.10:0;
+  if(pu<=.90&&u>.90)emit(st,cx,cy+WY,20,
+    {k:"frost",sp:180*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});
+  const seal=solid>.5&&brk<=0;
+  for(const f of st.F){
+    const stopY=WY-14*SC-f.r;
+    if(seal&&Math.abs(f.ox)<GAP*NS*.5&&f.oy+SPD*dt>stopY){
+      f.oy=stopY;f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+    }else{const d=Math.hypot(f.ox,f.oy)||1;
+      f.ox-=f.ox/d*SPD*dt;f.oy-=f.oy/d*SPD*dt;
+      if(d<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const a0=brk>0?Math.max(0,1-brk):1;
+  // 메워지는 면 — 이웃 씨앗 사이가 **차오른다.** 3단 계조로 같이 얹는다.
+  if(solid>.01&&a0>.01)for(let i=0;i<NS-1;i++){
+    const p=st.sd[i],q=st.sd[i+1],w=(p.r0+q.r0)*.5*solid;
+    const P=[[cx+p.x,cy+p.y-w],[cx+q.x,cy+q.y-w],[cx+q.x,cy+q.y+w],[cx+p.x,cy+p.y+w]];
+    fillPoly(c,P,A(TONE.frost[0],.9*a0));
+    fillPoly(c,P.map((v,j)=>[v[0],v[1]+(j<2?w*.32:-w*.32)]),A(TONE.frost[1],.9*a0));}
+  for(const p of st.sd){
+    const r=p.r0*(.34+.66*grow)*(brk>0?Math.max(0,1-brk*1.2):1);
+    ICiceBody(c,t,cx+p.x,cy+p.y,r,p.ro,p.sd,"frost",a0,{branch:.40,elong:1.1});}
+  if(solid>.5&&brk<=0)shards(c,cx,cy+WY+12*SC,GAP*NS*.5,8,9.3,.42,"frost");
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ═══ 서릿발 霜柱 — 「솟는 것이 무엇인가」 ═════════════════════════════════
+// 넷 다 발밑에서 시작해 앞으로 한 칸씩(같은 시간축 PER=1.5 · STEP=.052).
+// 갈리는 것은 **솟는 물건의 정체**다.
+
+// ── 서릿발 A · **기둥** ───────────────────────────────────────────────────
+// 솟는 것이 **육각 기둥**이다. 곁가지가 거의 없는 매끈한 프리즘이 곧게 서고,
+// 다 서면 **끝이 뚝 부러져** 앞으로 튄다. 부러진 밑동이 남는 것이 표식이다.
+ICspine1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-20,-58,10],[26,-84,11],[-48,-96,10],[8,-116,9],[54,-70,9]]);
+  stepFoes(st.F,dt);
+  const N=8,PER=1.5,STEP=.052,RISE=.11,SNAP=.30;
+  const R0=26*SC,GAP=14*SC,LEN=27*SC;
+  const u=saw(t,PER),pu=st.pu===undefined?u:st.pu;st.pu=u;
+  const ang=-Math.PI/2;
+  for(let j=0;j<N;j++){const at=j*STEP;
+    if(!(pu<at&&u>=at))continue;
+    const d=R0+j*GAP,x=Math.cos(ang)*d,y=Math.sin(ang)*d;
+    for(const f of st.F)if(Math.hypot(f.ox-x,f.oy-y)<LEN*.5+f.r){
+      hitFoe(st,f,cx,cy,0,-1,16*SC,"frost");f.pv=Math.min(2,(f.pv||0)+1);}
+    emit(st,cx+x,cy+y,6,{k:"frost",sp:90*SC,r:2.6*SC,life:.45,g:120*SC,spikeP:.8});}
+  for(let j=0;j<N;j++){const at=j*STEP+SNAP;      // 부러지는 순간 조각이 앞으로
+    if(!(pu<at&&u>=at))continue;
+    const d=R0+j*GAP;
+    emit(st,cx+Math.cos(ang)*d,cy+Math.sin(ang)*d-LEN*.8,7,
+      {k:"frost",a:-Math.PI/2,spread:1.1,sp:140*SC,r:2.6*SC,life:.4,g:220*SC,spikeP:1});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let j=0;j<N;j++){
+    const life=u-j*STEP;if(life<0||life>.52)continue;
+    const d=R0+j*GAP,x=cx+Math.cos(ang)*d,y=cy+Math.sin(ang)*d;
+    let g;
+    if(life<RISE)g=life/RISE;                       // 자란다
+    else if(life<SNAP)g=1;                          // 서 있다
+    else g=.52*Math.max(0,1-(life-SNAP)/.22);       // **부러진 밑동**만 남는다
+    if(g<=.03)continue;
+    dep(c,y,cy,(c,dz)=>{
+      // 기둥 — 곁가지가 거의 없는 **arms:2 프리즘**. 넷 중 제일 가늘다.
+      ICiceBody(c,t,x,y-LEN*g*.5,LEN*g*.5,-Math.PI/2,j*2.7+1.1,"frost",dz,
+        {arms:2,wid:.30,branch:.10,tap:.30,vary:.20,turn:0});
+      shards(c,x,y,Math.max(1,7*SC),4,j*3.1,dz*.55,"frost");});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 서릿발 B · **결정 열** ────────────────────────────────────────────────
+// 솟는 것이 기둥이 아니라 **결정 한 송이**다. 바닥에서 눈 결정이 **피듯** 벌어져
+// 곁가지가 옆을 긁고, 시들 듯 **가지부터** 떨어져 나간다. 같은 줄인데 「꿴다」가
+// 아니라 「핀다」로 읽히는 것이 A 와의 차이다.
+ICspine2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-20,-58,10],[26,-84,11],[-48,-96,10],[8,-116,9],[54,-70,9]]);
+  stepFoes(st.F,dt);
+  const N=8,PER=1.5,STEP=.052,RISE=.13,WILT=.32;
+  const R0=26*SC,GAP=14*SC,RAD=15*SC;
+  const u=saw(t,PER),pu=st.pu===undefined?u:st.pu;st.pu=u;
+  const ang=-Math.PI/2;
+  for(let j=0;j<N;j++){const at=j*STEP;
+    if(!(pu<at&&u>=at))continue;
+    const d=R0+j*GAP,x=Math.cos(ang)*d,y=Math.sin(ang)*d;
+    for(const f of st.F)if(Math.hypot(f.ox-x,f.oy-y)<RAD*1.15+f.r){
+      hitFoe(st,f,cx,cy,0,-1,16*SC,"frost");f.pv=Math.min(2,(f.pv||0)+1);}
+    emit(st,cx+x,cy+y,8,{k:"frost",sp:105*SC,r:2.4*SC,life:.5,g:60*SC,spikeP:.9});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let j=0;j<N;j++){
+    const life=u-j*STEP;if(life<0||life>.52)continue;
+    const d=R0+j*GAP,x=cx+Math.cos(ang)*d,y=cy+Math.sin(ang)*d;
+    const g=life<RISE?life/RISE:1;
+    const w=life<WILT?1:Math.max(0,1-(life-WILT)/.20);
+    if(w<=.03)continue;
+    dep(c,y,cy,(c,dz)=>{
+      // 곁가지가 **먼저** 사라진다 — 시드는 순서가 「핀 것」을 말한다.
+      ICiceBody(c,t,x,y-RAD*.35,RAD*g*(.55+.45*w),j*.8+.4,j*3.7+2.2,"frost",dz,
+        {branch:.52*w,elong:1.0,wid:.15,turn:.10});
+      shards(c,x,y,Math.max(1,9*SC),5,j*2.3,dz*.5,"frost");});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 서릿발 C · **갈라지는 바닥** ─────────────────────────────────────────
+// 솟기 **전에 바닥이 먼저 갈라진다.** 금이 앞으로 달려가고 그 금에서 얼음
+// 날이 일어선다 — 어디에 설지가 **미리** 보이는 유일한 안이고, 금이 닫히면서
+// 날이 넘어져 깨진다. 게임에서는 이 예고선이 곧 「비켜 설 시간」이다.
+ICspine3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-20,-58,10],[26,-84,11],[-48,-96,10],[8,-116,9],[54,-70,9]]);
+  stepFoes(st.F,dt);
+  const N=8,PER=1.5,STEP=.052,LEAD=.085,RISE=.10;
+  const R0=26*SC,GAP=14*SC,LEN=20*SC;
+  const u=saw(t,PER),pu=st.pu===undefined?u:st.pu;st.pu=u;
+  const ang=-Math.PI/2;
+  for(let j=0;j<N;j++){const at=j*STEP+LEAD;
+    if(!(pu<at&&u>=at))continue;
+    const d=R0+j*GAP,x=Math.cos(ang)*d,y=Math.sin(ang)*d;
+    for(const f of st.F)if(Math.hypot(f.ox-x,f.oy-y)<LEN*.55+f.r){
+      hitFoe(st,f,cx,cy,0,-1,16*SC,"frost");f.pv=Math.min(2,(f.pv||0)+1);}
+    emit(st,cx+x,cy+y,6,{k:"frost",sp:95*SC,r:2.6*SC,life:.45,g:120*SC,spikeP:.85});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  // ① 금 — 날보다 LEAD 만큼 **먼저** 간다. 곁금까지 갈라져 「갈라진 바닥」이 된다.
+  for(let j=0;j<N;j++){
+    const life=u-j*STEP;if(life<0||life>.60)continue;
+    const d=R0+j*GAP,x=cx+Math.cos(ang)*d,y=cy+Math.sin(ang)*d;
+    const cf=Math.min(1,life/.06)*Math.max(0,1-Math.max(0,life-.42)/.18);
+    if(cf<=.02)continue;
+    const s1=hash(j*4.9)-.5,s2=hash(j*8.1)-.5;
+    celStroke(c,[[x-GAP*.55,y+s1*5*SC],[x,y+s2*4*SC],[x+GAP*.55,y-s1*5*SC]],
+      2.3*SC,"frost",.95*cf);
+    celStroke(c,[[x,y+s2*4*SC],[x+s1*11*SC,y+10*SC]],1.7*SC,"frost",.7*cf);}
+  // ② 날 — 금 위에서 일어섰다가 **넘어지며** 깨진다.
+  for(let j=0;j<N;j++){
+    const life=u-j*STEP-LEAD;if(life<0||life>.44)continue;
+    const d=R0+j*GAP,x=cx+Math.cos(ang)*d,y=cy+Math.sin(ang)*d;
+    const g=life<RISE?life/RISE:1;
+    const fall=life<.26?0:(life-.26)/.18;
+    if(fall>=1)continue;
+    const lean=fall*1.15*(j%2?1:-1);
+    dep(c,y,cy,(c,dz)=>{
+      // 날 — 같은 프리즘인데 **넓적하다**(wid .62 vs A 의 .44). A 가 「꿴다」면
+      // 이건 「선다」다 — 옆에서 보면 벽 조각이라 서릿발이 아니라 날로 읽힌다.
+      ICiceBody(c,t,x+Math.sin(lean)*LEN*g*.5,y-Math.cos(lean)*LEN*g*.5,
+        LEN*g*.5,-Math.PI/2+lean,j*4.3+3.9,"frost",dz*(1-fall),
+        {arms:2,wid:.78,branch:.16,tap:.60,vary:.26,turn:0});
+      shards(c,x,y,Math.max(1,8*SC),4,j*5.1,dz*.5,"frost");});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 서릿발 D · **파도처럼 번짐** ─────────────────────────────────────────
+// 한 줄이 아니라 **파면**이 번진다. 부채꼴로 퍼지는 서리의 앞자락에서 결정이
+// 솟고, 파면이 지나간 자리에는 **낮은 서리가 남는다** — 넷 중 유일하게
+// 「지나온 자리」가 화면에 남고, 폭을 가진 것도 이것뿐이다.
+ICspine4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-20,-58,10],[26,-84,11],[-48,-96,10],[8,-116,9],[54,-70,9]]);
+  stepFoes(st.F,dt);
+  const NR=8,NA=5,PER=1.5,STEP=.052,RISE=.10;
+  const R0=26*SC,GAP=14*SC,LEN=17*SC,FAN=.30;
+  const u=saw(t,PER),pu=st.pu===undefined?u:st.pu;st.pu=u;
+  const dirOf=i=>-Math.PI/2+(i-(NA-1)/2)*FAN;
+  for(let j=0;j<NR;j++){const at=j*STEP;
+    if(!(pu<at&&u>=at))continue;
+    for(let i=0;i<NA;i++){
+      const a=dirOf(i),d=R0+j*GAP,x=Math.cos(a)*d,y=Math.sin(a)*d;
+      for(const f of st.F)if(Math.hypot(f.ox-x,f.oy-y)<LEN*.6+f.r){
+        hitFoe(st,f,cx,cy,Math.cos(a),Math.sin(a),13*SC,"frost");
+        f.pv=Math.min(2,(f.pv||0)+.7);}}
+    const a0=dirOf(0),a1=dirOf(NA-1),d=R0+j*GAP;
+    emit(st,cx+Math.cos((a0+a1)/2)*d,cy+Math.sin((a0+a1)/2)*d,7,
+      {k:"frost",sp:110*SC,r:2.4*SC,life:.45,g:110*SC,spikeP:.85});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let j=0;j<NR;j++)for(let i=0;i<NA;i++){
+    const life=u-j*STEP;if(life<0)continue;
+    const a=dirOf(i),d=R0+j*GAP,x=cx+Math.cos(a)*d,y=cy+Math.sin(a)*d;
+    const sd=j*2.3+i*7.1;
+    if(life>.40){                                   // **잔류 서리** — 낮게 남는다
+      const rf=Math.max(0,1-(life-.40)/.55);
+      if(rf>.03)ICiceBody(c,t,x,y,LEN*.34,a,sd+11,"frost",rf*.5,
+        {arms:6,branch:.14,wid:.30,tap:.55,core:.55,vary:.30,turn:0});
+      continue;}
+    const g=life<RISE?life/RISE:Math.max(0,1-(life-RISE)/.30);
+    if(g<=.03)continue;
+    dep(c,y,cy,(c,dz)=>{
+      // **서리 판** — 유리에 서리가 앉듯 납작한 육각 면이 번진다. A(기둥)·
+      // B(송이)·C(날) 어느 것과도 다른 습성이라, 넷이 실루엣으로 갈린다.
+      ICiceBody(c,t,x,y,LEN*g*.72,a,sd,"frost",dz,
+        {arms:6,branch:.14,wid:.30,tap:.55,core:.55,vary:.30,turn:0});});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ═══ 결빙 結氷 — 「가두는 방식」 ══════════════════════════════════════════
+// 셋 다 같은 적 배치·같은 HOLD(1.5s)·동시 2명. 갈리는 것은 **가두는 방식**이고,
+// 셋 다 마지막에 깨진다 — 깨는 것이 마무리라는 것은 이 스킬의 정체다.
+
+// ── 결빙 A · **관** ───────────────────────────────────────────────────────
+// 세로로 긴 **육각 기둥**이 적을 통째로 삼킨다. 그리고 관은 **쪼개진다** —
+// 한가운데 세로 금이 자라다가 두 반쪽이 좌우로 벌어지며 날아간다.
+ICtomb1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-58,-40,11],[44,-58,10],[-8,-86,10],[64,16,9],[-42,36,9],[14,60,10]]);
+  stepFoes(st.F,dt);
+  const NT=2,HOLD=1.5,BR=29*SC;
+  st.tb=st.tb||[];st.hf=st.hf||[];
+  if(st.tb.length<NT){const ex=new Set(st.tb.map(b=>b.i));
+    let best=-1,bd=1e9;
+    st.F.forEach((f,i)=>{if(ex.has(i))return;const d=Math.hypot(f.ox,f.oy);
+      if(d<bd){bd=d;best=i;}});
+    if(best>=0)st.tb.push({i:best,u:0});}
+  for(let k=st.tb.length-1;k>=0;k--){const b=st.tb[k];b.u+=dt/HOLD;
+    const f=st.F[b.i];f.kx*=.2;f.ky*=.2;f.pv=Math.max(f.pv||0,1.2);
+    if(b.u<1)continue;
+    const x=cx+f.ox,y=cy+f.oy,rr=f.r+16*SC;
+    for(let s=-1;s<=1;s+=2)st.hf.push({x,y,vx:s*82*SC,vy:-30*SC,ro:0,vr:s*3.4,r:rr,l:0,m:.5,s});
+    hitFoe(st,f,cx,cy,0,0,0,"frost");
+    for(const g of st.F){if(g===f)continue;                 // 깨진 관이 옆을 벤다
+      const dx=cx+g.ox-x,dy=cy+g.oy-y,d=Math.hypot(dx,dy)||1;if(d>BR+g.r)continue;
+      hitFoe(st,g,cx,cy,dx/d,dy/d,34*SC,"frost");g.pv=Math.min(2,(g.pv||0)+1);}
+    emit(st,x,y,16,{k:"frost",sp:180*SC,r:3*SC,life:.5,spikeP:.9});
+    st.tb.splice(k,1);}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  for(let i=st.hf.length-1;i>=0;i--){const g=st.hf[i];g.l+=dt;
+    if(g.l>=g.m){st.hf.splice(i,1);continue;}
+    g.vy+=280*SC*dt;g.x+=g.vx*dt;g.y+=g.vy*dt;g.ro+=g.vr*dt;}
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(const b of st.tb){const f=st.F[b.i],x=cx+f.ox,y=cy+f.oy;
+    const form=Math.min(1,b.u/.16),rr=(f.r+16*SC)*form;
+    if(rr<=.5)continue;
+    // 관 — 세로 **arms:2 프리즘**. 안이 비치도록 알파를 낮춘다.
+    c.save();c.globalAlpha=.50;
+    ICiceBody(c,t,x,y,rr*1.30,-Math.PI/2,f.r*.7+b.i*3.1,"frost",1,
+      {arms:2,wid:.56,branch:.14,tap:.45,vary:.18,turn:0});
+    c.restore();
+    if(b.u>.72){const cr=(b.u-.72)/.28;                     // 세로 금 — 곧 쪼개진다
+      celStroke(c,[[x,y-rr*1.28],[x+rr*.14,y],[x-rr*.06,y+rr*1.28]],1.9*SC,"white",cr*.95);}}
+  for(const g of st.hf){const f=1-g.l/g.m;                  // 두 반쪽
+    c.save();c.beginPath();
+    c.rect(g.x+(g.s<0?-g.r*2.2:0),g.y-g.r*2.2,g.r*2.2,g.r*4.4);c.clip();
+    ICiceBody(c,t,g.x-g.vx*g.l*.55,g.y,g.r*1.30,-Math.PI/2+g.ro,g.r*.7+1.9,"frost",f,
+      {arms:2,wid:.56,branch:.14,tap:.45,vary:.18,turn:0});
+    c.restore();
+    shards(c,g.x,g.y+g.r*.6,g.r*1.3,5,g.s*3+7,f*.6,"frost");}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 결빙 B · **감싸는 결정** ─────────────────────────────────────────────
+// 관이 아니라 **박혀 자라는 결정 넷**이다. 처음엔 몸에 붙은 작은 씨앗이고,
+// 자라서 서로 겹치며 적을 덮는다 — 가두는 것이 「씌운 통」이 아니라 「자란
+// 것」이라 **언제 덮이는지가 눈에 보인다.** 깨질 때 넷이 각자 튕겨 나간다.
+ICtomb2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-58,-40,11],[44,-58,10],[-8,-86,10],[64,16,9],[-42,36,9],[14,60,10]]);
+  stepFoes(st.F,dt);
+  const NT=2,HOLD=1.5,BR=29*SC,NG=4;
+  st.tb=st.tb||[];st.ch=st.ch||[];
+  if(st.tb.length<NT){const ex=new Set(st.tb.map(b=>b.i));
+    let best=-1,bd=1e9;
+    st.F.forEach((f,i)=>{if(ex.has(i))return;const d=Math.hypot(f.ox,f.oy);
+      if(d<bd){bd=d;best=i;}});
+    if(best>=0)st.tb.push({i:best,u:0});}
+  for(let k=st.tb.length-1;k>=0;k--){const b=st.tb[k];b.u+=dt/HOLD;
+    const f=st.F[b.i];f.kx*=.2;f.ky*=.2;f.pv=Math.max(f.pv||0,1.2);
+    if(b.u<1)continue;
+    const x=cx+f.ox,y=cy+f.oy;
+    for(let i=0;i<NG;i++){const a=i/NG*TAU+.5+b.i;
+      st.ch.push({x:x+Math.cos(a)*f.r*.7,y:y+Math.sin(a)*f.r*.7,
+        vx:Math.cos(a)*120*SC,vy:Math.sin(a)*120*SC,ro:a,vr:(hash(i*3.1)-.5)*7,
+        r:f.r*.82,l:0,m:.46});}
+    hitFoe(st,f,cx,cy,0,0,0,"frost");
+    for(const g of st.F){if(g===f)continue;
+      const dx=cx+g.ox-x,dy=cy+g.oy-y,d=Math.hypot(dx,dy)||1;if(d>BR+g.r)continue;
+      hitFoe(st,g,cx,cy,dx/d,dy/d,34*SC,"frost");g.pv=Math.min(2,(g.pv||0)+1);}
+    emit(st,x,y,14,{k:"frost",sp:170*SC,r:3*SC,life:.5,spikeP:.9});
+    st.tb.splice(k,1);}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  for(let i=st.ch.length-1;i>=0;i--){const g=st.ch[i];g.l+=dt;
+    if(g.l>=g.m){st.ch.splice(i,1);continue;}
+    g.vy+=240*SC*dt;g.x+=g.vx*dt;g.y+=g.vy*dt;g.ro+=g.vr*dt;}
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(const b of st.tb){const f=st.F[b.i],x=cx+f.ox,y=cy+f.oy;
+    // 씨앗 넷이 **자라서** 겹친다. 겹치기 전에는 적이 사이로 보인다.
+    for(let i=0;i<NG;i++){const a=i/NG*TAU+.5+b.i;
+      const gr=Math.min(1,b.u*1.35);
+      const d=f.r*(.72-.22*gr),rr=f.r*(.34+.68*gr);
+      ICiceBody(c,t,x+Math.cos(a)*d,y+Math.sin(a)*d,rr,a,b.i*2.1+i*4.7,"frost",.86,
+        {branch:.42,elong:1.25,wid:.19,turn:.06});}
+    if(b.u>.76){const cr=(b.u-.76)/.24;
+      for(let i=0;i<3;i++){const a=i/3*TAU+1.1;
+        celStroke(c,[[x+Math.cos(a)*f.r*1.5,y+Math.sin(a)*f.r*1.5],[x,y],
+          [x-Math.cos(a+.7)*f.r*1.5,y-Math.sin(a+.7)*f.r*1.5]],1.5*SC,"white",cr*.85);}}}
+  for(const g of st.ch){const f=1-g.l/g.m;
+    ICiceBody(c,t,g.x,g.y,g.r*(.5+.5*f),g.ro,g.r*.5+3.3,"frost",f,{branch:.42,turn:0});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 결빙 C · **얼어 올라옴** ─────────────────────────────────────────────
+// 가두는 것이 아니라 **차오르는 것**이다. 발밑에서 수면처럼 얼음이 올라와
+// 적을 잠기게 하고, 다 차면 위로 결정 뿔이 뻗는다. 셋 중 **수위선**이 있는
+// 유일한 안이라 「얼마나 남았나」가 그림 하나로 읽힌다. 깨질 때는 밑동부터
+// 무너져 조각이 발밑에 쌓인다.
+ICtomb3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-58,-40,11],[44,-58,10],[-8,-86,10],[64,16,9],[-42,36,9],[14,60,10]]);
+  stepFoes(st.F,dt);
+  const NT=2,HOLD=1.5,BR=29*SC;
+  st.tb=st.tb||[];st.cl=st.cl||[];
+  if(st.tb.length<NT){const ex=new Set(st.tb.map(b=>b.i));
+    let best=-1,bd=1e9;
+    st.F.forEach((f,i)=>{if(ex.has(i))return;const d=Math.hypot(f.ox,f.oy);
+      if(d<bd){bd=d;best=i;}});
+    if(best>=0)st.tb.push({i:best,u:0});}
+  for(let k=st.tb.length-1;k>=0;k--){const b=st.tb[k];b.u+=dt/HOLD;
+    const f=st.F[b.i];f.kx*=.2;f.ky*=.2;f.pv=Math.max(f.pv||0,1.2);
+    if(b.u<1)continue;
+    const x=cx+f.ox,y=cy+f.oy;
+    st.cl.push({x,y,r:f.r+15*SC,l:0});
+    hitFoe(st,f,cx,cy,0,0,0,"frost");
+    for(const g of st.F){if(g===f)continue;
+      const dx=cx+g.ox-x,dy=cy+g.oy-y,d=Math.hypot(dx,dy)||1;if(d>BR+g.r)continue;
+      hitFoe(st,g,cx,cy,dx/d,dy/d,34*SC,"frost");g.pv=Math.min(2,(g.pv||0)+1);}
+    emit(st,x,y+f.r*.5,15,{k:"frost",sp:150*SC,r:3*SC,life:.5,g:200*SC,spikeP:.9});
+    st.tb.splice(k,1);}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  for(let i=st.cl.length-1;i>=0;i--){st.cl[i].l+=dt;if(st.cl[i].l>.42)st.cl.splice(i,1);}
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(const b of st.tb){const f=st.F[b.i],x=cx+f.ox,y=cy+f.oy;
+    const rr=f.r+15*SC,lev=Math.min(1,b.u/.72);            // 수위 — 발밑부터 찬다
+    const top=y+rr-lev*rr*2.1;
+    // 잠긴 부분만 보인다. 잘라 그리는 것이 「차오름」의 전부다.
+    c.save();c.beginPath();c.rect(x-rr*1.6,top,rr*3.2,rr*2.4);c.clip();
+    c.globalAlpha=.68;
+    ICiceBody(c,t,x,y,rr*1.15,-Math.PI/2,b.i*3.7+6.1,"frost",1,
+      {arms:2,wid:.62,branch:.24,tap:.40,turn:0});
+    c.restore();
+    // 수위선 — 각진 얼음 면. 이것이 「얼마나 남았나」를 말한다.
+    fillPoly(c,[[x-rr*.95,top],[x-rr*.3,top-3.4*SC],[x+rr*.35,top+2.2*SC],
+      [x+rr*.95,top-2.6*SC],[x+rr*.9,top+4*SC],[x-rr*.9,top+4.4*SC]],
+      A(TONE.frost[2],.85));
+    if(lev>=1){                                            // 다 차면 뿔이 뻗는다
+      const gg=Math.min(1,(b.u-.72)/.2);
+      for(let i=0;i<3;i++){const a=-Math.PI/2+(i-1)*.62;
+        celSpike(c,x+Math.cos(a)*rr*.3,y-rr*.9,a,rr*(.5+.4*hash(i*3.3))*gg,
+          rr*.17*gg,"frost",.95);}}
+    if(b.u>.80){const cr=(b.u-.80)/.20;
+      celStroke(c,[[x-rr*.6,y+rr*.9],[x-rr*.1,y],[x-rr*.5,y-rr*.8]],1.5*SC,"white",cr*.9);}}
+  for(const s of st.cl){const f=1-s.l/.42;                 // 밑동부터 무너진다
+    const r=Math.max(1,s.r);
+    fillPoly(c,jagPoly(s.x,s.y+r*.3*(1-f),r*(.6+.5*(1-f)),9,7.3,1.5,.8),
+      A(TONE.frost[0],.85*f));
+    fillPoly(c,jagPoly(s.x,s.y+r*.3*(1-f),r*(.4+.4*(1-f)),9,8.9,1.4,.8),
+      A(TONE.frost[1],.9*f));
+    for(let i=0;i<7;i++)celSpike(c,s.x,s.y+r*.4,i/7*TAU+.2,r*1.9*f,r*.2*f,"frost",f*.8);
+    shards(c,s.x,s.y+r*.7,r*1.5,7,19,f*.75,"frost");}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ── 마운트 — **기존 표는 하나도 안 건드린다**(순수 추가) ────────────────────
+const ICFI=[
+// ⚠️ 옛 얼음 11안(ICwall 4 · ICspine 4 · ICtomb 3)은 **마운트에서 뺐다**
+// (2026-08-12 사용자 판정). 윤곽 문법으로 다시 그린 [IBwall3]·[IBwall4]·
+// [IBspine2b] 가 채택돼 각자 제 페이지(방어 · 마법 공격)로 갔다.
+// 함수는 남는다 — 서릿발 3·4 는 아직 판정 전이라 고르기에서 쓴다.
+["ICspine4","서릿발 D · 파도처럼 번짐","FROST","부채꼴 파면이 번진다. 지나간 자리에 낮은 서리가 남는다"]];
+ICFI.forEach(w=>tile($("magic"),FX,w[0],w[1],w[2],w[3],S,undefined,undefined,5));
+
+// ══════════════════════════════════════════════════════════════════════════
+// MS — 성격이 안 맞던 넷을 다시 그린다 (2026-08-12)
+//
+// **순수 추가다.** 기존 줄은 한 줄도 안 고친다. 원래 넷(`FX.wisp` ·
+// `MGFX.mgPoisonLatch` · `FX.mgGaleUplift` · `MGFX.mgNovaCycle`)은 그대로 두고,
+// 옆에 나란히 놓아 고르게 한다 — 각 무리의 첫 칸이 **지금 것(대조군)**이다.
+//
+// 붙는 자리는 빈 그리드 넷이다. 없으면 `$()` 가 떨어진 캔버스를 주므로
+// 아무 데도 안 붙고 IntersectionObserver 가 영영 안 물어 **비용이 0** 이다:
+//   <div class="grid" id="ms-wisp"></div>    <div class="grid" id="ms-latch"></div>
+//   <div class="grid" id="ms-uplift"></div>  <div class="grid" id="ms-cycle"></div>
+//
+// **레벨은 안 넣는다.** 넷 다 `LV` 를 안 읽고 LV=3 한 장면만 그린다. 대조군만
+// 전역 `LV` 를 잠깐 3 으로 놓고 부른다(`MSat3`) — 안 그러면 대조군이 LV=1 로
+// 나와 비교가 거짓말이 된다.
+// ══════════════════════════════════════════════════════════════════════════
+const MS_S=238;
+
+/// 대조군용 — 전역 LV 를 3 으로 고정해 부른다. **원본 함수는 안 건드린다.**
+function MSat3(fn,nm){
+  const g=function(c,t,dt,W,H,st){const s=LV;LV=3;
+    try{fn(c,t,dt,W,H,st);}finally{LV=s;}};
+  try{Object.defineProperty(g,"name",{value:"MSref_"+nm});}catch(e){}
+  return g;}
+
+// ══ ① 정령 — **실루엣이 없었다** ══════════════════════════════════════════
+//
+// 지금 것은 「움직이는 점 + 리본 꼬리」다. 점에 꼬리를 달면 그건 정령이 아니라
+// **들고 다니는 등**이다 — 꼬리가 곧 「무언가가 이것을 끌고 간다」라, 광원이
+// 주체가 아니라 부속품이 된다.
+//
+// 그래서 넷 다 **꼬리를 뺐다.** 움직임은 꼬리가 아니라 **몸이 스스로** 말한다
+// (자락이 끌리거나 · 고리가 돌거나 · 불이 눕거나 · 눈이 돌아보거나).
+//
+// ⚠️ 크기가 이 안의 시험이다. 셋이 몸 주위를 배회하므로 반지름 11(설계 단위)
+// 을 못 넘긴다 — 실기 배율(SC≈4.5)에서 지름 **약 100px**, 성장표 칸에서는
+// 약 6px 이다. 그 크기에서 **실루엣만으로** 갈려야 한다.
+
+/// 배회 경로 — 넷이 **같은 길**을 돈다. 원본과도 같은 길이라 실루엣만 갈린다.
+function MSwispAt(t,i,cx,cy,SC){
+  const a=t*(.85+i*.33)+i*2.1;
+  return [cx+Math.cos(a)*(56+18*Math.sin(t*1.7+i))*SC,
+          cy+Math.sin(a*1.31)*(50+14*Math.cos(t*1.2+i))*SC];}
+
+/// 넷의 공통 무대 — 적 배치 · 시간축 · 무는 규칙이 전부 같다.
+function MSwispRun(c,t,dt,W,H,st,paint){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,N=3,RR=11*SC;
+  st.F=st.F||mkFoes([[56,-52,10],[-60,-36,10],[18,60,9]]
+    .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+  stepFoes(st.F,dt);
+  const P=[],AN=[];
+  for(let i=0;i<N;i++){
+    const q=MSwispAt(t,i,cx,cy,SC),o=MSwispAt(t-.06,i,cx,cy,SC);
+    P.push(q);AN.push(Math.atan2(q[1]-o[1],q[0]-o[0]));}
+  for(let i=0;i<N;i++)for(const f of st.F)
+    if(Math.hypot(cx+f.ox+f.kx-P[i][0],cy+f.oy+f.ky-P[i][1])<f.r+RR&&R()<dt*9)
+      hitFoe(st,f,cx,cy,0,0,6*SC,"gold");
+  stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
+  // 몸을 **가로질러** 배회한다 — 깊이는 머리 한 점으로 가른다(원본 규약 그대로).
+  for(let i=0;i<N;i++){const q=P[i],an=AN[i];
+    dep(c,q[1],cy,(cc,al)=>paint(cc,t,q[0],q[1],an,RR,i,al,st));}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);}
+
+// ── 안 ① 「옷자락」 ───────────────────────────────────────────────────────
+// **유일한 것: 넷 중 몸이 있는 유일한 안.** 관(머리)과 헤진 아랫단이 갈려
+// 있어서, 밝은 앞날이 위쪽에 몰리면 그 자리가 그대로 **얼굴**로 읽힌다.
+// 등은 위아래가 없다 — 위아래가 생기는 순간 랜턴이 아니라 **누군가**가 된다.
+//
+// ⚠️ 한 번 고쳤다(2026-08-12 실기 배율 렌더). 첫 판은 관 폭 .62R · 자락 길이
+// 1.55R 이라 세로 2.7 : 가로 1.24 = **2.2:1 의 가늘고 긴 것**이 나왔고, 화면에서
+// **붓/깃털**로 읽혔다. 사람 실루엣을 만드는 것은 길이가 아니라 **잘록함**이다:
+//   관(둥근 위) → **목에서 조이고** → 어깨에서 벌어지고 → 자락이 퍼진다.
+// 그 잘록함을 넣고 세로를 2.3R 로 줄여 1.6:1 로 앉혔다.
+function MSrobePoly(x,y,t,RR,i,s,lean){
+  const p=[],HY=-.80*RR,hr=.46*RR;                 // 관 중심 · 관 반지름
+  // s 는 **관 중심을 향해** 줄인다 — 밝은 앞날이 머리에 몰려 「얼굴」이 된다.
+  const P=(px,py)=>p.push([x+px*s+lean*RR*.34*s*Math.max(0,(py-HY)/RR),
+                           y+HY+(py-HY)*s]);
+  for(let j=0;j<=5;j++){const a=-Math.PI+(j/5)*Math.PI;   // 관 — 각지게 다섯 마디
+    P(Math.cos(a)*hr*(j%2?.84:1),HY+Math.sin(a)*hr*.92);}
+  P(.30*RR,-.46*RR);                                // 목 — **잘록한 곳**
+  P(.72*RR,-.08*RR);                                // 어깨 — 여기서 벌어진다
+  P(.76*RR, .44*RR);
+  for(let j=2;j>=0;j--){                            // 자락 — 갈래 셋
+    P(((j+.5)/3-.5)*2*.74*RR, 1.08*RR+Math.sin(t*4.4+j*2.1+i*1.3)*.20*RR);
+    if(j>0)P((j/3-.5)*2*.70*RR,.62*RR);}
+  P(-.76*RR,.44*RR);P(-.72*RR,-.08*RR);P(-.30*RR,-.46*RR);
+  return p;}
+function MSwispRobe(c,t,x,y,an,RR,i,al){
+  const T=toneOf("gold"),lean=Math.cos(an);
+  fillPoly(c,MSrobePoly(x,y,t,RR,i,1.00,lean),A(T[0],.95*al));
+  fillPoly(c,MSrobePoly(x,y,t,RR,i,.66,lean),A(T[1],.97*al));
+  fillPoly(c,MSrobePoly(x,y,t,RR,i,.32,lean),A(T[2],al));}
+
+// ── 안 ② 「겹친 고리」 ────────────────────────────────────────────────────
+// **유일한 것: 속이 비어 있는 유일한 안.** 등은 언제나 꽉 찬 덩어리라,
+// 배경이 몸을 **통과해 보이는** 순간 등일 수가 없다. 기운 고리 셋이 서로 다른
+// 축으로 돌아 정지 화면에서도 「도는 것」이 남는다.
+function MSwispRing(c,t,x,y,an,RR,i,al){
+  const SPD=[1.70,-1.25,2.30],OFF=[0,1.0,2.1],
+        RAD=[1.02,.86,.68],SQ=[.26,.34,.22];
+  for(let j=0;j<3;j++)
+    celHoop(c,x,y,RR*RAD[j],SQ[j],t*SPD[j]+OFF[j]+i,RR*.17,"gold",al*.95);
+  celSplash(c,x,y,RR*.30,5,i*3+1,"gold",al);}
+
+// ── 안 ③ 「불꽃 덩이」 ────────────────────────────────────────────────────
+// **유일한 것: 실루엣이 매 프레임 다른 유일한 안.** 등은 윤곽이 고정이라,
+// 갈래가 찢어졌다 붙었다 하는 것만으로 「기물」에서 빠져나온다. 도깨비불이
+// 정령의 원형이기도 하다. `firePath` 를 그대로 쓰되 색만 무속성 계조다.
+// ⚠️ 한 번 고쳤다(2026-08-12 실기 배율 렌더). `firePath` 의 실루엣 파형은
+// 높이에 대해 약 2.5회 진동한다 — 첫 판처럼 폭 .60R 에 높이 2.05R(1:3.4)로 세우면
+// 그 진동이 **톱니 기둥**이 되어 불이 아니라 「고사리/전나무」로 읽혔다.
+// 폭을 .95R 로 키우고 높이를 1.55R 로 낮춰(1.6:1) 진동을 **옆 갈래**로 눕혔다.
+function MSwispFlame(c,t,x,y,an,RR,i,al){
+  const T=toneOf("gold"),WD=[1.28,.94,.50],HT=[1.20,.99,.64],AL=[.95,.97,1];
+  c.save();c.translate(x,y+RR*.56);c.rotate(Math.cos(an)*.24);
+  for(let k=0;k<3;k++){
+    firePath(c,0,0,RR*WD[k],RR*HT[k],t*(1+k*.24),i*4.1+k*1.7,k*2.2);
+    c.fillStyle=A(T[k],AL[k]*al);c.fill();}
+  c.restore();}
+
+// ── 안 ④ 「눈만 있는 것」 ────────────────────────────────────────────────
+// **유일한 것: 방향이 있는 유일한 안 — 본다.** 셋은 어디를 향하는지가 없지만
+// 이것은 제일 가까운 적을 **돌아본다.** 등은 절대 안 하는 짓이다.
+// 어둠(影)이 밝은 림으로 보이는 장치를 그대로 쓴다: 속은 어둡고 테만 밝다.
+// ⚠️ 두 군데 고쳤다(2026-08-12 실기 배율 렌더). 첫 판은 **각진 돌덩이**로 읽혔다:
+//   ① 몸이 `spikeMul 1.25` 짜리 뾰족한 별이라 **몸이 주인공**이 됐다. 이 안의
+//      주인공은 눈이므로 몸을 잔잔하게(.95 · 마디 9) 눕혔다.
+//   ② 눈이 앞뒤로 긴 마름모라 **얼굴이 아니라 무늬**였다. 눈은 시선의 **가로로**
+//      길어야 눈이다. 길이를 .34R 로 키우고 축을 90° 돌렸다.
+// 속은 **안 밝힌다** — 명도차 .008(#1E1E23 vs 배경 #0C0C12)이라 밝혀도 안 갈리고,
+// 밝히는 순간 「어두운 것」이라는 정체가 없어진다. 살리는 것은 **테**다
+// (적 실루엣이 몸 .102 / 림 .577 로 사는 것과 같은 수법).
+function MSwispEye(c,t,x,y,an,RR,i,al,st){
+  const T=toneOf("gold");
+  let bx=Math.cos(an),by=Math.sin(an),bd=1e30;
+  for(const f of st.F){const dx=f.gx-x,dy=f.gy-y,d=Math.hypot(dx,dy);
+    if(d<bd&&d>1e-3){bd=d;bx=dx/d;by=dy/d;}}
+  const P=jagPoly(x,y,RR*.95,9,i*5.3+2,.95);
+  fillPoly(c,P,A(T[0],.95*al));
+  c.beginPath();P.forEach((q,j)=>j?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));
+  // ⚠️ 테는 **밝히되 가늘게.** 두꺼운 테(.20R)는 그 자체가 덩어리가 돼서 눈과
+  // 무게가 같아지고, 그러면 「테에 뚫린 구멍」으로 읽힌다(2026-08-12 2세대 렌더).
+  // 실선 굵기의 밝은 윤곽 + 그 안에 **유일한 덩어리인 눈** 이라야 얼굴이 된다.
+  c.closePath();c.strokeStyle=A(T[2],.95*al);c.lineWidth=RR*.12;
+  c.lineJoin="round";c.stroke();
+  // 눈 둘 — 시선의 **가로로** 긴 각진 실눈. 가끔 감는다(감는 것도 등은 못 한다).
+  const open=1-Math.max(0,Math.sin(t*1.7+i*2.6)-.90)/.10;
+  const px=-by,py=bx,L=RR*.40,Wd=RR*.19*open;
+  for(const s of[-1,1]){
+    const ex=x+bx*RR*.26+px*s*RR*.33,ey=y+by*RR*.26+py*s*RR*.33;
+    // 안쪽 끝을 앞으로 밀어 살짝 기울인다 — 기울기가 있어야 표정이 생긴다.
+    fillPoly(c,[[ex+px*s*L*.85+bx*Wd*.5,ey+py*s*L*.85+by*Wd*.5],
+                [ex+bx*Wd,ey+by*Wd],
+                [ex-px*s*L*.72-bx*Wd*.3,ey-py*s*L*.72-by*Wd*.3],
+                [ex-bx*Wd,ey-by*Wd]],A(T[2],al));}}
+
+function MSwisp1(c,t,dt,W,H,st){MSwispRun(c,t,dt,W,H,st,MSwispRobe);}
+function MSwisp2(c,t,dt,W,H,st){MSwispRun(c,t,dt,W,H,st,MSwispRing);}
+function MSwisp3(c,t,dt,W,H,st){MSwispRun(c,t,dt,W,H,st,MSwispFlame);}
+function MSwisp4(c,t,dt,W,H,st){
+  // 눈이 볼 곳을 알아야 하므로 적의 화면 좌표를 미리 얹어 둔다.
+  const cx=W/2,cy=H/2;
+  if(st.F)for(const f of st.F){f.gx=cx+f.ox+f.kx;f.gy=cy+f.oy+f.ky;}
+  MSwispRun(c,t,dt,W,H,st,MSwispEye);}
+
+// ══ ② 기생 — **날아가는 구간이 축을 가렸다** ═════════════════════════════
+//
+// 축은 「붙는다」인데 지금 것은 나는 데 0.31초를 쓴다(`fly+=dt*3.2`). 그 사이
+// 화면의 주인공은 **날아가는 창**이라, 정작 팔아야 할 「적 몸에 박혀 같이
+// 움직인다」가 뒤로 밀린다.
+//
+// 셋 다 **나는 구간을 0.10초**로 줄였다(3.1배 짧다). 남은 시간은 전부 박힌
+// 뒤에 쓴다 — 그것이 이 스킬의 전부다.
+//
+// ⚠️ 그리고 **적을 움직이게 했다.** 원본은 적이 제자리라 박힌 뒤 화면이
+// 정지한다 — 「같이 움직인다」가 축인데 움직이는 것이 없었다. 셋 다 같은
+// 궤도로 흔들리므로 안끼리는 여전히 같은 상황이다.
+function MSlatchRun(c,t,dt,W,H,st,paint){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  if(!st.F){st.F=mkFoes([[72,-42,11],[-68,-26,10],[24,64,10],[-40,52,9]]
+      .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+    for(const f of st.F){f.bx=f.ox;f.by=f.oy;f.sd=hash(f.ox*.031+f.oy*.017);}}
+  for(const f of st.F){const s=f.sd;
+    f.ox=f.bx+Math.sin(t*(.55+s*.50)+s*9)*22*SC;
+    f.oy=f.by+Math.cos(t*(.47+s*.40)+s*5)*16*SC;}
+  stepFoes(st.F,dt);
+  const NB=3,FLY=.10,LIFE=5.4;
+  st.b=st.b||[];st.fa=(st.fa||0)+dt;
+  if(st.fa>1.05&&st.b.length<NB){st.fa=0;st.n=(st.n||0)+1;
+    const f=st.F[st.n%st.F.length];
+    st.b.push({f,fly:0,pop:0,a:hash(st.n*7.7)*TAU,rr:.62+hash(st.n*3.1)*.26,
+      age:0,tk:0,hit:0});}
+  for(let i=st.b.length-1;i>=0;i--){const q=st.b[i];
+    if(q.fly<1){q.fly=Math.min(1,q.fly+dt/FLY);
+      if(q.fly>=1){q.pop=1;q.f.pv=1;
+        const d=Math.hypot(q.f.ox,q.f.oy)||1;
+        hitFoe(st,q.f,cx,cy,q.f.ox/d,q.f.oy/d,14*SC,"toxin");}
+      continue;}
+    q.pop=Math.max(0,q.pop-dt*2.9);
+    q.age+=dt;q.tk+=dt;q.f.pv=1;q.hit=Math.max(0,q.hit-dt*3.4);
+    if(q.tk>.5){q.tk=0;q.hit=1;
+      // 오래 붙을수록 아프다 — 지속형의 정체(원본과 같은 규칙).
+      hitFoe(st,q.f,cx,cy,0,0,(3+Math.min(10,q.age*1.7))*SC,"toxin");}
+    if(q.age>LIFE)st.b.splice(i,1);}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  const mark=(L)=>{for(const f of st.F)if(f.pv>0)
+    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"poison",f.pv,t,"toxin",SC,L);};
+  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
+  for(const q of st.b){const f=q.f,fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;
+    const tx=fx+Math.cos(q.a)*f.r*q.rr,ty=fy+Math.sin(q.a)*f.r*q.rr;
+    if(q.fly<1){
+      // 나는 구간 — **획 하나.** 0.10초라 이것으로 충분하고, 이것이 전부여야 한다.
+      const u=q.fly,ux=cx+(tx-cx)*u,uy=cy+(ty-cy)*u,
+            v=Math.max(0,u-.55),bx=cx+(tx-cx)*v,by=cy+(ty-cy)*v;
+      celRibbon(c,[[bx,by],[(bx+ux)/2,(by+uy)/2],[ux,uy]],4.6*SC,"toxin",.92);
+      continue;}
+    paint(c,t,q,f,fx,fy,tx,ty,Math.min(1,q.age/3),SC);}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);}
+
+// ── 안 ① 「착탄이 전부다」 ───────────────────────────────────────────────
+// **유일한 것: 박히는 그 한 순간이 화면에서 제일 큰 사건인 안.** 나는 데 쓰던
+// 시간을 통째로 착탄으로 옮겼다 — 파편·충격 고리·여섯 갈래가 **한 프레임에**
+// 터지고, 그 뒤엔 짧고 굵은 자루가 조용히 얹혀 간다.
+function MSlatchSlam(c,t,q,f,fx,fy,tx,ty,mat,SC){
+  const b=q.pop,BL=(f.r*.80+7*SC)*(1+.24*mat),
+        an=q.a+Math.PI+Math.sin(t*3.4+q.a*3)*.09,
+        sx=fx+Math.cos(q.a)*(f.r*.92+BL*.80),
+        sy=fy+Math.sin(q.a)*(f.r*.92+BL*.80);
+  celSpike(c,sx,sy,an,BL,5.4*SC,"toxin",.95);
+  if(b>.02){
+    celSplash(c,tx,ty,(10+22*b)*SC,8,q.a*5,"toxin",b*.95);
+    celHoop(c,tx,ty,(4+30*(1-b))*SC,1,0,(7*b+1)*SC,"toxin",b*.90);
+    for(let k=0;k<6;k++)
+      celSpike(c,tx,ty,q.a+Math.PI+(k-2.5)*.42,(10+22*b)*SC,3.2*SC,"toxin",b*.80);}
+  const pl=1+q.hit*.50;
+  celSplash(c,tx,ty,(4.4+2.4*mat)*SC*pl,6,q.a*5,"toxin",.90);
+  celHoop(c,tx,ty,(5.6+3.6*mat)*SC*pl,1,0,2.2*SC,"toxin",.85);}
+
+// ── 안 ② 「집게」 ────────────────────────────────────────────────────────
+// **유일한 것: 도형 자체가 「물었다」인 안.** 창은 어디에 박혀도 창이라 몸을
+// 안 봐도 되지만, 턱은 **무는 대상이 있어야 성립**한다 — 두 날이 적의 둘레를
+// 감아 끝에서 맞물리므로, 적이 없으면 그림이 안 된다. 그리고 계속 씹는다.
+function MSlatchJaw(c,t,q,f,fx,fy,tx,ty,mat,SC){
+  const b=q.pop,open=.92*b+.11+.055*Math.sin(t*5.4+q.a*3),
+        R1=f.r*(1.34+.22*mat),R0=f.r*.52;
+  for(const s of[-1,1]){const P=[];
+    for(let j=0;j<=7;j++){const u=j/7;
+      const aa=q.a+s*(open+.30)*(1-u*.80),rr=R1-(R1-R0)*u;
+      P.push([fx+Math.cos(aa)*rr,fy+Math.sin(aa)*rr]);}
+    celRibbon(c,P,(5.6+2.4*mat)*SC,"toxin",.95);}
+  celSplash(c,tx,ty,(4.0+2.6*mat)*SC*(1+q.hit*.55),6,q.a*5,"toxin",.90);
+  if(b>.02)celHoop(c,fx,fy,f.r*1.10+24*SC*(1-b),1,0,(6*b+1)*SC,"toxin",b*.85);}
+
+// ── 안 ③ 「알」 ──────────────────────────────────────────────────────────
+// **유일한 것: 나이가 크기로 보이는 안.** 「오래 붙을수록 아프다」가 이 스킬의
+// 계약인데 셋 중 이것만 그 계약을 **크기**로 그린다 — 갓 박힌 것과 다 익은
+// 것이 정지 화면에서 갈린다. 뿌리도 나이만큼만 뻗는다.
+function MSlatchSac(c,t,q,f,fx,fy,tx,ty,mat,SC){
+  const b=q.pop,pl=1+q.hit*.34-b*.20;
+  for(let k=0;k<5;k++){const sp=q.a+(k-2)*.46,len=f.r*(.50+1.60*mat),P=[];
+    for(let s2=0;s2<=6;s2++){const w=s2/6,aa=sp+Math.sin(w*3.1+k)*.6;
+      P.push([fx+Math.cos(aa)*len*w,fy+Math.sin(aa)*len*w]);}
+    celStroke(c,P,3.2*SC,"toxin",.70*mat);}
+  const RS=Math.max(.6*SC,(3.2+9.0*mat)*SC*pl),
+        sx=tx+Math.cos(q.a)*RS*.50,sy=ty+Math.sin(q.a)*RS*.50;
+  celSpike(c,sx+Math.cos(q.a)*RS*1.05,sy+Math.sin(q.a)*RS*1.05,q.a+Math.PI,
+    RS*1.6,2.8*SC,"toxin",.90);
+  celPuff(c,sx,sy,RS,6,q.a*7+1,"toxin",.95);
+  if(b>.02)celHoop(c,tx,ty,(3+22*(1-b))*SC,1,0,(5*b+1)*SC,"toxin",b*.85);}
+
+function MSlatch1(c,t,dt,W,H,st){MSlatchRun(c,t,dt,W,H,st,MSlatchSlam);}
+function MSlatch2(c,t,dt,W,H,st){MSlatchRun(c,t,dt,W,H,st,MSlatchJaw);}
+function MSlatch3(c,t,dt,W,H,st){MSlatchRun(c,t,dt,W,H,st,MSlatchSac);}
+
+// ══ ③ 부양 — **바람 문법이 이미 있는데 안 썼다** ═════════════════════════
+//
+// `windEmblem` 은 이 파일에 있고 실사용이 0 회다. 지금 부양이 쓰는 것은
+// `windStroke` 셋뿐이라 「위로 흐르는 획」이지 **바람**이 아니다.
+//
+// 셋 다 굵은 초승달 획(`windStroke`/`windEmblem`)으로만 짠다 — 가는 나선은
+// 낙서로 읽힌다는 것이 이 레포가 2026-08-08 에 배운 것이다.
+// 그림자 고도계는 **살린다**(수직 축을 파는 것은 그쪽이고, 반려된 적 없다).
+function MSupliftRun(c,t,dt,W,H,st,paint){
+  const cx=W/2,cy=H/2,U=Math.min(W,H)/238;
+  st.F=st.F||mkFoes([[62,-38,11],[-60,-26,10],[-4,58,10],[46,46,9]]
+    .map(v=>[v[0]*U,v[1]*U,v[2]*U]));
+  stepFoes(st.F,dt);
+  const NT=2,HT=58*U,PER=1.9,u=saw(t,PER),RISE=.22,HOLD=.68,DROP=.78;
+  // ⚠️ 위상 파생값 금지 — u=0 과 u=1 에서 둘 다 0 인 스케줄 **하나**에서 뽑는다.
+  const up=u<RISE?ease(u/RISE):(u<HOLD?1:(u<DROP?1-Math.pow((u-HOLD)/.10,2):0));
+  if(u<(st.pu||0))st.sel=null;
+  if(!st.sel){st.sel=[];const o=((t/PER)|0);
+    for(let i=0;i<NT;i++)st.sel.push(st.F[(i+o)%st.F.length]);}
+  if((st.pu||0)<DROP&&u>=DROP){st.imp=1;
+    for(const f of st.sel){hitFoe(st,f,cx,cy,0,1,22*U,"gale");
+      emit(st,cx+f.ox,cy+f.oy,8,
+        {k:"gale",sp:150*U,r:2.8*U,life:.45,g:180*U,spikeP:.6});}}
+  st.pu=u;st.imp=Math.max(0,(st.imp||0)-dt*1.8);
+  stepP(st,dt);
+  const lift=HT*up,imp=st.imp||0;
+  // 그림자 = 고도계. 검은 그림자는 검은 바탕에서 안 보이므로 **밝은 테**를 얹는다.
+  for(const f of st.sel){const x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+    dep(c,y,cy,(cc,dz)=>{const sh=(19-up*7)*U;
+      cc.beginPath();cc.ellipse(x,y+f.r*.52,sh,sh*.40,0,0,TAU);
+      cc.fillStyle=A("#04040A",(.85-up*.30)*dz);cc.fill();
+      celHoop(cc,x,y+f.r*.52,sh,.40,0,2.4*U+1,"gale",(.80-up*.25)*dz);});}
+  // 바람 — 적 **뒤** 몫
+  for(const f of st.sel){const x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+    dep(c,y,cy,(cc,dz)=>paint(cc,t,x,y,f,up,lift,HT,U,dz,imp,0));}
+  for(const f of st.sel)f.ky-=lift;
+  drawFoes(c,t,cx,cy,st.F);
+  for(const f of st.sel)f.ky+=lift;
+  // 바람 — 적 **앞** 몫. 앞뒤가 다 있어야 「감겼다」가 된다.
+  for(const f of st.sel){const x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+    dep(c,y-lift,cy,(cc,dz)=>paint(cc,t,x,y,f,up,lift,HT,U,dz,imp,1));}
+  drawP(c,st);hero(c,t,cx,cy,"gold",U);}
+
+// ── 안 ① 「바닥의 바람 — windEmblem 그대로」 ─────────────────────────────
+// **유일한 것: 바람이 적을 안 따라가는 안.** 문양은 땅에 남고 적만 오른다 —
+// 미는 것과 뜬 것이 분리돼 보여서 「저것 때문에 떴다」가 인과로 읽힌다.
+// 있는 문법을 **한 글자도 안 고치고** 쓴 안이기도 하다(검증 대상).
+function MSupliftGround(c,t,x,y,f,up,lift,HT,U,dz,imp,layer){
+  if(layer)return;                       // 전부 지면에 있다
+  windEmblem(c,t,x,y+f.r*.52,"gale",U*(.42+.30*up),(.25+.75*up)*dz);
+  if(imp>.02){celSplash(c,x,y+f.r*.30,20*U*imp,9,3.1,"gale",imp*.90*dz);
+    celHoop(c,x,y+f.r*.50,(1-imp)*46*U+8*U,.36,0,3.4*U+1,"gale",imp*.85*dz);}}
+
+// ── 안 ② 「초승달 계단」 ─────────────────────────────────────────────────
+// **유일한 것: 높이가 세어지는 안.** 초승달 다섯이 고정 높이에 걸려 있고 적이
+// 하나씩 통과한다 — 「얼마나 떴나」가 눈금으로 남는 유일한 안이다. 지나온
+// 칸은 밝게 남고 남은 칸은 어둡다.
+function MSupliftStair(c,t,x,y,f,up,lift,HT,U,dz,imp,layer){
+  const RUNG=5,gy=y+f.r*.42;
+  if(layer){ // 지금 통과 중인 칸만 적 **앞**으로 한 번 더 — 그래야 뚫고 지난다
+    for(let j=0;j<RUNG;j++){const hh=HT*(j+1)/RUNG;
+      const near=Math.max(0,1-Math.abs(lift-hh)/(HT*.16));
+      if(near<=.02)continue;
+      windStroke(c,t,x,gy-hh,(19+7*near+j*1.1)*U,.34,
+        (j%2?1:-1)*.26+Math.sin(t*.9+j)*.14,2.6,(3.0+6.0*near)*U,"gale",
+        Math.min(1,near*up*.55*dz));}
+    return;}
+  for(let j=0;j<RUNG;j++){const hh=HT*(j+1)/RUNG;
+    const near=Math.max(0,1-Math.abs(lift-hh)/(HT*.34)),passed=lift>hh?1:0;
+    const al=Math.min(1,(.20+.30*passed+.58*near)*up*dz);
+    if(al<=.02)continue;
+    const r=(19+7*near+j*1.1)*U;
+    windStroke(c,t,x,gy-hh,r,.34,(j%2?1:-1)*.26+Math.sin(t*.9+j)*.14,2.6,
+      (3.0+6.0*near)*U,"gale",al);
+    // 통과하는 순간 — 초승달 양 끝이 **찢겨 나간다**
+    if(near>.55)for(const s of[-1,1])
+      celSpike(c,x+s*r*.92,gy-hh,s>0?-.50:Math.PI+.50,
+        (10+10*near)*U,2.6*U,"gale",Math.min(1,(near-.55)/.45*up*dz));}
+  if(imp>.02)celSplash(c,x,y+f.r*.30,20*U*imp,9,3.1,"gale",imp*.90*dz);}
+
+// ── 안 ③ 「감아 올리는 기둥」 ────────────────────────────────────────────
+// **유일한 것: 바람이 적을 감싸고 같이 올라가는 안.** 초승달이 위로 갈수록
+// 안으로 조여(`windStroke` 의 결 그대로) 기둥이 되고, 티끌은 바깥에서 그
+// 기둥으로 빨려든다 — 바람의 정체가 끌어당김이라는 이 파일의 정의 그대로다.
+function MSupliftColumn(c,t,x,y,f,up,lift,HT,U,dz,imp,layer){
+  const gy=y+f.r*.42;
+  if(layer){ // 적 높이에 걸린 획 하나만 앞으로 — 앞뒤가 다 있어야 「감겼다」
+    if(up>.05)windStroke(c,t,x,y-lift+f.r*.10,(15+4*Math.sin(t*2.3))*U,.30,
+      t*2.0,2.6,4.6*U,"gale",Math.min(1,up*.55*dz));
+    return;}
+  for(let j=0;j<4;j++){const p=((t*1.15+j/4)%1);
+    const al=Math.min(1,(1-p*.55)*up*dz);
+    if(al<=.02)continue;
+    windStroke(c,t,x,gy-p*(lift+HT*.22),(26-13*p)*U,.30,t*2.0+j*1.57,3.2,
+      (6.4-2.8*p)*U,"gale",al);}
+  for(let i=0;i<6;i++){const ph=((t*.90+i/6)%1),an=i/6*TAU-t*2.1-ph*2.4;
+    const rr=(46-34*ph)*U;
+    celSpike(c,x+Math.cos(an)*rr,gy-ph*(lift+HT*.15)+Math.sin(an)*rr*.34,
+      an+Math.PI+1.5,(9+5*hash(i*3.7))*U*(1-ph*.40),2.4*U,"gale",
+      Math.min(1,(1-ph)*.90*up*dz));}
+  if(imp>.02){celSplash(c,x,y+f.r*.30,20*U*imp,9,3.1,"gale",imp*.90*dz);
+    celHoop(c,x,y+f.r*.50,(1-imp)*46*U+8*U,.36,0,3.4*U+1,"gale",imp*.85*dz);}}
+
+function MSuplift1(c,t,dt,W,H,st){MSupliftRun(c,t,dt,W,H,st,MSupliftGround);}
+function MSuplift2(c,t,dt,W,H,st){MSupliftRun(c,t,dt,W,H,st,MSupliftStair);}
+function MSuplift3(c,t,dt,W,H,st){MSupliftRun(c,t,dt,W,H,st,MSupliftColumn);}
+
+// ══ ④ 오행 — **면으로 채우면 색만 바뀌는 덩어리다** ══════════════════════
+//
+// 지금 것은 속성마다 큰 면 문양을 반경 62 에 채운다. 다섯이 도는 것이 아니라
+// **한 덩어리의 색이 바뀌는 것**으로 보이고, 넘어가는 순간에 표시가 없다.
+//
+// 셋 다 **가는 선·고리**로만 짠다. 그리고 셋 다 넘어가는 지점에 매듭이 있다.
+//
+// ⚠️ 오행이 거는 것은 상태가 아니다 — `PASSIVE.white === "pierceAll"`,
+// 즉 **기본 공격의 규칙이 바뀐다**(방어 무시 · 피해 ×2 · 1회 튕김). 그래서
+// 셋 다 **탄을 그린다**: 평소 탄은 적의 각진 방어 조각에 막혀 멎고, 백광 탄은
+// 그 조각을 **깨고**(방어 무시) 굵어진 채(×2) 옆 놈으로 **한 번 튕긴다**.
+// 적에게 표식(`pvMark`)을 안 거는 것이 이 마법의 정체다.
+const MSCYL=["ember","frost","volt","gale","toxin"];
+function MScycleRun(c,t,dt,W,H,st,paint){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  st.F=st.F||mkFoes([[66,-54,11],[-68,-36,10],[14,70,10],[-28,-68,9]]
+    .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+  stepFoes(st.F,dt);
+  const N=5,PH=.52,SPAN=N*PH,NOVA=.90,TOT=SPAN+NOVA;
+  st.u=((st.u||0)+dt)%TOT;
+  const inCyc=st.u<SPAN,idx=inCyc?Math.floor(st.u/PH)%N:N-1,
+        seg=inCyc?(st.u%PH)/PH:1,nv=inCyc?0:(st.u-SPAN)/NOVA,white=!inCyc;
+  if(inCyc&&st.pi!==idx){st.pi=idx;st.sw=1;      // 넘어간 그 프레임
+    for(const f of st.F)if(Math.hypot(f.ox,f.oy)<104*SC)
+      hitFoe(st,f,cx,cy,0,0,9*SC,MSCYL[idx]);}
+  if(!inCyc)st.pi=-1;
+  st.sw=Math.max(0,(st.sw||0)-dt*3.2);
+  // ── 기본 공격 — 이 마법이 바꾸는 것은 **이것**이다 ─────────────────────
+  st.bl=st.bl||[];st.gd=st.gd||[];st.ba=(st.ba||0)+dt;
+  if(st.ba>(white?.13:.26)){st.ba=0;st.nb=(st.nb||0)+1;
+    const f=st.F[st.nb%st.F.length];
+    st.bl.push({x:cx,y:cy,a:Math.atan2(f.oy+f.ky,f.ox+f.kx),
+      k:white?"white":MSCYL[idx],w:white?1:0,b:0,l:0,last:null});}
+  for(let i=st.bl.length-1;i>=0;i--){const q=st.bl[i];
+    const sp=(q.w?300:230)*SC;
+    q.x+=Math.cos(q.a)*sp*dt;q.y+=Math.sin(q.a)*sp*dt;q.l+=dt;
+    let dead=q.l>1.6;
+    for(const f of st.F){
+      if(f===q.last)continue;
+      const fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;
+      if(Math.hypot(q.x-fx,q.y-fy)>=f.r+3*SC)continue;
+      const d=Math.hypot(q.x-cx,q.y-cy)||1;
+      hitFoe(st,f,cx,cy,(q.x-cx)/d,(q.y-cy)/d,(q.w?18:8)*SC,q.k);
+      st.gd.push({x:fx,y:fy,r:f.r,a:q.a,w:q.w,l:0});
+      q.last=f;
+      if(!q.w||q.b)dead=true;                    // 평소엔 멎고, 백광은 두 번째에 끝
+      else{q.b=1;q.l=0;                          // 튕김 1회
+        let best=null,bd=1e30;
+        for(const g of st.F){if(g===f)continue;
+          const dd=Math.hypot(cx+g.ox-q.x,cy+g.oy-q.y);
+          if(dd<bd){bd=dd;best=g;}}
+        if(best)q.a=Math.atan2(cy+best.oy-q.y,cx+best.ox-q.x);else dead=true;}
+      break;}
+    if(dead)st.bl.splice(i,1);}
+  for(let i=st.gd.length-1;i>=0;i--){st.gd[i].l+=dt;if(st.gd[i].l>.34)st.gd.splice(i,1);}
+  stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
+  paint(c,t,cx,cy,SC,idx,seg,st.sw||0,nv,white,st);
+  // 방어 조각 — 평소엔 탄을 막고 번쩍이고, 백광에선 **깨져 흩어진다**
+  for(const g of st.gd){const u=1-g.l/.34;
+    if(!g.w){const P=[];
+      for(let j=0;j<5;j++){const aa=g.a+Math.PI+(j-2)*.30;
+        P.push([g.x+Math.cos(aa)*g.r*1.26,g.y+Math.sin(aa)*g.r*1.26]);}
+      celStroke(c,P,2.8*SC,"gold",u*.85);}
+    else for(let j=0;j<5;j++){const aa=g.a+Math.PI+(j-2)*.30,
+      dd=g.r*(1.26+(1-u)*1.5);
+      celSpike(c,g.x+Math.cos(aa)*dd,g.y+Math.sin(aa)*dd,aa,
+        11*SC*u,2.6*SC*u,"white",u*.95);}}
+  // 탄 — 백광 탄은 **굵고 희고 꺾인다**
+  for(const q of st.bl)
+    celRound(c,q.x,q.y,q.a,(q.w?17:11)*SC,(q.w?4.2:2.6)*SC,q.k,.98,.80);
+  // 백광 — 한 바퀴를 다 돌아야 나온다. **가는 고리 셋**뿐이다(면은 안 쓴다).
+  if(nv>0)for(let k=0;k<3;k++){const u=nv*1.5-k*.16;
+    if(u<=0||u>=1)continue;
+    celHoop(c,cx,cy,(10+108*u)*SC,1,0,(5*(1-u)+1.4)*SC,"white",(1-u)*.85);}
+  drawP(c,st);hero(c,t,cx,cy,white?"white":"gold",SC*(1+nv*.25));}
+
+// ── 안 ① 「바늘 시계」 ───────────────────────────────────────────────────
+// **유일한 것: 다음 넘어감까지 얼마 남았는지가 보이는 안.** 셋 중 이것만
+// **바늘**이 있어서 칸 안의 진행이 각도로 읽힌다 — 「돌아간다」가 상태가
+// 아니라 **시계**가 된다.
+function MScycleClock(c,t,cx,cy,SC,idx,seg,sw,nv,white,st){
+  const R0=64*SC,N=5;
+  for(let k=0;k<N;k++){
+    const a0=k/N*TAU-Math.PI/2+.055,a1=(k+1)/N*TAU-Math.PI/2-.055,
+          cur=!white&&k===idx,done=white||k<idx;
+    celStroke(c,arcPts(cx,cy,R0,a0,a1,10),(cur?4.4:2.0)*SC,MSCYL[k],
+      cur?1:(done?.70:.18));
+    // 칸 경계 — 넘어가는 **지점**에 매듭이 있어야 「도는 중」이 읽힌다
+    const ab=k/N*TAU-Math.PI/2;
+    celSplash(c,cx+Math.cos(ab)*R0,cy+Math.sin(ab)*R0,
+      (2.6+(k===idx?5.0*sw:0))*SC,5,k*3+1,MSCYL[k],
+      (white||k<=idx)?.95:.32);}
+  const na=(white?1:(idx+seg)/N)*TAU-Math.PI/2,kk=white?"white":MSCYL[idx];
+  celStroke(c,[[cx+Math.cos(na)*11*SC,cy+Math.sin(na)*11*SC],
+               [cx+Math.cos(na)*(R0-12*SC),cy+Math.sin(na)*(R0-12*SC)]],
+    2.8*SC,kk,.95);
+  celSpike(c,cx+Math.cos(na)*(R0-12*SC),cy+Math.sin(na)*(R0-12*SC),na,
+    13*SC,3.4*SC,kk,1);}
+
+// ── 안 ② 「자국이 남는 고리」 ────────────────────────────────────────────
+// **유일한 것: 고리 자체가 진행 막대인 안.** 매듭 하나가 한 바퀴 돌며 **색을
+// 깔고 간다** — 움직이는 것이 하나뿐이라 제일 조용하고, 그런데도 「몇 개나
+// 돌았나」가 색 띠로 항상 화면에 남는다.
+function MScycleTrail(c,t,cx,cy,SC,idx,seg,sw,nv,white,st){
+  const R0=64*SC,M=60,prog=white?1:(idx+seg)/5,seam=prog*TAU-Math.PI/2;
+  if(!white)celHoop(c,cx,cy,R0,1,0,1.6*SC,"gold",.16);   // 아직 안 지난 자리
+  for(let j=0;j<M;j++){const u0=j/M;
+    if(!white&&u0>prog)continue;
+    const age=prog-u0,fr=Math.max(0,1-age*2.4);
+    celStroke(c,arcPts(cx,cy,R0,u0*TAU-Math.PI/2,(j+1)/M*TAU-Math.PI/2,3),
+      (1.9+2.8*Math.max(0,1-age*4.5))*SC,
+      white?"white":MSCYL[Math.min(4,(u0*5)|0)],.34+.60*fr);}
+  celSplash(c,cx+Math.cos(seam)*R0,cy+Math.sin(seam)*R0,(4.4+5.0*sw)*SC,6,3,
+    white?"white":MSCYL[idx],1);}
+
+// ── 안 ③ 「다섯 궤도」 ───────────────────────────────────────────────────
+// **유일한 것: 다섯이 항상 다 보이는 안.** 기운 고리 다섯이 처음부터 끝까지
+// 걸려 있고 **차례만 옮겨간다** — 무엇이 남았는지가 미리 보이는 유일한 안이다.
+// 넘어감은 구슬이 다음 고리로 **건너뛰는 것**으로 그린다.
+function MScycleOrbit(c,t,cx,cy,SC,idx,seg,sw,nv,white,st){
+  const bead=(rr,sq,rot,aa)=>{const px=rr*Math.cos(aa),py=rr*sq*Math.sin(aa);
+    return [cx+px*Math.cos(rot)-py*Math.sin(rot),
+            cy+px*Math.sin(rot)+py*Math.cos(rot)];};
+  for(let k=0;k<5;k++){
+    const cur=!white&&k===idx,rr=(50+k*5.0)*SC,sq=.30+k*.11,
+          rot=k*.63+t*(cur?.90:.28);
+    celHoop(c,cx,cy,rr,sq,rot,(cur?3.4:1.4)*SC,MSCYL[k],
+      white?.48:(cur?.95:.20));
+    if(!cur)continue;
+    const aa=seg*TAU-Math.PI/2,p=bead(rr,sq,rot,aa);
+    celSplash(c,p[0],p[1],(4.6+4.0*sw)*SC,6,k*3+1,MSCYL[k],1);
+    // 건너뛰는 순간 — 앞 고리에서 이 고리로 잇는 실 하나
+    if(sw>.02){const pk=(k+4)%5,pr=(50+pk*5.0)*SC,ps=.30+pk*.11,
+      pt2=bead(pr,ps,pk*.63+t*.28,aa);
+      celStroke(c,[pt2,p],2.6*SC,MSCYL[k],sw*.9);}}}
+
+function MScycle1(c,t,dt,W,H,st){MScycleRun(c,t,dt,W,H,st,MScycleClock);}
+function MScycle2(c,t,dt,W,H,st){MScycleRun(c,t,dt,W,H,st,MScycleTrail);}
+function MScycle3(c,t,dt,W,H,st){MScycleRun(c,t,dt,W,H,st,MScycleOrbit);}
+
+// ══ 배치 — 무리마다 **첫 칸이 지금 것(대조군)** ═══════════════════════════
+mapTile("ms-wisp",MSat3(FX.wisp,"wisp"),"지금 — 대조군",
+  "움직이는 점 + 리본 꼬리 + 정령끼리 잇는 선. 형태가 없어서 「들고 다니는 등」으로 읽힌다.",MS_S,MS_S);
+mapTile("ms-wisp",MSwisp1,"MSwisp1 · 옷자락",
+  "넷 중 **몸이 있는** 유일한 안 — 관(머리)과 헤진 아랫단이 갈려 위아래가 생긴다. 등은 위아래가 없다.",MS_S,MS_S);
+mapTile("ms-wisp",MSwisp2,"MSwisp2 · 겹친 고리",
+  "**속이 비어 있는** 유일한 안 — 배경이 몸을 통과해 보인다. 기운 고리 셋이 서로 다른 축으로 돈다.",MS_S,MS_S);
+mapTile("ms-wisp",MSwisp3,"MSwisp3 · 불꽃 덩이",
+  "**실루엣이 매 프레임 다른** 유일한 안 — 갈래가 찢어졌다 붙는다. firePath 를 무속성 계조로 쓴다.",MS_S,MS_S);
+mapTile("ms-wisp",MSwisp4,"MSwisp4 · 눈만 있는 것",
+  "**방향이 있는** 유일한 안 — 제일 가까운 적을 돌아보고 가끔 감는다. 속은 어둡고 테만 밝다.",MS_S,MS_S);
+
+mapTile("ms-latch",MSat3(MGFX.mgPoisonLatch,"latch"),"지금 — 대조군",
+  "나는 데 0.31초를 쓴다. 적이 제자리라 박힌 뒤 화면이 정지해 「같이 움직인다」가 안 보인다.",MS_S,MS_S);
+mapTile("ms-latch",MSlatch1,"MSlatch1 · 착탄이 전부다",
+  "박히는 **한 순간**이 화면에서 제일 큰 사건인 안 — 파편·충격 고리·여섯 갈래가 한 프레임에 터진다.",MS_S,MS_S);
+mapTile("ms-latch",MSlatch2,"MSlatch2 · 집게",
+  "도형 자체가 「물었다」인 안 — 두 날이 적의 둘레를 감아 맞물린다. 적이 없으면 그림이 성립을 안 한다.",MS_S,MS_S);
+mapTile("ms-latch",MSlatch3,"MSlatch3 · 알",
+  "**나이가 크기로** 보이는 안 — 「오래 붙을수록 아프다」를 정지 화면에서도 읽을 수 있는 유일한 안.",MS_S,MS_S);
+
+mapTile("ms-uplift",MSat3(FX.mgGaleUplift,"uplift"),"지금 — 대조군",
+  "windStroke 셋이 위로 흐를 뿐이라 「위로 가는 획」이지 바람이 아니다. windEmblem 은 안 쓴다.",MS_S,MS_S);
+mapTile("ms-uplift",MSuplift1,"MSuplift1 · 바닥의 바람(windEmblem 그대로)",
+  "바람이 적을 **안 따라가는** 안 — 문양은 땅에 남고 적만 오른다. 있는 문법을 한 글자도 안 고치고 쓴다.",MS_S,MS_S);
+mapTile("ms-uplift",MSuplift2,"MSuplift2 · 초승달 계단",
+  "**높이가 세어지는** 안 — 초승달 다섯이 고정 높이에 걸려 있고 적이 하나씩 뚫고 지난다.",MS_S,MS_S);
+mapTile("ms-uplift",MSuplift3,"MSuplift3 · 감아 올리는 기둥",
+  "바람이 적을 **감싸고 같이 올라가는** 안 — 위로 갈수록 조이고, 티끌이 바깥에서 기둥으로 빨려든다.",MS_S,MS_S);
+
+mapTile("ms-cycle",MSat3(MGFX.mgNovaCycle,"cycle"),"지금 — 대조군",
+  "면 문양을 반경 62 에 채운다. 다섯이 도는 것이 아니라 한 덩어리의 색이 바뀌는 것으로 보인다.",MS_S,MS_S);
+mapTile("ms-cycle",MScycle1,"MScycle1 · 바늘 시계",
+  "**다음 넘어감까지 얼마 남았는지**가 보이는 안 — 셋 중 이것만 바늘이 있어 칸 안의 진행이 각도다.",MS_S,MS_S);
+mapTile("ms-cycle",MScycle2,"MScycle2 · 자국이 남는 고리",
+  "고리 자체가 **진행 막대**인 안 — 매듭 하나가 돌며 색을 깔고 간다. 움직이는 것이 하나뿐이다.",MS_S,MS_S);
+mapTile("ms-cycle",MScycle3,"MScycle3 · 다섯 궤도",
+  "**다섯이 항상 다 보이는** 안 — 무엇이 남았는지가 미리 보인다. 넘어감은 구슬이 다음 고리로 건너뛴다.",MS_S,MS_S);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FC — 화염방사 火炎放射 다시 (2026-08-12)
+//
+// 레퍼런스 = **애니메이션 화염 폭발**(굵은 검은 윤곽 · 둥근 뭉게 돌기 ·
+// 큰 노랑 심 · 긴 바늘 스파크 · 바닥 소용돌이 · 검은 연기).
+//
+// 앞 사이클(FRcone1~4)이 반려된 진짜 이유는 갈래 수가 아니었다:
+// **윤곽선이 없어서** 불덩이가 서로 녹아 한 얼룩이 됐고, 그래서 「탄환/버섯구름」
+// 으로 보였다. 애니 화염의 정체는 실루엣이 아니라 **실루엣을 두르는 굵은 어두운
+// 선**이다 — 선이 있으면 덩어리 셋이 겹쳐도 셋으로 읽힌다.
+//
+// 이 레포에 **아웃라인 문법이 없었다.** 그래서 새로 만든다(FCink/FCshell).
+// 지키는 것은 하나뿐 — **이미지 0개, 전부 실시간 경로.**
+//
+// 여덟 안이 **같은 시뮬**(FCsim: 원본 mgFireCone LV3 의 적 배치·조준·0.16s 판정
+// 틱 그대로)을 공유한다. 화면에서 다른 것은 **그리는 법뿐**이다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const FCDIR=-Math.PI/2;                       // 고정 조준(위)
+
+/// 불의 5단 램프. **ember 3단에는 노랑이 없다** — 주황(#FF6A1E)에서 크림
+/// (#FFE7CC)으로 건너뛰므로 둘을 보간하면 살구색(#FF9E67)이 나온다.
+/// 레퍼런스의 심은 크림이 아니라 **노랑**이고, 노랑 없이는 「달아오른 심」이
+/// 그냥 하얀 얼룩으로 보인다. 그래서 초록 성분 쪽으로 당긴 한 칸을 끼운다.
+/// ink 는 팔레트에 없던 **윤곽 색** — 어두움(T[0])을 검정 쪽으로 60% 민 값이라
+/// 속성을 갈아도(RECOLOR) 윤곽이 같이 따라간다.
+const FCramp=k=>{const T=toneOf(k);return{
+  ink : mixHex(T[0],"#000000",.60),
+  dark: T[0],
+  base: T[1],
+  yel : mixHex(T[1],"#FFE24A",.72),
+  lit : T[2],
+  smk : mixHex(T[0],"#1E1B24",.92),
+  smki: mixHex(T[0],"#000000",.72)};};
+
+// ── 새 원시 ① 윤곽 채우기 ────────────────────────────────────────────────
+/// **긋고 나서 채운다.** 선이 경로 위에 중심을 두고 그려지므로, 뒤이은 채우기가
+/// 선의 안쪽 절반을 덮는다 → 남는 것은 **바깥 절반의 굵은 테두리**뿐이다.
+/// 이것이 애니 화염의 전부다. (`clip`+`stroke` 로 하면 코너가 깨진다.)
+function FCink(c,poly,fill,ink,w,a=1){
+  c.beginPath();poly.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();
+  c.lineJoin="round";c.lineCap="round";
+  if(w>0){c.strokeStyle=A(ink,a);c.lineWidth=w;c.stroke();}
+  c.fillStyle=A(fill,a);c.fill();
+}
+/// **채우고 나서 긋는다.** 선이 통째로 남아 「어두운 속 + 밝은 테두리」가 된다 —
+/// 레퍼런스 A/B 의 **뚫린 불**(막처럼 보이고 사이로 바닥이 비친다)이 이것이다.
+function FCshell(c,poly,fill,rim,w,a=1){
+  c.beginPath();poly.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();
+  c.fillStyle=A(fill,a);c.fill();
+  c.lineJoin="round";c.lineCap="round";
+  c.strokeStyle=A(rim,a);c.lineWidth=w;c.stroke();
+}
+// ── 새 원시 ② 둥근 뭉게 돌기 실루엣(방향·비율을 가진다) ──────────────────
+/// `puffPoly` 는 원형 고정이라 원뿔에 못 쓰고, **호를 고정 각도(1.24π)로 쓸어**
+/// 돌기 뒤가 중심 쪽으로 파고든다. 채우기만 할 때는 안 보이지만 **윤곽선을
+/// 두르면 그 골이 그대로 드러나 「데이지 꽃잎」이 된다**(2026-08-12 렌더 판정).
+///
+/// 그래서 호를 **이웃 돌기와 만나는 자리에서 끊는다** — 원-원 교점을 풀어
+/// 거기까지만 그리므로 골이 아예 안 생기고 실루엣이 진짜 뭉게(cauliflower)가 된다.
+/// 돌기 **중심만** 늘려(sx,sy) 늘려도 돌기가 안 찌그러진다.
+function FClobeP(cx,cy,r,n,seed,sx=1,sy=1,rot=0,bulge=.46){
+  const C=[],BR=[],D=[],bd=r*(1-bulge*.60),M=7;
+  for(let i=0;i<n;i++){const am=(i+.5)/n*TAU;
+    BR.push(r*bulge*(.80+.40*hash(seed+i*4.7)));
+    C.push([Math.cos(am)*bd*sx,Math.sin(am)*bd*sy]);}
+  for(let i=0;i<n;i++){const j=(i+1)%n;
+    D.push(Math.hypot(C[j][0]-C[i][0],C[j][1]-C[i][1])||1e-6);}
+  // 이웃과 안 겹치는 돌기는 벌려서라도 겹치게 한다(안 그러면 교점이 없다).
+  for(let i=0;i<n;i++)BR[i]=Math.max(BR[i],D[i]*.56,D[(i-1+n)%n]*.56);
+  const P=[];                                    // P[i] = 돌기 i 와 i+1 의 바깥 교점
+  for(let i=0;i<n;i++){const j=(i+1)%n,d=D[i];
+    const ux=(C[j][0]-C[i][0])/d,uy=(C[j][1]-C[i][1])/d;
+    const aa=(d*d+BR[i]*BR[i]-BR[j]*BR[j])/(2*d);
+    const hh=Math.sqrt(Math.max(0,BR[i]*BR[i]-aa*aa));
+    const mx=C[i][0]+ux*aa,my=C[i][1]+uy*aa;
+    const p1=[mx-uy*hh,my+ux*hh],p2=[mx+uy*hh,my-ux*hh];
+    P.push(Math.hypot(p1[0],p1[1])>=Math.hypot(p2[0],p2[1])?p1:p2);}
+  const out=[],ca=Math.cos(rot),sa=Math.sin(rot);
+  for(let i=0;i<n;i++){
+    const q0=P[(i-1+n)%n],q1=P[i];
+    let a0=Math.atan2(q0[1]-C[i][1],q0[0]-C[i][0]);
+    let a1=Math.atan2(q1[1]-C[i][1],q1[0]-C[i][0]);
+    while(a1<a0)a1+=TAU;
+    for(let q=0;q<=M;q++){const a=a0+(a1-a0)*(q/M);
+      const x=C[i][0]+Math.cos(a)*BR[i],y=C[i][1]+Math.sin(a)*BR[i];
+      out.push([cx+x*ca-y*sa,cy+x*sa+y*ca]);}}
+  return out;
+}
+// ── 새 원시 ③ 긴 바늘 스파크 ─────────────────────────────────────────────
+/// `celSpike` 는 3단 계조 삼각형이라 윤곽이 없다. 레퍼런스의 스파크는
+/// **덩어리만큼 긴 가는 마름모 + 윤곽선**이라 따로 만든다.
+function FCneedle(c,x,y,ang,len,w,fill,ink,iw,a=1){
+  const cs=Math.cos(ang),sn=Math.sin(ang),px=-sn,py=cs;
+  FCink(c,[[x+cs*len,y+sn*len],[x+px*w,y+py*w],
+           [x-cs*len*.30,y-sn*len*.30],[x-px*w,y-py*w]],fill,ink,iw,a);
+}
+// ── 새 원시 ④ 바닥 소용돌이 고리 ─────────────────────────────────────────
+function FCswirl(c,t,x,y,r,P,a,SC){
+  for(let s=0;s<2;s++){
+    const rot=t*(s?-1.25:1.75)+s*2.1, pts=[];
+    for(let i=0;i<=24;i++){const u=i/24,ang=rot+u*TAU*.80;
+      const rr=r*(.46+.54*u);
+      pts.push([x+Math.cos(ang)*rr,y+Math.sin(ang)*rr*.40]);}
+    FCink(c,ribbonPoly(pts,r*.13,r*.03),P.base,P.ink,2.2*SC,a*(s?.62:1));
+    fillPoly(c,ribbonPoly(pts,r*.062,r*.015),A(P.yel,a*.95));
+  }
+}
+// ── 새 원시 ⑤ 떨어져 나가 식는 파편 ──────────────────────────────────────
+/// 기존 `emit/stepP` 는 **안 식는다**(색이 고정이다). 레퍼런스의 파편은
+/// 본체에서 떨어지는 순간부터 노랑→주황→검붉음으로 **식으면서** 회전한다.
+function FCfragStep(st,dt,cx,cy,SC,LEN,rate){
+  st.fg=st.fg||[];st.fgt=(st.fgt||0)+dt;
+  while(st.fgt>rate){st.fgt-=rate;
+    if(st.fg.length>44)break;
+    const rr=LEN*(.40+R()*.66),a0=FCDIR+(R()-.5)*.66;
+    const ang=a0+(R()-.5)*1.7,sp=(28+R()*78)*SC;
+    st.fg.push({x:cx+Math.cos(a0)*rr,y:cy+Math.sin(a0)*rr,
+      vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,l:0,m:.48+R()*.52,
+      r:(1.7+R()*2.8)*SC,sd:R()*40,ro:R()*TAU,rs:(R()-.5)*7});}
+  for(let i=st.fg.length-1;i>=0;i--){const q=st.fg[i];q.l+=dt;
+    if(q.l>=q.m){st.fg.splice(i,1);continue;}
+    q.x+=q.vx*dt;q.y+=q.vy*dt;const d=Math.pow(.93,dt*60);q.vx*=d;q.vy*=d;q.ro+=q.rs*dt;}
+}
+/// `soot` 은 **그을린 조각의 비율**(0~1)이다. 안 주면 지금까지와 같다.
+/// ⚠️ 난수로 고르면 **매 프레임 깜빡인다** — 조각이 태어날 때 정해진 씨앗
+/// `q.sd` 로 갈라야 같은 조각이 끝까지 검다.
+function FCfragDraw(c,st,P,SC,soot){
+  if(!st.fg)return;
+  const PS=soot?FLsoot(P):null;
+  for(const q of st.fg){const u=q.l/q.m;
+    const Q=(PS&&hash(q.sd*7.3)<soot)?PS:P;
+    const col=u<.42?mixHex(Q.yel,Q.base,u/.42):mixHex(Q.base,Q.dark,(u-.42)/.58);
+    FCink(c,FClobeP(q.x,q.y,q.r*(1-u*.34),5,q.sd,1,1,q.ro),col,P.ink,1.7*SC,
+      Math.min(1,(1-u)*2.4));}
+}
+// ── 각진 갈래 + 윤곽 (firePath 위에 선을 얹은 것) ────────────────────────
+function FCtongue(c,t,x,y,dir,w,h,seed,ph,P,a,iw){
+  c.save();c.translate(x,y);c.rotate(dir+Math.PI/2);
+  c.lineJoin="round";c.lineCap="round";
+  firePath(c,0,0,w,h,t,seed,ph);
+  c.strokeStyle=A(P.ink,a);c.lineWidth=iw;c.stroke();
+  c.fillStyle=A(P.base,a);c.fill();
+  firePath(c,0,-w*.14,w*.56,h*.74,t*1.20,seed+7.3,ph+.9);
+  c.fillStyle=A(P.yel,a);c.fill();
+  firePath(c,0,-w*.22,w*.26,h*.46,t*1.36,seed+3.1,ph+1.7);
+  c.fillStyle=A(P.lit,a*.95);c.fill();
+  c.restore();
+}
+
+// ═══ 공유 시뮬 — 원본 mgFireCone LV3 그대로 ══════════════════════════════
+const FCCONE_F=[[-46,-70,10],[10,-92,11],[52,-62,10],[-8,-46,9],[40,-100,9]];
+function FCsim(st,t,dt,cx,cy,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FCCONE_F);stepFoes(st.F,dt);
+  const LEN=95*SC,HALF=.30;
+  st.tk=(st.tk||0)+dt;
+  if(st.tk>.16){st.tk=0;
+    for(const f of st.F){const dx=f.ox+f.kx,dy=f.oy+f.ky,d=Math.hypot(dx,dy)||1;
+      if(d>=LEN+f.r)continue;
+      let ad=Math.atan2(dy,dx)-FCDIR;
+      while(ad>Math.PI)ad-=TAU;while(ad<-Math.PI)ad+=TAU;
+      if(Math.abs(ad)>HALF+.12)continue;
+      hitFoe(st,f,cx,cy,dx/d,dy/d,5*SC,"ember");mgBurn(f,.8);}}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  return{LEN,HALF};
+}
+/// 원뿔을 채우는 **덩어리들의 자리.** 여덟 안 중 여섯이 이 배치를 공유하고
+/// 「무엇으로 그리나」만 다르다 — 배치가 다르면 기법 비교가 성립 안 한다.
+function FCblobs(t,cx,cy,SC,LEN,HALF,NL,NB,spd){
+  const o=[];
+  for(let j=0;j<NL;j++){
+    const u=NL>1?(j-(NL-1)/2)/((NL-1)/2):0;
+    const la=FCDIR+u*HALF;
+    for(let b=0;b<NB;b++){
+      const ph=((t*spd+j*.37+b/NB)%1);
+      const rr=LEN*Math.pow(ph,.86);
+      const a2=la+Math.sin(ph*5.4+j*2.1)*.06*ph;
+      o.push({x:cx+Math.cos(a2)*rr,y:cy+Math.sin(a2)*rr,
+        r:SC*(2.6+13.0*ph)*(.72+.66*hash(j*5.3+b*1.7)),ph,a:a2,sd:j*5.3+b*1.7,
+        al:Math.min(1,ph*6)*Math.min(1,(1-ph)*9)});}}
+  o.sort((p,q)=>q.ph-p.ph);      // 먼 것부터 — 가까운 덩어리가 위에 얹힌다
+  return o;
+}
+/// 덩어리 무리를 **애니 화염 3층**으로 얹는다.
+///   ① 주황 — 덩어리마다 제 윤곽(겹친 자리에 선이 남아 덩어리가 세어진다)
+///   ② 노랑 — **윤곽 없이 합친다.** 심에도 덩어리마다 테를 두르면 도넛이 되고
+///      무리 전체가 「불덩이」가 아니라 **꽃송이**로 보인다(2026-08-12 렌더 판정).
+///   ③ 크림 — 제일 뜨거운 자리 몇 군데만. 다 칠하면 계조가 죽는다.
+function FCmass(c,bs,P,SC,coreK=.66,iw=.26){
+  // 끝으로 갈수록 주황이 **식는다**(알파가 아니라 색으로) — 반투명으로 끄면
+  // 겹친 덩어리가 서로 비쳐 갈색 죽이 된다(2026-08-12 400px 판정).
+  for(const b of bs)FCink(c,FClobeP(b.x,b.y,b.r,7,b.sd,1,1,b.sd),
+    b.ph>.58?mixHex(P.base,P.dark,(b.ph-.58)/.42*.85):P.base,P.ink,
+    Math.max(2.0*SC,b.r*iw),b.al);
+  // ⚠️ 심을 **다른 씨앗의 새 도형**으로 넣으면 안 된다 — 겉과 결이 안 맞아
+  // 덩어리 안에 「해바라기」가 한 송이 앉은 것처럼 보인다(2026-08-12 400px 판정).
+  // 겉과 **같은 씨앗·같은 회전으로 줄인 동심 도형**이라야 주황이 일정한 폭의
+  // **테두리**가 되고, 그게 레퍼런스의 「노랑 심 + 주황 테」다.
+  for(const b of bs)if(b.ph>.08&&b.ph<.80)
+    fillPoly(c,FClobeP(b.x,b.y-b.r*.06,b.r*coreK,7,b.sd,1,1,b.sd,.40),
+      A(P.yel,b.al*Math.min(1,(.80-b.ph)*6)));
+  for(const b of bs)if(b.ph>.28&&b.ph<.66)
+    fillPoly(c,FClobeP(b.x,b.y-b.r*.14,b.r*coreK*.50,7,b.sd,1,1,b.sd,.34),
+      A(P.lit,b.al*.95));
+}
+/// 총구의 큰 노랑 심. 레퍼런스는 **심의 면적이 크다** — 점만 하면 안 보인다.
+function FCcore(c,t,cx,cy,SC,P,ink=true){
+  const r=(13+2.2*Math.sin(t*7.3))*SC;
+  if(ink)FCink(c,FClobeP(cx,cy-9*SC,r*1.34,8,3.1,1.05,.92,t*.3),P.base,P.ink,3.0*SC,1);
+  FCink(c,FClobeP(cx,cy-10*SC,r*1.0,8,3.1,1.05,.92,t*.3,.40),P.yel,P.ink,ink?1.8*SC:0,1);
+  fillPoly(c,FClobeP(cx,cy-11*SC,r*.52,8,3.1,1.05,.92,t*.3,.32),A(P.lit,.98));
+}
+
+Object.assign(FX,{
+
+// ── FCcone4 · 속이 빈 껍질 ───────────────────────────────────────────────
+// 유일점: 덩어리의 **속이 비었다** — 어두운 속에 밝은 테두리만 남아 불이
+// 얇은 막처럼 보이고 사이로 바닥이 비친다(레퍼런스 A/B 의 「구멍」).
+FCcone4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN,HALF}=FCsim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const b of FCblobs(t,cx,cy,SC,LEN,HALF,3,5,.85)){
+    if(b.al<=.02)continue;
+    // 가까운 것(ph<.34)은 아직 꽉 차 있고, 멀어질수록 속이 빈다 —
+    // 「타면서 뚫린다」가 되어야 구멍이 무늬가 아니라 **과정**으로 읽힌다.
+    if(b.ph<.34)FCink(c,FClobeP(b.x,b.y,b.r,7,b.sd,1,1,b.sd),P.base,P.ink,2.8*SC,b.al);
+    else{FCshell(c,FClobeP(b.x,b.y,b.r,7,b.sd,1,1,b.sd),P.ink,P.base,3.4*SC,b.al);
+      FCshell(c,FClobeP(b.x,b.y,b.r*.58,6,b.sd+3.3,1,1,-b.sd),P.ink,P.yel,2.2*SC,b.al*.9);}}
+  FCcore(c,t,cx,cy,SC,P);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FCcone5 · 바늘 스파크 + 식는 파편 ────────────────────────────────────
+// 유일점: 본체 밖이 주인공이다 — **덩어리만큼 긴 바늘**이 사방으로 뻗고
+// 떨어져 나간 조각이 **식으면서**(노랑→검붉음) 흩어진다.
+FCcone5(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN,HALF}=FCsim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  FCfragStep(st,dt,cx,cy,SC,LEN,.045);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  // 바늘 — 앞머리에서 방사한다. 뒤에 깔려야 본체가 안 가려진다.
+  for(let i=0;i<14;i++){
+    const ph=((t*.7+i*.137)%1),rr=LEN*(.30+.62*ph);
+    const a0=FCDIR+(hash(i*3.7)-.5)*HALF*2.1;
+    const x=cx+Math.cos(a0)*rr,y=cy+Math.sin(a0)*rr;
+    const ang=a0+(hash(i*9.1)-.5)*1.9;
+    FCneedle(c,x,y,ang,(22+30*hash(i*5.3))*SC,1.7*SC,P.lit,P.ink,1.6*SC,
+      Math.min(1,(1-ph)*2.6));}
+  FCmass(c,FCblobs(t,cx,cy,SC,LEN,HALF,3,3,.85).filter(b=>b.al>.02),P,SC);
+  FCfragDraw(c,st,P,SC);
+  FCcore(c,t,cx,cy,SC,P);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FCcone6 · 종합(둥근 뭉게) ────────────────────────────────────────────
+// 유일점: 레퍼런스 여섯 특징을 **한 화면에 다 넣은** 둥근 판 —
+// 윤곽 · 뭉게 · 큰 노랑 심 · 바늘 · 바닥 소용돌이 · 검은 연기.
+FCcone6(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN,HALF}=FCsim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  FCfragStep(st,dt,cx,cy,SC,LEN,.06);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  const px=cx+Math.cos(FCDIR)*LEN,py=cy+Math.sin(FCDIR)*LEN;
+  FCswirl(c,t,px,py,26*SC,P,.9,SC);                    // ⑤ 바닥 소용돌이
+  for(let i=0;i<4;i++){                                  // ⑥ 검은 연기 — 뒤에 깔린다
+    const ph=((t*.34+i*.25)%1);
+    FCink(c,FClobeP(cx+(hash(i*7.7)-.5)*54*SC+Math.sin(t*.9+i)*8*SC,
+      cy-LEN*1.00-ph*44*SC,(8+8*ph)*SC,7,i*4.3,1.15,.9,ph*2),
+      P.smk,P.smki,2.4*SC,Math.min(1,ph*3)*(1-ph)*.85);}
+  for(let i=0;i<10;i++){                                 // ④ 긴 바늘
+    const ph=((t*.7+i*.19)%1),rr=LEN*(.34+.60*ph);
+    const a0=FCDIR+(hash(i*3.7)-.5)*HALF*2.0;
+    const ang=a0+(hash(i*9.1)-.5)*1.8;
+    FCneedle(c,cx+Math.cos(a0)*rr,cy+Math.sin(a0)*rr,ang,(21+28*hash(i*5.3))*SC,
+      1.7*SC,P.lit,P.ink,1.6*SC,Math.min(1,(1-ph)*2.6));}
+  FCmass(c,FCblobs(t,cx,cy,SC,LEN,HALF,3,4,.85).filter(b=>b.al>.02),P,SC);   // ①②③ 본체
+  FCfragDraw(c,st,P,SC);
+  FCcore(c,t,cx,cy,SC,P);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FCcone8 · 종합 + 구멍 ────────────────────────────────────────────────
+// 유일점: 6 에 **뚫린 구멍**을 얹었다 — 큰 덩어리 안에 어두운 빈 자리를 파서
+// 불이 꽉 찬 반죽이 아니라 **막**으로 보이게 한다.
+FCcone8(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {LEN,HALF}=FCsim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  FCfragStep(st,dt,cx,cy,SC,LEN,.06);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  const px=cx+Math.cos(FCDIR)*LEN,py=cy+Math.sin(FCDIR)*LEN;
+  FCswirl(c,t,px,py,26*SC,P,.9,SC);
+  for(let i=0;i<4;i++){const ph=((t*.34+i*.25)%1);
+    FCink(c,FClobeP(cx+(hash(i*7.7)-.5)*54*SC+Math.sin(t*.9+i)*8*SC,
+      cy-LEN*1.00-ph*44*SC,(8+8*ph)*SC,7,i*4.3,1.15,.9,ph*2),
+      P.smk,P.smki,2.4*SC,Math.min(1,ph*3)*(1-ph)*.85);}
+  for(let i=0;i<10;i++){const ph=((t*.7+i*.19)%1),rr=LEN*(.34+.60*ph);
+    const a0=FCDIR+(hash(i*3.7)-.5)*HALF*2.0,ang=a0+(hash(i*9.1)-.5)*1.8;
+    FCneedle(c,cx+Math.cos(a0)*rr,cy+Math.sin(a0)*rr,ang,(21+28*hash(i*5.3))*SC,
+      1.7*SC,P.lit,P.ink,1.6*SC,Math.min(1,(1-ph)*2.6));}
+  const bs8=FCblobs(t,cx,cy,SC,LEN,HALF,3,4,.85).filter(b=>b.al>.02);
+  FCmass(c,bs8,P,SC);
+  for(const b of bs8){
+    // 구멍 — 덩어리가 클 때만(작은 데 뚫으면 그냥 얼룩이 된다).
+    if(b.r>7*SC){const hn=1+(b.sd|0)%2;
+      for(let q=0;q<hn;q++){
+        const ha=b.sd*1.7+q*2.3,hd=b.r*(.24+.26*hash(b.sd+q*5.1));
+        FCink(c,FClobeP(b.x+Math.cos(ha)*hd,b.y+Math.sin(ha)*hd,
+          b.r*(.16+.12*hash(b.sd+q*2.7)),5,b.sd+q*7.3),P.ink,P.dark,1.6*SC,b.al);}}}
+  FCfragDraw(c,st,P,SC);
+  FCcore(c,t,cx,cy,SC,P);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FCref · 비교용 원본 ──────────────────────────────────────────────────
+// 원본 `mgFireCone` 을 LV3 으로 같은 자리에 그린다 — 「나아졌나」를 눈으로
+// 재려면 나란히 있어야 한다.
+FCref(c,t,dt,W,H,st){const L=LV;LV=3;try{FX.mgFireCone(c,t,dt,W,H,st);}finally{LV=L;}},
+
+});
+
+// ── 화염방사 8안 (임시 마운트) ─────────────────────────────────────────
+{const H=$("fc-cone");
+ if(document.getElementById("fc-cone")){
+  tile(H,FX,"mgFireCone","지금","","리본으로 그려져 있다 — 반려된 그림",238);
+  // 사용자 채택 넷(4·5·6·8). 나머지 넷은 코드째 지웠다.
+  [["FCcone4","속 빈 껍질"],["FCcone5","본체 밖이 주인공"],
+   ["FCcone6","종합(둥근)"],["FCcone8","종합 + 구멍"]]
+   .forEach(([k,d])=>tile(H,FX,k,"화염방사 "+k.slice(-1),"",d,238));}}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HL · 회복 계열 5안 — 응급 · 맥박 · 잔향 · 정화 · 호명 (접두 `HL`)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 새 최상위 이름은 전부
+// `HL` 로 시작하고 등록은 `TONE.HL*` · `FX.HL*` 에 **대입만** 한다.
+// 새 그리기 원시함수 0개 — fillPoly · jagPoly · celStroke · celSpike · celHoop ·
+// celSplash · celGauge · celRibbon · arcPts · pvMark · inflow/drawInflow ·
+// emit/drawP · mkFoesZ/stepFoes/drawFoes · hero 의 조합만 쓴다.
+//
+// ── 바닥이 되는 규칙 (docs/design/HP-방어-체계.md) ────────────────────────
+//   hpMax     = 100 + 10 × vitality      (화면에선 비율 0~1 로 그린다)
+//   받는 피해 = max(피해 × 0.2, 피해 − defense)      정액 상쇄 · 상한 80%
+//   무적 프레임 = 피격 후 0.5초           ← 회복 설계 전부가 이 값 위에 선다
+//   회복량    = 전부 hpMax 비례(%)
+//
+// 무적 0.5초 = **초당 최대 2회 피격**. 한 입이 hpMax 의 11.5% 이므로 붙어 있는
+// 동안 최대 23%/s 가 빠진다 — 회복 다섯의 기준선이 그 값이다.
+//
+// ── 겹침 보고 (브리프 지시) ──────────────────────────────────────────────
+// **정화 淨化 는 이미 있다** → `FX.purity` (회복 4 중 셋째). 갈래(제거)도
+// 「HP 를 안 건드린다」는 유일성도 그대로다. **새로 안 만든다.**
+// **맥박 脈搏 도 이미 있다** → `FX.HL1beat`. 갈래(주기)가 그대로다.
+// 새로 만드는 것은 셋뿐이다 — **응급 · 잔향 · 호명**.
+// 다만 다섯을 **같은 무대**에서 비교하라는 지시가 있으므로, 기존 둘은
+// 같은 무대 위에 **참조 칸**(`HLbeat0` · `HLpure0`)으로 한 벌씩만 다시 세운다.
+// 참조 칸은 새 안이 아니다 — 갈래를 재현해 옆에 세운 자다.
+//
+// ── 색 ────────────────────────────────────────────────────────────────────
+// 회복 분류의 색상각은 28(여명) · 95(수확) · 195(정화) · 262(맥박) · 320(공물)
+// 이다. 셋을 그 사이 가장 넓은 빈자리에 꽂는다:
+//   응급 59° · 호명 159° · 잔향 229°
+// ⇒ 28 · 59 · 95 · 159 · 195 · 229 · 262 · 320 — 최소 간격 31°(이 팔레트의
+// 하한이 30°다). ⚠️ 응급 59°는 뇌 볼트(55°)와 4° 차이다. 분류가 달라(속성 ↔
+// 회복) 한 줄에 안 서지만, **같은 화면에 뇌 무기와 응급이 같이 있으면
+// 안 갈린다** — 못 지킨 것으로 적어 둔다.
+TONE.HLem=["#413B06","#E4E24C","#FFFDDF"];  // 응급 · 경고 노랑 59° — 응급은 경고다
+TONE.HLvw=["#0A3A2C","#3FD8A4","#E2FFF3"];  // 호명 · 방패의 서늘한 청록 159°
+TONE.HLec=["#141C4A","#7B90EE","#E8EEFF"];  // 잔향 · 되돌아오는 청보라 229°
+
+// ── 공통 무대 ─────────────────────────────────────────────────────────────
+//
+// **다섯이 같은 상황이라야 비교가 된다**(브리프 규율). 그래서 적 배치 ·
+// 접근 속도 · 한 입의 크기 · 무적 0.5초 · 밀물/썰물 주기를 **한 함수가 소유**
+// 한다. 각 안이 고르는 것은 오직 「무엇을 언제 얼마나 돌려주는가」뿐이다.
+//
+// 밀물 2.2초 · 썰물 2.2초로 두는 이유: 계속 붙어 있으면 HP 가 바닥에 눌러앉아
+// **회복 곡선이 안 보이고**, 계속 떨어져 있으면 회복이 할 일이 없다. 물었다
+// 물러나는 파도가 있어야 「깎이고 → 도로 찬다」가 한 주기 안에 다 보인다.
+const HLWAVE=4.4, HLBITE=2.2, HLINV=.5, HLDMG=.115;
+const HLFOE=[[86,-52,10],[-92,-40,10],[26,-98,9],[-56,72,10],[78,58,10]];
+/// 한 입의 세기 — 적마다 다르다. **정액 상쇄가 잡몹 피해를 0 에 수렴시키고
+/// 보스 피해는 그대로 아프게 두는 것**(HP-방어-체계의 근거)이 다섯 마리가
+/// 전부 같은 값이면 화면에 안 나온다. 잔향 3(「크게 맞을수록 멀리 간다」)도
+/// 이 편차 위에서만 성립한다.
+const HLDM=[1,.65,1.45,.85,1.2];
+
+/// 한 프레임의 무대 — 적을 움직이고 물리고 깎는다. **받은 피해를 돌려준다.**
+/// [DEF] 는 정액 상쇄값(hpMax 비율). 막힌 몫은 `st.blk` 에 남는다 — 호명이
+/// 그 값을 먹는다. 방어가 0 이면 `st.blk` 이 언제나 0 이고, 그것이 곧
+/// 「방어를 안 들면 호명은 0」의 구현이다.
+function HLstage(st,SC,dt,DEF){
+  if(!st.F){st.F=mkFoesZ(HLFOE,SC);st.F.forEach((f,i)=>{f.dm=HLDM[i%HLDM.length];});}
+  if(st.hp===undefined){st.hp=1;st.wv=0;}
+  st.wv=(st.wv||0)+dt; if(st.wv>=HLWAVE)st.wv-=HLWAVE;
+  const push=st.wv<HLBITE;
+  st.iv=Math.max(0,(st.iv||0)-dt);            // 무적 프레임
+  st.hurt=Math.max(0,(st.hurt||0)-dt*2.6);
+  st.lostF=Math.max(0,(st.lostF||0)-dt*1.15); if(st.lostF<=0)st.lost=0;
+  st.gainF=Math.max(0,(st.gainF||0)-dt*1.9);  if(st.gainF<=0)st.gain=0;
+  st.took=0; st.blk=0;
+  // ⚠️ 접근 속도를 38*SC/s 로 뒀더니 밀물 2.2초 중 1.6초가 **오는 데** 쓰여
+  // 한 파도에 한 입밖에 안 들어갔다 — 4초를 돌려도 HP 가 0.85 라 회복 곡선이
+  // 안 보였다(첫 렌더 판정). 54 로 올려 도착 1.0초 · 무는 시간 1.2초 =
+  // 무적 0.5초 기준 **한 파도에 세 입**으로 맞췄다.
+  const near=30*SC, far=94*SC;
+  for(const f of st.F){
+    const d=Math.hypot(f.ox,f.oy)||1, tgt=push?near+f.r:far;
+    const v=(push?54:44)*SC*dt, s=Math.max(-v,Math.min(v,tgt-d));
+    f.ox+=f.ox/d*s; f.oy+=f.oy/d*s;
+    // 무적 0.5초라 **한 프레임에 한 번, 초에 두 번**이 상한이다. 다섯이
+    // 동시에 물어도 들어오는 피해는 같다 — 그것이 이 문서가 무적을 먼저
+    // 못 박은 이유고, 회복 다섯의 기준선이 흔들리지 않는 이유다.
+    if(push&&d<=near+f.r+3*SC&&st.iv<=0){
+      st.iv=HLINV;
+      const raw=HLDMG*(f.dm||1);
+      const take=Math.max(raw*.2,raw-(DEF||0));       // 정액 상쇄 · 상한 80%
+      st.blk=raw-take;
+      st.hp=Math.max(.05,st.hp-take);
+      st.lost=(st.lost||0)+take; st.lostF=1; st.hurt=1; st.took=take;
+      f.hit=1; f.kx+=f.ox/d*12*SC; f.ky+=f.oy/d*12*SC;}}
+  stepFoes(st.F,dt);
+  return st.took;
+}
+
+/// 회복을 넣는다 — **넣은 만큼만** 돌려준다(가득 차 있으면 0).
+/// 막대의 「방금 찬 머리」가 이 반환값으로 산다.
+function HLheal(st,amt){
+  if(!(amt>0))return 0;
+  const b=st.hp; st.hp=Math.min(1,st.hp+amt);
+  const got=st.hp-b;
+  // ⚠️ 상시 회복(응급 2·3)은 **매 프레임** 이 함수를 부른다. 머리를 그냥
+  // 쌓으면 `gainF` 가 영영 안 식어 흰 머리가 막대 전체를 덮었다 — 900프레임
+  // 렌더에서 응급 2 의 막대가 통째로 크림색이었다(렌더 판정). 머리는
+  // 「방금 어디에 들어갔나」지 「지금까지 얼마 받았나」가 아니므로 상한을 둔다.
+  if(got>0){st.gain=Math.min(.14,(st.gain||0)+got); st.gainF=1;}
+  return got;
+}
+
+/// **HP 막대** — 회복 다섯의 공통 문법.
+///
+/// 회복은 「나에게 일어나는 일」이라 적이 맞는 걸로 못 보여준다. 얼마가
+/// 찼는지가 안 보이면 화면에서 아무 일도 안 일어난 것과 같다. 그래서 다섯이
+/// **같은 막대 하나**를 두른다 — 링(hpRing)이 아니라 막대인 이유는 이 다섯이
+/// 링으로는 못 그리는 것을 셋이나 얹기 때문이다:
+///   · 잃은 잔상(붉음)   — 방금 어디까지 깎였나
+///   · 방금 찬 머리(흰빛) — 회복이 **어디에** 들어갔나
+///   · 예약된 몫(어두움)  — 잔향의 「떠 있다가 돌아올 것」
+/// 링 위에서는 이 셋이 12시 이음매에 겹쳐 서로를 지운다(각도가 하나뿐이라).
+///
+/// 각진 윤곽 — 양 끝을 비스듬히 깎은 평행사변형이다. 둥근 막대는 이 레포의
+/// 그림 문법이 아니다.
+function HLbar(c,cx,by,w,h,SC,o){
+  const k=o.k,T=toneOf(k),x0=cx-w/2,x1=cx+w/2,sk=h*.40;
+  const px=u=>x0+(x1-x0)*Math.max(0,Math.min(1,u));
+  const seg=(a,b,col,sh)=>{
+    const A0=Math.max(0,Math.min(1,a)),B0=Math.max(0,Math.min(1,b));
+    if(!(B0>A0+.002))return;
+    const s=sk*(1-(sh||0)),hh=h*.5*(1-(sh||0)),xa=px(A0),xb=px(B0);
+    fillPoly(c,[[xa-s,by+hh],[xa+s,by-hh],[xb+s,by-hh],[xb-s,by+hh]],col);};
+  seg(0,1,A(TONE.shade[0],.96),0);                       // 홈
+  // 예약된 몫 — **떠 있다가 돌아올 것.** 자리를 미리 어둡게 잡아 두면
+  // 「저기가 채워질 자리다」가 보인다(잔향 셋만 쓴다).
+  if(o.resv>0){seg(o.hp,o.hp+o.resv,A(T[0],.98),.06);
+    for(let i=0;i<4;i++){const u=o.hp+o.resv*(i+.5)/4;
+      celStroke(c,[[px(u),by-h*.30],[px(u),by+h*.30]],1.5*SC,k,.55);}}
+  // 잃은 잔상 — 붉게 남았다 사라진다. 적의 눈과 같은 붉음(HURT 규약).
+  if(o.lost>0)seg(o.hp,o.hp+o.lost,A(HURT[1],.55*(o.lostF===undefined?1:o.lostF)),.20);
+  // **막은 몫** — 뚫린 몫(붉음) 바로 뒤에 이어 붙는다. 한 대가 원래 여기까지
+  // 깎을 것이었고 방어가 그중 이만큼을 먹었다는 뜻이라, 붉은 칸과 이 칸의
+  // 길이 비가 곧 상쇄식 `max(피해×0.2, 피해−defense)` 다. 호명 셋만 쓴다 —
+  // 회복량이 정확히 이 칸의 길이다.
+  if(o.blk>0)seg(o.hp+(o.lost||0),o.hp+(o.lost||0)+o.blk,
+    A(T[1],.62*(o.blkF===undefined?1:o.blkF)),.34);
+  seg(0,o.hp,A(T[0],.99),0);                             // 3단 계조
+  seg(0,o.hp,A(T[1],.99),.34);
+  seg(0,o.hp,A(T[2],1),.72);
+  // 방금 찬 머리 — 회복이 들어간 자리가 한 박자 흰빛으로 남는다.
+  if(o.gain>0)seg(o.hp-o.gain,o.hp,A(T[2],.95*(o.gainF===undefined?1:o.gainF)),.08);
+  celStroke(c,[[x0-sk,by+h*.5],[x0+sk,by-h*.5],[x1+sk,by-h*.5],[x1-sk,by+h*.5],
+    [x0-sk,by+h*.5]],1.4*SC,"shade",.9);
+  // 문턱 눈금 — 「위기가 어디부터인가」가 화면에 없으면 조건부 회복은
+  // 아무 때나 켜지는 것처럼 보인다(여명·공물·맥박과 같은 규약).
+  (o.marks||[]).forEach(m=>celSpike(c,px(m),by+h*.5+1.2*SC,Math.PI/2,
+    h*.78,h*.30,k,.95));
+}
+
+/// 무대 그리기의 뒷부분 — 적 · 입자 · 피격 번쩍 · 몸. 아홉이 똑같이 쓴다.
+const HLBY=94, HLBW=168, HLBH=13;      // 막대 자리 · 폭 · 높이 (SC 배)
+function HLtail(c,t,dt,cx,cy,SC,st,k,bar,MO){
+  stepP(st,dt);
+  drawFoes(c,t,cx,cy,st.F);
+  if(MO)drawInflow(c,MO,3.6*SC);
+  HLbar(c,cx,cy+HLBY*SC,HLBW*SC,HLBH*SC,SC,
+    Object.assign({k,hp:st.hp,lost:st.lost,lostF:st.lostF,
+      gain:st.gain,gainF:st.gainF},bar||{}));
+  if(st.hurt>0)hurtFlash(c,cx,cy,Math.max(1,18*SC*st.hurt),st.hurt);
+  drawP(c,st);hero(c,t,cx,cy);
+}
+
+// ── 응급 應急 — 일시 · **위험할 때만 값이 난다** ──────────────────────────
+//
+// 유일성: 회복량이 **HP 의 함수**다. 가득 차 있으면 거의 0 이고 바닥일수록
+// 크다. 다른 넷은 「무엇이 있었나」(맞은 시간 · 지나간 박자 · 받은 피해 ·
+// 막은 양)를 보지만 응급만 **지금 얼마나 비었나**를 본다.
+//
+// 이 갈래의 어려움은 **값이 안 보인다**는 것이다 — 회복이 큰지 작은지는
+// HP 가 낮을 때만 드러나므로, 셋 다 **빈 몫을 먼저 그림으로 세운다.**
+// 셋이 갈리는 자리는 그 빈 몫을 **무엇으로 읽느냐**다: 잔 · 계단 · 유량.
+
+// ── 잔향 殘響 — 지연 · **과거를 되감는다** ────────────────────────────────
+//
+// 유일성: 회복의 **출처가 이미 지나간 피해**다. 받은 피해의 70% 가 몸에서
+// 떨어져 나와 **떠 있다가** 몇 초 뒤 돌아온다. 그래서 이 갈래는 셋 다
+//   ① 떨어져 나오고 ② 떠 있고 ③ 돌아온다
+// 는 세 토막이 **형태로** 보여야 한다 — 그냥 늦게 차면 그건 지연이 아니라
+// 느린 회복이고, 화면에서 맥박과 안 갈린다.
+//
+// ⚠️ 받는 피해는 **상쇄 후** 값이다(HP-방어-체계). 방어를 올리면 잔향도
+// 같이 작아진다 — 이 무대에서는 셋 다 방어 0 이라 원 피해 그대로 돌아온다.
+
+/// 떠 있는 조각 — **새 원시함수가 아니라 조합이다**(hpRing·pvLayer 와 같은 자리).
+/// jagPoly 3겹으로 각지게, 크기는 돌려줄 양에 비례한다.
+function HLshard(c,x,y,s,k,a,sd){
+  const T=toneOf(k);
+  fillPoly(c,jagPoly(x,y,s,6,sd,1.45),A(T[0],.95*a));
+  fillPoly(c,jagPoly(x,y,s*.62,6,sd+1.7,1.35),A(T[1],.97*a));
+  fillPoly(c,jagPoly(x,y,s*.28,6,sd+3.3,1.25),A(T[2],a));
+}
+// ⚠️ `3+34v` 로 뒀더니 한 입(v≈0.08)에서 5.7*SC — 238칸에서 **점**이었다
+// (900프레임 렌더 판정). 떠 있는 것이 조각으로 안 보이면 「과거가 떠 있다」가
+// 통째로 안 선다. 바닥과 기울기를 같이 올린다.
+const HLecSZ=v=>Math.max(3.4,5+72*v);      // 돌려줄 양 → 조각 크기(SC 배)
+
+/// 잔향 1 「되감기」 — 남은 시간이 **각도로** 보인다.
+/// 조각이 12시에서 떨어져 나와 시계방향으로 한 바퀴를 돌고, 12시로 **돌아온
+/// 순간** 몸에 들어간다. 유일: 시계다 — 언제 돌아올지가 눈금 없이 읽힌다.
+FX.HLecho1=function HLecho1(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HLec",a0=-Math.PI/2;
+  const RET=.70,DELAY=2.4,ORB=62*SC;
+  HLstage(st,SC,dt,0);
+  st.ec=st.ec||[];
+  if(st.took>0){st.ec.push({v:st.took*RET,l:0,sd:R()*17});st.pop=1;}
+  st.pop=Math.max(0,(st.pop||0)-dt*3);
+  let resv=0;
+  for(let i=st.ec.length-1;i>=0;i--){const e=st.ec[i];e.l+=dt;
+    if(e.l>=DELAY){inflow(st,cx,cy-ORB,K);st.pend=(st.pend||0)+e.v;
+      st.ec.splice(i,1);continue;}
+    resv+=e.v;}
+  const MO=stepInflow(st,cx,cy,dt,190*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  // 궤도 — 돌아올 자리(12시)에 갈퀴가 서 있다. **되돌아올 곳이 보여야**
+  // 「떠 있다」가 「사라졌다」로 안 읽힌다.
+  celHoop(c,cx,cy,ORB,1,0,1.8*SC,"shade",.42);
+  celSpike(c,cx,cy-ORB,-Math.PI/2,11*SC,3.4*SC,K,.85);
+  for(const e of st.ec){const u=e.l/DELAY,a=a0+TAU*u;
+    const x=cx+Math.cos(a)*ORB,y=cy+Math.sin(a)*ORB;
+    // 꼬리 — 지나온 만큼이 흐릿하게 남는다. 「과거」라는 것이 자국으로 붙는다.
+    celStroke(c,arcPts(cx,cy,ORB,a-TAU*.16,a,7),2.2*SC,K,.30);
+    HLshard(c,x,y,HLecSZ(e.v)*SC,K,.55+.45*u,e.sd);}
+  if(st.pop>0)celSplash(c,cx,cy-ORB,Math.max(1,13*SC*st.pop),7,3,K,st.pop);
+  HLtail(c,t,dt,cx,cy,SC,st,K,{resv},MO);};
+
+/// 잔향 2 「메아리」 — 한 번 맞은 것이 **세 번** 돌아온다.
+/// 한 피해가 1.0 / 1.9 / 2.9초로 쪼개지고 몫도 5 : 3 : 2 다. 궤도도 셋이라
+/// 안쪽부터 차례로 걷힌다. 유일: 겹친다 — 연달아 맞으면 세 궤도가 다 찬다.
+FX.HLecho2=function HLecho2(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HLec",a0=-Math.PI/2;
+  const RET=.70,DL=[1.0,1.9,2.9],SH=[.5,.3,.2],ORB=[44,60,76];
+  HLstage(st,SC,dt,0);
+  st.ec=st.ec||[];
+  if(st.took>0)for(let j=0;j<3;j++)
+    st.ec.push({v:st.took*RET*SH[j],l:0,j,sd:R()*17});
+  let resv=0;
+  for(let i=st.ec.length-1;i>=0;i--){const e=st.ec[i];e.l+=dt;
+    if(e.l>=DL[e.j]){inflow(st,cx,cy-ORB[e.j]*SC,K);
+      st.pend=(st.pend||0)+e.v;st.ec.splice(i,1);continue;}
+    resv+=e.v;}
+  const MO=stepInflow(st,cx,cy,dt,190*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  // 궤도 셋 — **빈 궤도도 그린다.** 「몇 겹으로 돌아오는가」는 조각이 없는
+  // 순간에도 읽혀야 한다(수확의 연쇄 눈금과 같은 근거).
+  for(let j=0;j<3;j++){
+    celHoop(c,cx,cy,ORB[j]*SC,1,0,1.6*SC,"shade",.40-j*.07);
+    celSpike(c,cx,cy-ORB[j]*SC,-Math.PI/2,(9-j*1.4)*SC,3*SC,K,.75-j*.13);}
+  for(const e of st.ec){const u=e.l/DL[e.j],a=a0+TAU*u,rr=ORB[e.j]*SC;
+    const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;
+    celStroke(c,arcPts(cx,cy,rr,a-TAU*.14,a,7),1.9*SC,K,.26);
+    HLshard(c,x,y,HLecSZ(e.v)*SC,K,.5+.5*u,e.sd);}
+  HLtail(c,t,dt,cx,cy,SC,st,K,{resv},MO);};
+
+/// 잔향 3 「되울림」 — 지연이 **거리로** 보인다.
+/// 조각이 바깥으로 날아가 벽에 튕겨 돌아온다. **크게 맞을수록 멀리 가고
+/// 그만큼 늦게 온다** — 속도는 하나뿐이라 왕복 거리가 곧 시간이다.
+/// 유일: 시계가 아니라 왕복이다. 되돌아오는 중인 것과 나가는 중인 것이
+/// 방향으로 갈린다(다른 둘은 전부 같은 방향으로 돈다).
+FX.HLecho3=function HLecho3(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HLec";
+  const RET=.70,SPD=96*SC;
+  HLstage(st,SC,dt,0);
+  st.ec=st.ec||[];
+  if(st.took>0){const v=st.took*RET;
+    st.ec.push({v,r:16*SC,d:1,a:R()*TAU,sd:R()*17,
+      rw:(46+430*v)*SC,fl:0});}
+  let resv=0;
+  for(let i=st.ec.length-1;i>=0;i--){const e=st.ec[i];
+    e.r+=SPD*dt*e.d; e.fl=Math.max(0,e.fl-dt*3.4);
+    if(e.d>0&&e.r>=e.rw){e.r=e.rw;e.d=-1;e.fl=1;}
+    if(e.d<0&&e.r<=15*SC){
+      inflow(st,cx+Math.cos(e.a)*15*SC,cy+Math.sin(e.a)*15*SC,K);
+      st.pend=(st.pend||0)+e.v;st.ec.splice(i,1);continue;}
+    resv+=e.v;}
+  const MO=stepInflow(st,cx,cy,dt,190*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  for(const e of st.ec){
+    const x=cx+Math.cos(e.a)*e.r,y=cy+Math.sin(e.a)*e.r;
+    // 벽 — 조각이 닿을 자리에 각진 토막이 미리 서 있다. **얼마나 멀리
+    // 갔는지**가 곧 남은 시간이라, 벽이 없으면 거리가 눈금을 잃는다.
+    celStroke(c,arcPts(cx,cy,e.rw,e.a-.42,e.a+.42,11),
+      3.0*SC,K,e.d>0?.52:.24);
+    if(e.fl>0)celSplash(c,cx+Math.cos(e.a)*e.rw,cy+Math.sin(e.a)*e.rw,
+      Math.max(1,15*SC*e.fl),7,e.sd,K,e.fl);
+    // 나가는 조각은 꼬리가 안쪽으로, 돌아오는 조각은 바깥쪽으로 — 방향이
+    // 실루엣에 박힌다. 이 한 줄이 「가는 중」과 「오는 중」을 가른다.
+    const tr=e.d>0?-1:1,r2=Math.max(2*SC,e.r+tr*17*SC);
+    celStroke(c,[[cx+Math.cos(e.a)*e.r,cy+Math.sin(e.a)*e.r],
+      [cx+Math.cos(e.a)*r2,cy+Math.sin(e.a)*r2]],2.4*SC,K,.34);
+    HLshard(c,x,y,HLecSZ(e.v)*SC,K,e.d>0?.62:1,e.sd);}
+  HLtail(c,t,dt,cx,cy,SC,st,K,{resv},MO);};
+
+// ── 호명 護命 — 조건 · **막은 만큼 회복** ─────────────────────────────────
+//
+// 유일성: **이 스킬은 방어력이 없으면 성립하지 않는다.** 회복량이
+// `HLDMG − max(HLDMG×0.2, HLDMG − defense)`, 즉 **정액 상쇄가 먹은 양**이다.
+// defense 가 0 이면 상쇄가 0 이고 회복도 정확히 0 이 된다.
+// (그래서 HP·방어 문서가 먼저 필요했다 — 「막은 만큼」을 세려면 막은 양이
+//  정의돼 있어야 한다.)
+//
+// 셋 다 무대의 방어값을 `DEF=0.058` 로 든다 — 한 입 0.115 의 절반이라
+// 상한 80% 에 안 걸리고, 막대에서 붉은 칸과 청록 칸이 **같은 길이**로 서서
+// 상쇄식이 눈으로 검산된다.
+const HLDEF=.058;
+
+/// 호명 2 「저금」 — 막은 것이 **모였다가 한 번에** 온다.
+/// 상쇄된 몫이 고리에 쌓이고 가득 차면(0.18) 한 번에 쏟아진다. 유일: 회복이
+/// 피격과 **어긋난 시각**에 온다 — 위기에 쓰려고 아껴 둘 수 있는 유일한 회복.
+FX.HLvow2=function HLvow2(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HLvw",GR=46*SC,FULL=.18,BACK=.62;
+  HLstage(st,SC,dt,HLDEF);
+  st.bank=st.bank||0; st.pop=Math.max(0,(st.pop||0)-dt*2.6);
+  st.blkF=Math.max(0,(st.blkF||0)-dt*1.15);
+  // ⚠️ 막은 몫을 **그대로** 저금하면 셋 중 이것만 거의 안 죽는다 —
+  // 900프레임에서 hp=0.94 였다(렌더 판정). 형제 둘과 같은 환급률(0.62)을
+  // 쓰고 대신 한 번에 터지게 둔다. 갈리는 것은 **양이 아니라 시각**이라야 한다.
+  if(st.blk>0){st.bank+=st.blk*BACK;st.blkS=st.blk;st.blkF=1;}
+  if(st.bank>=FULL){
+    const n=7;
+    for(let i=0;i<n;i++){const a=-Math.PI/2+i/n*TAU;
+      inflow(st,cx+Math.cos(a)*GR,cy+Math.sin(a)*GR,K);}
+    st.pend=(st.pend||0)+st.bank; st.bank=0; st.pop=1;}
+  const MO=stepInflow(st,cx,cy,dt,200*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  // 저장 고리 — 응보의 저장 · 여명의 기다림과 **같은 한 벌**(celGauge).
+  // 축적을 스킬마다 다른 그림으로 보여주면 플레이어가 여러 번 배워야 한다.
+  celHoop(c,cx,cy,GR,1,0,2.4*SC,"shade",.70);   // 빈 게이지도 고리로 읽혀야 한다
+  celGauge(c,cx,cy,GR,Math.min(1,st.bank/FULL),3.0*SC,K,.9);
+  // 가득 찬 자리(12시)에 갈퀴 — 「어디까지 모으면 터지나」가 보여야 한다.
+  celSpike(c,cx,cy-GR,-Math.PI/2,11*SC,3.4*SC,K,.9);
+  if(st.pop>0){celHoop(c,cx,cy,Math.max(1,GR*(1+.5*(1-st.pop))),1,0,
+    Math.max(1,6*SC*st.pop),K,st.pop);
+    celSplash(c,cx,cy,Math.max(1,20*SC*st.pop),9,11,K,st.pop*.9);}
+  HLtail(c,t,dt,cx,cy,SC,st,K,{blk:st.blkS,blkF:st.blkF},MO);};
+
+// ── 참조 칸 둘 — **기존 스킬을 같은 무대에 세운 것**이다(새 안이 아니다) ──
+//
+// 브리프의 다섯 중 둘은 이미 레포에 있다. 다섯을 나란히 비교하라는 규율만
+// 남으므로, 갈래를 같은 무대 위에 한 벌씩 재현해 옆에 세운다.
+//   맥박 → `FX.HL1beat`(원본) · 여기서는 「조건 없는 주기 회복」만 재현
+//   정화 → `FX.purity`(원본)   · 여기서는 「HP 를 안 건드린다」만 재현
+
+/// 맥박(기존) — 유일하게 **조건이 없다.**
+/// 1.4초마다 hpMax 의 8.5% 가 무조건 흐른다. 적이 없어도, 가득 차 있어도,
+/// 방어가 0 이어도 같다. 다섯 중 이것만 화면 밖 사정을 안 본다.
+FX.HLbeat0=function HLbeat0(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HL1beat",BP=1.4,GAIN=.085,GR=50*SC;
+  HLstage(st,SC,dt,0);
+  st.ph=(st.ph||0)+dt;
+  st.rg=st.rg||[];
+  if(st.ph>=BP){st.ph-=BP;st.rg.push({u:0});
+    for(let i=0;i<5;i++){const a=-Math.PI/2+i/5*TAU;
+      inflow(st,cx+Math.cos(a)*GR,cy+Math.sin(a)*GR,K);}
+    st.pend=(st.pend||0)+GAIN;}
+  for(let i=st.rg.length-1;i>=0;i--){const g=st.rg[i];g.u+=dt/.55;
+    if(g.u>=1)st.rg.splice(i,1);}
+  const MO=stepInflow(st,cx,cy,dt,210*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  for(const g of st.rg){const rr=Math.max(1,(14+74*g.u)*SC);
+    celHoop(c,cx,cy,rr,1,0,Math.max(1,Math.min(5*SC*(1-.4*g.u),rr*.6)),K,
+      g.u<.8?.9:Math.max(.12,.9*(1-(g.u-.8)*2.2)));}
+  celGauge(c,cx,cy,GR,Math.min(1,st.ph/BP),2.6*SC,K,.85);
+  HLtail(c,t,dt,cx,cy,SC,st,K,null,MO);};
+
+/// 정화(기존) — 유일하게 **HP 를 안 건드린다.**
+/// 이 칸의 막대는 **안 돌아온다.** 그것이 이 스킬의 정체다 — 되돌리는 것이
+/// 피가 아니라 몸의 상태라, 표식(`pvMark`)이 **떨어져 나가는 것**이 전부다.
+/// 3.2초마다 몸에 붙은 상태가 통째로 뜯겨 바깥으로 흩어지고 1.2초 안 걸린다.
+FX.HLpure0=function HLpure0(c,t,dt,W,H,st){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="hPurity";
+  const KINDS=["burn","frost","shock","poison"],CYC=3.2,IMM=1.2,BR=17*SC;
+  HLstage(st,SC,dt,0);        // ⚠️ HLheal 을 **한 번도 안 부른다**
+  st.s=st.s||KINDS.map((k,i)=>({k,v:0,a:i/4*TAU}));
+  st.off=st.off||[]; st.im=Math.max(0,(st.im||0)-dt);
+  st.cy=(st.cy||0)+dt; st.acc=(st.acc||0)+dt;
+  // 걸리는 쪽 — 계속 묻는다. 안 걸리면 정화는 화면에서 할 일이 없다.
+  if(st.acc>.55&&st.im<=0){st.acc=0;
+    const s=st.s[(st.i=(st.i||0)+1)%st.s.length]; s.v=1;}
+  if(st.cy>=CYC){st.cy=0;st.im=IMM;st.wash=1;
+    // **전부 지운다** — 하나씩 마르는 것이 아니라 통째로 떨어져 나간다.
+    for(const s of st.s)if(s.v>0){
+      st.off.push({k:s.k,a:s.a+t*.5,r:BR*1.4,l:0}); s.v=0;}}
+  st.wash=Math.max(0,(st.wash||0)-dt*1.8);
+  for(let i=st.off.length-1;i>=0;i--){const o=st.off[i];
+    o.l+=dt; o.r+=110*SC*dt;
+    if(o.l>.7)st.off.splice(i,1);}
+  stepP(st,dt);
+  drawFoes(c,t,cx,cy,st.F);
+  // 씻는 물결 — 몸에서 퍼진다(원본과 같은 문법).
+  if(st.wash>0)celHoop(c,cx,cy,Math.max(1,(16+92*(1-st.wash))*SC),1,0,
+    Math.max(1,7*SC*st.wash),K,st.wash*.9);
+  // 몸에 붙은 상태 — **빈 자리도 고리로 남긴다.** 「지울 것이 있었다」가
+  // 보여야 지운 것이 보인다.
+  for(const s of st.s){
+    const a=s.a+t*.5,x=cx+Math.cos(a)*36*SC,y=cy+Math.sin(a)*36*SC;
+    if(s.v<=0){celHoop(c,x,y,Math.max(1,7*SC),1,0,1.6*SC,"shade",.6);continue;}
+    pvMark(c,x,y,8*SC,s.k,1,t,K,SC,1);}
+  // 떨어져 나간 표식 — 바깥으로 흩어지며 옅어진다. **이것이 회복의 전부다.**
+  for(const o of st.off){const u=1-o.l/.7;
+    pvMark(c,cx+Math.cos(o.a)*o.r,cy+Math.sin(o.a)*o.r,8*SC*u,o.k,u,t,K,SC,1);}
+  // 면역 창 — 잠시 아무것도 안 걸린다. 각진 껍질 하나로 말한다.
+  if(st.im>0){const P=jagPoly(cx,cy,26*SC,9,4.4,1.2);P.push(P[0]);
+    celStroke(c,P,2.0*SC,K,.45+.4*(st.im/IMM));}
+  HLbar(c,cx,cy+HLBY*SC,HLBW*SC,HLBH*SC,SC,
+    {k:K,hp:st.hp,lost:st.lost,lostF:st.lostF});
+  if(st.hurt>0)hurtFlash(c,cx,cy,Math.max(1,18*SC*st.hurt),st.hurt);
+  drawP(c,st);hero(c,t,cx,cy);};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+// WTONE 에 **안 넣는다** — 넣으면 [tile] 이 익명 래퍼로 감싸 `--only=HL`
+// 필터가 무는 이름(`fn.name`)이 사라진다. 색은 각 함수가 키로 직접 든다.
+// ── 회복 — **채택된 것만** (2026-08-12 사용자 판정) ────────────────────
+// 남긴 것: 맥박(기존) · 저금 · 되울림 · 되감기(→ 레벨업하면 메아리) ·
+//         공물(기존) · 정화(기존). 응급 셋과 호명 1·3 은 코드째 지웠다.
+{const HLhost=MOUNT("hl")||$("heal");
+ const HLT=(k,nm,ds)=>{if(FX[k])tile(HLhost,FX,k,nm,"",ds,S);};
+ HLT("HLbeat0","맥박 (기존)","주기마다 무조건 찬다 — 조건이 없는 유일한 회복");
+ HLT("HLvow2","호명 · 저금",
+   "막은 몫이 곧바로 안 오고 쌓인다 — 피격과 어긋난 시각에 온다. 아껴 둘 수 있는 유일한 회복");
+ HLT("HLecho3","잔향 · 되울림",
+   "조각이 벽까지 갔다 튕겨 온다. 크게 맞을수록 멀리 가고 그만큼 늦게 돌아온다");
+ HLT("HLecho1","잔향 · 되감기  (L1)",
+   "받은 피해의 70%가 조각이 되어 궤도를 한 바퀴 돈다. 12시로 돌아온 순간 들어온다");
+ HLT("HLecho2","└ 되감기 L2 · 메아리",
+   "**레벨업하면 이렇게 된다** — 한 대가 셋으로 쪼개져 1.0 · 1.9 · 2.9초에 나눠 돌아온다");
+ // ⚠️ [HLpure0] 「정화 (기존)」은 뺐다 — [HEAL] 의 `purity` 와 **같은 것**이라
+ // 한 페이지에 둘이 떴다(2026-08-12 사용자 판정). 남는 것은 `purity` 쪽이다.
+}
+
+/// ⭐⭐ **윤곽 발광** — 다각형의 테두리만 빛낸다.
+///
+/// H·I 에서 읽은 것: 결정 하나하나는 **속이 어둡고 모서리가 밝다.** 지금까지
+/// 이 파일은 실루엣을 채우기만 했으므로(fillPoly 519회) 큰 얼음이 언제나
+/// **돌덩이**로 보였다 — 어두운 면은 어두운 면일 뿐이고, 얼음이 얼음인 이유는
+/// 모서리에서 빛이 꺾이기 때문이다.
+function IBrim(c,poly,k,a,w){
+  if(!poly||poly.length<3||!(a>.01))return;const T=toneOf(k);
+  const path=cc=>{cc.beginPath();cc.moveTo(poly[0][0],poly[0][1]);
+    for(let i=1;i<poly.length;i++)cc.lineTo(poly[i][0],poly[i][1]);cc.closePath();};
+  gAdd(c,cc=>{cc.lineJoin="round";cc.lineCap="round";
+    path(cc);cc.lineWidth=w*3.6;cc.strokeStyle=A(T[1],.11*a);cc.stroke();
+    path(cc);cc.lineWidth=w*1.6;cc.strokeStyle=A(T[1],.32*a);cc.stroke();
+    path(cc);cc.lineWidth=w*.78;cc.strokeStyle=A(T[2],.80*a);cc.stroke();
+    path(cc);cc.lineWidth=w*.30;cc.strokeStyle=A("#FFFFFF",.90*a);cc.stroke();});
+}
+
+/// ⭐ **모자이크** — 다각형 속에 **서로 밝기가 다른 각진 조각**을 박는다.
+///
+/// E·F·G·I 넷 다 결정 하나가 단색 면이 아니다. 앞 손의 3패스는 **동심원처럼**
+/// 겹쳐 있어서 조각으로 안 보였다(줄어드는 같은 모양 = 스티커). 조각은
+/// **잘린 면**이라야 하므로 다각형에 클립을 걸고 **가로지르는 사각**을 넣는다.
+/// 홀수 조각은 더 진하게(그늘진 면), 짝수는 밝게(빛 받은 면).
+function IBmos(c,poly,k,a,seed,n){
+  if(!poly||poly.length<3)return;const T=toneOf(k);
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of poly){if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];
+    if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];}
+  const mx=(x0+x1)*.5,my=(y0+y1)*.5,rr=Math.hypot(x1-x0,y1-y0)*.5;
+  if(!(rr>1.2))return;
+  // 조각은 몸보다 **한 단 어둡거나 한 단 밝다.** 몸(=T[0]→T[1] 28%)을 가운데
+  // 두고 양쪽으로 벌려야 「여러 톤의 조각이 모여 하나」가 된다.
+  const DK=mixHex(T[0],"#000000",.50), MD=mixHex(T[0],T[1],.66);
+  c.save();
+  c.beginPath();c.moveTo(poly[0][0],poly[0][1]);
+  for(let i=1;i<poly.length;i++)c.lineTo(poly[i][0],poly[i][1]);
+  c.closePath();c.clip();
+  for(let i=0;i<n;i++){
+    const ang=hash(seed+i*4.7)*TAU,cs=Math.cos(ang),sn=Math.sin(ang);
+    const L=rr*(.62+1.0*hash(seed+i*8.3)),Wd=rr*(.14+.34*hash(seed+i*2.1));
+    const px=mx+(hash(seed+i*5.5)-.5)*rr*1.3,py=my+(hash(seed+i*6.9)-.5)*rr*1.3;
+    // 조각은 **평행한 두 변**을 가진다 — 결정이 쪼개진 자리는 곧은 금이다.
+    const q=[[-L,-Wd],[L,-Wd*.62],[L,Wd],[-L*.72,Wd*.80]]
+      .map(v=>[px+v[0]*cs-v[1]*sn,py+v[0]*sn+v[1]*cs]);
+    fillPoly(c,q,i%2?A(DK,.62*a):A(MD,.50*a));
+  }
+  c.restore();
+}
+
+/// 결정 하나. **어두운 속 → 모자이크 조각 → 세로 결 → 밝은 윤곽.**
+/// [o] = {w 테 굵기, thru 속 알파(0 이면 완전히 비친다), mos 조각 수,
+///        grain 결 각도(없으면 안 그린다), rimK 테 색}
+function IBcrys(c,poly,k,a,seed,o){
+  if(!poly||poly.length<3||!(a>.01))return;o=o||{};
+  const T=toneOf(k),th=(o.thru==null?.92:o.thru);
+  // ⚠️ **속을 T[0] 그대로 두면 안 된다.** frost 의 T[0]=#123A5E 는 검은 배경과
+  // 명도가 붙어서, 윤곽만 뜨고 속이 사라진다 — 결정이 **철사 도형**으로 보였다
+  // (2026-08-12 1차 렌더 판정). H·I 의 속은 「어둡다」지 「검다」가 아니다.
+  // 바탕 쪽으로 28% 당겨 **배경보다는 확실히 밝고 테보다는 확실히 어두운** 몸을
+  // 만든다. 이 한 줄이 「윤곽 발광」을 성립시킨다 — 대비는 두 값이 다 있어야 난다.
+  const BODY=(o.body!=null?o.body:mixHex(T[0],T[1],.28));
+  if(th>.01)fillPoly(c,poly,A(BODY,th*a));
+  const n=(o.mos==null?2:o.mos);
+  if(n>0)IBmos(c,poly,k,a,seed,n);
+  if(o.grain!=null){                     // H — 속에 흐릿한 세로 결
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(const p of poly){if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];
+      if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];}
+    const mx=(x0+x1)*.5,my=(y0+y1)*.5,rr=Math.hypot(x1-x0,y1-y0)*.5;
+    if(rr>2){c.save();
+      c.beginPath();c.moveTo(poly[0][0],poly[0][1]);
+      for(let i=1;i<poly.length;i++)c.lineTo(poly[i][0],poly[i][1]);
+      c.closePath();c.clip();
+      const cs=Math.cos(o.grain),sn=Math.sin(o.grain);
+      gAdd(c,cc=>{cc.lineCap="butt";
+        for(let i=0;i<3;i++){const off=(i-1)*rr*.42+(hash(seed+i*3.7)-.5)*rr*.2;
+          cc.beginPath();
+          cc.moveTo(mx-cs*rr*1.4-sn*off,my-sn*rr*1.4+cs*off);
+          cc.lineTo(mx+cs*rr*1.4-sn*off,my+sn*rr*1.4+cs*off);
+          cc.lineWidth=Math.max(.5,rr*.055);cc.strokeStyle=A(T[1],.16*a);cc.stroke();}});
+      c.restore();}
+  }
+  IBrim(c,poly,o.rimK||k,a,o.w||1.5);
+}
+
+/// 바늘 실루엣. **끝이 비스듬히 잘린 프리즘**이다(E: 뾰족한 삼각이 아니라
+/// **잘린 면**이 있다). 뾰족한 삼각으로 두면 `celSpike` 와 같은 물건이 되고,
+/// 그건 「가시」지 「결정」이 아니다. 옆면이 **평행에 가깝게** 곧게 좁아지는
+/// 것이 프리즘의 정체다.
+function IBneedlePoly(x,y,ang,len,w,seed,tip,slant){
+  tip=(tip==null?.17:tip);slant=(slant==null?.55:slant);
+  const cs=Math.cos(ang),sn=Math.sin(ang),P=[];
+  const at=(d,o)=>P.push([x+cs*d-sn*o,y+sn*d+cs*o]);
+  const hw=u=>w*(u<.18?(.46+.54*(u/.18)):(1+(tip-1)*((u-.18)/.82)));
+  const j=n=>(hash(seed+n)-.5);
+  const tl=len,tr=len-w*2.1*slant;
+  at(0,-hw(0));
+  at(len*.18,-hw(.18)*(1+.12*j(1.7)));
+  at(len*.58,-hw(.58)*(1+.14*j(3.1)));
+  at(tl,-hw(1));
+  at(tr,hw(1)*1.06);
+  at(len*.58,hw(.58)*(1+.14*j(5.3)));
+  at(len*.18,hw(.18)*(1+.12*j(7.9)));
+  at(0,hw(0));
+  return P;
+}
+function IBneedle(c,x,y,ang,len,w,seed,k,a,o){
+  const P=IBneedlePoly(x,y,ang,len,w,seed,o&&o.tip,o&&o.slant);
+  IBcrys(c,P,k,a,seed,Object.assign({grain:ang,w:Math.max(.7,w*.30)},o||{}));
+  return P;
+}
+
+/// **비치는 판** (D·F). 낮은 알파로 채우고 테만 밝게 — 겹치면 뒤가 비친다.
+/// 꽉 찬 판이 반려된 자리가 여기다: 유리·얼음은 **원래 비치는 것**이라,
+/// 큰 면을 불투명하게 두면 무엇을 해도 돌이 된다.
+function IBpane(c,poly,k,a,seed,w){
+  if(!poly||poly.length<3||!(a>.01))return;const T=toneOf(k);
+  // 반투명은 **알파가 낮은 것**이지 색이 없는 것이 아니다. 완전히 비우면
+  // 철사 도형이 되고(1차 렌더), 꽉 채우면 돌이 된다(IC 반려). 사이가 답이다.
+  fillPoly(c,poly,A(mixHex(T[0],T[1],.22),.42*a));
+  gAdd(c,cc=>{fillPoly(cc,poly,A(T[1],.13*a));});
+  IBmos(c,poly,k,a*.60,seed,2);
+  IBrim(c,poly,k,a,w||1.4);
+}
+
+/// **육각 눈송이 — 윤곽선만.** C 가 못 박은 것: 면이 아니라 **테두리 선**이고
+/// 속이 비었다. 가지 여섯이 60° 간격, 곁가지가 다시 60° 로 뻗는다(얼음 결정의
+/// 실제 분지각이자, 이것 하나 때문에 육각 별이 **눈 결정**으로 읽힌다).
+function IBflake(c,cx,cy,r,rot,k,a,w,squash){
+  const SQ=(squash==null?1:squash);
+  const P=(ca,sa,d,o)=>[cx+(ca*d-sa*o),cy+(sa*d+ca*o)*SQ];
+  for(let i=0;i<6;i++){
+    const ang=rot+i*TAU/6,ca=Math.cos(ang),sa=Math.sin(ang);
+    IBline(c,[P(ca,sa,0,0),P(ca,sa,r,0)],w,k,a);
+    const BR=[[.34,.30],[.58,.23],[.80,.15]];
+    for(const b of BR){const bl=r*b[1];
+      IBline(c,[P(ca,sa,r*b[0],0),P(ca,sa,r*b[0]+bl*.5,-bl*.866)],w*.8,k,a,0);
+      IBline(c,[P(ca,sa,r*b[0],0),P(ca,sa,r*b[0]+bl*.5, bl*.866)],w*.8,k,a,0);}
+    // 끝의 작은 육각 판 — 실제 수지상 결정의 가지 끝이 이렇게 벌어진다
+    IBline(c,[P(ca,sa,r*.94,-r*.09),P(ca,sa,r,0),P(ca,sa,r*.94,r*.09)],w*.7,k,a,0);
+  }
+  // 심 — 작은 육각
+  const H=[];for(let i=0;i<7;i++){const ang=rot+i*TAU/6;
+    H.push([cx+Math.cos(ang)*r*.14,cy+Math.sin(ang)*r*.14*SQ]);}
+  IBline(c,H,w*.8,k,a,0);
+}
+
+/// **바닥 마법진** (D·F). 겹친 동심원 + 잔눈금 띠 + 안쪽 문양. 전부 **선**이고
+/// 속은 비었다 — 채우면 그냥 파란 웅덩이가 된다.
+function IBrune(c,cx,cy,r,t,k,a,seed,sq){
+  const T=toneOf(k),SQ=(sq==null?.40:sq);
+  if(!(r>2)||!(a>.01))return;
+  gAdd(c,cc=>{
+    const ring=(rr,ww,col,al)=>{if(rr<=.4)return;cc.beginPath();
+      cc.ellipse(cx,cy,rr,rr*SQ,0,0,TAU);
+      cc.lineWidth=Math.max(.4,ww);cc.strokeStyle=A(col,al*a);cc.stroke();};
+    ring(r,r*.090,T[1],.22);ring(r,r*.030,T[2],.95);ring(r*.945,r*.014,T[2],.62);
+    ring(r*.72,r*.020,T[2],.78);ring(r*.655,r*.012,T[1],.62);
+    ring(r*.34,r*.016,T[2],.68);
+    // 잔글씨 띠 — 두 고리 사이를 채운다. 「글씨가 빼곡하다」는 인상은 **눈금
+    // 길이가 제각각**일 때만 난다(같으면 톱니바퀴가 된다).
+    const N=36,rt=t*.20+seed;
+    cc.lineWidth=Math.max(.5,r*.024);cc.strokeStyle=A(T[2],.68*a);
+    cc.beginPath();
+    for(let i=0;i<N;i++){const A0=rt+i/N*TAU;
+      const r0=r*.665,r1=r*.665+r*(.012+.045*hash(seed+i*3.1));
+      cc.moveTo(cx+Math.cos(A0)*r0,cy+Math.sin(A0)*r0*SQ);
+      cc.lineTo(cx+Math.cos(A0)*r1,cy+Math.sin(A0)*r1*SQ);}
+    cc.stroke();
+    // 안쪽 문양 — 삼각 둘이 어긋나 겹친다
+    cc.lineWidth=Math.max(.5,r*.019);cc.strokeStyle=A(T[2],.72*a);
+    for(let s=0;s<2;s++){cc.beginPath();
+      for(let i=0;i<=3;i++){const A0=-rt*.6+s*Math.PI/3+i*TAU/3;
+        const px=cx+Math.cos(A0)*r*.60,py=cy+Math.sin(A0)*r*.60*SQ;
+        i?cc.lineTo(px,py):cc.moveTo(px,py);}cc.stroke();}
+  });
+}
+
+/// 밝은 **속 빈 선.** 네 번 덧그린다 — 넓고 흐린 번짐 → 청록 → 밝은 청백 →
+/// 흰 심. 레퍼런스 C 의 눈결정 문양과 D·F 의 마법진은 **면이 아니라 이 선**이다.
+/// `celStroke` 와 자리는 같지만 계조가 **뒤집혀 있다**(celStroke 는 어두움부터
+/// 깔고 위에 밝은 것을 얹어 「굵은 선」이 되고, 이건 가산이라 「빛나는 선」이 된다).
+function IBline(c,pts,w,k,a,soft){
+  if(!pts||pts.length<2)return;const T=toneOf(k);
+  const path=cc=>{cc.beginPath();cc.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<pts.length;i++)cc.lineTo(pts[i][0],pts[i][1]);};
+  gAdd(c,cc=>{cc.lineCap="round";cc.lineJoin="round";
+    if(soft!==0){path(cc);cc.lineWidth=w*3.4;cc.strokeStyle=A(T[1],.10*a);cc.stroke();}
+    path(cc);cc.lineWidth=w*1.5;cc.strokeStyle=A(T[1],.34*a);cc.stroke();
+    path(cc);cc.lineWidth=w*.72;cc.strokeStyle=A(T[2],.78*a);cc.stroke();
+    path(cc);cc.lineWidth=w*.28;cc.strokeStyle=A("#FFFFFF",.90*a);cc.stroke();});
+}
+/// 떠다니는 **마름모 조각** (A·B·E·F·G). 정체를 만드는 것은 큰 것이 아니라
+/// 둘레에 흩어진 이 작은 것들이다.
+function IBshard(c,x,y,r,rot,k,a,sq){
+  if(!(r>.4)||!(a>.01))return;
+  const cs=Math.cos(rot),sn=Math.sin(rot),q=(sq==null?.44:sq);
+  const P=[[1,0],[0,q],[-1,0],[0,-q]].map(v=>
+    [x+v[0]*r*cs-v[1]*r*sn,y+v[0]*r*sn+v[1]*r*cs]);
+  fillPoly(c,P,A(toneOf(k)[0],.80*a));
+  IBrim(c,P,k,a,Math.max(.45,r*.16));
+}
+
+/// 십자 **반짝이** (B·F·G). 가산 넷.
+function IBspark(c,x,y,r,k,a,rot){
+  if(!(r>.2)||!(a>.01))return;const T=toneOf(k);
+  gAdd(c,cc=>{
+    for(let i=0;i<4;i++){const ang=rot+i*Math.PI/2,L=r*(i%2?.55:1);
+      const g=cc.createLinearGradient(x,y,x+Math.cos(ang)*L,y+Math.sin(ang)*L);
+      g.addColorStop(0,A("#FFFFFF",.92*a));g.addColorStop(.30,A(T[2],.60*a));
+      g.addColorStop(1,A(T[1],0));
+      cc.strokeStyle=g;cc.lineWidth=Math.max(.4,r*.20);cc.lineCap="round";
+      cc.beginPath();cc.moveTo(x,y);cc.lineTo(x+Math.cos(ang)*L,y+Math.sin(ang)*L);cc.stroke();}
+    cc.beginPath();cc.arc(x,y,Math.max(.4,r*.17),0,TAU);
+    cc.fillStyle=A("#FFFFFF",.95*a);cc.fill();});
+}
+
+/// ⭐ **뿌리의 흰 발광** (H·I). 결정 무리의 아래가 빛에 묻히고 지면에 푸른
+/// 빛이 깔린다. 이게 없으면 결정이 **바닥에 놓인 물건**으로 보이지 「솟은
+/// 것」으로 안 보인다 — 자란 자리는 언제나 제일 밝다.
+function IBroot(c,x,y,r,k,a,sq){
+  if(!(r>1)||!(a>.01))return;const T=toneOf(k),q=(sq==null?.42:sq);
+  gAdd(c,cc=>{cc.save();cc.translate(x,y);cc.scale(1,q);
+    const g=cc.createRadialGradient(0,0,0,0,0,r);
+    g.addColorStop(0,A("#FFFFFF",.70*a));g.addColorStop(.16,A(T[2],.52*a));
+    g.addColorStop(.40,A(T[1],.26*a));g.addColorStop(1,A(T[1],0));
+    cc.fillStyle=g;cc.beginPath();cc.arc(0,0,r,0,TAU);cc.fill();cc.restore();});
+}
+
+/// 회백색 **냉기** (G). 불의 연기와 같은 자리인데 색만 다르다 — 깨진 조각이
+/// 이걸 끌면 「차가운 것이 부서졌다」로 읽힌다.
+function IBmist(c,x,y,r,seed,a,sq){
+  if(!(r>.6)||!(a>.01))return;
+  celPuff(c,x,y,r,6,seed,"snow",a*.42,sq==null?1:sq);
+}
+
+Object.assign(FX,{
+
+// ═══ 빙벽 氷壁 — 「무엇이 길을 막고 있나」 ═════════════════════════════════
+// 넷 다 같은 적 배치·같은 파괴 주기다. 갈리는 것은 **벽의 물성** 하나다.
+// 그리고 넷 다 **적이 벽 앞에서 멈춘다** — 막는 것이 안 보이면 벽이 아니다.
+
+// ── 빙벽 A · **겹친 유리판** (레퍼런스 D) ─────────────────────────────────
+// 판 일곱이 **낮은 알파로 겹쳐** 서 있다. 뒤의 적이 **판 너머로 비친다** —
+// 이 안의 정체는 그 하나다. 겹친 자리마다 알파가 더해져 저절로 진해지므로,
+// 두께가 색이 아니라 **겹침의 수**로 보인다.
+IBwall1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-44*SC,PW=62*SC,PH=30*SC;
+  const brk=IBstepWall(st,dt,SC,WY,PW,PH,.055);
+  if(brk){IBburst(st,cx,cy+WY,PW,PH,SC,7);
+    emit(st,cx,cy+WY,16,{k:"frost",sp:180*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});}
+  IBstepFrag(st,dt,SC);
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);   // ⚠️ 적을 **먼저** — 판이 위에 겹쳐야 비친다
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    IBroot(c,cx,cy+WY+PH*.92,PW*1.15,"frost",.55,.30);
+    // 판 아홉 — **서로 폭의 절반씩 겹친다.** 안 겹치면 「울타리」가 되고,
+    // 겹쳐야 알파가 더해져 **두께가 겹침의 수로** 보인다. 그게 이 안의 값이다.
+    for(let i=0;i<9;i++){const u=(i+.5)/9,px=cx+(u-.5)*PW*1.86;
+      const hh=PH*(.86+.86*hash(i*3.1)),ww=PW*(.19+.09*hash(i*7.7));
+      const ln=(hash(i*5.3)-.5)*.9, sy=cy+WY+PH*.30+Math.sin(t*1.1+i)*1.2*SC;
+      // 각진 유리 조각 — 아래가 넓고 위로 좁아지다 **비스듬히 잘린다**(E)
+      const P=[[-ww,0],[-ww*.94,-hh*.34],[-ww*.46+ln*ww*.5,-hh*.88],
+               [ln*ww,-hh],[ww*.72+ln*ww,-hh*.60],[ww*.98,-hh*.10],[ww*.88,0]]
+        .map(v=>[px+v[0],sy+v[1]]);
+      IBpane(c,P,"frost",(.92-sh*.30)*(i%2?1:.84),i*4.1,1.3*SC);}
+    // 금 — 깎일수록 판을 가로지른다
+    if(sh>.12)for(let i=0;i<4;i++){const u=(i+.5)/4;
+      const x0=cx+(u-.62)*PW*1.7,y0=cy+WY-PH*.9;
+      const pts=[[x0,y0]];
+      for(let j=1;j<=4;j++)pts.push([x0+(hash(i*9+j)-.4)*PW*.30,
+        y0+j/4*PH*1.85*Math.min(1,sh*1.7)]);
+      IBline(c,pts,1.5*SC*sh,"frost",Math.min(1,sh*1.5),0);}
+    // 위에 떠 있는 마름모 + 반짝이
+    for(let i=0;i<6;i++){const ph=t*.5+i*1.7;
+      IBshard(c,cx+(hash(i*2.3)-.5)*PW*2.1,cy+WY-PH*1.3-Math.abs(Math.sin(ph))*13*SC,
+        (2.4+2.2*hash(i*5.1))*SC,ph*.5+i,"frost",.85);}
+    for(let i=0;i<5;i++){const ph=(t*.7+i*.37)%1;
+      IBspark(c,cx+(hash(i*3.7)-.5)*PW*2.0,cy+WY+(hash(i*8.1)-.5)*PH*1.9,
+        (2.6+1.6*hash(i*6.3))*SC,"frost",.35+.65*Math.sin(ph*Math.PI),t*1.4+i);}
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 빙벽 B · **바늘 숲** (레퍼런스 A·H·I) ────────────────────────────────
+// 벽이 판이 아니라 **바늘 열넷**이다. 길이·각도가 제각각이고, 하나하나가
+// **어두운 속 + 밝은 윤곽**이며, 뿌리는 흰 발광에 묻혀 안 보인다. 깎이면
+// **긴 것부터** 부러진다 — 부러진 자리에 그루터기가 남는 것이 이 안의 시계다.
+IBwall2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-40*SC,PW=64*SC,PH=34*SC,N=14;
+  const brk=IBstepWall(st,dt,SC,WY,PW,PH,.055);
+  if(brk){IBburst(st,cx,cy+WY,PW,PH,SC,8);
+    emit(st,cx,cy+WY,18,{k:"frost",sp:190*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    const gy=cy+WY+PH*.86;
+    IBroot(c,cx,gy,PW*1.2,"frost",.70,.26);
+    // 뿌리 부스러기 — 작은 결정이 잔뜩(H)
+    for(let i=0;i<12;i++){const u=(i+.5)/12;
+      IBneedle(c,cx+(u-.5)*PW*2.05+(hash(i*4.7)-.5)*5*SC,gy+1.5*SC,
+        -Math.PI/2+(hash(i*3.3)-.5)*1.5,(4+5*hash(i*8.9))*SC,1.7*SC,i*2.1,
+        "frost",.85,{mos:1});}
+    // 큰 바늘 — 긴 것부터 부러진다(sh 가 크면 상위 몇이 그루터기)
+    for(let i=0;i<N;i++){const u=(i+.5)/N;
+      const rank=hash(i*6.1);                     // 0=짧다 1=길다
+      const cut=rank<sh*1.15?.30+.18*hash(i*2.9):1;
+      const L=PH*(.78+1.20*rank)*cut;
+      const ang=-Math.PI/2+(u-.5)*.62+(hash(i*9.7)-.5)*.30;
+      const x=cx+(u-.5)*PW*1.94+(hash(i*5.5)-.5)*3*SC;
+      IBneedle(c,x,gy,ang,L,(3.2+2.4*hash(i*7.3))*SC,i*3.7,"frost",1,
+        {mos:2,tip:.20,slant:.55+.5*hash(i*1.9)});
+      if(cut<1)IBspark(c,x+Math.cos(ang)*L,gy+Math.sin(ang)*L,4*SC,"frost",.7,t*2+i);}
+    IBroot(c,cx,gy,PW*.62,"frost",.55,.22);       // 뿌리를 한 번 더 — 밑동이 묻힌다
+    for(let i=0;i<7;i++){const ph=t*.6+i*1.3;
+      IBshard(c,cx+(hash(i*2.3)-.5)*PW*2.1,cy+WY-PH*1.15-Math.abs(Math.sin(ph))*15*SC,
+        (2.2+2.4*hash(i*5.1))*SC,ph*.4+i,"frost",.8);}
+  }else{
+    for(let i=0;i<9;i++){const u=(i+.5)/9;      // 그루터기만 남는다
+      IBneedle(c,cx+(u-.5)*PW*1.9,cy+WY+PH*.86,-Math.PI/2,(5+4*hash(i*3.1))*SC,
+        2.2*SC,i*3.7,"frost",.75,{mos:1});}
+    IBroot(c,cx,cy+WY+PH*.86,PW*.9,"frost",.35*Math.max(0,st.dead),.26);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 빙벽 C · **선으로만 그린 눈결정 격자** (레퍼런스 C) ──────────────────
+// 벽에 **면이 하나도 없다.** 육각 눈송이 셋이 나란히 걸리고 그 사이를 서리
+// 실이 잇는다 — 뒤의 적이 **하나도 안 가려진 채** 보인다. 「막고 있다」를
+// 면적이 아니라 **선의 밀도**로만 말하는 유일한 안이고, 깨질 때는 선이
+// 도막도막 끊어져 흩어진다.
+IBwall3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-46*SC,PW=64*SC,PH=26*SC;
+  const brk=IBstepWall(st,dt,SC,WY,PW,PH,.055);
+  if(brk){IBburst(st,cx,cy+WY,PW,PH,SC,9);
+    emit(st,cx,cy+WY,20,{k:"frost",sp:200*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.95});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    const al=1-sh*.45;
+    // 잇는 실 — 위·아래 두 가닥이 눈송이를 꿴다
+    for(const yy of[-PH*.72,PH*.72]){
+      const pts=[];for(let i=0;i<=12;i++){const u=i/12;
+        pts.push([cx+(u-.5)*PW*2.1,cy+WY+yy+Math.sin(u*7+t*.6)*2.2*SC]);}
+      IBline(c,pts,1.9*SC,"frost",al*.9);}
+    // 눈송이 셋 — 크기가 다르고 **아주 느리게** 돈다(얼음은 바쁘지 않다)
+    for(let i=0;i<3;i++){const x=cx+(i-1)*PW*.76;
+      IBflake(c,x,cy+WY,PH*(i===1?1.26:.98),t*.06+i*.7,"frost",al*.85,1.9*SC);}
+    // 사이를 메우는 작은 눈송이 넷 — 「막고 있다」를 **선의 밀도**로만 말한다
+    for(let i=0;i<4;i++)IBflake(c,cx+(i-1.5)*PW*.52,cy+WY+(i%2?PH*.44:-PH*.44),
+      PH*.36,-t*.09+i*1.3,"frost",al*.70,1.3*SC);
+    // 격자 마디의 반짝이 — 선이 만나는 자리가 빛난다
+    for(let i=0;i<6;i++){const x=cx+(i-2.5)*PW*.38;
+      IBspark(c,x,cy+WY+(i%2?-PH*.72:PH*.72),3.2*SC,"frost",
+        .45+.55*Math.abs(Math.sin(t*1.6+i)),t*.9+i);}
+    if(sh>.15)for(let i=0;i<5;i++){        // 끊긴 자리 — 선이 도막난다
+      const a0=hash(i*3.1)*TAU,d=PH*(.5+.6*hash(i*7.7));
+      IBshard(c,cx+Math.cos(a0)*d*1.7,cy+WY+Math.sin(a0)*d,
+        2.6*SC*sh,a0,"frost",Math.min(1,sh*1.6));}
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 빙벽 D · **모자이크 석벽** (레퍼런스 E·F·G) ──────────────────────────
+// 벽이 **조각 열여덟**으로 쌓여 있다. 조각마다 속 밝기가 다르고 테가 빛나서,
+// 큰 면인데도 「하나의 덩어리」로 안 보인다. 이 안만 **국소 파괴**다 —
+// 맞은 조각만 떨어져 나가 **구멍이 뚫리고**, 그 구멍으로 적이 들어온다.
+// 떨어진 조각은 회백색 **냉기 꼬리**를 끈다(G).
+IBwall4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-44*SC,PW=64*SC,PH=22*SC,COL=7,ROW=2,NB=COL*ROW;
+  if(!st.br){st.br=new Array(NB).fill(1);st.dead=0;st.fr=[];st.hp=1;}
+  const bw=PW*2/COL,bh=PH*2/ROW;
+  const bx=i=>cx-PW+((i%COL)+.5)*bw, by=i=>cy+WY-PH+((i/COL|0)+.5)*bh;
+  const alive=i=>st.br[i]>0;
+  const up=st.dead<=0;
+  const SPD=31*SC;
+  for(const f of st.F){
+    // 자기 앞 칸이 살아 있으면 막힌다 — **구멍이 난 칸으로는 들어온다**
+    // ⚠️ **멈추는 자리와 걸리는 자리는 같은 값이어야 한다.**
+    // 둘을 따로 적었더니(멈춤 -77 · 걸림 -63) 적이 걸리자마자 걸림 밖으로
+    // 튕겨나가, **28프레임에 한 번만** 벽을 때렸다 — 깎이는 속도가 1/28 이 되어
+    // 「국소 파괴」가 화면에서 아예 안 일어났다(2026-08-12 node 계측으로 확인.
+    // 렌더만 봤을 때는 「좀 느리네」로 보였지 버그로 안 보였다).
+    const face=i=>by(i)-cy-bh*.10-f.r*.55;
+    let blocked=false,hitI=-1;
+    if(up)for(let i=0;i<NB;i++){if(!alive(i))continue;
+      if(Math.abs(cx+f.ox-bx(i))<bw*.62&&f.oy+SPD*dt>face(i)){
+        blocked=true;if(hitI<0||by(i)<by(hitI))hitI=i;}}
+    if(blocked){f.oy=face(hitI);f.kx+=(f.ox<0?-1:1)*.4*SC;
+      st.br[hitI]-=dt*.52;f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+      if(st.br[hitI]<=0){st.br[hitI]=0;
+        IBpushFrag(st,bx(hitI),by(hitI),bw*.44,SC,1);
+        emit(st,bx(hitI),by(hitI),7,{k:"frost",sp:150*SC,r:2.6*SC,life:.5,g:130*SC,spikeP:.9});}
+    }else{const d=Math.hypot(f.ox,f.oy)||1;
+      f.ox-=f.ox/d*SPD*dt;f.oy-=f.oy/d*SPD*dt;
+      if(d<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  let live=0;for(let i=0;i<NB;i++)if(alive(i))live++;
+  if(up&&live===0){st.dead=1.0;}
+  if(st.dead>0){st.dead-=dt;if(st.dead<=0)st.br=new Array(NB).fill(1);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  IBroot(c,cx,cy+WY+PH*.98,PW*1.1,"frost",.42,.26);
+  for(let i=0;i<NB;i++){const hpv=st.br[i];if(hpv<=0)continue;
+    const x=bx(i),y=by(i),sd=i*3.7;
+    // 조각 하나 — 각지고, 이웃과 모서리를 맞대되 완전히 같지는 않다
+    // 조각마다 **꼭짓점 수가 다르다**(5·6·7). 다 육각이면 벌집이 되고,
+    // 벌집은 「쌓인 얼음」이 아니라 **무늬**로 읽힌다(2차 렌더 판정).
+    const NP=5+((i*7+((i/COL|0)*3))%3), P=[];
+    const jx=(hash(sd+1.3)-.5)*bw*.18, jy=(hash(sd+2.9)-.5)*bh*.18;
+    for(let j=0;j<NP;j++){const a0=j/NP*TAU+.4+hash(sd+j*1.7)*.5;
+      const rr=(.52+.20*hash(sd+j*2.3))*(1+.14*Math.sin(a0*2));
+      P.push([x+jx+Math.cos(a0)*bw*rr*1.16,y+jy+Math.sin(a0)*bh*rr*1.16]);}
+    IBcrys(c,P,"frost",Math.min(1,.35+hpv*.75),sd,
+      {mos:2,w:1.4*SC*.9,thru:.62,grain:-Math.PI/2});
+    if(hpv<.75)IBline(c,[[x-bw*.3,y-bh*.34],[x+bw*.1,y+bh*.02],[x-bw*.05,y+bh*.36]],
+      1.1*SC*(1-hpv),"frost",1-hpv,0);}
+  for(let i=0;i<5;i++){const ph=t*.55+i*1.5;
+    IBshard(c,cx+(hash(i*2.3)-.5)*PW*2.1,cy+WY-PH*1.35-Math.abs(Math.sin(ph))*12*SC,
+      (2.2+2.0*hash(i*5.1))*SC,ph*.5+i,"frost",.8);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ═══ 결빙 結氷 — 「한 놈을 어떻게 가두나」 ═════════════════════════════════
+// 셋 다 **F[0] 하나만** 가둔다. 나머지는 자유롭게 돌아다녀야 「가둔 것」이
+// 특별해 보인다. 주기: 짓는다 → 잠근다 → 깨진다.
+
+// ── 결빙 A · **마법진 + 솟는 유리 기둥** (레퍼런스 D) ────────────────────
+// 발밑에 **문양이 먼저 서고**, 그 위로 **비치는 판 여섯**이 솟아 적을 삼킨다.
+// 적이 판 너머로 **비쳐 보인다** — 갇힌 것이 보이는 것이 이 안의 전부다.
+// 기둥을 감고 오르는 **빛의 띠**가 「지금 잠기는 중」을 말한다.
+IBtomb1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-72,11],[-56,-46,9],[52,-58,9],[16,-116,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=3.0,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const g=u<.30?u/.30:1, lock=u>=.30&&u<.80, brk=u>=.80?(u-.80)/.20:0;
+  T.ox=T.hx;T.oy=T.hy;                       // 갇힌 놈은 못 움직인다
+  T.pv=lock?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=t*.55+i*2.1,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-30*SC;}
+  if(pu<.80&&u>=.80){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,20,{k:"frost",sp:170*SC,r:2.8*SC,life:.55,g:120*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.9,SC,6);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  // ⚠️ 기둥은 **가늘고 길게**, 마법진은 **기둥보다 훨씬 넓게.** 1차 렌더에서
+  // 둘이 같은 폭이라 마법진이 기둥에 통째로 가려 안 보였다 — D 의 그림은
+  // 「넓은 바닥 문양 **위에** 가는 기둥」이지 같은 굵기의 두 층이 아니다.
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.20,RR=T.r*1.62,HH=T.r*4.6;
+  const RN=RR*1.85;                                 // 마법진 반지름 — 기둥의 1.85배
+  // ① 바닥 마법진 — 제일 먼저 선다
+  IBrune(c,x,gy,RN*(.5+.5*Math.min(1,u/.22)),t,"frost",Math.min(1,g*1.6)*(1-brk*.8),1.7,.34);
+  // ② 바깥 창날 여섯 — 원 둘레에서 방사형(D)
+  for(let i=0;i<6;i++){const a0=i*TAU/6+t*.10;
+    const d0=RN*.99,px=x+Math.cos(a0)*d0,py=gy+Math.sin(a0)*d0*.34;
+    IBneedle(c,px,py,a0,RN*.40*g,RN*.085,i*4.3,"frost",.85*g*(1-brk),{mos:1,tip:.22});}
+  IBroot(c,x,gy,RN*1.05,"frost",.55*g,.30);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);   // 적을 여기서 — 판이 위에 겹친다
+  // ③ 솟는 유리판 여섯 — 겹쳐서 **뒤가 비친다**
+  const hh=HH*g;
+  for(let i=0;i<6;i++){const a0=i*TAU/6+t*.07;
+    const rx=Math.cos(a0)*RR*.86,rz=Math.sin(a0)*RR*.34;
+    const ww=RR*.46*(.72+.30*hash(i*3.1));
+    const top=gy+rz-hh*(.80+.22*hash(i*7.7));
+    const P=[[rx-ww,gy+rz],[rx-ww*.86,top+hh*.16],[rx-ww*.30,top],
+             [rx+ww*.72,top+hh*.10],[rx+ww,gy+rz-hh*.10],[rx+ww*.86,gy+rz]]
+      .map(v=>[x+v[0],v[1]]);
+    IBpane(c,P,"frost",(.88-brk*.85)*(i%2?1:.86),i*5.7);}
+  // ④ 감고 오르는 빛의 띠 둘
+  if(g>.2)for(let s=0;s<2;s++){const pts=[];
+    for(let i=0;i<=16;i++){const v=i/16,a0=v*4.4+s*Math.PI+t*.7;
+      pts.push([x+Math.cos(a0)*RR*(.92-v*.30),gy-hh*v+Math.sin(a0)*RR*.30]);}
+    IBline(c,pts,1.5*SC,"frost",(g-.2)/.8*(1-brk));}
+  // ⑤ 뚜껑 — 심이 제일 밝다
+  if(g>.55){IBroot(c,x,gy-hh,RR*1.0,"frost",(g-.55)/.45*(1-brk),.40);
+    IBflake(c,x,gy-hh,RR*.60,t*.08,"frost",(g-.55)/.45*(1-brk),1.3*SC,.42);}
+  for(let i=0;i<7;i++){const ph=(t*.5+i*.29)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.4,gy-hh*(.15+.85*hash(i*8.1))-4*SC,
+      (2.4+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.5+i);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 결빙 B · **뚜껑 고리 + 모자이크 원통 + 눈송이진** (레퍼런스 F) ───────
+// F 의 구조를 그대로 옮긴다. 셋으로 또렷하다:
+//   ① 위에 **밝은 타원 고리** — 원통의 뚜껑. 눈금 띠가 돈다
+//   ② **모자이크 원통** — 각진 조각이 붙어 있고 속이 비친다. 아래는 **고드름**
+//   ③ 바닥에 **육각 눈송이가 그려진 마법진**
+// A 와의 차이: A 는 **바닥에서 솟고** 이건 **위에서 내려와 덮는다.**
+IBtomb2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-70,11],[-58,-44,9],[54,-56,9],[18,-114,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=3.0,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const g=u<.26?u/.26:1, brk=u>=.82?(u-.82)/.18:0;
+  T.ox=T.hx;T.oy=T.hy;T.pv=(u>.26&&u<.82)?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=-t*.5+i*2.4,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-28*SC;}
+  if(pu<.82&&u>=.82){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,22,{k:"frost",sp:180*SC,r:2.8*SC,life:.55,g:130*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r,SC,7);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  // ⚠️ 원통은 **바닥에 안 닿는다.** F 에서 마법진이 읽히는 이유는 원통이
+  // **떠 있어서** 문양이 그 아래로 드러나기 때문이다. 원통 밑동을 바닥에
+  // 붙이면(1차 렌더) 문양이 통째로 가려 세 층 중 하나가 없어진다.
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.34,RR=T.r*1.42,RN=RR*2.30;
+  const by0=gy-T.r*.86;                         // 원통 밑동 — 바닥보다 위
+  const HH=T.r*3.1*g, ty=by0-HH;                // 뚜껑 높이 — 위에서 내려온다
+  // ③ 바닥 — 마법진 + 큰 육각 눈송이 하나
+  IBrune(c,x,gy,RN,t,"frost",(1-brk*.8),2.3,.40);
+  IBflake(c,x,gy,RN*.94,-t*.05,"frost",(1-brk*.8),2.0*SC,.40);
+  IBroot(c,x,gy,RN*.80,"frost",.26*(1-brk),.28);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  if(g>.03){
+    // ② 모자이크 원통 — 세로 조각 아홉. 속이 비치고 아래 끝이 고드름이다.
+    const NC=9;
+    for(let i=0;i<NC;i++){const a0=i/NC*TAU-Math.PI/2+t*.05;
+      const a1=(i+1)/NC*TAU-Math.PI/2+t*.05;
+      const c0=Math.cos(a0),c1=Math.cos(a1);
+      const front=(Math.sin(a0)+Math.sin(a1))*.5>0;   // 앞쪽 조각이 더 밝다
+      const ic=T.r*(.55+.62*hash(i*3.1));             // 고드름 길이
+      const P=[[c0*RR,ty+Math.sin(a0)*RR*.34],[c1*RR,ty+Math.sin(a1)*RR*.34],
+               [c1*RR,by0+Math.sin(a1)*RR*.34],
+               [(c0+c1)*.5*RR,by0+(Math.sin(a0)+Math.sin(a1))*.5*RR*.34+ic],
+               [c0*RR,by0+Math.sin(a0)*RR*.34]]
+        .map(v=>[x+v[0],v[1]]);
+      IBcrys(c,P,"frost",(front?.95:.62)*(1-brk*.9),i*4.7,
+        {thru:front?.26:.16,mos:2,w:1.3*SC,grain:-Math.PI/2});}
+    // ① 뚜껑 고리 — 제일 밝다. 눈금 띠가 돈다.
+    IBrune(c,x,ty,RR*1.06,t*1.6,"frost",(1-brk*.7),5.1,.34);
+    IBroot(c,x,ty,RR*.90,"frost",.62*(1-brk),.34);
+    gAdd(c,cc=>{cc.beginPath();cc.ellipse(x,ty,RR,RR*.34,0,0,TAU);
+      cc.lineWidth=2.0*SC;cc.strokeStyle=A("#FFFFFF",.85*(1-brk));cc.stroke();});
+  }
+  for(let i=0;i<8;i++){const ph=(t*.55+i*.31)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.6,ty+(hash(i*8.1))*HH*1.05,
+      (2.4+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.5+i);}
+  for(let i=0;i<5;i++){const ph=t*.5+i*1.6;
+    IBshard(c,x+(hash(i*2.3)-.5)*RR*2.8,ty-6*SC-Math.abs(Math.sin(ph))*12*SC,
+      (2.0+2.0*hash(i*5.1))*SC,ph*.4+i,"frost",.8*(1-brk));}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 결빙 C · **얼음 왕관** (레퍼런스 B·I) ────────────────────────────────
+// 가시들이 **원형으로 둘러서** 위를 향하고, 자라면서 **안으로 오므라들어**
+// 적 위에서 맞물린다. 안쪽에 **둥근 얼음 방울** 몇, 공중에 **육각 눈송이**,
+// 흩어진 **반짝이**. 앞의 둘이 「면으로 감싸는」 것이라면 이건 **가시로 무는**
+// 것이다 — 갇힌 놈이 끝까지 다 보이는 유일한 안이다.
+IBtomb3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-70,11],[-56,-44,9],[54,-58,9],[16,-114,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=2.8,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const g=u<.32?u/.32:1, brk=u>=.84?(u-.84)/.16:0;
+  T.ox=T.hx;T.oy=T.hy;T.pv=(u>.32&&u<.84)?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=t*.6+i*1.9,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-30*SC;}
+  if(pu<.84&&u>=.84){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,18,{k:"frost",sp:165*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.8,SC,6);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.15,RR=T.r*2.15;
+  IBrune(c,x,gy,RR*1.25,t,"frost",.85*(1-brk*.8),3.3,.42);
+  IBroot(c,x,gy,RR*1.2,"frost",.60*g*(1-brk*.6),.32);
+  // 뒤쪽 가시 — 적보다 먼저(뒤로 간다)
+  const N=9,BEND=g*.26;
+  const spike=(i,back)=>{const a0=i/N*TAU-Math.PI/2;
+    const ca=Math.cos(a0),sa=Math.sin(a0);
+    if((sa<0)!==back)return;
+    const px=x+ca*RR,py=gy+sa*RR*.42;
+    const L=RR*(.95+.55*hash(i*3.7))*g;
+    const lean=Math.atan2(-1,0)+ (-ca)*BEND;         // 위 + 안쪽으로 오므린다
+    IBneedle(c,px,py,lean,L,RR*(.095+.05*hash(i*8.1)),i*2.9,"frost",
+      (back?.72:1)*(1-brk*.85),{mos:2,tip:.18,slant:.6});};
+  for(let i=0;i<N;i++)spike(i,true);
+  // 안쪽 얼음 방울 셋 — B 의 「둥근 구슬」
+  for(let i=0;i<3;i++){const a0=t*.4+i*TAU/3;
+    const bx=x+Math.cos(a0)*RR*.42,by=gy-RR*(.30+.18*i)+Math.sin(a0)*RR*.14;
+    const P=[];for(let j=0;j<8;j++){const aa=j/8*TAU;
+      P.push([bx+Math.cos(aa)*RR*.20,by+Math.sin(aa)*RR*.20]);}
+    IBcrys(c,P,"frost",.9*g*(1-brk),i*6.1,{mos:1,thru:.55,w:1.1*SC});}
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let i=0;i<N;i++)spike(i,false);            // 앞쪽 가시 — 적을 문다
+  IBroot(c,x,gy,RR*.62,"frost",.30*g*(1-brk),.28);
+  // 공중의 육각 눈송이 셋 + 반짝이
+  for(let i=0;i<3;i++){const ph=t*.45+i*2.1;
+    IBflake(c,x+Math.cos(ph)*RR*1.5,gy-RR*(1.05+.35*i)+Math.sin(ph*1.3)*4*SC,
+      RR*(.24+.07*i),t*.07+i,"frost",.8*(1-brk),1.0*SC);}
+  for(let i=0;i<8;i++){const ph=(t*.6+i*.27)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.8,gy-RR*1.5*hash(i*8.1),
+      (2.2+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.6+i);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 덤 · 채택된 서릿발에 **윤곽 발광만** 얹은 것 ─────────────────────────
+// 서릿발 2안(ICspine2)은 이미 채택됐다. 이 안은 **거기에 손대지 않고** 같은
+// 시계·같은 배치로 결정만 `IBcrys` 로 바꿔 그린다. 갈리는 것은 하나 —
+// **윤곽이 빛나는가.** 나란히 놓고 보면 이 한 가지가 얼마짜리인지가 보인다.
+IBspine2b(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-20,-58,10],[26,-84,11],[-48,-96,10],[8,-116,9],[54,-70,9]]);
+  stepFoes(st.F,dt);
+  const N=8,PER=1.5,STEP=.052,RISE=.13,WILT=.32;
+  const R0=26*SC,GAP=14*SC,RAD=15*SC;
+  const u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const ang=-Math.PI/2;
+  for(let j=0;j<N;j++){const at=j*STEP;
+    if(!(pu<at&&u>=at))continue;
+    const d=R0+j*GAP,x=Math.cos(ang)*d,y=Math.sin(ang)*d;
+    for(const f of st.F)if(Math.hypot(f.ox-x,f.oy-y)<RAD*1.15+f.r){
+      hitFoe(st,f,cx,cy,0,-1,16*SC,"frost");f.pv=Math.min(2,(f.pv||0)+1);}
+    emit(st,cx+x,cy+y,8,{k:"frost",sp:105*SC,r:2.4*SC,life:.5,g:60*SC,spikeP:.9});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let j=0;j<N;j++){
+    const life=u-j*STEP;if(life<0||life>.52)continue;
+    const d=R0+j*GAP,x=cx+Math.cos(ang)*d,y=cy+Math.sin(ang)*d;
+    const gg=life<RISE?life/RISE:1;
+    const w=life<WILT?1:Math.max(0,1-(life-WILT)/.20);
+    if(w<=.03)continue;
+    dep(c,y,cy,(c,dz)=>{
+      IBroot(c,x,y+RAD*.10,RAD*1.25*gg,"frost",.55*dz*w,.30);
+      // 한 송이 = 바늘 다섯. 가운데가 크고 둘레가 꽃받침처럼 선다(I).
+      for(let i=0;i<5;i++){const a0=-Math.PI/2+(i-2)*.42;
+        const L=RAD*gg*(i===2?1.55:1.0-Math.abs(i-2)*.16)*(.55+.45*w);
+        IBneedle(c,x,y+RAD*.06,a0,L,RAD*(i===2?.24:.17),j*3.7+i*2.1,"frost",dz,
+          {mos:i===2?2:1,tip:.20,slant:.6});}
+      shards(c,x,y,Math.max(1,9*SC),5,j*2.3,dz*.4,"frost");});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ── 벽 · 파편 공용 ────────────────────────────────────────────────────────
+// 넷이 같은 시계를 쓴다. 다르게 두면 「무엇이 갈렸나」에 물성 말고 속도가
+// 섞여 들어가, 나란히 놓았을 때 비교가 안 된다.
+function IBstepWall(st,dt,SC,WY,PW,PH,rate){
+  if(st.hp===undefined){st.hp=1;st.dead=0;st.fr=[];}
+  const up=st.dead<=0,SPD=31*SC;
+  for(const f of st.F){
+    // ⚠️ **벽 위에서 멈추면 안 된다** — 벽에 **파묻혀야** 한다.
+    // 1차 렌더에서 적이 벽보다 위에 떠 있어서 「막혔다」가 안 읽혔고, 무엇보다
+    // **판 너머로 비치는 것**(D·F 의 핵심)을 보여줄 수가 없었다. 몸이 판에
+    // 걸쳐야 알파가 겹쳐 「갇힌 것이 비친다」가 그림으로 나온다.
+    const stopY=WY-PH*.42-f.r*.52;
+    if(up&&Math.abs(f.ox)<PW*1.02&&f.oy+SPD*dt>stopY){
+      f.oy=stopY;f.kx+=(f.ox<0?-1:1)*.5*SC;
+      st.hp-=dt*rate;f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+    }else{const d=Math.hypot(f.ox,f.oy)||1;
+      f.ox-=f.ox/d*SPD*dt;f.oy-=f.oy/d*SPD*dt;
+      if(d<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  let broke=0;
+  if(up&&st.hp<=0){broke=1;st.dead=1.15;st.hp=1;}
+  if(st.dead>0)st.dead-=dt;
+  return broke;
+}
+/// 조각 하나를 날린다. **회백색 냉기 꼬리**(G)를 위해 자취를 기억한다.
+function IBpushFrag(st,x,y,r,SC,n){
+  st.fr=st.fr||[];
+  for(let i=0;i<n;i++){const a0=hash(i*3.1+x*.01)*TAU;
+    st.fr.push({x,y,vx:Math.cos(a0)*(50+70*hash(i*7.7))*SC,
+      vy:-30*SC-60*SC*hash(i*5.3),ro:hash(i*2.3)*TAU,vr:(hash(i*9.1)-.5)*6,
+      r:r*(.45+.5*hash(i*4.7)),l:0,m:.70,tr:[[x,y]]});}
+}
+function IBburst(st,cx,y,PW,PH,SC,n){
+  st.fr=st.fr||[];
+  for(let i=0;i<n;i++){const q=(i-(n-1)/2)/((n-1)/2||1);
+    st.fr.push({x:cx+q*PW*.82,y:y+(hash(i*3.1)-.5)*PH*.7,
+      vx:q*80*SC+(hash(i*7.7)-.5)*34*SC,vy:-40*SC-46*SC*hash(i*5.3),
+      ro:hash(i*2.3)*TAU,vr:(hash(i*9.1)-.5)*5,
+      r:PH*(.30+.26*hash(i*4.7)),l:0,m:.74,tr:[[cx+q*PW*.82,y]]});}
+}
+function IBstepFrag(st,dt,SC){
+  if(!st.fr)return;
+  for(let i=st.fr.length-1;i>=0;i--){const g=st.fr[i];g.l+=dt;
+    if(g.l>=g.m){st.fr.splice(i,1);continue;}
+    g.vy+=210*SC*dt;g.x+=g.vx*dt;g.y+=g.vy*dt;g.ro+=g.vr*dt;
+    g.tr.push([g.x,g.y]);if(g.tr.length>7)g.tr.shift();}
+}
+function IBdrawFrag(c,st,SC){
+  if(!st.fr)return;
+  for(const g of st.fr){const v=1-g.l/g.m;
+    // G — 뒤로 끄는 회백색 냉기
+    for(let i=0;i<g.tr.length-1;i++){const q=g.tr[i],w=(i+1)/g.tr.length;
+      IBmist(c,q[0],q[1],g.r*(.55+.5*w)*v,i*2.7+g.ro,v*.55*w);}
+    const P=[];for(let j=0;j<5;j++){const a0=j/5*TAU+g.ro;
+      P.push([g.x+Math.cos(a0)*g.r*v*(.7+.4*hash(j*3.1+g.r)),
+              g.y+Math.sin(a0)*g.r*v*(.7+.4*hash(j*7.7+g.r))]);}
+    IBcrys(c,P,"frost",v,g.r,{mos:1,w:1.2*SC});
+    IBspark(c,g.x,g.y,g.r*.7*v,"frost",v*.6,g.ro*2);}
+}
+
+// ── 얼음 — 채택 셋은 제 페이지로, 보류는 고르기에 남는다 (2026-08-12) ────
+//
+// 사용자 판정: **빙벽 3·4 와 서릿발 2+윤곽 발광 채택.** 나머지는 보류다.
+// ⭐ 채택된 것은 「고르기」에 두지 않는다 — **일하는 페이지로 옮긴다.**
+//   빙벽 둘  → 방어      (벽은 막는 물건이다)
+//   서릿발   → 마법 공격  (땅에서 솟아 찌른다)
+// 보류된 것(빙벽 1·2 · 결빙 셋)은 고르기에 그대로 둔다.
+{const G=document.getElementById("guard");
+ if(G){tile(G,FX,"IBwall3","빙벽 · 눈결정 격자","WALL",
+   "**면이 하나도 없다** — 육각 눈송이 셋을 서리 실이 잇는다. 뒤의 적이 안 가려진 채 보이고, "+
+   "「막고 있다」를 면적이 아니라 **선의 밀도**로만 말한다",238);
+  // ⚠️ [IBwall4] 「모자이크 석벽」(직선)은 반려됐다 — 같은 그림의 **호** 판인
+  // [AWwall4] 가 그 자리를 잇는다(2026-08-12 사용자 판정).
+  }}
+{const M=document.getElementById("magic");
+ if(M)tile(M,FX,"IBspine2b","서릿발 · 결정 열","SPINE",
+   "기둥이 아니라 **송이가 핀다** — 결정마다 테가 밝고 속이 어둡다. "+
+   "시들 듯 **곁가지부터** 떨어진다",238);}
+// 보류 — 고르기에 남긴다
+{const H=document.getElementById("ib-ice");
+ if(H){
+  tile(H,FX,"mgIceWall","빙벽 · 지금","","반려된 그림",238);
+  [["IBwall1","빙벽 — 겹친 유리판. 적이 판 너머로 비친다"],
+   ["IBwall2","빙벽 — 바늘 숲. 긴 것부터 부러진다"],
+   ["IBtomb1","결빙 — 마법진 + 솟는 유리 기둥"],
+   ["IBtomb2","결빙 — 뚜껑 고리 + 모자이크 원통. 위에서 덮는다"],
+   ["IBtomb3","결빙 — 얼음 왕관. 가시로 문다"]]
+   .forEach(([k,d])=>tile(H,FX,k,d.split(" — ")[0],"",d,238));}}
+// ═══════════════════════════════════════════════════════════════════════════
+// FT — 불자취 · 화염회오리 · 회염을 **윤곽선 문법으로** 다시     (2026-08-12)
+//
+// 앞 회차(FR*)가 반려된 진짜 이유는 갈래 수도 배치도 아니었다:
+// **이 레포에 아웃라인 문법이 없어서** 불끼리 녹아 한 얼룩이 된 것이다.
+// 화염방사 재작업(FC*)이 `FCink`(긋고 → 채운다) 하나로 그림을 통째로 바꿨고
+// 여덟 안이 전부 원본보다 쌌다 — 면적을 줄이고 **선으로 정보를 넣었기** 때문이다.
+// 이 블록은 그 문법을 나머지 불 셋에 그대로 적용한다.
+//
+// **새 원시는 안 만든다.** FC 가 만든 여섯을 쓴다:
+//   FCink(긋고→채움=바깥 윤곽) · FCshell(채움→긋기=속 빈 껍질) · FClobeP(뭉게
+//   실루엣) · FCneedle(윤곽 있는 바늘) · FCswirl(바닥 소용돌이) · FCtongue(각진
+//   갈래 + 윤곽) · FCramp(윤곽색까지 든 5단 램프).
+// 여기서 더한 것은 **원시가 아니라 호출부** 셋뿐이다(FTcool · FTfrag* · FTpal).
+//
+// FC 가 렌더로 잡은 실패 셋을 그대로 지킨다:
+//   ① 고정 각도 호는 중심으로 파고든다 → 뭉게는 반드시 `FClobeP`(원-원 교점)
+//   ② **끝을 알파로 죽이지 않는다** — 색으로 식힌다(반투명이 겹치면 갈색 죽)
+//   ③ 심은 **같은 씨앗·같은 회전의 축소 동심 도형**이라야 결이 맞는다
+//
+// 시뮬(적 배치·이동·판정 틱)은 앞 회차 `FR*Sim` 과 **한 글자도 안 다르다** —
+// 블록이 통째로 지워져도 살아남게 이름만 FT 로 복사했다. 화면에서 다른 것은
+// **그리는 법뿐**이라야 「나아졌나」가 판정된다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const FTDIR=-Math.PI/2;                        // 고정 조준(위)
+
+/// **식음을 색으로 준다.** 알파로 끄면 겹친 자리가 서로 비쳐 반투명 갈색 죽이
+/// 된다(2026-08-12 FC 400px 판정). 노랑 → 주황 → 검붉음 → 재의 4단이고,
+/// 마지막 칸이 있어 「불이 꺼져 재가 됐다」가 밝기가 아니라 **물질**로 보인다.
+function FTcool(P,u){u=u<0?0:(u>1?1:u);
+  return u<.34?mixHex(P.yel ,P.base,u/.34)
+       : u<.72?mixHex(P.base,P.dark,(u-.34)/.38)
+       :       mixHex(P.dark,P.smk ,(u-.72)/.28);}
+/// `FCtongue` 는 팔레트 한 벌을 통째로 받는다. 갈래를 **식히려면** 램프를
+/// 통째로 옮긴 새 벌을 넘겨야 한다(색만 갈면 심이 그대로라 결이 어긋난다).
+function FTpal(P,u){const b=FTcool(P,u);
+  return{ink:P.ink,dark:mixHex(b,P.dark,.55),base:b,
+    yel:mixHex(b,P.yel,.55*(1-u)),lit:mixHex(b,P.lit,.62*(1-u)),
+    smk:P.smk,smki:P.smki};}
+
+/// 덩이 하나 — **식으면 테를 뒤집는다.**
+/// ⚠️ 2026-08-12 476px 판정: 꼬리 쪽 덩이가 통째로 갈색 반죽이 됐다. 원인은
+/// 윤곽색(`P.ink`)이 어두움을 검정 쪽으로 민 값이라, 채움이 재(`P.smk`)까지
+/// 식으면 **테와 속이 같은 색**이 되어 윤곽이 사라지는 것이다. 뜨거울 때는
+/// `FCink`(어두운 바깥 테), 식은 뒤에는 `FCshell`(**밝은 테 + 어두운 속**)로
+/// 갈아 「재 속에 아직 남은 잔불」이 되게 한다 — 식어도 덩이가 계속 세어진다.
+function FTlump(c,poly,P,u,w,a=1){
+  const col=FTcool(P,u);
+  if(u<.56)FCink  (c,poly,col,P.ink,w,a);
+  else     FCshell(c,poly,col,mixHex(col,P.base,.52+.30*(u-.56)/.44),w*.82,a);
+}
+
+/// 떨어져 나가 **식는** 파편. `FCfragStep` 은 화염방사의 원뿔 축에 박혀 있어
+/// (총구 고정·FCDIR 고정) 움직이는 불에는 못 쓴다 — 자리와 속도를 받게 푼 것이
+/// 이 셋이다. 그리기는 `FCfragDraw` 와 같은 문법(윤곽 있는 뭉게 + 색으로 식음).
+function FTemit(st,x,y,vx,vy,r,life){st.fg=st.fg||[];
+  if(st.fg.length>56)return;
+  st.fg.push({x,y,vx,vy,l:0,m:life,r,sd:R()*40,ro:R()*TAU,rs:(R()-.5)*7});}
+function FTfragStep(st,dt){if(!st.fg)return;
+  for(let i=st.fg.length-1;i>=0;i--){const q=st.fg[i];q.l+=dt;
+    if(q.l>=q.m){st.fg.splice(i,1);continue;}
+    q.x+=q.vx*dt;q.y+=q.vy*dt;const d=Math.pow(.93,dt*60);
+    q.vx*=d;q.vy*=d;q.ro+=q.rs*dt;}}
+function FTfragDraw(c,st,P,SC){if(!st.fg)return;
+  for(const q of st.fg){const u=q.l/q.m;
+    FCink(c,FClobeP(q.x,q.y,q.r*(1-u*.34),5,q.sd,1,1,q.ro),FTcool(P,u),P.ink,
+      1.6*SC,Math.min(1,(1-u)*2.6));}}
+
+// ═══ 시뮬 — 앞 회차 그대로(비교가 성립하려면 여기가 같아야 한다) ═══════════
+
+const FTTRAIL_F=[[58,-14,10],[-58,14,10],[40,44,9],[-40,-44,9],[-6,-78,10],[74,54,9]];
+const FTTRAIL_TTL=2.6;
+/// ⚠️ `ttl` 은 **선택 인자**다 — 안 주면 지금까지와 똑같다. 고정판 넷
+/// (`FTtrail1~4`, 고르기 페이지)이 이 시뮬을 같이 쓰므로 [FTTRAIL_TTL] 을
+/// 직접 줄이면 **그 넷이 같이 변한다.** 레벨이 있는 [FLtrail] 만 제 값을 준다.
+/// 선례: `mgFireTrail` 이 `TTL=[.9,2.6,2.6,2.6,3.0][LV-1]` 로 같은 일을 한다.
+function FTtrailSim(st,t,dt,cx,cy,SC,ttl){
+  st.p=st.p||[];
+  mgInit(st,SC,FTTRAIL_F);stepFoes(st.F,dt);
+  const TTL=ttl||FTTRAIL_TTL;
+  const hx=cx+Math.cos(t*2.4)*64*SC, hy=cy+Math.sin(t*4.8)*40*SC;
+  st.tr=st.tr||[];
+  let fresh=null;
+  st.dp=(st.dp||0)+dt;
+  if(st.dp>.045){st.dp=0;
+    const vx=-Math.sin(t*2.4)*2.4, vy=Math.cos(t*4.8)*4.8, L=Math.hypot(vx,vy)||1;
+    fresh={x:hx,y:hy,l:0,dx:vx/L,dy:vy/L,i:(st.ni=(st.ni||0)+1)};
+    st.tr.push(fresh);}
+  for(let i=st.tr.length-1;i>=0;i--){st.tr[i].l+=dt;if(st.tr[i].l>TTL)st.tr.splice(i,1);}
+  st.tk=(st.tk||0)+dt;
+  if(st.tk>.18){st.tk=0;
+    for(const f of st.F){const fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;let on=false;
+      for(let i=0;i<st.tr.length;i+=2)
+        if(Math.hypot(st.tr[i].x-fx,st.tr[i].y-fy)<f.r+7*SC){on=true;break;}
+      if(on){hitFoe(st,f,cx,cy,0,0,3*SC,"ember");mgBurn(f,.9);}}}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  return {hx,hy,TTL,fresh};
+}
+
+const FTVORT_F=[[-70,-52,10],[62,-46,10],[-24,-96,9],[38,74,10],[-58,58,9],[6,-16,9]];
+function FTvortSim(st,t,dt,cx,cy,W,H,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FTVORT_F);stepFoes(st.F,dt);
+  const NV=2,RAD=33*SC,LIFE=3.2,MAR=RAD*1.2;
+  st.v=st.v||[];
+  while(st.v.length<NV){const i=(st.sq=(st.sq||0)+1);
+    const g=i/NV*TAU+hash(i*9.3);
+    st.v.push({x:cx+Math.cos(g)*W*.22,y:cy+Math.sin(g)*H*.17,
+      a:g+Math.PI*.5,l:0,rot:hash(i*7.7)*TAU});}
+  for(let i=st.v.length-1;i>=0;i--){const v=st.v[i];
+    v.l+=dt;v.rot+=dt*3.4;
+    v.x+=Math.cos(v.a)*31*SC*dt;v.y+=Math.sin(v.a)*21*SC*dt;
+    if(v.x<MAR||v.x>W-MAR){v.a=Math.PI-v.a;v.x=Math.min(W-MAR,Math.max(MAR,v.x));}
+    if(v.y<MAR||v.y>H-MAR){v.a=-v.a;v.y=Math.min(H-MAR,Math.max(MAR,v.y));}
+    if(v.l>LIFE){for(const f of st.F)if(f.cap===v)f.cap=null;st.v.splice(i,1);continue;}
+    for(const f of st.F){if(f.cap&&f.cap!==v)continue;
+      const dx=v.x-(cx+f.ox),dy=v.y-(cy+f.oy),d=Math.hypot(dx,dy)||1;
+      if(!f.cap&&d<RAD*1.5){f.cap=v;f.ca=Math.atan2(-dy,-dx);f.cr=d;}}}
+  for(const f of st.F){
+    if(f.cap){f.ca+=dt*3.4;f.cr+=(RAD*.8-f.cr)*dt*1.6;
+      f.ox=(f.cap.x-cx)+Math.cos(f.ca)*f.cr;
+      f.oy=(f.cap.y-cy)+Math.sin(f.ca)*f.cr*.55;
+      if(R()<dt*3.4){hitFoe(st,f,cx,cy,0,0,3*SC,"ember");mgBurn(f,.7);}}
+    else{f.ox+=(f.hx-f.ox)*Math.min(1,dt*1.1);f.oy+=(f.hy-f.oy)*Math.min(1,dt*1.1);}
+    if(f.pv>0)f.pv-=dt*.55;}
+  stepP(st,dt);
+  return {V:st.v,RAD,LIFE};
+}
+/// ⚠️ **솟는 높이를 앞 회차의 2.1R 에서 3.3R 로 올렸다.** 근거는 바로 아래
+/// 회오리 절의 비율 계산이다(앞 회차는 높이:폭 = 1.1:1 = 정사각형이었다).
+const FTRISE=RAD=>RAD*3.3;
+/// 바닥 자국 — 넷이 공유한다. 회오리가 **땅에 붙어 있다**는 것을 이 하나가
+/// 말하고, 그 위로 솟는 것이 안마다 다르다. 윤곽선 문법이라 고리가 아니라
+/// **테두리 있는 눌린 자국**이다(celHoop 은 가산이라 테가 흐려진다).
+function FTfoot(c,v,RAD,P,SC,al){
+  FCink(c,FClobeP(v.x,v.y,RAD*.46,7,v.rot*.3+1.7,1,.30,0,.34),P.smk,P.smki,2.2*SC,al*.85);
+  FCink(c,FClobeP(v.x,v.y,RAD*.26,6,v.rot*.3+1.7,1,.30,0,.34),FTcool(P,.62),P.ink,1.8*SC,al);
+}
+
+const FTRET_F=[[-44,-72,10],[16,-94,11],[54,-58,10],[-74,-18,9],[70,8,9],
+  [-18,-42,9],[34,-24,9]];
+function FTretSim(st,t,dt,cx,cy,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FTRET_F);stepFoes(st.F,dt);
+  const N=2,BOW=32*SC,RANGE=100*SC,PER=1.5,FLY=.72,LANE=.44;   // LV3
+  st.tr=st.tr||[];st.hh=st.hh||[];
+  while(st.tr.length<N){st.tr.push([]);st.hh.push({a:new Set(),b:new Set()});}
+  const B=[];
+  for(let i=0;i<N;i++){
+    const u=(t/PER+i/N)%1, ang=FTDIR+(i-(N-1)/2)*LANE;
+    const cs=Math.cos(ang),sn=Math.sin(ang);
+    if(u>=FLY){st.tr[i].length=0;st.hh[i].a.clear();st.hh[i].b.clear();continue;}
+    const q=u/FLY;
+    const d0=RANGE*Math.sin(Math.PI*q), s0=BOW*Math.sin(TAU*q);
+    const x=cx+cs*d0-sn*s0, y=cy+sn*d0+cs*s0;
+    const back=q>=.5, set=back?st.hh[i].b:st.hh[i].a;
+    if(!back&&st.hh[i].b.size)st.hh[i].b.clear();
+    for(let k=0;k<st.F.length;k++){const f=st.F[k];
+      if(set.has(k))continue;
+      const dx=cx+f.ox+f.kx-x,dy=cy+f.oy+f.ky-y;
+      if(Math.hypot(dx,dy)>f.r+11*SC)continue;
+      set.add(k);
+      hitFoe(st,f,cx,cy,-dx/(f.r||1),-dy/(f.r||1),18*SC,"ember");
+      mgBurn(f,1.3);}
+    const T0=st.tr[i];T0.push([x,y]);if(T0.length>16)T0.shift();
+    B.push({i,x,y,q,ang,T:T0});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  return {B,N,BOW,RANGE,PER,FLY,LANE};
+}
+/// 대기 자리 + 돌아올 길 예고 — 넷이 공유한다(무엇이 남는지와 무관한 **규칙**
+/// 이라 안마다 다르면 비교가 안 된다). 앞 회차는 `celHoop`+`celStroke` 였는데
+/// 둘 다 가산 계조라 윤곽 판 위에서 흐릿하게 뜬다 — 여기선 **어두운 실 한 줄**
+/// 로 긋는다. 예고선은 연출이 아니라 조작의 일부라 안 지우면 안 된다.
+function FTretGuide(c,t,cx,cy,SC,S,P){
+  for(let i=0;i<S.N;i++){const ang=FTDIR+(i-(S.N-1)/2)*S.LANE;
+    const u=(t/S.PER+i/S.N)%1, out=u<S.FLY;
+    const cs=Math.cos(ang),sn=Math.sin(ang),P0=[];
+    for(let k=0;k<=24;k++){const q=k/24;
+      const d0=S.RANGE*Math.sin(Math.PI*q), s0=S.BOW*Math.sin(TAU*q);
+      P0.push([cx+cs*d0-sn*s0, cy+sn*d0+cs*s0]);}
+    FCink(c,ribbonPoly(P0,1.5*SC,1.5*SC),P.smk,P.smki,1.1*SC,.55);
+    const sx=cx+cs*26*SC, sy=cy+sn*26*SC;
+    // 대기 자리 — 비었으면 **속 빈 껍질**(FCshell), 차 있으면 꽉 찬 윤곽.
+    if(out)FCshell(c,FClobeP(sx,sy,6.2*SC,6,i*3.7,1,1,ang),P.smk,P.dark,1.8*SC,.75);
+    else   FCink (c,FClobeP(sx,sy,6.8*SC,6,i*3.7,1,1,ang+t*.8),P.yel,P.ink,2.0*SC,1);}
+}
+
+Object.assign(FX,{
+
+// ── FTtrail1 · 재 ─────────────────────────────────────────────────────────
+// 유일점: 자취가 **선이 아니라 낱낱의 덩이**다 — 윤곽선이 있어 밟고 지나간
+// 자국 하나하나가 세어지고, 앞머리의 노랑에서 꼬리의 검은 재까지가 **색 한
+// 줄**로 이어진다(알파가 아니라 색으로 식으므로 겹쳐도 안 흐려진다).
+FTtrail1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {hx,hy,TTL}=FTtrailSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  FTfragStep(st,dt);
+  const N=st.tr.length;
+  // 오래된 것부터 — 갓 깐 것이 위에 얹혀야 「앞머리」가 생긴다.
+  for(let i=0;i<N;i+=2){const q=st.tr[i],u=q.l/TTL;
+    const r=(6.4+2.8*hash(q.i*3.7))*SC*(1+u*.52);
+    FTlump(c,FClobeP(q.x,q.y,r,6,q.i*2.3,1.22,.66,q.i*1.1),P,u,Math.max(1.8*SC,r*.24));
+    // 심 — **같은 씨앗·같은 회전의 축소 동심 도형**(FC 의 해바라기 실패 회피).
+    if(u<.55)fillPoly(c,FClobeP(q.x,q.y-r*.08,r*.52,6,q.i*2.3,1.22,.66,q.i*1.1,.38),
+      A(P.yel,(1-u/.55)*.95));}
+  // 아직 타는 앞머리 — 최근 12마디에만 갈래가 선다. 갈래도 뒤로 갈수록 식는다.
+  for(let i=Math.max(0,N-12);i<N;i+=2){const q=st.tr[i];
+    const g=1-(N-1-i)/12;
+    FCtongue(c,t,q.x,q.y+2*SC,-Math.PI/2,5.2*SC*g,23*SC*g,q.i*1.7,q.i*.7,
+      FTpal(P,(1-g)*.5),1,2.4*SC);}
+  // 재가 부스러져 날린다 — 떨어져 나간 조각이 식으며 흩어진다.
+  if(st.tr.length&&R()<dt*10){const q=st.tr[Math.max(0,N-2)];
+    FTemit(st,q.x,q.y,(R()-.5)*40*SC,-(18+R()*38)*SC,(1.8+R()*2.2)*SC,.6+R()*.4);}
+  FTfragDraw(c,st,P,SC);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  drawP(c,st);hero(c,t,hx,hy);},
+
+// ── FTtrail2 · 불씨 ───────────────────────────────────────────────────────
+// 유일점: 자취가 **길보다 넓다** — 지날 때마다 옆으로 튄 불씨가 윤곽 있는
+// 바늘로 날아가 떨어진 자리에서 따로 탄다. 넷 중 유일하게 길을 피해도 밟히고,
+// **선이 하나도 없는**(점만 있는) 안이라 정지 화면에서 바로 갈린다.
+FTtrail2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {hx,hy,TTL,fresh}=FTtrailSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  st.em=st.em||[];
+  if(fresh&&st.em.length<32)for(let k=0;k<2;k++){        // 52 → 32 (비용)
+    const s2=k?1:-1, sp=(48+R()*64)*SC, a=Math.atan2(fresh.dy,fresh.dx)+s2*(.9+R()*.7);
+    st.em.push({x:hx,y:hy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,l:0,m:2.0,
+      sd:R()*9.7,r:(3.4+R()*2.4)*SC});}
+  for(let i=st.em.length-1;i>=0;i--){const e=st.em[i];e.l+=dt;
+    if(e.l>e.m){st.em.splice(i,1);continue;}
+    if(e.l<.30){const d=Math.pow(.86,dt*60);e.vx*=d;e.vy*=d;e.x+=e.vx*dt;e.y+=e.vy*dt;}}
+  // 길 — 그을음 점만. 자취의 주역은 불씨라 길은 **증거**로만 남는다.
+  // 476px 판정: 순 검정이면 길이 아예 안 보였다 → 식어도 테는 남긴다(FTlump).
+  for(let i=0;i<st.tr.length;i+=4){const q=st.tr[i],u=q.l/TTL;
+    FTlump(c,FClobeP(q.x,q.y,3.8*SC,5,q.i*2.3,1.1,.62,q.i),P,.52+u*.46,1.3*SC);}
+  // 불씨 — 나는 동안은 **윤곽 있는 바늘**, 떨어지면 자리에서 자라 탄다.
+  for(const e of st.em){
+    if(e.l<.30){const ang=Math.atan2(e.vy,e.vx),g=1-e.l/.30;
+      FCneedle(c,e.x,e.y,ang,(10+7*g)*SC,2.0*SC*g,P.yel,P.ink,1.5*SC,1);}
+    else{const u=(e.l-.30)/(e.m-.30), g=Math.min(1,(e.l-.30)*5);
+      FTlump(c,FClobeP(e.x,e.y+SC,e.r*(.55+.45*g),6,e.sd,1.15,.72,e.sd),P,u*.92,1.7*SC);
+      // 갈래는 **아직 뜨거운 절반**에만. 다 세우면 불씨 40개가 갈래 40개가 된다.
+      if(u<.50)FCtongue(c,t+e.sd,e.x,e.y,-Math.PI/2,3.4*SC*g,
+        16*SC*g*(1-u*.8),e.sd,e.sd*.7,FTpal(P,u*.8),1,2.0*SC);}}
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  drawP(c,st);hero(c,t,hx,hy);},
+
+// ── FTtrail3 · 가장자리만 탐 ──────────────────────────────────────────────
+// 유일점: 자취가 **폭이 있는 띠**이고 그 띠가 `FCshell`(채우고 → 긋는다)로
+// 그려져 **속은 어둡고 테만 밝다** — 「가장자리만 탄다」가 기법 자체다.
+// 시간이 가면 테가 안으로 먹어 들어가, 잔류 시간이 밝기가 아니라 **너비**다.
+FTtrail3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {hx,hy,TTL}=FTtrailSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  const rows=st.tr,WID=16*SC;
+  // 나이별 네 토막. 한 폴리곤으로 그리면 나이가 하나뿐이라 좁아짐이 안 보인다.
+  if(rows.length>3)for(let g=0;g<4;g++){
+    const a0=Math.floor(rows.length*g/4),
+          a1=Math.min(rows.length-1,Math.floor(rows.length*(g+1)/4));
+    if(a1-a0<2)continue;
+    const L=[],Rt=[];
+    for(let i=a0;i<=a1;i++){const q=rows[i],u=q.l/TTL;
+      const off=WID*.5*(1-u*.74), nx=-q.dy*off, ny=q.dx*off;
+      L.push([q.x+nx,q.y+ny]);Rt.push([q.x-nx,q.y-ny]);}
+    const u0=rows[a0].l/TTL;
+    // 채우고 → 긋는다. 속=아직 안 탄 검은 땅, 테=타는 가장자리.
+    FCshell(c,L.concat(Rt.reverse()),P.smk,FTcool(P,u0*.86),3.0*SC,1);}
+  // 가장자리의 불 — 두 변에만 선다. 안쪽은 끝까지 안 탄다.
+  for(let i=0;i<rows.length;i+=4){const q=rows[i],u=q.l/TTL;
+    const off=WID*.5*(1-u*.74);
+    for(let s2=-1;s2<=1;s2+=2){
+      const x=q.x-q.dy*off*s2, y=q.y+q.dx*off*s2;
+      FCtongue(c,t,x,y,-Math.PI/2+q.dx*s2*.42,3.8*SC*(1-u*.42),
+        (16*SC)*(1-u*.62),q.i*1.7+(s2>0?3.3:0),q.i*.6,FTpal(P,u*.8),1,2.0*SC);}}
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  drawP(c,st);hero(c,t,hx,hy);},
+
+// ── FTtrail4 · 지면이 금감 ────────────────────────────────────────────────
+// 유일점: 흔적이 **땅에 난 금**이다 — 검은 틈에 윤곽을 둘러 「팬 자리」로
+// 만들고, 그 안에서만 불이 비친다. 넷 중 유일하게 자취가 **지나간 뒤에도
+// 자란다**(곁금이 0.4초에 걸쳐 옆으로 뻗는다).
+FTtrail4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {hx,hy,TTL}=FTtrailSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  const rows=st.tr;
+  // 본금 — 토막마다 리본을 떠서 윤곽을 두른다. 속은 재, 테는 그을음.
+  if(rows.length>3)for(let g=0;g<4;g++){
+    const a0=Math.floor(rows.length*g/4),
+          a1=Math.min(rows.length-1,Math.floor(rows.length*(g+1)/4));
+    if(a1-a0<2)continue;
+    const seg=[];for(let i=a0;i<=a1;i++)seg.push([rows[i].x,rows[i].y]);
+    const u=rows[a0].l/TTL;
+    FCink(c,ribbonPoly(seg,4.6*SC,4.6*SC),P.smk,P.smki,2.4*SC,1);
+    fillPoly(c,ribbonPoly(seg,1.9*SC,1.9*SC),A(FTcool(P,u*.78),1));}
+  // 곁금 — 지나간 뒤에도 0.4초 동안 더 뻗는다. 이 안만 자취가 **자란다**.
+  for(let i=0;i<rows.length;i+=4){const q=rows[i],u=q.l/TTL;
+    const grow=Math.min(1,q.l/.4);
+    for(let s2=-1;s2<=1;s2+=2){
+      const h0=hash(q.i*5.1+(s2>0?2.3:0));
+      if(h0<.34)continue;
+      const nx=-q.dy*s2, ny=q.dx*s2, L0=(11+13*h0)*SC*grow, kk=(hash(q.i*7.7)-.5)*.9;
+      const B=[[q.x,q.y],
+        [q.x+nx*L0*.45+q.dx*L0*.18*kk, q.y+ny*L0*.45+q.dy*L0*.18*kk],
+        [q.x+nx*L0*.78-q.dx*L0*.22*kk, q.y+ny*L0*.78-q.dy*L0*.22*kk],
+        [q.x+nx*L0, q.y+ny*L0]];
+      FCink(c,ribbonPoly(B,2.6*SC,1.0*SC),P.smk,P.smki,1.7*SC,1);
+      fillPoly(c,ribbonPoly(B,1.0*SC,.3*SC),A(FTcool(P,u*.8),1));
+      // 금 뿌리에서 새는 불 — 틈으로만 나오므로 가늘다.
+      if(h0>.66)FCtongue(c,t,q.x+nx*L0*.28,q.y+ny*L0*.28,-Math.PI/2,
+        2.9*SC,12*SC*(1-u*.6),q.i*1.7+s2,q.i*.4,FTpal(P,u*.85),1,1.8*SC);}}
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  drawP(c,st);hero(c,t,hx,hy);},
+
+});
+
+// ═══ 화염회오리 — 합격 기준은 하나, 「세로로 솟는가」 ═══════════════════════
+// ⚠️ 앞 회차가 「회오리 같지가 않다」로 반려된 원인을 수치로 쟀다:
+// `FRvortex1` 은 높이 2.1R(=69px) 인데 꼭대기 폭이 2×0.94R(=62px) 였다 —
+// **가로세로가 1.1:1**, 즉 정사각형이다. 높이를 조금 올려도 회오리가 안 된다.
+// 고치는 것은 **비율**이다: 밑동을 0.20R 로 조이고 꼭대기를 0.78R 로만 벌리고
+// 높이를 3.3R 로 올려 **2.1:1** 로 만든다. 밑동이 점이라 깔때기가 성립한다.
+//
+// ⚠️ **못 지킨 것** — 그러면 기둥이 타일 위로 삐져나간다(꼭대기가 v.y-109).
+// 그래서 위쪽 벽만 RISE*1.06 으로 올렸다: 배회 y 가 [115.5, 198.4] 로 좁아진다
+// (앞 회차는 [39.6, 198.4]). 이동·붙잡기 규칙은 한 글자도 안 고쳤고, **세로
+// 배회 폭만 159px → 83px** 로 줄었다. 잘린 기둥으로는 「솟는가」를 판정 못 한다.
+const FTVR_BASE=.20, FTVR_TOP=.78;
+function FTvortWall(v,RAD,RISE,W,H){
+  const MAR=RAD*1.2, TOP=RISE*1.06;
+  if(v.x<MAR||v.x>W-MAR){v.a=Math.PI-v.a;v.x=Math.min(W-MAR,Math.max(MAR,v.x));}
+  if(v.y<TOP||v.y>H-MAR){v.a=-v.a;v.y=Math.min(H-MAR,Math.max(TOP,v.y));}
+}
+/// 기둥의 단면 — 넷 중 셋(1·2·3)이 **같은 식**을 쓴다. 기법만 갈리고 실루엣의
+/// 뼈대는 같아야 「층인가 한 장인가 혀인가」가 단독으로 비교된다.
+const FTvrR=(RAD,u)=>RAD*(FTVR_BASE+(FTVR_TOP-FTVR_BASE)*Math.pow(u,.85));
+const FTvrSway=(v,RAD,u)=>Math.sin(u*2.4+v.rot)*RAD*.22*u;
+
+Object.assign(FX,{
+
+// ── FTvortex1 · 층진 기둥 ─────────────────────────────────────────────────
+// 유일점: 기둥이 **가로로 누운 고리 열 장을 쌓은 것**이다 — 윤곽선이 층마다
+// 남아 높이가 **세어진다**. 넷 중 유일하게 실루엣에 계단(허리)이 있고,
+// 층마다 각이 어긋나 정지 화면에서도 **꼬임**이 보인다.
+FTvortex1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTvortSim(st,t,dt,cx,cy,W,H,SC),P=FCramp("ember");
+  const RISE=FTRISE(S.RAD),NB=8;
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const v of S.V){
+    FTvortWall(v,S.RAD,RISE,W,H);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FTfoot(c,v,S.RAD,P,SC,al);
+      // 위(먼 것)부터 — 아래 층이 위에 얹혀야 기둥이 앞으로 선다.
+      // ⚠️ 476px 판정: 층을 열 장 쌓고 위를 재까지 식혔더니 **초콜릿 기둥**이
+      // 됐다(테와 속이 같은 어두움). 층을 여덟으로 줄여 계단을 크게 하고,
+      // 식음을 0.82 → 0.60 으로 낮추고, 식은 층은 FTlump 가 테를 뒤집는다.
+      for(let j=NB-1;j>=0;j--){
+        const u=j/(NB-1), r=FTvrR(S.RAD,u), yy=v.y-RISE*u;
+        const sw=FTvrSway(v,S.RAD,u), rot=v.rot+j*.94, sd=j*3.1+1.7;
+        FTlump(c,FClobeP(v.x+sw,yy,r,6,sd,1,.34,rot),P,u*.60,
+          Math.max(1.9*SC,r*.20),al);
+        // 심 — 같은 씨앗·같은 회전의 축소 동심(FC 의 해바라기 실패 회피).
+        if(u<.70)fillPoly(c,FClobeP(v.x+sw,yy-r*.06,r*.46,6,sd,1,.34,rot,.38),
+          A(mixHex(P.yel,P.lit,.28),al*(1-u/.70)*.92));}});
+    if(R()<dt*20)emit(st,v.x+(R()-.5)*S.RAD,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FTvortex2 · 이어진 깔때기 ─────────────────────────────────────────────
+// 유일점: 기둥이 **닫힌 도형 하나**다 — 안쪽에 선이 한 줄도 없어 넷 중 유일하게
+// 통 실루엣으로 읽히고, 목이 `FCshell`(채움→긋기)이라 **속이 뚫려** 보인다.
+FTvortex2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTvortSim(st,t,dt,cx,cy,W,H,SC),P=FCramp("ember");
+  const RISE=FTRISE(S.RAD),M=18;
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const v of S.V){
+    FTvortWall(v,S.RAD,RISE,W,H);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FTfoot(c,v,S.RAD,P,SC,al);
+      // 좌·우 변을 높이의 함수로 뜬 뒤 한 바퀴로 닫는다. 변의 물결이 회전이다.
+      // ⚠️ 476px 판정: 속 겹이 겉과 **같은 축**을 쓰니 세로 줄무늬가 되어
+      // 깃발처럼 보였다. 속일수록 위상을 어긋내 **꼬여 오르게** 한다.
+      const side=(k)=>{const L=[],Rt=[],ph=(1-k)*2.3;
+        for(let i=0;i<=M;i++){const u=i/M;
+          const r=FTvrR(S.RAD,u)*k*(1+.26*Math.sin(u*9.6+v.rot*1.6+ph));
+          const x=v.x+FTvrSway(v,S.RAD,u)+Math.sin(u*3.1+v.rot*1.4+ph)*S.RAD*.17*u*(1-k);
+          const y=v.y-RISE*u;
+          L.push([x-r,y]);Rt.push([x+r,y]);}
+        return L.concat(Rt.reverse());};
+      FCink(c,side(1),P.base,P.ink,3.0*SC,al);
+      fillPoly(c,side(.54),A(P.yel,al*.95));
+      fillPoly(c,side(.24),A(P.lit,al*.9));
+      // 아가리 — **뚜껑을 얹지 않는다.** 476px 판정: 실루엣 폭만 한 어두운
+      // 고리를 꼭대기에 얹었더니 통째로 **버섯**이 됐다. 목은 실루엣 안쪽에
+      // 파는 **구멍**이라야 「속이 비었다」가 되고 기둥의 윤곽이 안 가려진다.
+      const rt=FTvrR(S.RAD,1), xt=v.x+FTvrSway(v,S.RAD,1);
+      FCshell(c,FClobeP(xt,v.y-RISE*.95,rt*.50,6,v.rot*.4,1,.34,v.rot),
+        P.smk,P.base,2.2*SC,al);});
+    if(R()<dt*20)emit(st,v.x+(R()-.5)*S.RAD,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FTvortex3 · 솟는 혀 ───────────────────────────────────────────────────
+// 유일점: 기둥을 만드는 것이 **모양이 아니라 이동**이다 — 갈래가 바닥에서 나서
+// 돌며 올라가고 **꼭대기에서 떨어져 나가 식는다**. 1·2 는 위가 닫혀 있는데
+// 이것만 **기둥 위 허공에 식은 조각이 떠 있고** 실루엣이 성글다(사이로 배경이 뵌다).
+FTvortex3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTvortSim(st,t,dt,cx,cy,W,H,SC),P=FCramp("ember");
+  const RISE=FTRISE(S.RAD),NP=11;      // 18 → 11 (혀 하나가 firePath 3장이라 제일 비싸다)
+  FTfragStep(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  st.fe=(st.fe||0)+dt;
+  const spark=st.fe>.075;if(spark)st.fe=0;
+  for(const v of S.V){
+    FTvortWall(v,S.RAD,RISE,W,H);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    if(spark&&fade>.5)                              // 꼭대기에서 뜯겨 나간 조각
+      FTemit(st,v.x+(R()-.5)*S.RAD*.9,v.y-RISE*(.94+R()*.12),
+        (R()-.5)*40*SC,-(20+R()*34)*SC,(2.0+R()*2.4)*SC,.55+R()*.45);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FTfoot(c,v,S.RAD,P,SC,al);
+      for(let pass=0;pass<2;pass++)for(let i=0;i<NP;i++){
+        const u=((t*.62+i/NP+hash(i*3.1)*.05)%1);
+        const a=v.rot*.9+i*2.39+u*1.9*TAU, sA=Math.sin(a);
+        if((pass===0)!==(sA<=0))continue;           // 뒤쪽 먼저
+        const r=FTvrR(S.RAD,u)*1.06;
+        const x=v.x+FTvrSway(v,S.RAD,u)+Math.cos(a)*r, y=v.y+sA*r*.34-u*RISE;
+        const aa=al*Math.min(1,u*7)*(sA<=0?.84:1);
+        if(aa<=.02)continue;
+        FCtongue(c,t,x,y,-Math.PI/2+Math.cos(a)*.52,
+          S.RAD*(.20-.07*u),S.RAD*(1.05-.46*u),i*1.7,i*.9,
+          FTpal(P,u*.88),aa,2.2*SC);}});
+    if(R()<dt*20)emit(st,v.x+(R()-.5)*S.RAD,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  FTfragDraw(c,st,P,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FTvortex4 · 빨려드는 잔불 ─────────────────────────────────────────────
+// 유일점: 형태를 **바깥이** 말한다 — 기둥은 가는 심지 셋뿐이고, 둘레에서
+// 감겨 들어오는 윤곽 있는 바늘이 깔때기의 벽을 대신한다. 넷 중 유일하게
+// **범위**(어디까지 빨려드나)가 그림에 나오고, 중심이 비어 있다.
+FTvortex4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTvortSim(st,t,dt,cx,cy,W,H,SC),P=FCramp("ember");
+  const RISE=FTRISE(S.RAD),NE=16;
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const v of S.V){
+    FTvortWall(v,S.RAD,RISE,W,H);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FTfoot(c,v,S.RAD,P,SC,al);
+      // 궤적 — 바깥에서 감기며 들어오고 **동시에** 오른다. 상승을 앞당겨야
+      // (u^.62) 「빨려들며 솟는다」가 되지 납작한 원반이 안 된다.
+      const Q=(u,i)=>{const a=v.rot*.5+i*1.73+u*1.9*TAU, r=S.RAD*(1.55-1.30*u);
+        return [v.x+Math.cos(a)*r, v.y+Math.sin(a)*r*.34-Math.pow(u,.62)*RISE];};
+      for(let i=0;i<NE;i++){
+        const u=((t*.7+i/NE)%1);
+        const aa=al*Math.min(1,u*5)*Math.min(1,(1-u)*2.2);
+        if(aa<=.02)continue;
+        const h=Q(u,i),h2=Q(Math.max(0,u-.035),i);
+        const ang=Math.atan2(h[1]-h2[1],h[0]-h2[0]);
+        // ⚠️ 476px 판정: 굵고 어두운 마름모라 **낙엽**으로 보였다. 가늘게 하고
+        // (폭 1.4→1.0) 바깥쪽도 덜 식혀(0.62→0.40) 「빨려드는 불티」로 돌린다.
+        FCneedle(c,h[0],h[1],ang,(8+10*u)*SC,(1.0+1.0*u)*SC,
+          FTcool(P,(1-u)*.40),P.ink,1.3*SC,aa);
+        // 지나온 길 — 바늘 하나만 두면 방향이 안 보여 「점」이 된다.
+        const h3=Q(Math.max(0,u-.10),i),h4=Q(Math.max(0,u-.135),i);
+        FCneedle(c,h3[0],h3[1],Math.atan2(h3[1]-h4[1],h3[0]-h4[0]),
+          (4+5*u)*SC,(.7+.7*u)*SC,FTcool(P,.24+(1-u)*.34),P.ink,1.1*SC,aa*.60);}
+      // 심지 — 벽이 아니라 속. ⚠️ 476px 판정: `RISE*.86` × 폭 .15R 로 세웠더니
+      // 곧은 **대나무 줄기**가 됐다. 심지는 짧고 굵어야 「기둥의 속」이 되고
+      // 세로를 만드는 몫은 빨려드는 궤적에 넘어간다.
+      for(let m=0;m<2;m++){const a=v.rot*1.3+m*Math.PI;
+        FCtongue(c,t,v.x+Math.cos(a)*S.RAD*.14,v.y+Math.sin(a)*S.RAD*.05,
+          -Math.PI/2+Math.cos(a)*.30,S.RAD*.28,RISE*.70,m*3.7,m*1.1,
+          FTpal(P,.14),al*.95,2.4*SC);}});
+    if(R()<dt*20)emit(st,v.x+(R()-.5)*S.RAD*2,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ═══ 회염 — 「왕복이 무엇을 남기나」 ═══════════════════════════════════════
+// ⚠️ 사용자 판정은 「탄환 같다」였다. 원인은 속도도 궤적도 아니라 **불덩이가
+// 매끈한 한 덩이**였던 것이다 — `fireBody` 는 윤곽이 없어 갈래가 서로 녹아
+// 타원 하나로 뭉친다. 넷 다 머리를 **윤곽 있는 뭉게 여럿**으로 쪼개, 정지
+// 화면에서 덩이가 **세어지게** 한다. 세어지는 것은 탄환이 아니다.
+/// 불덩이 머리 — 넷이 공유한다(무엇이 남는지만 다르고 머리는 같아야 비교가 된다).
+/// [k] 는 크기 배수, [heat] 는 0(다 식음)~1(제일 뜨거움).
+// 궤적을 **거슬러** d 픽셀 물러난 자리와 그 자리의 접선을 준다.
+// ⚠️ 2026-08-12 사용자 판정: 「방향 선회를 하는 시점에도 방향에 맞춰 휘는 게
+// 아니고 1자로 날아다니니까 그냥 스티커 혹은 **연 날리기의 연** 같은 느낌」.
+// 맞다 — [FThead] 는 각도는 받았지만 몸통 세 덩이를 **진행 반대 직선**에 꽂았다.
+// 각도만 맞고 몸이 뻣뻣하면 길이 휠 때 몸만 안 휘어 판때기가 된다. 그래서
+// 자리를 **길에서** 뽑는다. 길이 휘면 몸이 저절로 휜다.
+function FTback(TR,d){
+  const L=TR&&TR.length||0; if(L<2)return null;
+  let acc=0;
+  for(let i=L-1;i>0;i--){const a=TR[i],b=TR[i-1];
+    const seg=Math.hypot(a[0]-b[0],a[1]-b[1]); if(seg<1e-6)continue;
+    if(acc+seg>=d){const u=(d-acc)/seg;
+      return [a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u,
+              Math.atan2(a[1]-b[1],a[0]-b[0])];}
+    acc+=seg;}
+  // 길이 아직 짧다 — 있는 만큼만 물러난다(막 태어난 덩이가 튀지 않게).
+  const a=TR[0],b=TR[1];
+  return [a[0],a[1],Math.atan2(b[1]-a[1],b[0]-a[0])];
+}
+
+function FThead(c,t,x,y,mv,SC,P,k,heat,a,TR){
+  const bx=-Math.cos(mv),by=-Math.sin(mv);        // 뒤 = 진행 반대
+  // 길에서 d 만큼 물러난 [자리x, 자리y, 그 자리의 접선]. 길이 없으면 직선으로 물러난다.
+  const at=(d)=>(TR&&FTback(TR,d))||[x+bx*d,y+by*d,mv];
+  // 뒤로 눕는 갈래 셋 — 속도계. 머리보다 먼저 그려 뒤에 깔린다.
+  // ⚠️ 476px 판정: 갈래가 짧아 머리가 **팝콘 뭉치**로 보였다. 갈래를 머리
+  // 지름의 2배까지 늘려야 「불덩이가 날아간다」가 되지 「덩어리가 있다」가 안 된다.
+  const [tx,ty,ta]=at(3*SC*k);
+  for(let m=-1;m<=1;m++)
+    FCtongue(c,t,tx+Math.sin(ta)*m*4.4*SC*k,ty-Math.cos(ta)*m*4.4*SC*k,ta+Math.PI,
+      (4.0+1.6*heat)*SC*k,(21+19*heat)*SC*k,m*2.7+7.3,m*.9,
+      FTpal(P,.30+.34*(1-heat)),a*.92,2.2*SC);
+  // 뭉게 셋 — 겹치되 **각자 윤곽을 갖는다**. 겹친 자리에 선이 남아 세어진다.
+  // 옆으로도 어긋내 준다(일렬로 겹치면 셋이 한 덩이로 뭉친다).
+  const L=[[0,0,9.8,3.1],[.78,.42,6.8,6.7],[1.52,-.36,4.6,9.3]];
+  for(let i=L.length-1;i>=0;i--){const [o,s,r,sd]=L[i];
+    const [lx,ly,la]=at(o*6*SC*k);          // ⭐ 직선 오프셋이 아니라 **길 위의 자리**
+    FCink(c,FClobeP(lx+Math.sin(la)*s*5*SC*k,ly-Math.cos(la)*s*5*SC*k,
+      r*SC*k,7,sd,1,1,sd+t*.7),
+      FTcool(P,(.10+.30*(1-heat))+o*.14),P.ink,Math.max(2.0*SC,r*SC*k*.24),a);}
+  // 심 — 같은 씨앗·같은 회전의 축소 동심(FC 의 해바라기 실패 회피).
+  fillPoly(c,FClobeP(x,y-1.2*SC*k,6.6*SC*k,7,3.1,1,1,3.1+t*.7,.40),
+    A(mixHex(P.yel,P.lit,.20*heat),a*(.60+.38*heat)));
+  fillPoly(c,FClobeP(x,y-2.2*SC*k,3.2*SC*k,7,3.1,1,1,3.1+t*.7,.34),
+    A(P.lit,a*(.42+.55*heat)));
+}
+
+Object.assign(FX,{
+
+// ── FTreturn1 · 불덩이 ────────────────────────────────────────────────────
+// 유일점: **아무것도 안 남는다** — 남는 것은 불덩이뿐이라 「지금 어디 있나」가
+// 한눈에 잡힌다. 넷 중 유일하게 화면이 비어 있고, 방향은 뒤로 눕는 갈래로만 말한다.
+FTreturn1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTretSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  FTretGuide(c,t,cx,cy,SC,S,P);
+  for(const b of S.B){const T0=b.T;if(T0.length<2)continue;
+    const p=T0[T0.length-1],pp=T0[T0.length-2];
+    const mv=Math.atan2(p[1]-pp[1],p[0]-pp[0]);
+    dep(c,p[1],cy,(c,dz)=>FThead(c,t+b.i*1.7,p[0],p[1],mv,SC,P,1,.85,dz,T0));}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FTreturn2 · 꼬리 ──────────────────────────────────────────────────────
+// 유일점: 꼬리가 **낱낱의 덩이 사슬**이다 — 마디마다 윤곽이 있어 세어지고,
+// 머리의 노랑에서 꼬리 끝의 검붉음까지가 색으로 이어진다. 넷 중 유일하게
+// **어느 쪽으로 가는 중인지**(나가는 길/돌아오는 길)가 정지 화면 한 장에서 갈린다.
+FTreturn2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTretSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  FTretGuide(c,t,cx,cy,SC,S,P);
+  for(const b of S.B){const T0=b.T,L=T0.length;if(L<3)continue;
+    dep(c,T0[L-1][1],cy,(c,dz)=>{
+      // 한 칸 걸러 — 마디마다 세우면 사슬이 아니라 굵은 선이 되고 비용도 2배다.
+      for(let i=(L%2);i<L-1;i+=2){const u=i/(L-1);  // 0=꼬리끝, 1=머리
+        const q=T0[i], r=(2.0+7.0*u)*SC;
+        FTlump(c,FClobeP(q[0],q[1],r,6,i*2.3+b.i*5.3,1,1,i*1.3),
+          P,(1-u)*.92,Math.max(1.5*SC,r*.26),dz);}
+      const p=T0[L-1],pp=T0[L-2];
+      FThead(c,t+b.i*1.7,p[0],p[1],Math.atan2(p[1]-pp[1],p[0]-pp[0]),SC,P,.78,.95,dz,T0);});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FTreturn3 · 갔다 온 두 줄 ─────────────────────────────────────────────
+// 유일점: **길이 남는다** — 불덩이가 지난 자리가 계속 타고 있어 나간 줄과
+// 돌아온 줄이 **동시에** 서 있다. 넷 중 유일하게 정지 화면 한 장이
+// 「같은 자리를 두 번 지났다」(=점화 2중첩)를 그림으로 증명한다.
+FTreturn3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTretSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  const LTTL=1.15;                                 // 비행(1.08초)보다 길다 = 두 줄이 겹친다
+  st.ln=st.ln||[];
+  st.lp=(st.lp||0)+dt;
+  if(st.lp>.05){st.lp=0;
+    for(const b of S.B)st.ln.push({x:b.x,y:b.y,l:0,i:(st.li=(st.li||0)+1)});}
+  for(let i=st.ln.length-1;i>=0;i--){st.ln[i].l+=dt;if(st.ln[i].l>LTTL)st.ln.splice(i,1);}
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  FTretGuide(c,t,cx,cy,SC,S,P);
+  for(const q of st.ln){const u=q.l/LTTL;
+    FTlump(c,FClobeP(q.x,q.y,5.6*SC*(1+u*.42),6,q.i*2.3,1.18,.70,q.i*1.1),
+      P,.24+u*.70,1.8*SC);}
+  for(let i=0;i<st.ln.length;i+=3){const q=st.ln[i],u=q.l/LTTL;
+    FCtongue(c,t,q.x,q.y+2*SC,-Math.PI/2,4.6*SC*(1-u*.42),24*SC*(1-u*.72),
+      q.i*1.7,q.i*.6,FTpal(P,u*.86),1,2.2*SC);}
+  for(const b of S.B){const T0=b.T;if(T0.length<2)continue;
+    const p=T0[T0.length-1],pp=T0[T0.length-2];
+    dep(c,p[1],cy,(c,dz)=>FThead(c,t+b.i*1.7,p[0],p[1],
+      Math.atan2(p[1]-pp[1],p[0]-pp[0]),SC,P,.82,.95,dz,T0));}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FTreturn4 · 커져서 돌아온다 ───────────────────────────────────────────
+// 유일점: **왕복이 크기로 보인다** — 나갈 때는 작고 어둡고, 적을 긁고 돌아올
+// 때는 커지고 달아올라 식은 조각을 흘린다. 넷 중 유일하게 **자취를 하나도 안
+// 남기고도** 「저건 돌아오는 중이다」가 한 덩이만 보고 갈린다(방향 아닌 질량).
+FTreturn4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTretSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  FTfragStep(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  FTretGuide(c,t,cx,cy,SC,S,P);
+  st.fe=(st.fe||0)+dt;
+  const spark=st.fe>.055;if(spark)st.fe=0;
+  for(const b of S.B){const T0=b.T;if(T0.length<2)continue;
+    const p=T0[T0.length-1],pp=T0[T0.length-2];
+    const mv=Math.atan2(p[1]-pp[1],p[0]-pp[0]);
+    const g=b.q<.5?0:(b.q-.5)/.5;                  // 0=나가는 길, 1=다 돌아옴
+    const k=.62+.66*g, heat=.28+.68*g;
+    if(spark&&g>.15)                               // 커지느라 흘리는 조각
+      FTemit(st,p[0],p[1],-Math.cos(mv)*(30+R()*46)*SC+(R()-.5)*40*SC,
+        -Math.sin(mv)*(30+R()*46)*SC+(R()-.5)*40*SC,(1.8+R()*2.6)*SC,.36+R()*.34);
+    // 돌아오는 것은 바늘을 뿌린다 — 커진 만큼 둘레가 뜨겁다.
+    if(g>.2)for(let i=0;i<3;i++){const a0=mv+Math.PI+(hash(i*3.7+b.i)-.5)*2.4;
+      FCneedle(c,p[0],p[1],a0,(11+15*g)*SC,1.6*SC,P.lit,P.ink,1.5*SC,g*.9);}
+    dep(c,p[1],cy,(c,dz)=>FThead(c,t+b.i*1.7,p[0],p[1],mv,SC,P,k,heat,dz,T0));}
+  FTfragDraw(c,st,P,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 비교용 원본 ───────────────────────────────────────────────────────────
+// 원본 셋을 LV3 으로 같은 자리에 그린다 — 「나아졌나」는 나란히 놓아야 재진다.
+FTrefTrail (c,t,dt,W,H,st){const L=LV;LV=3;try{FX.mgFireTrail (c,t,dt,W,H,st);}finally{LV=L;}},
+FTrefVortex(c,t,dt,W,H,st){const L=LV;LV=3;try{FX.mgFireVortex(c,t,dt,W,H,st);}finally{LV=L;}},
+FTrefReturn(c,t,dt,W,H,st){const L=LV;LV=3;try{FX.mgFireReturn(c,t,dt,W,H,st);}finally{LV=L;}},
+
+});
+
+// ── FT 12안 (임시 마운트) — 원본 · 앞 회차 · 이번 회차를 한 줄에 ──────────
+// ── 불 계열 — **채택된 것만** 계열별로 한 줄씩 ──────────────────────────
+// 사용자 판정(2026-08-12): 화염방사 4·5·6·8 · 불자취 1~4 · 회오리 1~4 ·
+// 회염 1~4 만 남기고 나머지(원본 대조·앞 회차 전부)는 코드째 지웠다.
+{const FTSET=[
+  ["ft-trail","불자취",["FTtrail1","FTtrail2","FTtrail3","FTtrail4"],
+    ["재 — 덩이가 세어진다","불씨 — 길보다 넓다","가장자리만 — 속이 검다","연기"]],
+  ["ft-vortex","화염회오리",["FTvortex1","FTvortex2","FTvortex3","FTvortex4"],
+    ["층진 기둥 — 높이가 세어진다","이어진 깔때기 — 도형 하나","솟는 혀 — 위가 뜯긴다","빨려드는 잔불 — 범위가 보인다"]],
+  ["ft-return","회염",["FTreturn1","FTreturn2","FTreturn3","FTreturn4"],
+    ["불덩이 — 덩이가 세어진다","꼬리 — 사슬이 식는다","갔다 온 두 줄","커져서 돌아온다"]]];
+ for(const [host,nm,keys,labels] of FTSET){
+   if(!document.getElementById(host))continue;
+   const HH=$(host);
+   keys.forEach((k,i)=>{if(FX[k])tile(HH,FX,k,nm+" "+(i+1),"",labels[i],238);});}}
+// ═══════════════════════════════════════════════════════════════════════════
+// GE — 속성별 방어 5 (2026-08-12) · 축은 **그 속성이 거는 디버프를 되받아친다**
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 기존 방어 7종(GUARD)의 축은 **동사**다 — 막는다(결계) · 지운다(사슬) ·
+// 되돌린다(경면) · 버틴다(거암) · 갚는다(응보) · 안 맞는다(질풍) ·
+// 멎게 한다(파동정지). 그 일곱은 **무엇이 날아오든** 같은 일을 한다.
+//
+// 이 다섯은 다른 축이다 — **「그 속성에만 강하다」**는 상성이지 일반 방어가
+// 아니다. 그래서 일곱과 나란히 놓아도 자리가 안 겹친다:
+//   · 일곱은 「무엇을」 을 안 묻는다. 다섯은 **속성 하나만** 묻는다.
+//   · 일곱이 상대하는 것은 **날아오는 것**(탄·접촉)이다. 다섯이 상대하는 것은
+//     맞은 **뒤에 남는 것**(상태이상)이다 — 사슬은 피해를 0 으로 만들지만
+//     점화는 그대로 붙고, 소염은 피해를 그대로 맞되 점화가 안 붙는다.
+//   · 그래서 다섯의 그림은 **[pvMark] 를 상대한다.** 일곱 중 표식을 건드리는
+//     것은 하나도 없다(응보의 감속 표식은 제가 **거는** 쪽이라 방향이 반대다).
+//
+// ⚠️ **탄은 몸에 박힌다. 막지 않는다.** 첫 판은 탄을 방어 반지름에서 지웠는데
+// 그건 결계(닿기 전에 끊는다)와 **같은 그림**이었다(2026-08-12 렌더 판정).
+// 그림이 규칙에 대해 정직하려면 탄이 몸까지 와서 [hurtFlash] 를 띄워야 한다 —
+// 이 다섯은 **맞으면서 이긴다**. 그 한 줄이 일곱과 갈리는 자리 전부다:
+//   결계  안 맞는다        ↔ 나는 맞는다(붉은 번쩍이 매번 뜬다)
+//   사슬  맞되 피해 0      ↔ 나는 피해를 그대로 받는다
+//   경면  탄이 되돌아간다  ↔ 내 탄은 몸에 박히고 안 돌아간다
+//   거암  큰 것만 깎는다   ↔ 나는 피해를 한 톨도 안 깎는다
+//   응보  모았다 갚는다    ↔ 내 되받음은 즉시이고 **피해가 아니다**(형이 바뀐다)
+//   질풍  위치로 피한다    ↔ 나는 제자리에서 맞는다
+//   파동정지 적이 굳는다   ↔ 내 적은 처음부터 끝까지 계속 쏜다
+//
+// ── 다섯 ─────────────────────────────────────────────────────────────────
+//   염 炎  소염 消炎  점화를 막는다 · 태우려던 열을 **흡수해 방어로**
+//   빙 氷  해빙 解氷  동상을 막는다 · 얼리려던 힘으로 **오히려 빨라진다**
+//   뇌 雷  접지 接地  감전을 막는다 · 받은 전하를 **주변과 땅으로 흘린다**
+//   풍 風  역풍 逆風  둔화를 막는다 · 밀려나는 것을 **되돌린다**
+//   독 毒  항체 抗體  중독을 막는다 · 중독된 적에게 **더 아프다**
+//
+// ⚠️ 풍의 표식은 **실명(blind)**으로 그린다. 브리프의 표는 「둔화」인데
+// 이 레포의 [PASSIVE] 는 `gale:"blind"` 이고 [pvMark] 에는 둔화 그림이
+// **없다**(응보 L4 가 감속을 그릴 때도 동상의 어휘를 빌렸다). 표식은
+// pvMark 하나가 단일 출처라는 규약이 브리프의 낱말보다 위라, 없는 표식을
+// 새로 만드는 대신 이 레포가 풍에 붙여 둔 것을 쓴다 — 마침 blind 의 그림이
+// 「머리 둘레를 스치고 지나가는 자락」이라 풍 그 자체다. 못 지킨 것으로 적는다.
+//
+// ── 그림의 어려운 점: 「안 걸렸다」를 어떻게 보여주나 ──────────────────────
+// 방어는 **일어나지 않은 일**이라 아무것도 안 그리면 스킬이 없는 것과 같다.
+// 그래서 셋을 반드시 화면에 둔다:
+//   ① **적이 그 속성으로 쏜다** — 없으면 다섯 다 「가만히 있는 그림」이 된다.
+//      적 넷이 돌아가며 속성색 탄을 몸으로 쏘고, 쏜 놈은 총구가 터진다.
+//   ② **표식이 붙으려다 튕긴다** — pvMark 를 몸 위에 **띄웠다가 부순다.**
+//      붙는 그림(0→1)과 튕기는 그림(1→0 + 조각)이 한 사건 안에 다 있다.
+//   ③ **되받는 쪽** — 삼킨 것이 형을 바꿔 나간다.
+//
+// ── 색의 규약: 되받은 것은 **색을 잃는다** ────────────────────────────────
+// 오는 것은 속성색(고채도)이고 되받은 것은 **다섯 다 같은 무속성 회백**이다.
+// 다섯이 각자 다른 색으로 되받으면 「속성이 하나 더 늘었다」로 읽히고, 다섯이
+// 한 스킬 계열로 안 보인다. 색이 빠지는 것 자체가 **「중화됐다」**의 그림이다.
+//
+// ⚠️ 처음엔 `gChain`(무채 강철)을 썼는데 **그건 사슬의 색이다**(WTONE.chain).
+// 방어 5 의 팔레트는 무채/222/150/30/350 다섯이 이미 다 나갔고, 여기에 새 키를
+// 넣으려면 TONE 표를 고쳐야 한다 — 이 블록은 **순수 추가**라 그럴 수 없다.
+// 그래서 `"gold"`(무속성 회백)로 둔다. 이건 물러선 것이 아니라 **이 레포가
+// 설계해 둔 자리**다: 방어 일곱도 전부 `"gold"` 로 그리고 [WTONE] 이 칸마다
+// `RECOLOR` 로 제 색을 끼운다. 채택되면 WTONE 에 줄 다섯만 넣으면 이 블록을
+// 한 글자도 안 고치고 제 팔레트가 붙는다.
+//
+// 색을 잃은 것이 **몸 색과 같다**는 것도 맞는 말이다 — 되받은 힘은 남의 것이
+// 아니라 **내 것이 된 것**이라, 몸(hero)과 같은 회백이라야 소유가 읽힌다.
+//
+// ── 세 안은 「같은 스킬의 다른 그림」이다 ─────────────────────────────────
+// 다섯이 **같은 무대**(같은 적 넷 · 같은 발사 주기 · 같은 탄속)를 쓰고,
+// 세 안은 그 무대 위에서 **무엇을 크게 그리는가**만 다르다:
+//   1 표식  — 표식 자체를 몸에 그렸다가 **부순다.** 되받는 것은 작다
+//   2 고리  — 몸 둘레 고리에서 **색이 갈리며** 어디까지 먹었는지가 보인다
+//   3 되받음 — 몸 앞은 작은 판 하나뿐이고 **결과가 적 쪽에서** 난다
+//
+// 새 원시함수는 없다. fillPoly · jagPoly · celStroke · celRibbon(Even) ·
+// celSplash · celSpike · celHoop · celRound · celGauge · arcPts · windEmblem ·
+// pvMark/pvLayer · mkFoesZ/stepFoes/drawFoes/hitFoe · emit/stepP/drawP 만 쓴다.
+
+/// 되받은 것의 색 — **다섯이 하나.** 위 「색의 규약」 참조.
+const GERET="gold";
+/// 무대 상수 — 다섯 · 열다섯 칸이 **한 벌의 수치**를 쓴다. 여기가 갈리면
+/// 「같은 상황에서 비교한다」가 거짓말이 된다.
+const GEPER=.62,      // 적이 한 발 쏘는 주기(s)
+      GEBSP=142,      // 탄속(px/s @ SC=1)
+      GERB =46,       // 되받음이 서는 반지름 — **벽이 아니다.** 탄은 그냥 지나간다
+      GEBR =19,       // 몸 반지름(표식이 붙는 크기). hero() 의 몸과 같다
+      GEEVL=1.15;     // 막은 사건 하나가 화면에 남는 시간(s)
+
+const GEDEF=[
+  {k:"ember",pv:"burn"  },   // 소염
+  {k:"frost",pv:"frost" },   // 해빙
+  {k:"volt" ,pv:"shock" },   // 접지
+  {k:"gale" ,pv:"slow"  },   // 역풍 — 둔화를 되민다
+  {k:"toxin",pv:"poison"}];  // 항체
+
+/// 되받음의 **굵기 배율.** 안1(ot=.35)은 가늘고 안3(ot=1)은 굵다 — 세 안이
+/// 같은 형을 그리므로, 나가는 거리만으로는 정지 화면에서 안 갈린다
+/// (2026-08-12 렌더 판정: 염·독은 안1 과 안3 이 같은 그림이었다).
+/// 거리와 굵기가 같이 자라야 「더 크게 되받았다」가 한 장에서 읽힌다.
+const GEot=ot=>.58+.42*ot;
+
+/// 표식이 **붙으려다 튕기는** 한 사건의 위상.
+/// 0 → 1 로 차오르는 동안이 「붙는 중」이고, 1 → 0 이 「튕겨 나가는 중」이다.
+/// 두 구간의 길이가 다른 것이 중요하다 — 붙는 것은 빠르고(.16s) 부서지는 것은
+/// 느려야(.34s) 「막았다」가 보인다. 반대로 두면 그냥 깜빡임이다.
+const GEmk=e=>e.l<.16?e.l/.16:Math.max(0,1-(e.l-.16)/.34);
+const GErj=e=>e.l<.16?0:Math.min(1,(e.l-.16)/.34);
+
+/// 무대 — **다섯이 글자 하나 안 다르게** 이것을 쓴다.
+///
+/// 적은 제자리에서 **쏜다.** 걸어오게 두면 「닿는 순간」이 접촉이 되어
+/// 사슬(맞되 0 이 된다)의 무대와 같아진다 — 이 다섯이 상대하는 것은 접촉이
+/// 아니라 **날아와 붙는 상태**라, 원거리 무대라야 축이 안 흐려진다.
+///
+/// 적 둘(0·1)은 제 속성의 표식을 **스스로 두르고 있다** — 「이 놈이 그
+/// 속성을 쓴다」는 표시이고, 항체가 「표식 있는 놈에게 더 아프다」를 그릴
+/// 표적이기도 하다. 나머지 둘은 깨끗해서 그 차이가 눈으로 갈린다.
+function GEstage(t,st,dt,SC,cx,cy,ek){
+  st.p=st.p||[];
+  if(!st.F){
+    st.F=mkFoesZ([[92,-56,10],[-94,-36,10],[38,96,9],[-66,74,10]],SC);
+    for(let i=0;i<st.F.length;i++){const f=st.F[i];
+      f.bx=f.ox;f.by=f.oy;f.fl=0;f.pv=i<2?.5:0;}
+    st.b=[];st.ev=[];st.cg=0;st.acc=0;st.i=-1;}
+  st.acc+=dt;
+  for(let i=0;i<st.F.length;i++){const f=st.F[i];
+    f.fl=Math.max(0,f.fl-dt*3.4);
+    // 숨쉬기 — 완전히 굳어 있으면 「멈춘 그림」으로 보인다. 아주 조금만.
+    f.ox=f.bx+Math.sin(t*.7+i*1.7)*3.4*SC;
+    f.oy=f.by+Math.cos(t*.6+i*2.3)*3.0*SC;}
+  if(st.acc>=GEPER){st.acc-=GEPER;
+    const f=st.F[(st.i=(st.i+1)%st.F.length)];
+    f.fl=1;
+    const x=cx+f.ox,y=cy+f.oy,a=Math.atan2(cy-y,cx-x);
+    st.b.push({x,y,a,l:0});
+    emit(st,x,y,5,{k:ek,sp:70*SC,r:2.6*SC,life:.34,a:a+Math.PI,spread:1.5,spikeP:.6});}
+  stepFoes(st.F,dt);
+  for(let i=st.b.length-1;i>=0;i--){const b=st.b[i];b.l+=dt;
+    b.x+=Math.cos(b.a)*GEBSP*SC*dt;b.y+=Math.sin(b.a)*GEBSP*SC*dt;
+    const d=Math.hypot(b.x-cx,b.y-cy);
+    // ⚠️ 몸까지 온다(GEBR). 되받음 반지름(GERB)에서 지우면 결계가 된다.
+    if(d<GEBR*SC){
+      // **맞았다.** 사건 하나가 태어난다 — 막은 것이 아니라 「피해는 받고
+      // 상태만 튕겨 낸」 사건이다. [ia] 는 어느 쪽에서 왔나.
+      st.ev.push({a:b.a,ia:Math.atan2(b.y-cy,b.x-cx),x:b.x,y:b.y,l:0});
+      st.cg=Math.min(1,st.cg+.5);st.hurt=1;
+      st.b.splice(i,1);continue;}
+    if(b.l>3.2)st.b.splice(i,1);}
+  st.hurt=Math.max(0,(st.hurt||0)-dt*2.6);
+  for(let i=st.ev.length-1;i>=0;i--){const e=st.ev[i];e.l+=dt;
+    if(e.l>GEEVL)st.ev.splice(i,1);}
+  st.cg=Math.max(0,st.cg-dt*.52);
+  stepP(st,dt);
+}
+
+/// 적이 쏜 것 — **속성색.** 되받은 것(무속성 회백)과 색으로 갈린다.
+/// 꼬리를 다는 것은 「지금 날아오는 중」이라야 막는 순간이 사건으로 읽히기
+/// 때문이다 — 멈춰 있는 탄은 배치물이지 공격이 아니다.
+function GEbolt(c,b,SC,k){
+  const bk=[b.x-Math.cos(b.a)*26*SC,b.y-Math.sin(b.a)*26*SC];
+  celRibbon(c,[bk,[b.x,b.y]],3.6*SC,k,.55);
+  celRound(c,b.x,b.y,b.a,16*SC,4.6*SC,k,1,1);
+}
+
+/// 막은 자리에서 **속성이 무엇을 하다 말았나.** 다섯이 여기서 갈린다.
+/// 되받는 형(GEreturn)과 짝이다 — 여기가 「하려던 것」이고 저기가 「대신 된 것」.
+function GEbreak(c,t,st,SC,cx,cy,ei,e){
+  const D=GEDEF[ei],u=GErj(e),f=1-u;
+  if(u<=0)return;
+  const ix=cx+Math.cos(e.ia)*GERB*SC, iy=cy+Math.sin(e.ia)*GERB*SC;
+  if(ei===0){
+    // 소염 — 열이 **빨려든다.** 조각이 밖으로 흩어지는 나머지 넷과 정반대로,
+    // 여기서만 속성색이 **안으로** 오므라든다. 그것이 「흡수」의 그림이다.
+    for(let i=0;i<5;i++){const a=e.ia+(i-2)*.34;
+      const r0=GERB*SC*(1.34-u*.62), rr=r0*(1-u*.18);
+      celSpike(c,cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,a+Math.PI,
+        (16-9*u)*SC,(4.4-2.2*u)*SC,D.k,f*.95);}
+  }else if(ei===1){
+    // 해빙 — 껍질이 **깨진다.** 각진 조각이 튀고, 조각마다 회전이 다르다.
+    for(let i=0;i<6;i++){const a=e.ia+(i-2.5)*.30, rr=GERB*SC*(1+u*.66);
+      fillPoly(c,jagPoly(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,(7-4*u)*SC,5,
+        i*2.7+e.ia,1.5),A(toneOf(D.k)[i%2?1:0],f*.92));}
+  }else if(ei===2){
+    // 접지 — 전하가 **지그재그로 흩어진다.** 곡선으로 그리면 리본이지 전기가 아니다.
+    // ⚠️ **짧게.** 처음엔 반지름 2.9배까지 뻗었는데 그러면 「몸에서 번개를
+    //   쏜다」로 읽혔다(2026-08-12 렌더 판정) — 방어가 공격처럼 보이는 것은
+    //   이 다섯이 제일 조심해야 할 오독이다. 막은 자리 언저리에서 끝낸다.
+    for(let s=0;s<3;s++){const P=[];
+      for(let i=0;i<=4;i++){const a=e.ia+(s-1)*.34+(i%2?.20:-.20);
+        const rr=GERB*SC*(.90+i*.075*(1+u));
+        P.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);}
+      celStroke(c,P,(3.0-1.4*u)*SC,D.k,f*.9);}
+  }else if(ei===3){
+    // 역풍 — 밀던 자락이 **되꺾인다.** 호가 안쪽으로 왔다가 되나간다.
+    for(let s=0;s<3;s++){const P=[],w=.9-s*.2;
+      for(let i=0;i<=6;i++){const a=e.ia+(i/6-.5)*w*2;
+        const rr=GERB*SC*(1.02+s*.20-Math.sin(u*Math.PI)*.30);
+        P.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);}
+      celRibbon(c,P,(4.6-1.6*s)*SC,D.k,f*.85);}
+  }else{
+    // 항체 — 방울이 **터진다.** 스며들려던 것이 표면에서 끝난다.
+    for(let i=0;i<4;i++){const a=e.ia+(i-1.5)*.30;
+      const rr=GERB*SC*(1+u*.34);
+      celSplash(c,cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,
+        Math.max(1,(4+7*u)*SC),7,i*3.1+2,D.k,f*.8);}
+  }
+  if(e.l<.20&&e.l-.16>=0)emit(st,ix,iy,4,
+    {k:D.k,sp:120*SC,r:2.4*SC,life:.30,spikeP:.7});
+}
+
+/// 되받은 것 — **다섯이 형만 다르고 색은 같다**(GERET).
+/// [ot] 0~1 은 「얼마나 바깥까지 나가는가」다. 안1 은 .35, 안2 는 .65, 안3 은 1.
+/// [rm] 은 되받음이 서는 **반지름 배율**이다. 안2 는 같은 반지름에 색이 갈리는
+/// 고리가 이미 서 있어, 되받음을 그 자리에 겹쳐 두면 두 그림이 한 덩어리로
+/// 뭉쳐 「고리 안이 무슨 형인지」가 안 읽힌다(2026-08-12 렌더 판정) —
+/// 안2 만 안쪽으로 들인다.
+/// [cx,cy] 는 **몸의 지금 자리**다(역풍은 몸이 밀리므로 원점이 아니다).
+function GEreturn(c,t,dt,st,SC,cx,cy,ei,g,ot,rm){
+  const RR=GERB*SC*rm;
+  if(ei===0){
+    // 소염 — 삼킨 열이 **판**이 된다. 두께가 곧 삼킨 양이라, 안 맞으면 얇아진다.
+    // 「거암의 판」과 형이 닮았지만 거암의 판은 **늘 그 두께**이고 이것은
+    // 맞아야 자란다 — 자라는 것이 이 스킬의 전부다.
+    // ⚠️ 호를 **3점**으로 딴다. 촘촘히 따면 매끈한 고리가 되어 「판」이 아니라
+    //   「테」로 보인다(2026-08-12 렌더 판정: 다섯 중 염만 통짜 흰 고리였다).
+    //   현이 곧아야 각진 판이고, 각진 판이라야 문법(각진 윤곽)에도 맞는다.
+    const push=ease(Math.min(1,(st.pl||0)))*ot;
+    const rr=RR*(1+push*.42), NP=5;
+    for(let i=0;i<NP;i++){
+      const a0=i/NP*TAU+.26-t*.09, a1=(i+1)/NP*TAU-.26-t*.09;
+      celRibbonEven(c,arcPts(cx,cy,rr,a0,a1,3),(2.2+6.0*g)*SC*GEot(ot),GERET,
+        (.52+.46*g),false);}
+    if(push>.02)celHoop(c,cx,cy,Math.max(1,rr*1.22),1,0,
+      Math.max(1,3.4*SC*push),GERET,push*.7);
+  }else if(ei===1){
+    // 해빙 — 얼리려던 힘이 **회전**이 된다. 고리가 빨라지고 잔상이 는다.
+    // ⚠️ 위상은 **적분한다**(st.sp). `t*속도` 로 두면 맞는 프레임마다 위상이
+    //   통째로 튀어 고리가 순간이동한다 — 같은 함정으로 네 번 반려된 자리다.
+    st.sp=(st.sp||0)+dt*(.9+7.4*g);
+    // ⚠️ 속도선을 **바깥으로 곧게** 뻗었더니 정지한 별광선이 됐다(2026-08-12
+    //   렌더 판정) — 직선 방사는 「퍼짐」이지 「회전」이 아니다. 속도는
+    //   **접선 방향의 호**로만 읽힌다: 같은 각도를 지나는 호가 여럿이고
+    //   뒤로 갈수록 흐려지는 것이 곧 잔상이다.
+    for(let s=0;s<4;s++){const a0=st.sp+s/4*TAU,sw=.42+.52*g;
+      celStroke(c,arcPts(cx,cy,RR,a0,a0+sw,7),(2.6+2.4*g)*SC*GEot(ot),GERET,.55+.42*g);}
+    const NL=3+Math.round(3*ot);
+    for(let i=0;i<NL;i++){const a0=st.sp*1.7-i*(.30+.34*g);
+      const rr=RR*(1.16+.34*ot);
+      celStroke(c,arcPts(cx,cy,rr,a0,a0+.30+.44*g,6),
+        (2.6+1.6*g)*SC,GERET,(1-i/NL)*(.22+.55*g)*(.5+.5*ot));}
+    // 몸의 잔상 — **속도는 한 프레임만 보면 서 있는 것과 같다.** 남는 것이
+    // 있어야 빠르다(질풍이 잔상으로 같은 말을 한다). 여기서는 몸이 안
+    // 움직이므로 잔상을 **회전 뒤쪽**에 둔다: 돌던 것이 남은 자국이다.
+    for(let i=1;i<=2+Math.round(ot*2);i++){
+      const a=st.sp*.36-i*.30, rr=GEBR*SC*.62;
+      const al=(1-i/(3+ot*2))*.34*g;
+      if(al<.02)continue;
+      fillPoly(c,jagPoly(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,GEBR*SC*.80,7,3,1.35),
+        A(toneOf(GERET)[0],al));}
+  }else if(ei===2){
+    // 접지 — **땅으로** 먼저 흘린다. 눕힌 고리가 발밑에 깔리는 것은
+    //   이 다섯에서 여기뿐이고, 그것이 경면(쏜 놈에게 돌려준다)과 갈리는
+    //   자리다: 접지는 **아무 데로나** 흘린다. 표적이 없다.
+    celHoop(c,cx,cy+7*SC*rm,Math.max(1,RR*(.78+.46*g)),.30,0,
+      Math.max(1,(2.4+2.6*g)*SC*GEot(ot)),GERET,.4+.5*g);
+    // 그다음 **가까운 놈**으로 흘러 붙는다 — 쏜 놈이 아니라 가까운 놈이다.
+    if(ot>.8&&st.F){
+      const lst=st.F.slice().sort((p,q)=>
+        (p.ox*p.ox+p.oy*p.oy)-(q.ox*q.ox+q.oy*q.oy)).slice(0,Math.round(1+2*ot));
+      for(let n=0;n<lst.length;n++){const f=lst[n];
+        const fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky,P=[];
+        for(let i=0;i<=6;i++){const u=i/6;
+          const jx=(hash(n*7.1+i*3.3+Math.floor(t*14))-.5)*13*SC*(u<1?1:0);
+          const jy=(hash(n*4.7+i*5.9+Math.floor(t*14))-.5)*13*SC;
+          P.push([cx+(fx-cx)*u+(i&&i<6?jx:0),cy+(fy-cy)*u+(i&&i<6?jy:0)]);}
+        celStroke(c,P,(2.0+1.8*g)*SC,GERET,(.30+.6*g)*ot);}}
+  }else if(ei===3){
+    // 역풍 — 밀린 몸이 **되돌아온다.** 이 다섯에서 몸이 움직이는 것은 여기뿐이고,
+    //   움직임 자체가 「밀렸다」의 증거다. 질풍(안 맞으려고 움직인다)과
+    //   방향이 정반대다 — 여기서는 **맞아서** 밀리고, 그 밀림을 되갚는다.
+    windEmblem(c,t,cx,cy,GERET,SC*(.42+.30*g),(.30+.55*g)*(.5+.5*ot));
+    for(let s=0;s<3;s++){const P=[],ph=(t*(1.1+.9*g)+s/3)%1;
+      const rr=RR*(.80+(.55+1.05*ot)*ph);
+      for(let i=0;i<=8;i++){const a=s*2.1-t*1.3+(i/8-.5)*1.5;
+        P.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);}
+      celRibbon(c,P,(4.4+2.6*g)*SC*GEot(ot),GERET,(1-ph)*(.35+.55*g));}
+  }else{
+    // 항체 — **표식이 있는 놈에게만 크게 터진다.** 조건부 피해라 대조가
+    //   있어야 보인다: 표식 둘(적 0·1)과 깨끗한 둘이 같은 화면에 있다.
+    celHoop(c,cx,cy,Math.max(1,RR*(.92+.10*Math.sin(t*2.2))),1,0,
+      Math.max(1,(2.2+3.2*g)*SC*GEot(ot)),GERET,.42+.5*g);
+    // 항체 알갱이가 **몸 둘레를 돈다.** 고리 하나만으로는 다섯 중 이것만
+    // 「아무 형도 없는 안」이 된다(2026-08-12 렌더 판정) — 도는 알갱이가
+    // 있어야 「몸이 만들어 두고 있는 것」으로 읽히고, 그것이 그대로 밖으로 난다.
+    const NM=4+Math.round(4*g);
+    for(let i=0;i<NM;i++){const a=t*1.35+i/NM*TAU, rr=RR*(.72+.10*Math.sin(t*2+i));
+      fillPoly(c,jagPoly(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,(2.4+1.6*g)*SC*GEot(ot),5,i*3.1,1.5),
+        A(toneOf(GERET)[2],.55+.4*g));}
+    if(ot>.55&&st.F)for(let n=0;n<st.F.length;n++){const f=st.F[n];
+      const fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;
+      const mkd=f.pv>0, ph=(t*1.25+n*.27)%1;
+      const x=cx+(fx-cx)*ph, y=cy+(fy-cy)*ph;
+      fillPoly(c,jagPoly(x,y,(2.6+1.8*g)*SC*(mkd?1.5:.8),5,n*3.7,1.4),
+        A(toneOf(GERET)[1],(1-ph)*.9*ot));
+      if(ph>.86&&g>.05)
+        celSplash(c,fx,fy,Math.max(1,(mkd?15:6)*SC*g*ot),9,n*2.3+1,GERET,
+          (mkd?.95:.5)*ot);}
+  }
+}
+
+/// 안1 의 주인공 — 몸에 **붙으려다 튕기는** 표식.
+///
+/// ⚠️ [pvMark] 의 **낱낱 크기는 `SC` 가 정한다**(반지름 `r` 이 아니다) —
+/// 불티도 결정 돌기도 `7*SC`·`6*SC` 로 고정이라, 몸(r=19)에 그대로 걸면
+/// 적(r=10)에 걸린 것과 **같은 크기**로 나와 안 보인다(2026-08-12 렌더 판정:
+/// 다섯 중 빙만 겨우 보였다). 이 칸의 주인공이 표식이므로 `SC` 를 키워
+/// 넘긴다 — 그림을 고치는 것이 아니라 **같은 그림을 크게** 그린다.
+function GEwear(c,t,st,SC,cx,cy,ei){
+  const D=GEDEF[ei];
+  for(const e of st.ev){const f=GEmk(e);
+    if(f>.01)pvMark(c,cx,cy,GEBR*SC*(1.22+GErj(e)*.40),D.pv,f,t,D.k,SC*2.5,1);}
+}
+
+/// 열다섯 칸의 몸통. [ei] 속성 0~4 · [va] 안 0~2.
+///
+/// 다섯이 **같은 무대**를 쓰고 세 안은 그 위에서 무엇을 크게 그리는지만
+/// 다르다 — 그래야 「속성만 다르다」가 비교로 성립한다.
+/// ⚠️ `calm`·`hot` 은 **선택 인자**다 — 안 주면 지금까지와 똑같이 그린다
+/// (강철 `GERET` + 속성색). 항체만 제 색을 쓰라고 뚫어 둔 구멍이고,
+/// 다섯 속성 × 세 안이 이 함수 하나를 공유하므로 **기본 거동을 안 바꾼다**.
+function GEcore(c,t,dt,W,H,st,ei,va,calm,hot){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,D=GEDEF[ei];
+  GEstage(t,st,dt,SC,cx,cy,D.k);
+  const g=st.cg;
+  // 소염의 판 밀어내기 · 역풍의 몸 밀림 — 사건이 **날 때** 한 번 세운다.
+  st.pl=Math.max(0,(st.pl||0)-dt*1.9);
+  st.hvx=(st.hvx||0);st.hvy=(st.hvy||0);st.hx=(st.hx||0);st.hy=(st.hy||0);
+  for(const e of st.ev)if(!e.done&&e.l>=.16){e.done=1;
+    if(ei===0)st.pl=1;
+    if(ei===3){st.hvx+=Math.cos(e.a)*54*SC;st.hvy+=Math.sin(e.a)*54*SC;}
+    // 되받음이 적에게 닿는 것은 **안3 뿐**이다(안1·2 는 몸 앞에서 끝난다).
+    if(va===2&&st.F){
+      for(const f of st.F){const d=Math.hypot(f.ox,f.oy)||1;
+        if(ei===2&&d<118*SC){hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,16*SC,GERET);f.pv=Math.max(f.pv||0,.7);}
+        if(ei===3)hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,26*SC,GERET);
+        if(ei===0&&d<96*SC)hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,14*SC,GERET);
+        if(ei===4&&f.pv>0)hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,22*SC,GERET);}}}
+  if(ei===3){
+    // 되돌아오는 용수철 — **되돌린다**가 이 속성의 되받음이라, 돌아오는
+    // 움직임 자체가 그림이다. 감쇠를 세게 두어 늘 제자리로 온다.
+    st.hvx+=(-st.hx)*dt*46;st.hvy+=(-st.hy)*dt*46;
+    const dmp=Math.pow(.90,dt*60);st.hvx*=dmp;st.hvy*=dmp;
+    st.hx+=st.hvx*dt;st.hy+=st.hvy*dt;
+  }else{st.hx=0;st.hy=0;st.hvx=0;st.hvy=0;}
+  // 몸의 지금 자리 — 방어에 속한 것은 **전부** 여기를 원점으로 그린다.
+  // 적과 날아오는 탄만 무대 좌표(cx,cy)를 쓴다.
+  const bx=cx+st.hx, by=cy+st.hy;
+
+  // ── 적 · 적이 두른 제 속성 표식 ───────────────────────────────────────
+  const lay=L=>pvLayer(c,cx,cy,st.F,D.pv,t,D.k,SC,L);
+  lay(0);drawFoes(c,t,cx,cy,st.F);lay(1);
+  // 총구 — 「이 놈이 지금 쐈다」. 없으면 탄이 어디서 났는지 안 읽힌다.
+  for(const f of st.F)if(f.fl>.02)
+    celSplash(c,cx+f.ox,cy+f.oy,Math.max(1,13*SC*f.fl),8,f.bx,D.k,f.fl*.9);
+
+  // ── 안마다 크게 그리는 것 ─────────────────────────────────────────────
+  if(va===0){
+    // 안1 「표식」 — **표식 자체를 몸에 그렸다가 부순다.**
+    // 이 다섯 중 [pvMark] 를 몸 위에 통째로 띄우는 것은 이 안뿐이다.
+    // 되받는 것은 작게(.35) 둔다 — 눈이 표식에 묶여야 「안 걸렸다」가 읽힌다.
+    GEreturn(c,t,dt,st,SC,bx,by,ei,g,.35,1);
+    // 표식은 [GEwear] 가 **제일 위에** 그린다(차례는 아래 참조).
+    // 튕겨 낸 횟수 — 표식 하나하나가 사건이라 **몇 번 튕겼나**가 정보다.
+    celGauge(c,bx,by,GERB*SC*1.30,g,2.6*SC,GERET,.55);
+  }else if(va===1){
+    // 안2 「고리」 — 몸 둘레 고리가 **토막마다 속성색이거나 강철이거나** 다.
+    // 섞지 않는다(셀은 계조가 셋뿐이다) — 경계가 각져야 「여기까지 먹었다」가
+    // 한눈에 든다. 강철이 속성색을 **먹어 들어가는** 것이 곧 중화의 그림이다.
+    const NS=18,RR=GERB*SC;
+    for(let i=0;i<NS;i++){
+      const a0=i/NS*TAU-t*.06,a1=(i+1)/NS*TAU-t*.06,am=(a0+a1)/2;
+      let stain=0;
+      for(const e of st.ev){
+        const hw=Math.max(0,.66*(1-e.l/.66));
+        const d=Math.abs(((am-e.ia+Math.PI*3)%TAU)-Math.PI);
+        if(d<hw){stain=1;break;}}
+      // 맞은 토막은 **더 굵고 더 진하다** — 채도만 올리면 정지 화면에서
+      // 안 갈려서, 굵기·알파를 같이 밀어 「빛난다」를 만든다.
+      celRibbonEven(c,arcPts(bx,by,RR,a0+.028,a1-.028,4),
+        (stain?(hot?5.4:4.6):3.4)*SC,
+        stain?(hot||D.k):(calm||GERET),
+        stain?(hot?1:.98):(calm?.82:.70),false);}
+    GEreturn(c,t,dt,st,SC,bx,by,ei,g,.65,.58);
+  }else{
+    // 안3 「되받음」 — 몸 앞은 **몸에 붙는 조각 하나**뿐이고, 크게 그리는 것은
+    // 전부 바깥이다. 이 안만 적 쪽에서 결과가 난다(밀림 · 표식 · 흰 번쩍).
+    //
+    // ⚠️ 이 조각은 **몸에 붙여** 그린다(1.35×몸). 되받음 반지름에 두면
+    //   「막다가 뚫린 벽」으로 읽힌다 — 탄은 이미 몸에 박혔으므로 그 자리에
+    //   있어야 하는 것은 벽이 아니라 **맞은 자리에 돋는 갑**이다.
+    for(const e of st.ev){const f=Math.max(0,1-e.l/.42);
+      if(f<=0)continue;
+      celRibbonEven(c,arcPts(bx,by,GEBR*SC*1.35,e.ia-.62,e.ia+.62,6),
+        (2.4+4.4*f)*SC,GERET,.55+.45*f,false);}
+    GEreturn(c,t,dt,st,SC,bx,by,ei,g,1,1);
+  }
+  // ── 날아오는 것 ───────────────────────────────────────────────────────
+  // **되받음 위에** 그린다. 탄이 고리·판을 가로질러 몸까지 가는 것이 보여야
+  // 「저건 벽이 아니다」가 읽힌다 — 아래에 깔면 고리가 탄을 막은 그림이 된다.
+  for(const b of st.b)GEbolt(c,b,SC,D.k);
+  // **몸이 맞았다.** 이 다섯은 피해를 한 톨도 안 깎는다 — 붉은 번쩍이 매번
+  // 뜨는 것이 일곱과 갈리는 자리다(머리말 표 참조). 숨기면 그림이 거짓말한다.
+  //
+  // ⚠️ **표식보다 먼저** 그린다. 뒤에 두었더니 붉은 것이 몸을 통째로 덮어
+  //   표식이 다섯 칸 다 안 보였다(2026-08-12 렌더 판정) — 맞은 것은 배경
+  //   사실이고 이 칸의 주인공은 튕겨 나가는 표식이다. 차례가 곧 중요도다.
+  if(st.hurt>0)hurtFlash(c,bx,by,Math.max(1,17*SC*st.hurt),st.hurt*.85);
+  // 막는 순간 — **세 안이 다 같이 그린다.** 「안 걸렸다」는 이것이 없으면
+  // 어느 안에서도 안 보인다. 세 안을 가르는 것은 이 조각이 아니라
+  // 표식(안1) · 고리 경계(안2) · 바깥까지 나가는 거리(안3)다.
+  for(const e of st.ev)GEbreak(c,t,st,SC,bx,by,ei,e);
+  if(va===0)GEwear(c,t,st,SC,bx,by,ei);
+  drawP(c,st);
+  hero(c,t,bx,by);
+}
+
+/// 열다섯 칸. `LV` 는 안 쓴다(L3 고정 · 브리프) — 레벨로 갈리는 것이 아니라
+/// **속성으로** 갈리는 표라, 레벨을 얹으면 축이 둘이 되어 비교가 죽는다.
+const GEFX={
+  GEfire1(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,0,0);},
+  GEfire2(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,0,1);},
+  GEfire3(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,0,2);},
+  GEice1 (c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,1,0);},
+  GEice2 (c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,1,1);},
+  GEice3 (c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,1,2);},
+  GEvolt1(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,2,0);},
+  GEvolt2(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,2,1);},
+  GEvolt3(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,2,2);},
+  GEwind1(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,3,0);},
+  GEwind2(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,3,1);},
+  GEwind3(c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,3,2);},
+  GEtox1 (c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,4,0);},
+  GEtox2 (c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,4,1);},
+  GEtox3 (c,t,dt,W,H,st){GEcore(c,t,dt,W,H,st,4,2);},
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+// 줄이 속성, 칸이 안. **나란히 놓아야 비교가 된다** — 다섯이 같은 무대를
+// 쓰는 이유가 이 배치에서만 값어치가 난다.
+// `mapTile` 을 쓰는 것은 HTML 을 안 건드리기 위해서다: 섹션이 없으면 [$] 가
+// **떨어져 있는 진짜 캔버스**를 돌려주므로 조립은 그대로 돌고 그리기 비용은 0 이다.
+// ⚠️ 설명에 `**굵게**` 를 쓰지 않는다 — [mapTile] 은 마크다운을 안 돌려
+// 별표가 그대로 찍힌다(ULT 표 주석과 같은 함정).
+const GEROW=[
+  ["ge-fire","GEfire","소염 消炎 · 염 炎","맞되 점화가 안 붙는다 — 태우려던 열을 삼켜 판으로 두른다"],
+  ["ge-ice" ,"GEice" ,"해빙 解氷 · 빙 氷","맞되 동상이 안 붙는다 — 얼리려던 힘이 회전이 되어 빨라진다"],
+  ["ge-volt","GEvolt","접지 接地 · 뇌 雷","맞되 감전이 안 붙는다 — 받은 전하를 땅과 가까운 놈에게 흘린다"],
+  ["ge-wind","GEwind","역풍 逆風 · 풍 風","맞되 둔화(이 레포는 실명)가 안 붙는다 — 밀린 몸이 되돌아오며 되민다"],
+  ["ge-tox" ,"GEtox" ,"항체 抗體 · 독 毒","맞되 중독이 안 붙는다 — 중독된 놈에게만 물보라가 두 배"]];
+const GEVAR=[
+  ["1","1 표식","표식을 몸에 띄웠다가 부순다 — 붙는 것과 튕기는 것이 한 사건 안에 다 있다"],
+  ["2","2 고리","고리 토막이 속성색↔강철로 갈린다 — 어디까지 먹었나가 경계로 보인다"],
+  ["3","3 되받음","몸에는 갑 한 조각뿐, 결과가 적 쪽에서 난다 — 밀림·표식·번쩍"]];
+// ⚠️ 호스트가 `ge-fire`·`ge-ice`… 인데 그 `<div>` 들은 **어느 페이지에도 없다.**
+// [$] 가 떨어져 있는 캔버스를 돌려주니 예외도 안 나고 그냥 안 보였다 — 열다섯이
+// 통째로 유령이었다(2026-08-12 사용자 지적). 방어 페이지 한 곳으로 모은다.
+// ── 사용자 판정 (2026-08-12) — 열다섯 중 **넷만** 남는다 ──────────────────
+// ⚠️ **해빙(빙)은 셋 다 반려돼 한 칸도 안 남았다.** 다섯 속성 중 빙만 방어가
+// 없는 상태라, 다시 그리기 전에는 속성 방어가 다섯이 아니라 넷이다.
+const GEDROP=new Set(["GEfire1","GEfire3","GEice1","GEice2","GEice3",
+  "GEvolt1","GEvolt2","GEwind2","GEwind3","GEtox1","GEtox3"]);
+{const GH=document.getElementById("guard");
+ if(GH)GEROW.forEach(([host,pre,nm,ds])=>{
+   GEVAR.forEach(([sfx,vn,vd])=>{
+     const k=pre+sfx;
+     if(GEFX[k]&&!GEDROP.has(k))tile(GH,GEFX,k,nm+" · "+vn,"",vd+" / "+ds,238);});});}
+// ══════════════════════════════════════════════════════════════════════════
+// 궁극기 5안 (UT) — 「특정 시간마다 한 번 쓰는 화려한 한 방」 (2026-08-12)
+// ══════════════════════════════════════════════════════════════════════════
+//
+// 개안(`FX.flare`)이 이 게임의 「한 방」 문법이다: 화면 전체를 한 번에 지우고,
+// 0.4초 동안 화면을 덮고, 거리를 안 본다. 다섯은 그 옆에 나란히 서야 하되
+// **같아 보이면 안 된다** — 개안의 동사는 「밝아진다」다. 그래서 다섯의 동사를
+// 먼저 갈라 놓고 그림을 그렸다:
+//
+//   개안 밝아진다 · 포화 떨어진다 · 인력 모인다 · 정적 멎는다
+//   격노 물든다   · 불멸 감싼다
+//
+// ── 균형 — 서로 못 이긴다, 상황이 다를 뿐이다 ─────────────────────────────
+//
+// | 이름 | 무엇을            | 이길 때        | 질 때          |
+// |------|-------------------|----------------|----------------|
+// | 개안 | 화면을 한 번에 지움 | 잡몹이 벽처럼  | 보스 하나      |
+// | 포화 | 3연 낙하(무작위)  | 보스·거구      | 흩어진 잡몹    |
+// | 인력 | 아이템 전부 당김  | 젬이 널렸을 때 | 지금 죽을 때   |
+// | 정적 | 전부 멈춤+리젠 멈춤| 포위됐을 때   | 화력 부족      |
+// | 격노 | 내 피해 증가      | 이미 센 빌드   | 약한 빌드      |
+// | 불멸 | 안 죽는다         | 실수했을 때    | 잘 풀릴 때     |
+//
+// ⚠️ **사용자가 직접 걱정한 자리** — 「포격 3회가 전멸 1회와 대비돼 밸런스
+// 이슈」. 답은 **면적**이고, 그 면적을 코드에서 강제한다:
+//
+//   · 낙하 반경 RB = 38·SC · 세 발 = 덮는 면적 3·π·38² ≈ 13,600 SC²
+//   · 칸 면적 238² ≈ 56,600 SC²  →  **24% 만 덮는다.**
+//   · 개안은 100%.  세 발을 촘촘히 깔면 이 24% 가 100% 로 붙어 개안이 죽는다.
+//
+// 그리고 그 24% 가 **왜 보스에겐 이기는가**도 산수 하나다: 명중 판정이
+// `거리 < RB + f.r` 이라 **표적이 클수록 받는 면적이 제곱으로 는다.**
+//   · 잡몹(r=10):  π(38+10)² = 7,238  · 거구(r=24): π(38+24)² = 12,076  (+67%)
+// 거구는 세 발 중 둘을 그냥 몸으로 받아 내고, 그래서 **깎여 죽는다.**
+//
+// 체력까지 같이 봐야 표가 닫힌다(잡몹 3 · 거구 9 · 궁극기 한 방 3):
+//   · 개안 = 전원에 3 → 잡몹 **전멸**, 거구는 3/9 만 깎여 **산다**
+//   · 포화 = 세 발 × 3 → 거구에 둘셋이 들어가 6~9 → **죽는다**, 대신 벽은 남는다
+// 두 줄이 서로의 정확한 반대이고, 그것이 이 둘이 공존하는 이유 전부다.
+// 잡몹은 낙하점 사이에 서 있으면 **한 발도 안 맞는다** — 그 자리가 「빈 자리」다.
+//
+// ── 같은 판을 본다 ────────────────────────────────────────────────────────
+// 여섯을 나란히 놓고 「어느 상황에서 이기는가」를 물으려면 **판이 하나**여야
+// 한다. 판이 다르면 비교가 아니라 각자 유리한 그림 자랑이 된다. 그래서 15칸이
+// 전부 이 한 장면을 본다:
+//
+//   · 벽 여섯    위쪽에 촘촘히      — **개안**이 이기는 자리
+//   · 흩어진 셋  모서리에 따로      — **포화**가 놓치는 자리
+//   · 거구 하나  오른쪽, r 이 두 배 — **포화**가 이기는 자리
+//   · 젬 아홉    바닥에 널려 있다   — **인력**이 이기는 자리
+//   · 적탄       적이 나를 쏜다     — **정적·불멸**이 이기는 자리
+//   · 내 탄      내가 자동으로 쏜다 — **격노**가 이기는 자리
+//   · 리젠 셋    가장자리에서 찬다  — **정적**만이 이걸 멈춘다
+//
+// 일곱 중 **어느 것을 건드리고 어느 것을 안 건드리는가**가 그대로 균형표다.
+// 인력은 적을 하나도 안 건드리고, 정적은 아무도 안 아프게 하며, 격노는 판을
+// 안 건드리고 내 탄만 바꾼다. 「피해 0 인 둘」이 화려한 이유는 화면을 더
+// 칠해서가 아니라 **판의 다른 축을 건드려서**다.
+//
+// ⚠️ `LV` 를 안 쓴다(L3 고정). 다섯을 가르는 축은 레벨이 아니라 **동사**다.
+//
+// ⚠️ 새 원시함수 0개. fillPoly · jagPoly · celStroke · celRibbon · celHoop ·
+// celSpike · celSplash · celPuff · celRound · celBeam · celGauge · shards ·
+// fireBody · firePath · arcPts · gemDot · hpRing · hurtFlash · drawFoes ·
+// emit/stepP/drawP · hitFoe · pvMark 만 쓴다. `globalCompositeOperation` 직접
+// 호출 0회(가산은 gAdd 안에서만).
+// ══════════════════════════════════════════════════════════════════════════
+
+// 한 장면. 좌표는 238 칸 기준이고 그리기 직전에 SC 를 곱한다(반너비 119).
+const UTSCENE=[
+  [-52,-88,10],[-24,-96,10],[4,-99,10],[32,-93,10],[58,-84,9],[-78,-74,9], // 벽 여섯
+  [-106,44,9],[104,60,9],[-100,-10,9],                                     // 흩어진 셋
+  [88,-16,24]];                                                            // 거구
+const UTGEM=[[-88,72],[-46,86],[6,94],[52,80],[92,44],[-96,18],[74,-58],[-64,-24],[26,40]];
+const UTRG=[[-99,-90],[99,-90],[0,101]];     // 리젠 지점 — 여기서 적이 다시 나온다
+
+// 무채 계조. `ultEye` 가 「눈은 안에서 대비가 나야 눈이다」로 쓰는 그 계조이고,
+// 여기서도 같은 이유로 쓴다 — 궁극기색(mFlare)은 세 단이 전부 밝아
+// **빛**은 되지만 **물체**는 못 된다.
+const UTNEU=TONE.gold;
+// 한 주기. 15칸이 **같은 시계**를 써야 「같은 판」이 같은 순간에 비교된다.
+const UTP=5.2;
+// 발동은 언제나 이 창이다. 앞 1/3 은 평상, 그다음이 궁극기, 뒤는 여운.
+const UTCAST=.34, UTEND=.72;
+
+/// 이 파일의 궁극기는 전부 개안의 팔레트(mFlare)를 쓴다 — 「색이 다르면 다른
+/// 궁극기로 읽힌다」는 그 판단(`WTONE.ultGauge`)이 다섯에도 그대로 걸린다.
+/// 강조색은 **속성색이 아니라 사건색**으로만 하나씩 얹는다(불=amber, 젬=wBolt,
+/// 나를 해치는 것=HURT). 그래서 다섯이 한 종족으로 보이고도 안 겹친다.
+function UTpaint(fn){const sr=RECOLOR;RECOLOR="mFlare";
+  try{return fn();}finally{RECOLOR=sr;}}
+
+/// 한 장면을 세운다. 적은 **집을 기억한다**(hx,hy) — 몸에 닿거나 죽으면 그
+/// 집으로 돌아가 다시 걸어온다. 무작위 자리로 되돌리면(만레기 `manicWalk` 처럼)
+/// 몇 초 만에 벽·흩어짐·거구의 구분이 뭉개져 **판이 판이 아니게 된다.**
+function UTstage(st,SC){
+  if(st.F)return;
+  st.F=mkFoesZ(UTSCENE,SC);
+  // 체력은 **셋과 아홉**이다. 이 두 숫자가 균형표를 숫자로 못 박는다:
+  //   · 내 평타 1  → 잡몹 세 방 · 격노 중엔 3 이라 **한 방**(= ×3 이 눈에 보인다)
+  //   · 궁극기 3   → 잡몹 즉사 · 거구는 세 번 받아야 죽는다
+  //   · 개안은 한 번이라 거구에 3/9 만 넣는다 → **못 죽인다**
+  //   · 포화는 세 발이고 거구가 크니 둘~셋이 들어간다 → **죽인다**
+  st.F.forEach((f,i)=>{f.hx=f.ox;f.hy=f.oy;f.r0=f.r;f.a=1;f.die=0;
+    f.big=(i===UTSCENE.length-1);f.hpm=f.big?9:3;f.hp=f.hpm;f.frz=0;});
+  st.g=UTGEM.map((p,i)=>({x:p[0]*SC,y:p[1]*SC,hx:p[0]*SC,hy:p[1]*SC,
+    a:1,sd:i*3.7,tr:[],got:0}));
+  st.sh=[];st.mb=[];st.rg=[.1,.5,.8];st.hp=1;st.hurt=0;st.got=0;
+}
+/// 걷는다. **집으로 되돌아가는 순간을 알파로 덮는다** — 좌표를 툭 되돌리면
+/// 그 프레임이 그대로 「이음매」로 보인다(주기 끝과 처음이 안 맞는 것과 같은
+/// 종류의 사고). 사라졌다 다시 걸어 나오는 것으로 그리면 이음매가 없다.
+function UTwalk(st,dt,SC,stop){
+  for(const f of st.F){
+    if(f.die>0){f.die-=dt;f.a=Math.max(0,f.die/.26);
+      if(f.die<=0){f.ox=f.hx;f.oy=f.hy;f.kx=0;f.ky=0;f.a=0;f.r=f.r0;f.hp=f.hpm;}
+      continue;}
+    if(f.a<1)f.a=Math.min(1,f.a+dt*2.6);
+    if(stop||f.frz){f.stop=1;continue;}
+    f.stop=0;
+    const d=Math.hypot(f.ox,f.oy)||1,sp=(f.big?13:25)*SC;
+    f.ox-=f.ox/d*sp*dt;f.oy-=f.oy/d*sp*dt;
+    if(Math.hypot(f.ox,f.oy)<30*SC){f.ox=f.hx;f.oy=f.hy;f.kx=0;f.ky=0;f.a=0;}}
+  stepFoes(st.F,dt);
+}
+/// 적을 그린다 — **한 놈씩.** `drawFoes` 는 알파를 안 받는데, 나고 드는 것을
+/// 알파로 덮는 것이 이 판의 이음매 대책이라 한 놈씩 감싼다(배열 하나짜리로
+/// 부르는 것은 같은 함수를 그대로 쓰는 것이라 그림이 안 갈린다).
+function UTfoes(c,t,cx,cy,st){
+  for(const f of st.F){
+    if(f.a<=.02)continue;
+    if(f.a>=.995){drawFoes(c,t,cx,cy,[f]);continue;}
+    c.save();c.globalAlpha=f.a;drawFoes(c,t,cx,cy,[f]);c.restore();}
+}
+/// 피해 한 번. 죽으면 1 을 돌려준다 — 「몇 마리 지웠나」가 균형의 전부라
+/// 세는 자리를 한 곳으로 모은다.
+function UTdmg(st,f,cx,cy,SC,p,k){
+  if(f.die>0||f.a<.4)return 0;
+  const x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+  f.hp-=p;f.hit=1;
+  if(f.hp>0){
+    // 거구는 **깎여 나간다.** 체력 막대를 새로 만들지 않는다 — 실루엣이
+    // 줄어드는 것이 곧 남은 체력이고, 그건 500마리 화면에서도 읽힌다.
+    if(f.big)f.r=f.r0*(.46+.54*Math.max(0,f.hp)/f.hpm);
+    emit(st,x,y,5,{k,sp:110*SC,r:2.2*SC,life:.3,spikeP:.7});return 0;}
+  f.die=.26;
+  emit(st,x,y,9,{k,sp:170*SC,r:2.8*SC,life:.38,spikeP:.85});
+  return 1;
+}
+/// 젬 — **바닥에 널린 것.** `gemDot` 을 그대로 쓴다(같은 물건이면 같아야 한다).
+function UTgems(c,cx,cy,st,SC){
+  for(const g of st.g){
+    if(g.a<=.02)continue;
+    if(g.tr.length>1)celStroke(c,g.tr.map(q=>[cx+q[0],cy+q[1]]),2.8*SC,"gold",g.a*.8);
+    if(g.a>=.995){gemDot(c,cx+g.x,cy+g.y,5*SC);continue;}
+    c.save();c.globalAlpha=g.a;gemDot(c,cx+g.x,cy+g.y,5*SC);c.restore();}
+}
+/// 젬이 다시 깔린다 — 주기 끝에서. **여기서 안 되돌리면 두 바퀴째 칸이 빈다**
+/// 그러면 「인력이 이기는 자리」가 첫 바퀴에만 있는 거짓말이 된다.
+function UTgemReset(st,dt,u){
+  if(u<.82)return;
+  for(const g of st.g){
+    if(g.got){g.got=0;g.on=0;g.x=g.hx;g.y=g.hy;g.a=0;g.tr.length=0;}
+    g.a=Math.min(1,g.a+dt*2.2);}
+}
+/// 적탄 — **나를 해치는 것은 언제나 붉다**(`hurtFlash` 와 같은 규약). 그래서
+/// 키가 아니라 [HURT] 를 직접 본다. 그림은 `celRound` 와 한 획도 안 다르다.
+function UTshotPoly(c,x,y,a,len,w,al){
+  fillPoly(c,roundPoly(x,y,a,len,w),A(HURT[0],.95*al));
+  fillPoly(c,roundPoly(x,y,a,len*.94,w*.62),A(HURT[1],.97*al));
+  fillPoly(c,roundPoly(x,y,a,len*.84,w*.26),A(HURT[2],al));
+}
+/// 적탄이 날아온다. `freeze` 면 **공중에 선다** — 정지의 정체가 여기 한 줄이다.
+/// 몸에 닿은 수를 돌려준다(불멸이 그 수를 받아 「맞았는데 안 죽는다」를 그린다).
+function UTshots(st,dt,SC,freeze,rad){
+  const ar=st.ar||(st.ar=[]);ar.length=0;
+  const RR=rad||17*SC;
+  if(!freeze){
+    st.sa=(st.sa||0)+dt;
+    if(st.sa>.33&&st.sh.length<7){st.sa=0;
+      const f=st.F[(st.sn=(st.sn||0)+1)%st.F.length];
+      if(f.a>.6&&f.die<=0){const d=Math.hypot(f.ox,f.oy)||1;
+        st.sh.push({x:f.ox,y:f.oy,a:Math.atan2(-f.oy/d,-f.ox/d),l:0});}}
+    for(let i=st.sh.length-1;i>=0;i--){const q=st.sh[i];q.l+=dt;
+      q.x+=Math.cos(q.a)*94*SC*dt;q.y+=Math.sin(q.a)*94*SC*dt;
+      if(Math.hypot(q.x,q.y)<RR){ar.push({x:q.x,y:q.y,a:q.a});st.sh.splice(i,1);continue;}
+      if(q.l>2.4)st.sh.splice(i,1);}}
+  return ar;
+}
+/// 적탄 그리기. 멎었으면 **왔던 쪽으로 잔상 둘**을 남긴다 — 정지 화면에서
+/// 「안 움직인다」는 안 보이므로, 오던 중이었다는 자국이 있어야 멎은 것이 된다
+/// (`waveHalt` 가 같은 이유로 같은 짓을 한다).
+function UTshotDraw(c,cx,cy,st,SC,frozen){
+  for(const q of st.sh){
+    if(frozen)for(let j=2;j>=1;j--)
+      UTshotPoly(c,cx+q.x-Math.cos(q.a)*13*SC*j,cy+q.y-Math.sin(q.a)*13*SC*j,
+        q.a,12*SC,4*SC,.30/j);
+    UTshotPoly(c,cx+q.x,cy+q.y,q.a,14*SC,4.6*SC,.95);}
+}
+/// 내 탄 — **자동이다.** 격노가 곱하는 대상이 이것이고, 나머지 넷이 이걸
+/// 안 건드린다는 것이 그대로 「격노만 나를 바꾼다」의 증거다.
+/// [mul] 이 1 이면 잡몹이 안 죽고, 3 이면 한 방에 죽는다 — 같은 탄, 다른 결과.
+function UTmine(c,st,dt,cx,cy,SC,mul,k){
+  st.ma=(st.ma||0)+dt;
+  if(st.ma>.30&&st.mb.length<7){st.ma=0;
+    let b=null,bd=1e9;
+    for(const f of st.F){if(f.a<.6||f.die>0)continue;
+      const d=Math.hypot(f.ox,f.oy);if(d<bd){bd=d;b=f;}}
+    if(b)st.mb.push({x:0,y:0,a:Math.atan2(b.oy,b.ox),l:0,m:mul});}
+  for(let i=st.mb.length-1;i>=0;i--){const q=st.mb[i];q.l+=dt;
+    q.x+=Math.cos(q.a)*205*SC*dt;q.y+=Math.sin(q.a)*205*SC*dt;
+    let h=null;
+    for(const f of st.F){if(f.a<.6||f.die>0)continue;
+      if(Math.hypot(q.x-f.ox-f.kx,q.y-f.oy-f.ky)<f.r+3.4*SC){h=f;break;}}
+    if(h){const s=.55+.45*q.m;
+      UTdmg(st,h,cx,cy,SC,q.m,k);
+      hitFoe(st,h,cx,cy,Math.cos(q.a),Math.sin(q.a),9*SC*q.m,k);
+      celSplash(c,cx+q.x,cy+q.y,(7+7*q.m)*SC,8,h.r,k,.9);
+      st.mb.splice(i,1);continue;}
+    if(q.l>1.3){st.mb.splice(i,1);continue;}
+    celRound(c,cx+q.x,cy+q.y,q.a,(9+5*q.m)*SC,(2.6+1.7*q.m)*SC,k,.95,Math.min(1,q.l*4));}
+}
+/// 리젠 게이지 — 가장자리 셋이 차면 적이 다시 나온다. **정적만이 이걸 멈춘다.**
+/// 15칸 전부에 그린다: 같은 계기판이 한 칸에서만 다르게 굴어야 그 한 칸의
+/// 주장이 증명된다.
+function UTregen(c,cx,cy,st,SC,dt,freeze){
+  for(let i=0;i<3;i++){
+    if(!freeze)st.rg[i]=(st.rg[i]+dt*.42)%1;
+    const x=cx+UTRG[i][0]*SC,y=cy+UTRG[i][1]*SC;
+    celHoop(c,x,y,6*SC,1,0,1.5*SC,"gold",.28);
+    celGauge(c,x,y,6*SC,st.rg[i],2.2*SC,"gold",freeze?.95:.7);
+    if(!freeze&&st.rg[i]>.96)celSplash(c,x,y,4.5*SC,6,i*3,"gold",.8);
+    // 멈춘 계기는 **꼭지가 안 돈다.** 멎은 것을 그리는 유일한 방법은
+    // 「돌던 것이 그 자리에 있다」이므로 눈금 하나를 정지한 각도에 박는다.
+    if(freeze){const a=-Math.PI/2+TAU*st.rg[i];
+      celSpike(c,x+Math.cos(a)*6*SC,y+Math.sin(a)*6*SC,a,5*SC,2.2*SC,"gold",.95);}}
+}
+/// 화면 한 겹. **개안만 화면을 칠하던 규칙을 궁극기 전체로 넓힌 것**이고,
+/// 넓히면서 **색을 갈랐다** — 개안이 순백이므로 나머지 다섯은 순백을 안 쓴다:
+///   포화 주황 · 인력 금 · 정적 회백 · 격노 붉음 · 불멸 창백한 흰-푸름
+/// 이 한 겹이 없으면 다섯은 개안 옆에서 **전부 작아 보인다**(2026-08-12 렌더
+/// 판정: 개안은 0.36 위상에서 칸을 통째로 하얗게 덮는데 다섯은 가운데만 반짝였다).
+/// 색은 팔레트에서 뽑는다 — 하드코딩 색을 안 쓴다는 규율은 화면 한 겹에도 걸린다.
+function UTwash(c,W,H,k,a,idx){
+  if(a<=.004)return;
+  const T=(k==="neu")?UTNEU:toneOf(k);
+  c.fillStyle=A(T[idx===undefined?1:idx],a);c.fillRect(0,0,W,H);
+}
+/// 발동 순간의 공용 개막 — **0.3~0.6초는 화면을 덮어도 된다.** 다만 개안처럼
+/// 하얗게 덮으면 다섯이 전부 개안이 된다. 그래서 공용은 **어둡게 눌러 주는
+/// 것**까지만이고(무대를 비운다), 밝히는 것은 각 안이 자기 색으로 한다.
+function UTopen(c,W,H,f){
+  if(f<=.004)return;
+  c.fillStyle=`rgba(12,8,18,${.42*f})`;c.fillRect(0,0,W,H);
+}
+/// 주기 위상 한 벌. **그려지는 값을 전부 u 하나에서 파생시킨다** — 위상마다
+/// 따로 굴린 값을 섞으면 주기 끝과 처음이 안 맞아 이음매에서 「툭」이 난다.
+function UTph(t){
+  const u=saw(t,UTP),ramp=(a,b)=>Math.max(0,Math.min(1,(u-a)/(b-a)));
+  return{u,ramp,
+    on  :ramp(UTCAST,UTCAST+.02)*(1-ramp(UTEND,UTEND+.03)),   // 발동 중인가
+    open:(1-ramp(UTCAST,UTCAST+.14))*ramp(UTCAST-.02,UTCAST), // 개막 섬광
+    tail:ramp(UTEND,UTEND+.06)*(1-ramp(.92,1))};              // 여운
+}
+
+// ── 포화 砲火 — **떨어진다** ─────────────────────────────────────────────
+//
+// 세 발이 무작위 지점에 차례로 떨어진다. **총 피해는 여섯 중 제일 크다** —
+// 거구는 세 발 중 둘을 몸으로 받아 깎여 죽는다. 대신 낙하점 사이가 비어
+// **놓치는 자리가 생긴다**: 벽 여섯 중 둘셋만 죽고 나머지는 그대로 걸어온다.
+// 그 빈 자리가 안 보이면 포화는 개안의 상위 호환이 되고, 그러면 개안이 죽는다.
+//
+// ⚠️ 시안은 낙하점을 **주기마다 세 벌 중 하나로 고정**한다(UTBP). 실제로는
+// 무작위지만, 무작위를 그대로 두면 어느 프레임을 봐도 「이번엔 운이 나빴나」로
+// 읽혀 **빈 자리가 설계인지 사고인지 판정이 안 된다.** 세 벌을 돌리면
+// 「매번 다른 자리, 매번 빈다」가 한 칸 안에서 읽힌다.
+const UTBP=[[[-34,-84],[74,-4],[-46,56]],
+            [[36,-92],[96,-30],[6,52]],
+            [[-84,-56],[80,-2],[64,64]]];
+const UTBRB=38;     // 낙하 반경(238칸 기준) — 세 발이 칸의 **23%** 만 덮는다
+                    // (3·π·38² = 13,600 / 56,600). 개안은 100% 다.
+const UTLEAD=.36;   // 예고 — 떨어지기까지. 피할 시간이 아니라 **읽을 시간**이다
+
+/// 한 발이 떨어진 자리의 판정. **표적이 클수록 제곱으로 넓게 받는다** —
+/// `RB + f.r` 이 그 한 줄이고, 포화가 거구에 이기는 이유 전부다.
+function UTbarrageHit(st,cx,cy,SC,px,py,k){
+  let n=0;
+  for(const f of st.F){
+    if(f.a<.5||f.die>0)continue;
+    const d=Math.hypot(f.ox+f.kx-px,f.oy+f.ky-py);
+    if(d>=UTBRB*SC+f.r)continue;
+    const dd=d||1;
+    hitFoe(st,f,cx,cy,(f.ox-px)/dd,(f.oy-py)/dd,34*SC,k);
+    n+=UTdmg(st,f,cx,cy,SC,3,k);}
+  emit(st,cx+px,cy+py,13,{k,sp:200*SC,r:3*SC,life:.5,spikeP:.7});
+  return n;
+}
+/// 세 발의 시계. 세 안이 **같은 시계**를 봐야 「그림만 다르고 판정은 같다」가
+/// 성립한다 — 안마다 낙하 시각이 다르면 셋 중 하나가 그냥 세 보인다.
+function UTbarrageStep(st,t,dt,cx,cy,SC,ph,k){
+  st.b=st.b||[];
+  if(ph.u<.20&&st.b.length)st.b.length=0;      // 주기 머리에서 자국을 비운다
+  const P=UTBP[Math.floor(t/UTP)%3],L=UTLEAD/UTP;
+  for(let i=0;i<3;i++){const T=UTCAST+i*.105-L;
+    if(ph.u>=T&&(st.pu||0)<T)st.b.push({px:P[i][0]*SC,py:P[i][1]*SC,l:0,hit:0,sd:i*4.7+1.3});}
+  st.pu=ph.u;
+  for(const q of st.b){q.l+=dt;
+    if(!q.hit&&q.l>=UTLEAD){q.hit=1;UTbarrageHit(st,cx,cy,SC,q.px,q.py,k);}}
+}
+/// 남은 자국의 알파. 주기 끝에서 **0 으로 닫는다** — 안 닫으면 u=1 과 u=0 의
+/// 그림이 달라 이음매에서 자국이 툭 사라진다.
+const UTscorch=(ph)=>.9*(1-ph.ramp(.90,1));
+/// 낙하 한 발이 화면 전체에 주는 것 — **압력파와 한 겹.** 피해 판정은
+/// 반경 38 그대로다(위 산수는 한 글자도 안 바뀐다). 규모만 눈에 준다:
+/// 「느끼는 것은 판 전체, 죽는 것은 구덩이 안」이 포화의 정직한 그림이다.
+function UTblastWave(c,W,H,st,cx,cy,SC){
+  let m=0;
+  for(const q of st.b||[]){
+    if(!q.hit)continue;
+    const g=Math.max(0,1-(q.l-UTLEAD)/.22);
+    if(g<=.01)continue;
+    if(g>m)m=g;
+    const R=Math.hypot(W,H)*.62*(1-g)+8*SC;
+    celHoop(c,cx+q.px,cy+q.py,R,1,0,(3.4*g+1)*SC,"amber",g*.55);}
+  if(m>.01){
+    UTwash(c,W,H,"amber",.26*m,0);}
+}
+
+
+// ── 인력 引力 — **모인다** ───────────────────────────────────────────────
+//
+// 화면의 아이템을 전부 당긴다. **적은 하나도 안 건드린다** — 그것이 이 안의
+// 정체이고 동시에 약점이다. 지금 죽을 상황에서 쓰면 아무 일도 안 일어난다.
+//
+// 「아무도 안 아픈데 화려해야」 하는 둘 중 하나다. 답은 **선**이다: 아홉 개가
+// 제각기 자기 길을 그리며 한 점으로 모이면, 화면에 없던 **방향**이 생긴다.
+// 개안은 밖으로 퍼지고 포화는 위에서 내려오는데, 이것만 **안으로 온다.**
+//
+// 그리고 **얻은 것을 보여야** 피해 0 이 손해로 안 읽힌다: 몸 둘레의 고리
+// (`celGauge` — 축적의 단일 문법)가 젬 아홉만큼 찬다. 이 고리가 「다음 3분을
+// 산다」의 전부다. 고리를 빼면 이 안은 그냥 예쁜 선이 된다.
+const UTPULLR=118;   // 당기는 반경 = 칸 전체. **거리를 안 본다**는 궁극기의 축 그대로
+
+/// 젬 하나를 몸으로 끌어온다. [tang] 이 0 이면 곧게, 크면 감기며 온다.
+/// [gate] 는 「아직 안 걸린 젬」을 걸러 내는 자리(3안의 훑는 고리가 쓴다).
+function UTpullReel(st,dt,cx,cy,SC,u,tang,gate){
+  st.g.forEach((g,i)=>{
+    if(g.got||g.a<.1)return;
+    if(u<UTCAST+.02+i*.014||u>UTEND+.10)return;
+    if(gate&&!g.on)return;
+    const dx=-g.x,dy=-g.y,d=Math.hypot(dx,dy)||1;
+    // 가까울수록 빨라진다 — 등속으로 오면 아홉이 한 덩어리로 도착해
+    // 「빨려 온다」가 아니라 「자리를 옮겼다」가 된다.
+    const sp=(34+128*(1-Math.min(1,d/(UTPULLR*SC))))*SC;
+    g.x+=(dx/d*sp-dy/d*sp*tang*.5)*dt;
+    g.y+=(dy/d*sp+dx/d*sp*tang*.5)*dt;
+    g.tr.push([g.x,g.y]);if(g.tr.length>8)g.tr.shift();
+    if(Math.hypot(g.x,g.y)<15*SC){g.got=1;g.a=0;g.tr.length=0;
+      st.got=(st.got||0)+1;
+      emit(st,cx,cy,4,{k:"wBolt",sp:66*SC,r:2.2*SC,life:.3,spikeP:.5});}});
+}
+/// 거둔 것 — **몸 둘레의 고리.** 축적을 새 그림으로 그리지 않는다(`celGauge`
+/// 하나가 응보·봉인·공물·여명의 축적을 전부 맡는 그 규약).
+function UTpullGauge(c,cx,cy,st,SC,al){
+  const f=Math.min(1,(st.got||0)/st.g.length);
+  celHoop(c,cx,cy,30*SC,1,0,3*SC,"gold",.16*al);
+  celGauge(c,cx,cy,30*SC,f,4.4*SC,"gold",.95*al);
+  if(f>=1)celSplash(c,cx,cy,10*SC,8,3,"gold",.55*al);
+}
+/// 주기 끝에 다시 깔린다. 거둔 수도 여기서 0 으로 — **주기 끝과 처음이 같은
+/// 그림**이어야 이음매가 없다.
+function UTpullReset(st,u){if(u<.20)st.got=0;}
+/// 인력의 화면 한 겹 — **금빛으로 조여든다.** 나머지 넷과 색으로 갈리고,
+/// 큰 고리가 칸 밖에서 안으로 지나가 「판 전체가 당겨진다」를 규모로 준다.
+function UTpullWash(c,W,H,cx,cy,SC,on,open){
+  if(on<=.01)return;
+  UTwash(c,W,H,"wBolt",.26*on,0);
+  if(open>.01){
+    const R=Math.hypot(W,H)*.62*open+10*SC;
+    celHoop(c,cx,cy,R,1,0,(6*open+1.4)*SC,"wBolt",open*.85);
+    UTwash(c,W,H,"wBolt",.30*open,0);}
+}
+
+
+// ── 정적 靜寂 — **멎는다** ───────────────────────────────────────────────
+//
+// 전부 멈추고 **리젠도 멈춘다**. 피해는 0 이다. 포위됐을 때 이기고, 화력이
+// 없으면 아무것도 못 한다.
+//
+// ⚠️ 이 레포에 이미 규율이 있다(`pvMark` 의 frost, `FX.waveHalt`):
+//   **정지는 이 파일에서 유일하게 「안 도는」 표식이다.** 다른 표식은 전부
+//   흐르거나 돈다 — 불티는 오르고, 감전은 지그재그가 돌고, 얼음조차 t*.12 로
+//   아주 느리게 돈다. 그래서 여기 표식(`UTpin`)에는 **각도에 t 가 없다.**
+//
+// ⚠️ 그리고 정지 화면에서 「안 움직인다」는 안 보인다. 그래서 셋 다 두 가지를
+// 같이 그린다:
+//   ① **잔상** — 오던 자국이 뒤에 두 겹. 「이 놈은 오던 중이었고 지금 멎었다」
+//   ② **공중에 선 적탄** — 나를 향해 날던 붉은 탄이 그대로 서 있다.
+//      이게 이 안의 값어치다: 멈춘 것은 적이 아니라 **나를 맞힐 것들**이다.
+//
+// 그리고 셋 다 **내 탄만 계속 난다.** 멎은 판을 가로질러 내 것만 움직이는
+// 대비가, 「이 시간은 내 것이다」를 설명 없이 말한다.
+//
+// ⚠️ 정적이 결계(`mWard`)·파동정지(`waveHalt`)와 갈리는 자리는 **리젠**이다.
+// 셋 다 「적을 멈춘다」인데, 가장자리 리젠 계기 셋이 **차오르다 그 자리에
+// 굳는 것**은 궁극기뿐이다 — 판 자체의 시계를 멈추는 것은 이것 하나다.
+
+/// 정적의 화면 한 겹 — **회백.** 밝히는 것이 아니라 **바래는 것**이라
+/// 개안(순백)과 같은 자리를 쓰고도 정반대로 읽힌다. 굳는 순간이 제일 짙고,
+/// 굳어 있는 동안 옅게 남는다 — 「이 세계는 지금 색이 없다」.
+function UTstillWash(c,W,H,on,snap){
+  if(on<=.01)return;
+  UTwash(c,W,H,"neu",.34*on*(1-snap*.62)+.10*on,2);
+  UTwash(c,W,H,"neu",.16*on,0);
+}
+/// 멎은 것의 표식 — **각도에 t 가 없다.** 위 규율의 집행 지점이고,
+/// 이 파일에서 안 도는 표식은 여기 하나뿐이어야 한다.
+function UTpin(c,x,y,r,SC,al){
+  for(let i=0;i<4;i++){const a=Math.PI/4+i*(Math.PI/2);
+    celSpike(c,x+Math.cos(a)*r*1.55,y+Math.sin(a)*r*1.55,a+Math.PI,r*.72,r*.30,"gold",al);}
+}
+/// 잔상 — **왔던 쪽**(바깥)에 두 겹. 적은 몸 쪽으로 걸어오므로 자기 위치의
+/// 단위벡터가 그대로 「뒤」다(`waveHalt` 와 같은 계산).
+function UTghost(c,cx,cy,st,SC,al){
+  for(const f of st.F){
+    if(!f.frz||f.a<.4||f.die>0)continue;
+    const d=Math.hypot(f.ox,f.oy)||1,ux=f.ox/d,uy=f.oy/d;
+    for(let j=2;j>=1;j--){
+      const x=cx+f.ox+f.kx+ux*11*SC*j,y=cy+f.oy+f.ky+uy*11*SC*j;
+      const P=jagPoly(x,y,f.r*(1-.13*j),9,3,1.0);
+      fillPoly(c,P,A(UTNEU[1],al*(.22/j)));
+      c.beginPath();P.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));
+      c.closePath();c.strokeStyle=A(UTNEU[2],al*(.78/j));c.lineWidth=1.6*SC;c.stroke();}}
+}
+/// 풀리는 순간 — **부서진다.** 굳었다가 그냥 다시 걸으면 아무 일도 없던 것이
+/// 되고, 정적이 「잠깐 멈춤」이 아니라 한 번의 사건이 되려면 끝에 소리가 있어야
+/// 한다(`waveHalt` 가 같은 판단을 이미 했다 — 그림도 같은 것을 쓴다).
+function UTthaw(c,cx,cy,st,SC,f){
+  if(f<=.01)return;
+  for(const q of st.F){if(q.a<.4||!q.wasFrz)continue;
+    celSplash(c,cx+q.ox+q.kx,cy+q.oy+q.ky,Math.max(1,q.r*.62*f),7,q.r,"gold",f*.45);}
+}
+
+
+// ── 격노 激怒 — **물든다** ───────────────────────────────────────────────
+//
+// 일정 시간 내 피해가 는다. **판을 하나도 안 건드린다** — 적도, 젬도, 리젠도
+// 그대로다. 바뀌는 것은 내 탄 하나뿐이고, 그래서 이미 센 빌드에서 곱해지고
+// 약한 빌드에서는 아무것도 아니다.
+//
+// ⚠️ **곱셈은 「크다」로는 안 보인다.** 같은 탄이 커진 것과 원래 큰 탄은
+// 구별이 안 되기 때문이다. 그래서 셋 다 **같은 칸 안에서 앞뒤를 보여준다**:
+// 발동 전 내 탄은 잡몹을 세 번 때려야 죽이고(hp 3), 발동 중에는 **한 발에**
+// 죽인다(피해 ×3). 곱해진 것은 탄의 크기가 아니라 **죽는 개수**이고,
+// 그것이 화면에서 곱셈으로 읽히는 유일한 형태다.
+//
+// 그리고 궁극기의 축(「나머지는 무언가를 내보내고, 궁극기만 나를 바꾼다」)에
+// 여섯 중 **제일 곧게** 맞는 안이다 — 내보내는 것이 아예 없다.
+
+/// 성난 몸의 세기. 0 이면 평소, 1 이면 ×3.
+const UTRAGEMUL=3;
+/// 격노의 화면 한 겹 — **붉어진다.** 다섯 중 유일하게 판을 안 건드리는 안이라
+/// 화면 한 겹이 없으면 「이 사람만 좀 반짝인다」로 끝난다. 색은 ember 이고,
+/// 개안(순백)·정적(회백)·인력(금)·포화(주황)·불멸(창백)과 전부 갈린다.
+///
+/// ⚠️ 발동 순간이 제일 짙고 **유지 중에는 얕게** 깔린다. 유지 내내 짙으면
+/// 15초 동안 화면이 안 보인다 — 「한 방」은 순간이지 상태가 아니다.
+function UTrageWash(c,W,H,on,open){
+  if(on<=.01)return;
+  UTwash(c,W,H,"ember",.10*on,0);
+  UTwash(c,W,H,"ember",.055*on,1);
+  if(open>.01){UTwash(c,W,H,"ember",.34*open,0);UTwash(c,W,H,"ember",.26*open,1);}
+}
+
+
+// ── 불멸 不滅 — **감싼다** ───────────────────────────────────────────────
+//
+// 일정 시간 안 죽는다. 실수했을 때 이기고, 잘 풀릴 때는 아무 값어치도 없다.
+//
+// ⚠️ 「안 죽는다」는 **아무 일도 안 일어나는 것**이라 제일 그리기 어렵다.
+// 그림이 서려면 **맞는 장면이 있어야** 한다 — 그래서 셋 다 적탄이 실제로
+// 도착하고, 도착한 것이 어떻게 되는지가 세 안의 유일한 차이다:
+//   1안 **막힌다**(껍질에서 부서짐) · 2안 **튕긴다**(방향이 꺾여 되날아감)
+//   3안 **맞는다, 그런데 안 깎인다**(몸에 꽂히고 피가 안 준다)
+// 셋은 같은 성능의 다른 그림이 아니라 **다른 게임 느낌**이다: 1·2 는 「안
+// 맞는다」이고 3 은 「맞는데 안 죽는다」다. 관통·장판이 있는 판에서 둘은 갈린다.
+//
+// ⚠️ 증거는 **체력 링**이다(`hpRing` — 회복 분류 전체의 공통 문법). 발동 전에
+// 줄던 링이 발동 중에 **한 칸도 안 줄고**, 그동안 피격은 계속 들어온다. 링을
+// 빼면 셋 다 「예쁜 껍질」이지 불멸이 아니다.
+
+/// 껍질 판 하나 — 고리의 한 조각. 3단 계조를 **면으로** 쌓는다.
+function UTplate(c,cx,cy,r0,r1,a0,a1,col){
+  const P=[],n=6;
+  for(let i=0;i<=n;i++){const a=a0+(a1-a0)*i/n;P.push([cx+Math.cos(a)*r1,cy+Math.sin(a)*r1]);}
+  for(let i=n;i>=0;i--){const a=a0+(a1-a0)*i/n;P.push([cx+Math.cos(a)*r0,cy+Math.sin(a)*r0]);}
+  fillPoly(c,P,col);
+}
+function UTshellPlate(c,cx,cy,r0,r1,a0,a1,k,al){
+  const T=toneOf(k),m=(r0+r1)/2,h=Math.max(.2,(r1-r0)/2),ac=(a0+a1)/2,aw=(a1-a0)/2;
+  UTplate(c,cx,cy,m-h,m+h,ac-aw,ac+aw,A(T[0],.95*al));
+  UTplate(c,cx,cy,m-h*.62,m+h*.62,ac-aw*.90,ac+aw*.90,A(T[1],.97*al));
+  UTplate(c,cx,cy,m-h*.26,m+h*.26,ac-aw*.78,ac+aw*.78,A(T[2],al));
+}
+/// 목숨. **주기 끝에서 1 로 이어 준다** — 되돌리는 것이 아니라 이어 붙이는
+/// 것이라 이음매에서 링이 튀지 않는다.
+/// 불멸의 화면 한 겹 — **창백하게 감싼다.** 개안이 화면을 **때리는** 흰빛이라면
+/// 이건 몸에서 번져 나가 화면을 **덮는** 흰빛이라, 같은 흰색인데 방향이 반대다.
+/// 그 차이를 도형으로 못 박기 위해 몸에서 나가는 큰 후광(`gHalo`)을 같이 쓴다.
+function UTimmoWash(c,W,H,cx,cy,on,open){
+  if(on<=.01)return;
+  UTwash(c,W,H,"gold",.085*on,0);
+  UTwash(c,W,H,"gold",.05*on,1);
+  if(open>.01){
+    gAdd(c,(cc)=>gHalo(cc,cx,cy,Math.hypot(W,H)*.55*open,"gold",.34*open));
+    UTwash(c,W,H,"gold",.30*open,1);}
+}
+function UTlife(st,dt,hits,immo,u){
+  if(hits&&!immo)st.hp-=.10*hits;
+  if(hits)st.hurt=1;
+  st.hp=Math.min(1,st.hp+dt*.085);
+  if(st.hp<.10)st.hp=.10;
+  if(u>.88)st.hp+=(1-st.hp)*dt*3.4;
+  st.hurt=Math.max(0,(st.hurt||0)-dt*3.2);
+}
+
+const UTFX={
+
+// ── 1안 · 낙하탄 — **하늘에서 온다** ────────────────────────────────────
+// 유일하게 하는 것: **탄이 화면 밖에서 들어와 지면을 친다.** 개안이 몸에서
+// 퍼지는 것과 정확히 반대 방향이라, 둘을 나란히 놓으면 「안에서 밖」과
+// 「밖에서 안」으로 갈린다.
+UTbarrage1(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  UTbarrageStep(st,t,dt,cx,cy,SC,ph,"amber");
+  UTshots(st,dt,SC,0);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  // 구덩이 자국 — **맞은 자리가 남아야 안 맞은 자리가 보인다.**
+  for(const q of st.b)if(q.hit)
+    fillPoly(c,jagPoly(cx+q.px,cy+q.py,UTBRB*SC*.92,11,q.sd,1.15,.42),
+      A(toneOf("amber")[0],UTscorch(ph)*.72));
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  for(const q of st.b){const x=cx+q.px,y=cy+q.py;
+    if(!q.hit){const p=q.l/UTLEAD;
+      celHoop(c,x,y,Math.max(1,UTBRB*SC*(1.9-1.0*p)),.42,0,2.4*SC,"gold",.28+.55*p);
+      const fy=y-(1-ease(p))*H*1.06;
+      celRibbon(c,[[x,fy-46*SC],[x,fy-16*SC],[x,fy]],5.5*SC,"amber",.85);
+      celRound(c,x,fy,Math.PI/2,21*SC,7*SC,"gold",1,.9);
+      continue;}
+    const g=Math.max(0,1-(q.l-UTLEAD)/.55);
+    if(g<=.01)continue;
+    celPuff(c,x,y,Math.max(1,UTBRB*SC*(.52+.62*(1-g))),9,q.sd,"amber",g,.55);
+    celHoop(c,x,y,Math.max(1,UTBRB*SC*(1.32-g*.92)),.45,0,(5*g+1.4)*SC,"gold",g);
+    shards(c,x,y+3*SC,UTBRB*SC*.82,7,q.sd,g*.9,"amber");
+    celSplash(c,x,y,Math.max(1,26*SC*g),10,q.sd+2.1,"gold",g,.7);}
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  UTblastWave(c,W,H,st,cx,cy,SC);
+  UTopen(c,W,H,ph.open*.5);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+
+// ── 2안 · 불기둥 — **선다** ──────────────────────────────────────────────
+// 유일하게 하는 것: **낙하가 세로로 남는다.** 맞은 자리에 불기둥이 0.4초
+// 서 있어 세 자리가 동시에 보이고, 그래서 「셋 사이가 비었다」가 한 프레임에
+// 읽힌다(1안은 순간이라 셋을 이어 붙여야 보인다).
+UTbarrage2(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  UTbarrageStep(st,t,dt,cx,cy,SC,ph,"amber");
+  UTshots(st,dt,SC,0);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  for(const q of st.b)if(q.hit)
+    fillPoly(c,jagPoly(cx+q.px,cy+q.py,UTBRB*SC*.88,11,q.sd,1.12,.42),
+      A(toneOf("amber")[0],UTscorch(ph)*.68));
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  for(const q of st.b){const x=cx+q.px,y=cy+q.py;
+    if(!q.hit){const p=q.l/UTLEAD;
+      // 예고는 **하늘에서 내려오는 빛기둥**이다 — 탄이 아니라 자리가 먼저 온다.
+      celBeam(c,x,y-H*1.1*(1-p*.86),x,y,(1.2+3.4*p)*SC,"gold",.30+.5*p);
+      fillPoly(c,jagPoly(x,y,UTBRB*SC*(1.5-.5*p),9,q.sd,1.5,.42),A(toneOf("gold")[2],.12+.2*p));
+      celHoop(c,x,y,Math.max(1,UTBRB*SC*(1.5-.5*p)),.42,0,2.2*SC,"gold",.3+.5*p);
+      continue;}
+    const g=Math.max(0,1-(q.l-UTLEAD)/.62);
+    if(g<=.01)continue;
+    // 기둥 — `fireBody` 를 그대로 세운다. 새 불을 안 그린다(불은 이미 한 벌 있다).
+    fireBody(c,t*1.3+q.sd,x,y-6*SC,SC*(.72+.5*g),Math.min(1,g*1.5),4);
+    celHoop(c,x,y,Math.max(1,UTBRB*SC*(1.25-g*.85)),.45,0,(4.6*g+1.4)*SC,"gold",g);
+    shards(c,x,y+3*SC,UTBRB*SC*.86,8,q.sd,g*.85,"amber");}
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  UTblastWave(c,W,H,st,cx,cy,SC);
+  UTopen(c,W,H,ph.open*.5);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+
+// ── 3안 · 균열 — **땅이 갈라지고 자국이 남는다** ─────────────────────────
+// 유일하게 하는 것: **빈 자리를 그린다.** 셋의 금이 주기 내내 남아, 금이 안 간
+// 땅이 곧 「안 맞은 자리」다. 여섯 중 유일하게 **자기 약점을 화면에 남기는** 안이라
+// 균형 판정이 눈으로 되는 대신, 화면이 제일 지저분해진다.
+UTbarrage3(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  UTbarrageStep(st,t,dt,cx,cy,SC,ph,"amber");
+  UTshots(st,dt,SC,0);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  // 금 — 낙하점에서 여섯 갈래로 뻗는다. **예고 때부터 자란다**(땅이 먼저 안다).
+  for(const q of st.b){const x=cx+q.px,y=cy+q.py;
+    const gr=q.hit?1:Math.min(1,q.l/UTLEAD)*.55;
+    const al=(q.hit?UTscorch(ph):.5)*(q.hit?1:gr);
+    if(al<=.01)continue;
+    fillPoly(c,jagPoly(x,y,UTBRB*SC*.9*gr,11,q.sd,1.2,.40),A(toneOf("amber")[0],al*.72));
+    for(let i=0;i<6;i++){
+      const a=i/6*TAU+hash(q.sd+i)*.7,L=UTBRB*SC*(1.05+.75*hash(q.sd+i*3.1))*gr;
+      const P=[[x,y]];
+      for(let j=1;j<=3;j++){const uu=j/3,aa=a+(hash(q.sd+i*7.7+j)-.5)*.55;
+        P.push([x+Math.cos(aa)*L*uu,y+Math.sin(aa)*L*uu*.46]);}
+      celStroke(c,P,(2.6-1.2*(1-gr))*SC,"amber",al*.8);}}
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  for(const q of st.b){const x=cx+q.px,y=cy+q.py;
+    if(!q.hit)continue;
+    const g=Math.max(0,1-(q.l-UTLEAD)/.5);
+    if(g<=.01)continue;
+    // 솟는다 — 폭발이 아니라 **지면이 튀어 오른다.** 1안(뭉게)·2안(기둥)과
+    // 같은 자리에서 다른 물성을 쓴다.
+    shards(c,x,y+2*SC,UTBRB*SC*(.7+.5*(1-g)),11,q.sd,g,"gold");
+    celSplash(c,x,y,Math.max(1,30*SC*g),12,q.sd,"amber",g,.6);
+    celHoop(c,x,y,Math.max(1,UTBRB*SC*(1.2-g*.8)),.42,0,(4*g+1.2)*SC,"gold",g*.9);}
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  UTblastWave(c,W,H,st,cx,cy,SC);
+  UTopen(c,W,H,ph.open*.5);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+// ── 1안 · 실 — **손이 나가 건다** ────────────────────────────────────────
+// 유일하게 하는 것: **아홉 줄이 동시에 몸에 붙는다.** 정지 화면에서 가장 강한
+// 안이다 — 한 프레임만 봐도 「전부 나에게 온다」가 도형으로 서 있다.
+// 대신 줄이 아홉이라 **화면이 제일 복잡하다**.
+UTpull1(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);UTpullReset(st,ph.u);
+  UTwalk(st,dt,SC,0);                       // ★ 적은 그대로 걸어온다 — 피해 0
+  UTshots(st,dt,SC,0);stepP(st,dt);
+  UTpullReel(st,dt,cx,cy,SC,ph.u,0,0);
+  UTgemReset(st,dt,ph.u);
+  // 당김의 사거리 — 한 번만, 얇게. 「칸 전체」를 말하는 자리다.
+  if(ph.on>.01)celHoop(c,cx,cy,UTPULLR*SC*(.62+.38*ph.on),1,0,2*SC,"gold",.22*ph.on);
+  UTpullWash(c,W,H,cx,cy,SC,ph.on,ph.open);   // ★ 젬보다 **아래**
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  // 실 — 몸에서 젬까지. 가운데를 살짝 휘어야 **당겨진 줄**로 보인다
+  // (곧은 선은 자와 눈금이지 장력이 아니다).
+  if(ph.on>.01)st.g.forEach((g,i)=>{
+    if(g.got||g.a<.1)return;
+    if(ph.u<UTCAST+.02+i*.014)return;
+    const mx=(g.x)*.5,my=(g.y)*.5,d=Math.hypot(g.x,g.y)||1;
+    const bo=Math.sin(t*4.2+g.sd)*d*.10;
+    celRibbon(c,[[cx+g.x,cy+g.y],[cx+mx-g.y/d*bo,cy+my+g.x/d*bo],[cx,cy]],
+      4.2*SC,"gold",.9*ph.on);});
+  UTpullGauge(c,cx,cy,st,SC,1);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  UTopen(c,W,H,ph.open*.42);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC*(1+ph.on*.10));});},
+
+// ── 2안 · 소용돌이 — **감겨 온다** ───────────────────────────────────────
+// 유일하게 하는 것: **선을 안 긋는다.** 궤적 자체가 선이 되어, 젬이 지나간
+// 자리에만 곡선이 남는다. 1안이 「내가 건다」면 이건 「끌려 든다」이고,
+// 몸에서 나가는 것이 하나도 없어 **개안과 방향이 완전히 반대**로 읽힌다.
+UTpull2(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);UTpullReset(st,ph.u);
+  UTwalk(st,dt,SC,0);
+  UTshots(st,dt,SC,0);stepP(st,dt);
+  UTpullReel(st,dt,cx,cy,SC,ph.u,1.55,0);
+  UTgemReset(st,dt,ph.u);
+  // 감기는 바닥 — 고리 셋이 서로 다른 속도로 조여든다. 도형이 아니라
+  // **회전 방향**을 깔아 주는 자리라 아주 얇게만 둔다.
+  if(ph.on>.01)for(let i=0;i<3;i++){
+    const rr=UTPULLR*SC*(.34+.30*i)*(1.06-.24*ph.on);
+    celHoop(c,cx,cy,Math.max(1,rr),1,t*(.5+.25*i),1.8*SC,"gold",.16*ph.on,.55);}
+  UTpullWash(c,W,H,cx,cy,SC,ph.on,ph.open);   // ★ 젬보다 **아래**
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  UTpullGauge(c,cx,cy,st,SC,1);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  UTopen(c,W,H,ph.open*.42);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC*(1+ph.on*.10));});},
+
+// ── 3안 · 훑는 고리 — **밖에서 안으로 쓸어 담는다** ──────────────────────
+// 유일하게 하는 것: **거두는 앞면이 보인다.** 고리가 지나간 자리의 젬만 딸려
+// 오므로 「지금 어디까지 거뒀나」가 화면에 있다. 셋 중 유일하게 **시간이 걸리는**
+// 안이라, 급할 때 못 쓴다는 약점까지 그림에 들어간다.
+UTpull3(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);UTpullReset(st,ph.u);
+  UTwalk(st,dt,SC,0);
+  UTshots(st,dt,SC,0);stepP(st,dt);
+  // 고리는 **바깥에서 안으로.** 퍼지는 고리는 이 파일에 이미 넷이고(파문·결계·
+  // 정지·개안), 조여드는 고리는 아직 없다 — 방향 하나가 종을 가른다.
+  const span=UTEND-UTCAST;
+  const pr=ph.on>.01?UTPULLR*SC*(1-Math.min(1,(ph.u-UTCAST)/span)):UTPULLR*SC;
+  st.pr=pr;
+  if(ph.on>.01)for(const g of st.g)if(!g.on&&pr<=Math.hypot(g.x,g.y))g.on=1;
+  if(ph.u<.20)for(const g of st.g)g.on=0;
+  UTpullReel(st,dt,cx,cy,SC,ph.u,.55,1);
+  UTgemReset(st,dt,ph.u);
+  UTpullWash(c,W,H,cx,cy,SC,ph.on,ph.open);   // ★ 젬보다 **아래**
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  if(ph.on>.01){
+    celHoop(c,cx,cy,Math.max(1,pr),1,0,4.2*SC,"gold",.8*ph.on);
+    // 안쪽으로 향한 갈고리 — 고리가 **어느 쪽으로 가는지**를 말한다.
+    for(let i=0;i<10;i++){const a=i/10*TAU+t*.5;
+      celSpike(c,cx+Math.cos(a)*pr,cy+Math.sin(a)*pr,a+Math.PI,7*SC,3*SC,"gold",.75*ph.on);}}
+  UTpullGauge(c,cx,cy,st,SC,1);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  UTopen(c,W,H,ph.open*.42);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC*(1+ph.on*.10));});},
+// ── 1안 · 멎는 고리 — **훑고 지나가며 멎힌다** ───────────────────────────
+// 유일하게 하는 것: **멈춤이 번져 가는 것이 보인다.** 고리가 지나간 놈부터
+// 차례로 굳으므로, 한 프레임 안에 「이미 멎은 놈 · 지금 멎는 놈 · 아직 오는 놈」
+// 셋이 같이 있다. 그리고 **고리 자신도 끝에서 멎는다** — 시간이 멈췄으니
+// 이펙트도 멈춘다는 말을, 이펙트가 자기 몸으로 한다.
+UTstill1(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  const span=UTEND-UTCAST;
+  // 고리는 0.10 만에 칸 끝까지 갔다가 **거기서 굳는다.** 끝나면 안으로 접힌다.
+  const gro=Math.min(1,Math.max(0,(ph.u-UTCAST)/.10));
+  const RR=UTPULLR*SC*gro*(1-ph.ramp(UTEND,UTEND+.05));
+  const live=ph.on>.5;
+  if(live)for(const f of st.F)if(!f.frz&&RR>=Math.hypot(f.ox,f.oy)){f.frz=1;f.wasFrz=1;}
+  if(!live)for(const f of st.F)f.frz=0;
+  if(ph.u<.20)for(const f of st.F)f.wasFrz=0;
+  UTwalk(st,dt,SC,0);
+  const froz=ph.u>=UTCAST+.05&&live;
+  UTshots(st,dt,SC,froz);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTghost(c,cx,cy,st,SC,1);
+  UTfoes(c,t,cx,cy,st);
+  for(const f of st.F)if(f.frz&&f.a>.4)UTpin(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,SC,.95);
+  UTshotDraw(c,cx,cy,st,SC,froz);
+  if(RR>1){
+    celHoop(c,cx,cy,RR,1,0,Math.min(RR*.5,(gro<1?5:3.2)*SC),"gold",gro<1?.9:.55);
+    // 멎은 고리에는 **눈금이 박힌다** — 도는 대신 서 있는 것이 이 고리의 정보다.
+    if(gro>=1)for(let i=0;i<12;i++){const a=i/12*(Math.PI*2);
+      celSpike(c,cx+Math.cos(a)*RR,cy+Math.sin(a)*RR,a+Math.PI,6*SC,2.4*SC,"gold",.6);}}
+  UTthaw(c,cx,cy,st,SC,ph.tail);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");     // ★ 내 탄만 계속 난다
+  UTregen(c,cx,cy,st,SC,dt,froz);
+  UTstillWash(c,W,H,ph.on,gro);
+  UTopen(c,W,H,ph.open*.55);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+
+// ── 2안 · 격자 — **판이 통째로 굳는다** ──────────────────────────────────
+// 유일하게 하는 것: **한꺼번에 멎는다.** 번짐이 없어 「순간」이 제일 세고,
+// 격자가 화면 전체를 각지게 덮어 0.4초 동안 **화면을 덮는** 유일한 정적 안이다.
+// 대신 어디가 안전한지가 안 보인다 — 1안이 주는 「빠져나갈 방향」이 여기엔 없다.
+UTstill2(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  const live=ph.on>.5,snap=Math.min(1,Math.max(0,(ph.u-UTCAST)/.035));
+  for(const f of st.F){f.frz=(live&&snap>=1)?1:0;if(f.frz)f.wasFrz=1;
+    if(ph.u<.20)f.wasFrz=0;}
+  UTwalk(st,dt,SC,0);
+  const froz=live&&snap>=1;
+  UTshots(st,dt,SC,froz);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTghost(c,cx,cy,st,SC,1);
+  UTfoes(c,t,cx,cy,st);
+  for(const f of st.F)if(f.frz&&f.a>.4)UTpin(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,SC,.95);
+  UTshotDraw(c,cx,cy,st,SC,froz);
+  // 격자 — 가장자리에서 미끄러져 들어와 **자리에 선다.** 선이 흔들리면
+  // 그 순간 정지가 아니게 되므로, 자리를 잡은 뒤로는 한 픽셀도 안 움직인다.
+  const al=(live?1:0)*(1-ph.ramp(UTEND,UTEND+.05));
+  if(al>.01){const N=5,ex=(1-snap);
+    for(let i=1;i<N;i++){const u=i/N;
+      const x=u*W,y=u*H;
+      celStroke(c,[[x-ex*W*.5,0],[x-ex*W*.5+(hash(i*3.1)-.5)*5*SC,H*.5],
+        [x-ex*W*.5,H]],1.9*SC,"gold",al*.42);
+      celStroke(c,[[0,y+ex*H*.5],[W*.5,y+ex*H*.5+(hash(i*7.7)-.5)*5*SC],
+        [W,y+ex*H*.5]],1.9*SC,"gold",al*.42);}
+    // 교차점의 **못.** 격자가 판을 바닥에 박았다는 표식이고, 안 돈다.
+    if(snap>=1)for(let i=1;i<N;i++)for(let j=1;j<N;j++)
+      celSplash(c,i/N*W,j/N*H,2.6*SC,4,i*3+j,"gold",al*.5);}
+  UTthaw(c,cx,cy,st,SC,ph.tail);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,froz);
+  UTstillWash(c,W,H,ph.on,snap);
+  UTopen(c,W,H,ph.open*.55);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+
+// ── 3안 · 못 — **하나씩 박힌다** ─────────────────────────────────────────
+// 유일하게 하는 것: **멈춤에 대상이 있다.** 못이 한 놈씩 내리꽂히므로 「무엇이
+// 멎었는가」가 개수로 세어진다 — 고리(1안)·격자(2안)는 범위를 말하지만 이건
+// **명단**을 말한다. 대신 박히는 데 시간이 걸려 순간의 세기가 제일 약하다.
+UTstill3(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  const live=ph.on>.5;
+  // 못은 차례로 떨어진다 — i 번째는 0.030 늦게. 열 놈이 0.3 위상(1.6초)에 걸쳐 박힌다.
+  st.F.forEach((f,i)=>{
+    const T=UTCAST+.02+i*.030;
+    f.nail=live?Math.min(1,Math.max(0,(ph.u-T)/.022)):0;
+    f.frz=(f.nail>=1)?1:0;if(f.frz)f.wasFrz=1;if(ph.u<.20)f.wasFrz=0;});
+  UTwalk(st,dt,SC,0);
+  const froz=live&&ph.u>=UTCAST+.05;
+  UTshots(st,dt,SC,froz);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTghost(c,cx,cy,st,SC,1);
+  UTfoes(c,t,cx,cy,st);
+  for(const f of st.F){
+    if(f.a<.4||f.nail<=0)continue;
+    const x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+    if(f.nail<1){
+      // 떨어지는 못 — **위에서 온다.** 박히기 전까지는 이 놈이 아직 걷는다.
+      const dy=(1-ease(f.nail))*H*.62;
+      celSpike(c,x,y-dy-f.r*2.2,Math.PI/2,f.r*2.0,f.r*.42,"gold",.95);
+      celStroke(c,[[x,y-dy-f.r*3.4],[x,y-dy-f.r*2.4]],2*SC,"gold",.5);
+      continue;}
+    UTpin(c,x,y,f.r,SC,.95);
+    celSpike(c,x,y-f.r*2.1,Math.PI/2,f.r*1.9,f.r*.40,"gold",.95);}
+  UTshotDraw(c,cx,cy,st,SC,froz);
+  UTthaw(c,cx,cy,st,SC,ph.tail);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,froz);
+  let nf=0;for(const f of st.F)if(f.frz)nf++;
+  UTstillWash(c,W,H,ph.on,nf/st.F.length);
+  UTopen(c,W,H,ph.open*.55);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+// ── 1안 · 두른 불 — **몸이 탄다** ────────────────────────────────────────
+// 유일하게 하는 것: **실루엣이 바뀐다.** `fireAura` 로 몸의 윤곽 자체가
+// 불로 자라 멀리서도 「저 사람 상태가 다르다」가 보인다. 대신 셋 중 제일 시끄럽고,
+// 염(炎) 속성 발현과 그림이 겹칠 위험이 제일 크다.
+UTrage1(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  UTshots(st,dt,SC,0,17*SC);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  const rg=ph.on;
+  UTmine(c,st,dt,cx,cy,SC,rg>.5?UTRAGEMUL:1,rg>.5?"amber":"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  // 발동 — **바닥이 먼저 붉어지고** 그다음 몸에 붙는다. 순서가 반대면
+  // 「불을 켰다」가 아니라 「불이 있었다」로 보인다.
+  if(ph.open>.01){
+    celHoop(c,cx,cy,Math.max(1,60*SC*(1-ph.open)+8*SC),1,0,10*SC*ph.open+2*SC,"amber",ph.open);
+    celSplash(c,cx,cy,Math.max(1,40*SC*ph.open),12,3,"gold",ph.open);}
+  UTrageWash(c,W,H,ph.on,ph.open);
+  UTopen(c,W,H,ph.open*.35);
+  if(rg>.02)fireAura(c,t,cx,cy,17*SC,SC*(.9+.3*rg),rg);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC*(1+rg*.14));});},
+
+// ── 2안 · 갈퀴 — **선다** ────────────────────────────────────────────────
+// 유일하게 하는 것: **배수가 개수로 보인다.** 몸에 선 갈퀴 여섯이 그대로
+// 「지금 몇 배인가」이고, 같은 갈퀴가 명중 지점에도 선다 — 원인과 결과가
+// 같은 도형이라 인과가 설명 없이 붙는다. 이 파일이 레벨을 크기가 아니라
+// 개수로 말하기로 한 그 판단(`FX.flare` 의 눈 개수)과 같은 수법이다.
+UTrage2(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  UTshots(st,dt,SC,0,17*SC);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  const rg=ph.on;
+  UTmine(c,st,dt,cx,cy,SC,rg>.5?UTRAGEMUL:1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  if(rg>.02){
+    // 갈퀴 여섯 — **안 돈다면 장식이고, 돌면 결계다.** 그래서 아주 조금만
+    // 흔들리게 두고(호흡), 자리는 고정한다.
+    const n=6;
+    for(let i=0;i<n;i++){const a=i/n*TAU-Math.PI/2;
+      const L=(15+9*Math.sin(t*3.1+i*1.7))*SC*rg;
+      celSpike(c,cx+Math.cos(a)*20*SC,cy+Math.sin(a)*20*SC,a,L+10*SC,4.6*SC*rg,"gold",.95*rg);}
+    celHoop(c,cx,cy,20*SC,1,0,3.2*SC,"gold",.5*rg);}
+  if(ph.open>.01)
+    for(let i=0;i<6;i++){const a=i/6*TAU-Math.PI/2;
+      celSpike(c,cx+Math.cos(a)*20*SC,cy+Math.sin(a)*20*SC,a,
+        (26+64*(1-ph.open))*SC,7*SC*ph.open,"gold",ph.open);}
+  UTrageWash(c,W,H,ph.on,ph.open);
+  UTopen(c,W,H,ph.open*.35);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC*(1+rg*.14));});},
+
+// ── 3안 · 물든다 — **색만 바뀐다** ───────────────────────────────────────
+// 유일하게 하는 것: **모양을 하나도 안 바꾼다.** 이 파일에 이미 있는 수법
+// (`RECOLOR` — 한 줄이 팔레트를 통째로 갈아끼운다)을 그대로 화면에 올린 안이라,
+// 다른 이펙트와 절대 안 겹치고 비용이 거의 0 이다. 대신 **멀리서 제일 안 보인다** —
+// 셋 중 유일하게 실루엣이 안 변한다.
+UTrage3(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  UTshots(st,dt,SC,0,17*SC);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  const rg=ph.on;
+  UTmine(c,st,dt,cx,cy,SC,rg>.5?UTRAGEMUL:1,rg>.5?"ember":"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  if(rg>.02){
+    // 몸의 테두리만 탄다 — 면은 그대로. 「덧입혔다」가 아니라 「물들었다」다.
+    const T=toneOf("ember"),b=1+.05*Math.sin(t*2.2);
+    for(let i=0;i<2;i++){
+      const P=jagPoly(cx,cy,(19+i*3.4)*SC*b,7,3,1.35);
+      c.beginPath();P.forEach((q,j)=>j?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));
+      c.closePath();c.strokeStyle=A(i?T[1]:T[2],rg*(i?.55:.9));
+      c.lineWidth=(2.6-i)*SC;c.stroke();}
+    // 발밑에 고인 열 — 몸이 아니라 **바닥**이 물든 것이 이 안의 서명이다.
+    fillPoly(c,jagPoly(cx,cy+4*SC,34*SC,9,7.7,1.1,.42),A(T[0],.34*rg));}
+  if(ph.open>.01){
+    celSplash(c,cx,cy,Math.max(1,44*SC*ph.open),12,3,"ember",ph.open);
+    celHoop(c,cx,cy,Math.max(1,50*SC*(1-ph.open)+8*SC),.55,0,8*SC*ph.open+2*SC,"ember",ph.open);}
+  UTrageWash(c,W,H,ph.on,ph.open);
+  UTopen(c,W,H,ph.open*.35);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC*(1+rg*.10));});},
+// ── 1안 · 껍질 — **막는다** ──────────────────────────────────────────────
+// 유일하게 하는 것: **바깥에서 판이 날아와 닫힌다.** 개안이 몸에서 나가는 것과
+// 반대로 몸으로 모이고, 인력(같은 방향)과는 **모이는 것이 아이템이 아니라
+// 갑옷**이라 갈린다. 셋 중 제일 「한 방」답고, 제일 몸을 가린다.
+UTimmo1(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  const im=ph.on>.5,RS=26*SC;
+  const hits=UTshots(st,dt,SC,0,im?RS:17*SC);
+  UTlife(st,dt,hits.length,im,ph.u);
+  // 부서진 적탄 — 껍질 표면에 붉은 파편이 남는다. **붉은 것은 언제나 나를
+  // 해치는 쪽**이라(`hurtFlash` 규약) 이 색이 곧 「막은 것」의 정체다.
+  st.df=st.df||[];
+  for(const q of hits)st.df.push({x:q.x,y:q.y,l:0});
+  for(let i=st.df.length-1;i>=0;i--){if((st.df[i].l+=dt)>.30)st.df.splice(i,1);}
+  stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  if(ph.on>.01){
+    // 여덟 판이 **밖에서 들어와** 자리를 메운다. 닫히는 동안 틈이 보이고,
+    // 다 닫히면 틈이 없다 — 그 틈의 유무가 「지금 무적인가」다.
+    const cl=Math.min(1,Math.max(0,(ph.u-UTCAST)/.045));
+    const N=10,R=RS+(1-ease(cl))*52*SC;
+    for(let i=0;i<N;i++){const a0=i/N*TAU+.04,w=(TAU/N)*(.42+.54*cl);
+      UTshellPlate(c,cx,cy,R-3.4*SC,R+3.4*SC,a0,a0+w,"gold",.95*ph.on);}
+    celHoop(c,cx,cy,RS,1,0,2.4*SC,"gold",.45*ph.on);}
+  for(const d of st.df)hurtFlash(c,cx+d.x,cy+d.y,Math.max(1,9*SC*(1-d.l/.30)),1-d.l/.30);
+  if(st.hurt>0&&!im)hurtFlash(c,cx,cy,Math.max(1,17*SC*st.hurt),st.hurt);
+  hpRing(c,cx,cy,34*SC,st.hp,"gold");
+  UTimmoWash(c,W,H,cx,cy,ph.on,ph.open);
+  UTopen(c,W,H,ph.open*.4);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+
+// ── 2안 · 조리개 — **닫힌다** ────────────────────────────────────────────
+// 유일하게 하는 것: **적탄이 되돌아 날아간다.** 막히는 것과 튕기는 것은 화면에
+// 남는 시간이 다르다 — 부서짐은 0.3초지만 되날아가는 탄은 화면 밖까지 간다.
+// 그래서 정지 화면에서 **아직도 증거가 남아 있는** 유일한 안이다.
+UTimmo2(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  const im=ph.on>.5,RS=25*SC;
+  const hits=UTshots(st,dt,SC,0,im?RS:17*SC);
+  UTlife(st,dt,hits.length,im,ph.u);
+  st.rf=st.rf||[];
+  for(const q of hits)if(im)st.rf.push({x:q.x,y:q.y,
+    a:q.a+Math.PI+(hash(q.x*3.1+q.y)-.5)*1.5,l:0});
+  for(let i=st.rf.length-1;i>=0;i--){const q=st.rf[i];q.l+=dt;
+    q.x+=Math.cos(q.a)*150*SC*dt;q.y+=Math.sin(q.a)*150*SC*dt;
+    if(q.l>.85)st.rf.splice(i,1);}
+  stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  for(const q of st.rf)UTshotPoly(c,cx+q.x,cy+q.y,q.a,10*SC,3.4*SC,1-q.l/.85);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  if(ph.on>.01){
+    // 날 여섯이 **제자리에서 돌아** 서로 겹쳐 닫힌다. 날아오는 것이 없으므로
+    // 1안보다 조용하고, 겹치는 순서가 보여 「두께」가 생긴다.
+    const cl=Math.min(1,Math.max(0,(ph.u-UTCAST)/.05));
+    const N=5,ro=(1-ease(cl))*.90;
+    for(let i=0;i<N;i++){const a0=i/N*TAU+ro+t*.12;
+      UTshellPlate(c,cx,cy,RS*.46,RS*1.34,a0,a0+(TAU/N)*(.52+.74*cl),"gold",.92*ph.on);}}
+  if(st.hurt>0&&!im)hurtFlash(c,cx,cy,Math.max(1,17*SC*st.hurt),st.hurt);
+  hpRing(c,cx,cy,34*SC,st.hp,"gold");
+  UTimmoWash(c,W,H,cx,cy,ph.on,ph.open);
+  UTopen(c,W,H,ph.open*.4);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+
+// ── 3안 · 불감 — **맞는데 안 깎인다** ────────────────────────────────────
+// 유일하게 하는 것: **몸을 안 가린다.** 껍질이 없어 피격이 그대로 몸에 꽂히고
+// (붉은 파편이 계속 터진다), 그런데도 링이 **바닥 눈금에 걸려 안 내려간다.**
+// 셋 중 유일하게 「무적」이 아니라 「불사」이고, 관통·장판이 있는 판에서
+// 1·2안과 실제로 다르게 굴러간다.
+UTimmo3(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  const im=ph.on>.5;
+  const hits=UTshots(st,dt,SC,0,17*SC);
+  if(im&&st.hpF===undefined)st.hpF=st.hp;
+  if(!im)st.hpF=undefined;
+  UTlife(st,dt,hits.length,im,ph.u);
+  if(im)st.hp=st.hpF;                       // ★ 한 칸도 안 준다
+  stepP(st,dt);UTgemReset(st,dt,ph.u);
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  if(st.hurt>0)hurtFlash(c,cx,cy,Math.max(1,18*SC*st.hurt),st.hurt);
+  // 굳은 링 — 평소보다 굵고, **바닥 눈금**이 박혀 있다. 링이 그 눈금 아래로
+  // 안 내려가는 것이 이 안의 전부다.
+  const RB=34*SC;
+  hpRing(c,cx,cy,RB,st.hp,"gold");
+  if(ph.on>.01){
+    const f=ph.on;
+    celHoop(c,cx,cy,RB,1,0,7*SC*f+1.4*SC,"gold",.55*f);
+    // 링을 **감싸는** 각진 껍데기 — 몸이 아니라 목숨을 감싼 것이 이 안의 서명.
+    const P=jagPoly(cx,cy,RB+5.5*SC,14,3.3,1.06);
+    c.beginPath();P.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));
+    c.closePath();c.strokeStyle=A(toneOf("gold")[2],.85*f);c.lineWidth=2.2*SC;c.stroke();
+    const a=-Math.PI/2+TAU*Math.max(0,Math.min(1,st.hpF||0));
+    celSpike(c,cx+Math.cos(a)*RB,cy+Math.sin(a)*RB,a,13*SC,4.4*SC,"gold",.95*f);}
+  UTimmoWash(c,W,H,cx,cy,ph.on,ph.open);
+  UTopen(c,W,H,ph.open*.4);
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);});},
+
+// ── 대조 · 개안 — **같은 판 위의 기준선** ────────────────────────────────
+// 새 안이 아니다. 다섯을 판정하려면 여섯 번째가 **같은 판**에 있어야 하는데
+// `FX.flare` 는 자기 판(적 넷·정지)을 쓰므로 비교가 안 된다. 그래서 여기서는
+// **개안의 그림을 다시 그리지 않고**(눈은 `ultEye` 단일 출처를 그대로 부른다)
+// 판만 이 장면으로 바꿔 놓는다.
+//
+// 이 칸이 증명하는 것 둘:
+//   ① 벽 여섯이 **한 번에 전부** 지워진다 — 포화가 못 하는 것
+//   ② 거구는 **안 죽는다**(9 중 3 만 깎인다) — 포화가 하는 것
+UTctrlFlare(c,t,dt,W,H,st){UTpaint(()=>{
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,ph=UTph(t);
+  UTstage(st,SC);
+  UTwalk(st,dt,SC,0);
+  UTshots(st,dt,SC,0,17*SC);stepP(st,dt);UTgemReset(st,dt,ph.u);
+  // ★ 거리를 안 본다 — 조건이 하나도 없다(`FX.flare` 의 그 축 그대로).
+  if(ph.u>=UTCAST&&(st.pu||0)<UTCAST)
+    for(const f of st.F){const d=Math.hypot(f.ox,f.oy)||1;
+      hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,70*SC,"mFlare");
+      UTdmg(st,f,cx,cy,SC,3,"mFlare");}
+  st.pu=ph.u;
+  UTgems(c,cx,cy,st,SC);
+  UTfoes(c,t,cx,cy,st);
+  UTshotDraw(c,cx,cy,st,SC,0);
+  UTmine(c,st,dt,cx,cy,SC,1,"gold");
+  UTregen(c,cx,cy,st,SC,dt,0);
+  const blind=ph.on;
+  if(blind>.02)for(const f of st.F)if(f.a>.4)
+    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"blind",blind,t,"gold",SC,1);
+  const ER=W*.255,ES=W*.138,g=Math.min(1,ph.u/UTCAST*1.2);
+  for(let i=0;i<3;i++){const a=i/3*TAU-Math.PI/2+t*.22;
+    const ex=cx+Math.cos(a)*ER,ey=cy+Math.sin(a)*ER*.78;
+    dep(c,ey,cy,(c,dz)=>ultEye(c,t,ex,ey,ES,g,ph.on,dz,SC,ph.open));}
+  const ff=ph.open;
+  if(ff>.004){
+    const REACH=Math.hypot(W,H)*.60;
+    c.fillStyle=`rgba(20,10,30,${.34*ff})`;c.fillRect(0,0,W,H);
+    for(let r=0;r<4;r++)
+      celHoop(c,cx,cy,REACH*(1-ff)*(1-r*.13)+10*SC,1,0,19*SC*ff+2*SC,"gold",ff*(1-r*.22));
+    celSplash(c,cx,cy,Math.max(1,54*SC*ff),12,3,"gold",ff);
+    c.fillStyle=`rgba(255,255,255,${.58*ff})`;c.fillRect(0,0,W,H);}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC*(1+ff*.8));});},
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EN — 적 15종 (속성 몬스터 10 · 원거리 5) + 다안 2 = 칸 17
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **적의 문법은 못 박혀 있다.** 몸은 어둡고(FOEDARK #24141F · Rec.601 L .102)
+// 테와 눈이 밝다(FOERIM #E86892 L .577 · FOEEYE #FF2D55). 유니버스 26안의
+// 밝기 예산이 **적 몸 명도를 기준으로** 잡혀 있으므로 여기서 몸을 밝히면
+// 배경 전부가 무너진다. 그래서 이 열일곱은 **한 번도 몸을 속성색으로 칠하지
+// 않는다** — 전부 `foeDraw`/`celLegs`/`limbSeg`/`curveLimb` 를 통과하고,
+// 그 함수들이 FOEDARK/FOERIM 을 박아 넣는다.
+//
+// ⚠️ **속성은 색이 아니라 몸의 생김새다.** 「같은 적 다섯 색」을 피하는 길은
+// 하나뿐이다 — 다섯이 **다른 축**으로 갈려야 한다:
+//   염 = 실루엣이 흔들린다(꼭짓점 반경이 매 프레임 다르다)
+//   빙 = 각지고 꼭짓점이 적다(6각) · 숨쉼 0 · 제일 느리다
+//   뇌 = 마디가 있다(덩어리 셋이 이어진 사슬) · 끊어 달린다
+//   풍 = 좌우 비대칭 초승달 · 궤도가 휜다
+//   독 = 아래가 무겁게 늘어진다 · 방울이 매달렸다 떨어진다
+// 색은 **몸에 안 얹고 몸이 남기는 것에만** 얹는다(불자국·얼음기둥·전선·
+// 바람결·장판). 그래서 흑백으로 찍어도 다섯이 갈린다.
+//
+// ⚠️ **플레이어 속성 이펙트(ELEM.*)와 어떻게 갈랐나** — ELEM 의 문법은
+// 「각진 별 코어 + 둘레를 도는 모티프 n개 + 가산 광휘」다: **방사 대칭 ·
+// 자기 자리에서 빛나는 것 · 몸 전체가 속성색**. 적은 정확히 그 셋을 다
+// 뒤집는다: **비대칭(진행 방향이 있다) · 자리를 옮기며 바닥에 남기는 것 ·
+// 몸은 검고 남긴 것만 속성색**. 겹치는 원시함수(jagPoly·firePath·celStroke)를
+// 써도 배치가 정반대라 나란히 놓으면 안 헷갈린다.
+
+// 적 진영의 3단 계조 — **속성 팔레트가 아니라 적 팔레트다.** 적이 쏘는 것과
+// 적의 표식은 전부 이 셋에서 나온다(몸 #24141F → 테 #E86892 → 눈 #FF2D55).
+// TONE 에 넣지 않는 이유: TONE 은 속성의 것이고 이건 진영의 것이다.
+// **새 색을 만들지 않는다** — 셋 다 시안이 이미 쓰는 전역을 그대로 참조한다.
+// 여기서 값을 다시 적으면 나중에 한쪽만 바뀌어 조용히 갈라진다.
+const ENDK=FOEDARK, ENRM=FOERIM, ENEY=FOEEYE;
+// 구멍(아가리·눈구멍·균열 속) — **몸보다 한 단 어둡다.** 새 색이 아니라
+// 몸(FOEDARK)과 그림자 속색(TONE.shade[0]) **사이**에서 뽑는다:
+//   ENHOLE  #24141F(L .102) → L .060   ENVOID 더 깊게 → L .042
+const ENHOLE=mixHex(FOEDARK,TONE.shade[0],.62);
+const ENVOID=mixHex(FOEDARK,TONE.shade[0],.92);
+
+/// 무대 — 크기는 항상 SC 비례.
+const ENsc=(W,H)=>Math.min(W,H)/238;
+
+/// 상태 주머니 — 첫 프레임에 한 번.
+function ENst(st,cx,cy){
+  if(st.en)return st.en;
+  st.p=st.p||[];
+  st.en={ex:cx,ey:cy,a:0,g:[],ph:0,st:0,tm:0,n:0,mem:[],sub:[]};
+  return st.en;
+}
+/// 플레이어 표적 — **리사주.** 원으로 돌면 거리가 안 변해 「유지 거리」가
+/// 안 보인다. 두 주파수를 어긋내야 멀어졌다 가까워졌다 한다.
+function ENpl(t,cx,cy,SC,sp){
+  const q=t*(sp||1);
+  return[cx+Math.cos(q*.83)*54*SC, cy+Math.sin(q*1.27)*42*SC];
+}
+/// 플레이어 표식 — **회백(무속성).** 적의 분홍과 색상환에서 제일 멀고,
+/// 속성색 어느 것과도 안 겹친다. 각진 별이라 적의 둥근 덩어리와도 갈린다.
+function ENplDraw(c,x,y,r,t,mark){
+  const T=toneOf("gold");
+  fillPoly(c,jagPoly(x,y,r,5,9.1,1.25),A(T[0],.95));
+  fillPoly(c,jagPoly(x,y,r*.68,5,9.4,1.18),A(T[1],.98));
+  fillPoly(c,jagPoly(x,y,r*.34,5,9.9,1.10),A(T[2],1));
+  if(mark&&mark.k>.02)ENstatus(c,x,y,r,t,mark.k,mark.el);
+}
+/// 걸린 상태 — **플레이어 위에 얹는 작은 자국 하나.** 속성마다 다른 자국이
+/// 「닿으면 무엇이 되는가」를 말한다. 크기는 표식의 40% 를 안 넘긴다 —
+/// 커지면 플레이어가 속성 몸으로 보인다.
+function ENstatus(c,x,y,r,t,k,el){
+  const T=toneOf(el),a=Math.min(1,k);
+  if(el==="ember"){                                  // 점화 — 머리 위 불혀 둘
+    for(let i=0;i<2;i++){
+      firePath(c,x+(i-.5)*r*.52,y-r*.62,r*.20,r*(.72+.24*Math.sin(t*6+i*2.1)),t,i*3.1,i);
+      c.fillStyle=A(T[1],.9*a);c.fill();
+      firePath(c,x+(i-.5)*r*.52,y-r*.66,r*.11,r*.52,t*1.3,i*3.1,i);
+      c.fillStyle=A(T[2],a);c.fill();}
+  }else if(el==="frost"){                            // 둔화 — 발밑에 낀 서리
+    fillPoly(c,jagPoly(x,y+r*.34,r*1.05,9,4.7,1.35,.34),A(T[0],.62*a));
+    fillPoly(c,jagPoly(x,y+r*.34,r*.66,9,5.3,1.25,.34),A(T[1],.55*a));
+  }else if(el==="volt"){                             // 감전 — 몸을 감는 지그재그
+    for(let s=0;s<2;s++){const P=[];
+      for(let i=0;i<=7;i++){const q=i/7*TAU+s*.9+t*3.1;
+        P.push([x+Math.cos(q)*r*(1.15+.34*hash(i*3.1+s*7.7)),
+                y+Math.sin(q)*r*(.72+.24*hash(i*5.3+s*2.1))]);}
+      celStroke(c,P,r*.11,"volt",.85*a);}
+  }else if(el==="toxin"){                            // 중독 — 위로 떠오르는 방울
+    for(let i=0;i<3;i++){const ph=(t*.9+i*.33)%1;
+      c.beginPath();c.ellipse(x+(hash(i*4.1)-.5)*r*1.2,y-r*.4-ph*r*1.6,
+        r*.16*(1-ph),r*.20*(1-ph),0,0,TAU);
+      c.fillStyle=A(T[1],.85*a*(1-ph));c.fill();}
+  }else{                                             // 밀림 — 뒤로 늘어진 결
+    for(let i=0;i<3;i++){const o=(i-1)*r*.5;
+      celStroke(c,[[x-r*1.1+o*.2,y+o],[x-r*2.2+o*.4,y+o*1.3]],r*.12,"gale",.6*a);}
+  }
+}
+
+// ── 바닥에 남는 것 ────────────────────────────────────────────────────────
+/// **자리 거부의 정체는 「지나갔다」가 아니라 「아직 있다」**다. 남는 것이
+/// 없으면 속성 특수형 다섯 중 셋이 「색만 다른 근접형」이 된다.
+function ENgAdd(e,x,y,r,m,k,seed){
+  e.g.push({x,y,r,l:0,m,k,seed:seed||hash(e.g.length*7.3)*40});
+  if(e.g.length>24)e.g.shift();
+}
+function ENgStep(e,dt){
+  for(let i=e.g.length-1;i>=0;i--){const g=e.g[i];g.l+=dt;if(g.l>=g.m)e.g.splice(i,1);}
+}
+function ENgDraw(c,e,t){
+  for(const g of e.g){
+    const u=g.l/g.m, a=Math.min(1,(1-u)*2.4)*Math.min(1,g.l*7);
+    if(a<=.02)continue;
+    if(g.k==="ember"){
+      const T=toneOf("ember");
+      // 그을음이 먼저다 — 불만 그리면 「불이 떠 있다」이고, 검은 자국이
+      // 깔려야 「탄 자리」가 된다.
+      fillPoly(c,jagPoly(g.x,g.y,g.r,9,g.seed,1.12,.40),A(T[0],.50*a));
+      for(let i=0;i<5;i++){const off=(i-2)*g.r*.32;
+        const hh=g.r*(.50+.34*hash(g.seed+i*2.7))*(.8+.2*Math.sin(t*3.4+i));
+        firePath(c,g.x+off,g.y+g.r*.30,g.r*.17,hh,t,g.seed+i*2.1,i*1.3);
+        c.fillStyle=A(T[1],.82*a);c.fill();
+        firePath(c,g.x+off,g.y+g.r*.24,g.r*.09,hh*.66,t*1.25,g.seed+i*2.1,i);
+        c.fillStyle=A(T[2],.92*a);c.fill();}
+    }else if(g.k==="toxin"){
+      const T=toneOf("toxin");
+      fillPoly(c,jagPoly(g.x,g.y,g.r,10,g.seed,1.02,.44),A(T[0],.66*a));
+      fillPoly(c,jagPoly(g.x,g.y,g.r*.64,10,g.seed+1.7,.98,.44),A(T[1],.50*a));
+      for(let i=0;i<4;i++){const ph=(t*.75+hash(g.seed+i*3.1))%1;
+        c.beginPath();
+        c.ellipse(g.x+(hash(g.seed+i*5.3)-.5)*g.r*1.30,
+                  g.y+(hash(g.seed+i*7.7)-.5)*g.r*.52,
+                  g.r*.11*(1-ph),g.r*.075*(1-ph),0,0,TAU);
+        c.fillStyle=A(T[2],.75*a*(1-ph));c.fill();}
+    }else if(g.k==="frost"){
+      // 얼음기둥 — **서 있는 것.** 장판처럼 눕히면 「길을 막는다」가 안 된다.
+      const T=toneOf("frost"), gr=Math.min(1,g.l*4);
+      const h=g.r*1.55*gr;
+      fillPoly(c,[[g.x-g.r*.72,g.y+g.r*.22],[g.x-g.r*.56,g.y-h*.78],
+                  [g.x-g.r*.18,g.y-h],[g.x+g.r*.30,g.y-h*.82],
+                  [g.x+g.r*.74,g.y+g.r*.22]],A(T[0],.92*a));
+      fillPoly(c,[[g.x-g.r*.48,g.y+g.r*.18],[g.x-g.r*.34,g.y-h*.70],
+                  [g.x+g.r*.04,g.y-h*.88],[g.x+g.r*.44,g.y+g.r*.18]],A(T[1],.94*a));
+      fillPoly(c,[[g.x-g.r*.20,g.y+g.r*.12],[g.x-g.r*.06,g.y-h*.72],
+                  [g.x+g.r*.18,g.y+g.r*.12]],A(T[2],a));
+    }
+  }
+}
+
+// ── 적이 쏘는 것 ──────────────────────────────────────────────────────────
+/// **적 탄은 적 팔레트를 쓴다.** 속성색으로 칠하면 플레이어가 쏜 것과
+/// 헷갈리고, 회백으로 칠하면 「내 탄」으로 읽힌다. 몸과 같은 검정 + 분홍 테 +
+/// 붉은 심 — 셋이 적의 눈과 같은 색이라 「저게 나를 노린다」가 즉시 읽힌다.
+function ENshot(c,x,y,ang,len,w,a){
+  a=a===undefined?1:a;
+  const P=roundPoly(x,y,ang,len,w);
+  c.beginPath();P.forEach((v,i)=>i?c.lineTo(v[0],v[1]):c.moveTo(v[0],v[1]));
+  c.closePath();c.fillStyle=A(ENDK,.95*a);c.fill();
+  c.strokeStyle=ENRM;c.globalAlpha=a;c.lineWidth=1.8;c.stroke();c.globalAlpha=1;
+  c.beginPath();c.arc(x+Math.cos(ang)*len*.10,y+Math.sin(ang)*len*.10,w*.42,0,TAU);
+  c.fillStyle=A(ENEY,a);c.fill();
+}
+/// 유지 거리 — **붙으면 못 쏜다를 그림으로.** 점선 고리 안쪽이 「쏘기를
+/// 멈추는 자리」다. 예고가 없으면 플레이어는 이 규칙을 영영 못 배운다.
+function ENband(c,x,y,rn,on){
+  if(on<=.02)return;
+  c.save();c.globalAlpha=Math.min(1,on)*.55;
+  c.setLineDash([rn*.16,rn*.13]);
+  c.beginPath();c.arc(x,y,rn,0,TAU);
+  c.strokeStyle=ENRM;c.lineWidth=1.8;c.stroke();
+  c.setLineDash([]);c.restore();
+}
+/// 거리 유지 이동 — 엔진 `stepRanged` 의 밴드를 그대로 옮긴 것.
+/// 멀면 다가가고 · 가까우면 물러나고 · 밴드 안이면 옆걸음.
+function ENstand(e,px,py,near,far,sp,dt,side){
+  const dx=px-e.ex,dy=py-e.ey,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;
+  let vx,vy;
+  if(d>far){vx=ux*sp;vy=uy*sp;}
+  else if(d<near){vx=-ux*sp;vy=-uy*sp;}
+  else{const s=side||1;vx=-uy*s*sp*.7;vy=ux*s*sp*.7;}
+  e.ex+=vx*dt;e.ey+=vy*dt;e.a=Math.atan2(dy,dx);
+  return d;
+}
+/// 곧장 쫓기.
+function ENchase(e,px,py,sp,dt){
+  const dx=px-e.ex,dy=py-e.ey,d=Math.hypot(dx,dy)||1;
+  const s=Math.min(d,sp*dt);
+  e.ex+=dx/d*s;e.ey+=dy/d*s;e.a=Math.atan2(dy,dx);
+  return d;
+}
+/// 무대 밖으로 안 나가게.
+function ENclamp(e,cx,cy,rx,ry){
+  e.ex=Math.max(cx-rx,Math.min(cx+rx,e.ex));
+  e.ey=Math.max(cy-ry,Math.min(cy+ry,e.ey));
+}
+
+
+// ── 몸 — 속성마다 다른 실루엣 ─────────────────────────────────────────────
+//
+// **전부 foeDraw 를 통과한다** = 전부 FOEDARK 채움 + FOERIM 테. 속성이
+// 몸에 닿는 지점은 「어떤 다각형이냐」 하나뿐이다.
+
+/// 잡몹 기본형 — 소환·밀풍의 무리가 쓴다. FOEART.grunt 와 같은 다각형이지만
+/// 위상 씨앗을 따로 받는다(전부 같이 꿈틀대면 여럿이 하나로 보인다).
+function ENgrunt(c,x,y,r,a,t,seed,px,py,lw){
+  const P=[],n=9;
+  for(let i=0;i<n;i++){const q0=i/n*TAU,q1=(i+.5)/n*TAU;
+    const w=.76+.06*Math.sin(t*1.4+i+seed);
+    P.push([Math.cos(q0)*1.06,Math.sin(q0)*1.06]);
+    P.push([Math.cos(q1)*w,Math.sin(q1)*w]);}
+  foeDraw(c,P,x,y,r,a,1.4,t,seed,lw||2.2);
+  foeEyes(c,x,y,r*.8,1,px,py,.17);
+}
+
+/// 염 — **실루엣이 흔들린다.** 꼭짓점마다 위상이 다른 두 파를 **곱한다**:
+/// 한 파면 몸 전체가 같이 부풀어 「숨쉼」이 되고, 곱해야 갈래가 따로 논다.
+/// 이 한 가지가 흑백으로 찍어도 염을 알아보게 만든다.
+function ENbodyFire(c,x,y,r,a,t){
+  const n=10,P=[];
+  for(let i=0;i<n;i++){
+    const q0=i/n*TAU,q1=(i+.5)/n*TAU;
+    // ⚠️ 안쪽 반경을 .56 까지 파면 **성게(별)**가 된다(1차 눈 판정 —
+    // 「불붙은 것」이 아니라 「가시 돋은 것」으로 읽혔다). 파임을 .74 로
+    // 얕게 두면 덩어리는 덩어리인 채로 **가장자리만** 일렁인다.
+    const o=1.00+.20*Math.sin(t*8.1+i*2.3)*Math.sin(t*3.7+i*.8);
+    const w=.74+.12*Math.sin(t*10.3+i*1.7);
+    P.push([Math.cos(q0)*o,Math.sin(q0)*o]);
+    P.push([Math.cos(q1)*w,Math.sin(q1)*w]);}
+  return foeDraw(c,P,x,y,r,a,0,t,11.3,2.6);
+}
+/// 몸에서 자라는 불 — **뒤로 눕는다.** 사방으로 뻗으면 모닥불이고,
+/// 진행 반대로 누워야 「달리면서 타고 있다」가 된다.
+function ENlick(c,x,y,r,a,t,n,s,al){
+  const T=toneOf("ember");
+  for(let i=0;i<n;i++){
+    const q=a+Math.PI+(i-(n-1)/2)*.58;
+    c.save();
+    c.translate(x+Math.cos(q)*r*.74,y+Math.sin(q)*r*.74);
+    c.rotate(q+Math.PI/2);                       // firePath 는 -y 로 자란다
+    const hh=r*s*(.72+.42*hash(i*3.1))*(.86+.14*Math.sin(t*5.4+i*1.7));
+    firePath(c,0,0,r*.20*s,hh,t,i*2.3,i*1.1);c.fillStyle=A(T[0],.90*al);c.fill();
+    firePath(c,0,-r*.04,r*.14*s,hh*.86,t*1.15,i*2.3,i*1.1);c.fillStyle=A(T[1],.94*al);c.fill();
+    firePath(c,0,-r*.08,r*.07*s,hh*.62,t*1.32,i*2.3+1.7,i);c.fillStyle=A(T[2],al);c.fill();
+    c.restore();}
+}
+/// 빙 — **각지고 꼭짓점이 적다.** 여섯 꼭짓점 · 숨쉼 0. 다른 넷이 전부
+/// 9~11 각으로 둥글게 도는 자리에서 이것만 결정처럼 딱딱 끊긴다.
+function ENbodyIce(c,x,y,r,a,t){
+  // 꼭짓점 여섯을 **불규칙한 반경**으로 — 규칙적으로 크고작게 하면 별이 되고,
+  // 제각각이라야 쪼개진 결정이 된다. 변이 길게 남는 것이 이 종의 실루엣이다.
+  const RD=[1.06,.86,1.02,.90,1.10,.84];
+  const P=[];
+  for(let i=0;i<6;i++){const q=i/6*TAU+.22;
+    P.push([Math.cos(q)*RD[i],Math.sin(q)*RD[i]]);}
+  return foeDraw(c,P,x,y,r,a,0,t,23.1,3.2);
+}
+/// 몸에 자란 얼음판 — 속성색이 **몸이 아니라 몸에 붙은 것**에만 얹힌다.
+function ENplates(c,x,y,r,a,t,n,s){
+  for(let i=0;i<n;i++){
+    const q=a+Math.PI*.55+(i-(n-1)/2)*.74+Math.sin(t*.6+i)*.05;
+    celSpike(c,x+Math.cos(q)*r*.72,y+Math.sin(q)*r*.72,q,
+      r*s*(.62+.34*hash(i*5.7)),r*.20,"frost",.95);}
+}
+/// 뇌 — **마디.** 덩어리 하나가 아니라 셋이 이어져 채찍처럼 따라온다.
+/// 자취(mem)를 따라 놓으므로 방향을 꺾으면 뒷마디가 늦게 돈다.
+/// ⚠️ 자취를 **프레임 수**로 자르면 안 된다 — 멈춘 순간 세 마디가 한 점에
+/// 겹쳐 덩어리 하나가 된다(3차 눈 판정: 「마디가 안 보인다」). 자취는
+/// **지나간 거리**로 찍고(vlSeg 쪽), 여기서는 그 간격을 그대로 쓴다.
+function ENbodyChain(c,e,r,a,t,px,py){
+  const at=i=>e.mem[Math.min(e.mem.length-1,i)]||[e.ex,e.ey];
+  const S=[[e.ex,e.ey],at(0),at(1)];
+  for(let i=2;i>0;i--)
+    limbSeg(c,S[i][0],S[i][1],S[i-1][0],S[i-1][1],r*(.30-i*.05),r*(.40-i*.05));
+  for(let i=2;i>=0;i--){
+    const rr=r*(1-i*.22);
+    const nx=S[Math.min(2,i+1)];
+    const q=Math.atan2(S[i][1]-nx[1],S[i][0]-nx[0]);
+    const P=[];
+    for(let j=0;j<7;j++){const w=j/7*TAU;
+      P.push([Math.cos(w)*(j%2?1.02:.72),Math.sin(w)*(j%2?1.02:.72)]);}
+    foeDraw(c,P,S[i][0],S[i][1],rr,q,1.0,t,31.7+i*4.1,2.6-i*.4);}
+  foeEyes(c,S[0][0],S[0][1],r*.8,1,px,py,.20);
+  return S;
+}
+/// 전기 가닥 — 두 점을 잇는 지그재그. **1/22초마다 다시 그어진다**:
+/// 매끈하게 이어지면 밧줄이고, 끊어 튀어야 전기다.
+function ENbolt(c,x0,y0,x1,y1,w,seed,t,al){
+  const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L,N=8;
+  const fr=Math.floor(t*22)*.61,P=[];
+  for(let i=0;i<=N;i++){const u=i/N;
+    const j=(hash(seed+i*3.1+fr)-.5)*L*.24*Math.sin(u*Math.PI);
+    P.push([x0+dx*u+nx*j,y0+dy*u+ny*j]);}
+  celStroke(c,P,w,"volt",al===undefined?1:al);
+  return P;
+}
+/// 풍 — **초승달.** 큰 원에서 어긋난 원을 뺀 것. 좌우 비대칭이라
+/// 「어느 쪽으로 휘는가」가 실루엣에 있다.
+const ENcresc=(()=>{const P=[];
+  for(let i=0;i<=14;i++){const q=1.122+i/14*(TAU-2.244);P.push([Math.cos(q),Math.sin(q)]);}
+  for(let i=0;i<=14;i++){const q=-1.774-i/14*(TAU-3.548);
+    P.push([.62+Math.cos(q)*.92,Math.sin(q)*.92]);}
+  return P;})();
+const ENcrescY=s=>ENcresc.map(v=>[v[0],v[1]*s]);
+/// 독 — **아래가 무겁다.** 진행 방향이 아니라 **화면 아래**로 늘어지므로
+/// ang 0 으로 그린다(회전시키면 옆으로 흐르는 물이 되어 물성이 죽는다).
+/// 위가 좁고(−.66) 아래가 넓게 처진다(+1.34). 위아래 비 2:1 이라야
+/// 「무겁다」가 되고, 1.2:1 이면 그냥 둥근 덩어리다(1차 눈 판정).
+const ENdripP=[[.82,-.20],[.92,.42],[.70,1.00],[.24,1.34],[-.28,1.10],[-.72,1.12],
+  [-.94,.50],[-.88,-.10],[-.62,-.50],[-.18,-.66],[.30,-.60],[.68,-.44]];
+/// 독 특수 — **부푼 주머니 + 구멍들.** 매끈한 구(자폭)와 갈리는 것은 구멍이다.
+function ENbodySac(c,x,y,r,a,t,swell){
+  const b=1+.09*Math.sin(t*1.6)+swell*.26,P=[];
+  for(let i=0;i<11;i++){const q=i/11*TAU;
+    P.push([Math.cos(q)*(1+.10*hash(i*3.7)),Math.sin(q)*(.94+.10*hash(i*7.1))]);}
+  foeDraw(c,P,x,y,r*b,a,.6,t,43.7,3.0);
+  for(let i=0;i<7;i++){                          // 구멍 — 터질 자리
+    const q=a+i/7*TAU+.3,d=r*b*(.36+.30*hash(i*9.3));
+    const ox=x+Math.cos(q)*d,oy=y+Math.sin(q)*d;
+    c.beginPath();c.arc(ox,oy,r*b*(.12+.05*hash(i*4.1))*(1+swell*.5),0,TAU);
+    c.fillStyle=ENHOLE;c.fill();
+    c.strokeStyle=ENRM;c.globalAlpha=.55+.45*swell;c.lineWidth=1.6;c.stroke();
+    c.globalAlpha=1;}
+  return b;
+}
+
+
+/// 속이 빈 몸 — 마디를 고리로 둘러 세우고 **앞쪽 두 마디를 비운다**.
+/// 채운 덩어리 열넷 사이에서 이것만 가운데가 뚫려 있어 실루엣으로 갈린다.
+function ENring(c,x,y,r,a,k){
+  const N=9;
+  for(let i=0;i<N;i++){
+    const q0=a+(i/N)*TAU+.18, q1=a+((i+.72)/N)*TAU+.18;
+    const dd=Math.abs((((q0-a+Math.PI)%TAU)+TAU)%TAU-Math.PI);
+    if(dd<.78)continue;                          // 아가리
+    limbSeg(c,x+Math.cos(q0)*r,y+Math.sin(q0)*r,
+              x+Math.cos(q1)*r,y+Math.sin(q1)*r,r*.19*k,r*.19*k);}
+}
+/// 플레이어가 지나온 자취 — **점 간격이 곧 속도다.** 둔화를 글자 없이
+/// 보이게 하는 유일한 방법이고, 이 시안에서 「느려졌다」는 여기서만 읽힌다.
+function ENtrail(c,e,px,py,SC){
+  e.mem.unshift([px,py]);if(e.mem.length>54)e.mem.pop();
+  const T=toneOf("gold");
+  for(let i=3;i<e.mem.length;i+=3){
+    const v=e.mem[i],a=1-i/e.mem.length;
+    c.beginPath();c.arc(v[0],v[1],2.7*SC*a,0,TAU);
+    c.fillStyle=A(T[1],.85*a);c.fill();}
+}
+
+const EN={
+
+// ① 염 · 근접 — 몸에 불이 붙어 **닿으면 점화**한다.
+// 실루엣이 매 프레임 다르게 찢어지는 것이 이 종의 전부다: 정지 화면에서도
+// 「타고 있는 것」으로 읽히고, 색을 걷어내도 다섯 근접형 중 여기만 윤곽이
+// 안 정해져 있다.
+emBurn(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-40*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=26*SC;
+  ENgStep(e,dt);
+  const d=ENchase(e,px,py,54*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  e.tm=Math.max(0,e.tm-dt*.34);
+  if(d<r+7*SC)e.tm=1;
+  // 발밑 그을음 — 0.55초만 남는다. 오래 남기면 「잔화」(특수형)를 침범한다.
+  if(e.g.length<5&&hash(Math.floor(t*9)*1.7)>.55)
+    ENgAdd(e,e.ex,e.ey,r*.40,.55,"ember",t*3.1);
+  ENgDraw(c,e,t);
+  stepP(st,dt);drawP(c,st);
+  ENlick(c,e.ex,e.ey,r,e.a,t,5,.92,1);
+  ENbodyFire(c,e.ex,e.ey,r,e.a,t);
+  foeEyes(c,e.ex,e.ey,r*.80,2,px,py,.17);
+  if(e.tm>.05&&R()<dt*26)
+    emit(st,px,py,1,{k:"ember",sp:26,r:2.2,life:.5,g:-60,spikeP:.25});
+  ENplDraw(c,px,py,10*SC,t,{k:e.tm,el:"ember"});
+},
+
+// ② 염 · 특수 — 죽을 때 **불을 남긴다**(자리 거부).
+// 몸이 화로다: 가운데가 뚫린 고리가 불씨를 품고 다니다가, 무너지면 품고
+// 있던 것이 바닥에 쏟아져 2.5초간 그 자리를 못 쓰게 만든다.
+emCinder(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx+40*SC,cy);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=27*SC,PD=3.8,u=(t%PD)/PD;
+  ENgStep(e,dt);
+  const alive=u<.68?1:(u<.76?1-(u-.68)/.08:0);
+  if(alive>0)ENchase(e,px,py,34*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  if(u>=.68&&u<.76&&!e.st){e.st=1;
+    ENgAdd(e,e.ex,e.ey,r*1.5,2.5,"ember",t*5.3);
+    emit(st,e.ex,e.ey,16,{k:"ember",sp:130,r:3.2,life:.7,g:-40,spikeP:.6});}
+  if(u<.5){e.st=0;e.n=0;}
+  if(u>=.88&&!e.n){e.n=1;e.ex=cx-(e.ex-cx);e.ey=cy-(e.ey-cy);}  // 반대편에서 다시
+  ENgDraw(c,e,t);
+  stepP(st,dt);drawP(c,st);
+  if(alive>.02){
+    ENring(c,e.ex,e.ey,r*(1+(1-alive)*.85),e.a,alive);
+    const T=toneOf("ember");
+    for(let i=0;i<3;i++){                        // 품은 불씨 — 몸이 아니라 속
+      const hh=r*(.86+.30*hash(i*2.7))*alive;
+      firePath(c,e.ex+(i-1)*r*.24,e.ey+r*.34,r*.19,hh,t,i*3.7,i);
+      c.fillStyle=A(T[1],.92*alive);c.fill();
+      firePath(c,e.ex+(i-1)*r*.22,e.ey+r*.28,r*.10,hh*.66,t*1.3,i*3.7,i);
+      c.fillStyle=A(T[2],alive);c.fill();}
+    foeEyes(c,e.ex,e.ey,r*.82,3,px,py,.15);}
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+// ③ 빙 · 근접 — 느리고 단단하다. **맞으면 둔화**한다.
+// 다섯 근접형 중 제일 느리고(26/s) 제일 크고(r30) 유일하게 안 꿈틀댄다.
+// 둔화는 표식이 아니라 **플레이어 자취의 점 간격**이 말한다.
+frArmor(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy);
+  e.tm=Math.max(0,e.tm-dt*.42);
+  e.ph+=dt*(1-.66*e.tm);                        // 둔화 = 플레이어 시계가 늦다
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=30*SC;
+  const d=ENchase(e,px,py,26*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  if(d<r+9*SC)e.tm=1;
+  stepP(st,dt);drawP(c,st);
+  ENtrail(c,e,px,py,SC);
+  ENplates(c,e.ex,e.ey,r,e.a,t,5,1.10);
+  ENbodyIce(c,e.ex,e.ey,r,e.a,t);
+  for(let i=0;i<3;i++){const q=e.a+i/3*TAU;     // 결정 이음매 — 테 색을 죽여
+    c.beginPath();c.moveTo(e.ex,e.ey);
+    c.lineTo(e.ex+Math.cos(q)*r*.80,e.ey+Math.sin(q)*r*.80);
+    c.strokeStyle="rgba(232,104,146,.40)";c.lineWidth=1.8;c.stroke();}
+  foeEyes(c,e.ex,e.ey,r*.78,2,px,py,.15);
+  if(e.tm>.4&&R()<dt*14)emit(st,px,py,1,{k:"frost",sp:22,r:2.4,life:.6,spikeP:.7});
+  ENplDraw(c,px,py,10*SC,t,{k:e.tm,el:"frost"});
+},
+
+// ④ 빙 · 특수 — **얼음을 뿌려 길을 막는다.**
+// 적과 나 사이 60% 지점에 기둥 일곱이 가로로 선다. 장판이 아니라 **서 있는
+// 것**이라 「지나갈 수 없다」가 되고, 예고(통로 점선)가 먼저 뜬다.
+frWall(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy+50*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=25*SC,PD=3.2,u=(t%PD)/PD;
+  ENgStep(e,dt);
+  ENstand(e,px,py,66*SC,104*SC,32*SC,dt,1);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  const aim=(u>=.30&&u<.52)?(u-.30)/.22:0;
+  const blow=(u>=.52&&u<.62)?(u-.52)/.10:0;
+  const D=Math.hypot(px-e.ex,py-e.ey);
+  if(blow>0&&!e.st){e.st=1;
+    const mx=e.ex+(px-e.ex)*.58,my=e.ey+(py-e.ey)*.58;
+    const q=Math.atan2(py-e.ey,px-e.ex)+Math.PI/2;
+    for(let i=-3;i<=3;i++)
+      ENgAdd(e,mx+Math.cos(q)*i*12*SC,my+Math.sin(q)*i*12*SC,
+        15*SC*(1-Math.abs(i)*.07),1.9,"frost",i*3.3+Math.floor(t));
+    emit(st,mx,my,14,{k:"frost",sp:120,r:2.6,life:.5,spikeP:.8});}
+  if(u<.28)e.st=0;
+  ENgDraw(c,e,t);
+  stepP(st,dt);drawP(c,st);
+  if(aim>0)aimLane(c,e.ex,e.ey,e.a,D*.62,26*SC,aim);
+  const gape=Math.max(aim*.42,blow);
+  foeDraw(c,[[1.12,-.26],[.52,-.60],[-.36,-.68],[-1.06,-.32],[-1.06,.32],
+    [-.36,.68],[.52,.60],[1.12,.26]],e.ex,e.ey,r,e.a,0,t,29.1,3.0);
+  for(const sg of[-1,1])                        // 벌어지는 턱 — 뿜기 직전 열린다
+    celLegs(c,e.ex+Math.cos(e.a)*r*.52,e.ey+Math.sin(e.a)*r*.52,r*.72,
+      e.a+sg*(.28+gape*.66),1.00,.13);
+  foeEyes(c,e.ex,e.ey,r*.80,2,px,py,.15);
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+// ⑤ 뇌 · 근접 — 빠르고 **닿으면 감전**된다.
+// 유일하게 **마디**가 있는 종: 덩어리 셋이 자취를 따라 채찍처럼 늦게 돈다.
+// 달리기도 이어지지 않고 0.9초 주기로 끊어 튄다 — 마디와 같은 문법이다.
+vlSeg(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy);
+  e.tm=Math.max(0,e.tm-dt*.5);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC);
+  const jt=e.tm>.05?e.tm*5*SC:0;                // 감전 = 플레이어가 떤다
+  const px=pp[0]+(hash(Math.floor(t*30)*1.7)-.5)*jt;
+  const py=pp[1]+(hash(Math.floor(t*30)*3.1)-.5)*jt;
+  const r=22*SC;
+  const dash=Math.pow(Math.max(0,Math.sin(t*7.0)),.5);
+  const d=ENchase(e,px,py,(22+135*dash)*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  // 자취는 **거리**로 찍는다 — 프레임으로 찍으면 멈춘 순간 마디가 겹친다
+  const lp=e.mem[0];
+  if(!lp||Math.hypot(e.ex-lp[0],e.ey-lp[1])>r*.62){
+    e.mem.unshift([e.ex,e.ey]);if(e.mem.length>6)e.mem.pop();}
+  if(d<r+8*SC)e.tm=1;
+  stepP(st,dt);drawP(c,st);
+  const S=ENbodyChain(c,e,r,e.a,t,px,py);
+  ENbolt(c,S[0][0],S[0][1],S[1][0],S[1][1],r*.17,3.1,t,.95);
+  ENbolt(c,S[1][0],S[1][1],S[2][0],S[2][1],r*.14,7.7,t,.85);
+  if(dash>.80)speedLines(c,S[0][0],S[0][1],e.a,r*.8,(dash-.80)*2.6,91.7);
+  if(e.tm>.3&&R()<dt*18)emit(st,px,py,1,{k:"volt",sp:64,r:2.2,life:.35,spikeP:.9});
+  ENplDraw(c,px,py,10*SC,t,{k:e.tm,el:"volt"});
+},
+
+
+// ⑥ 뇌 · 특수 — 둘이 **선으로 이어져** 그 사이가 아프다.
+// 이 종만 **개체가 둘**이다(무리와 다르다: 무리는 떼로 하나, 이쪽은 둘이
+// 하나의 함정을 만든다). 위험한 것은 몸이 아니라 몸 사이의 빈 자리라,
+// 「적을 피했는데 맞았다」가 성립하는 유일한 적이다.
+vlTether(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy);
+  e.tm=Math.max(0,e.tm-dt*.6);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=17*SC,sep=52*SC,q=t*.80;
+  e.ex+=(px-e.ex)*Math.min(1,dt*.5);e.ey+=(py-e.ey)*Math.min(1,dt*.5);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  const ax=e.ex+Math.cos(q)*sep, ay=e.ey+Math.sin(q)*sep*.86;
+  const bx=e.ex-Math.cos(q)*sep, by=e.ey-Math.sin(q)*sep*.86;
+  // 선까지의 거리 — 사이에 있으면 맞는다
+  const vx=bx-ax,vy=by-ay,L2=vx*vx+vy*vy||1;
+  const u=Math.max(0,Math.min(1,((px-ax)*vx+(py-ay)*vy)/L2));
+  const hx=ax+vx*u,hy=ay+vy*u;
+  if(Math.hypot(px-hx,py-hy)<10*SC)e.tm=1;
+  stepP(st,dt);drawP(c,st);
+  celStroke(c,[[ax,ay],[bx,by]],r*.72,"volt",.14);   // 위험한 띠 — 넓고 옅게
+  ENbolt(c,ax,ay,bx,by,r*.20,3.1,t,.95);
+  ENbolt(c,ax,ay,bx,by,r*.12,19.7,t*1.31,.60);
+  for(const P of[[ax,ay,bx,by,5.1],[bx,by,ax,ay,9.3]]){
+    const fa=Math.atan2(P[3]-P[1],P[2]-P[0]);
+    for(const sg of[-1,1])celLegs(c,P[0],P[1],r*.8,fa+sg*.62,.86,.12);
+    const Q=[];
+    for(let i=0;i<7;i++){const w=i/7*TAU;
+      Q.push([Math.cos(w)*(i%2?1.06:.70),Math.sin(w)*(i%2?1.06:.70)]);}
+    foeDraw(c,Q,P[0],P[1],r,fa,1.2,t,P[4],2.8);
+    foeEyes(c,P[0],P[1],r*.8,1,px,py,.20);}
+  if(e.tm>.3&&R()<dt*20)emit(st,px,py,1,{k:"volt",sp:70,r:2.2,life:.3,spikeP:.9});
+  ENplDraw(c,px,py,10*SC,t,{k:e.tm,el:"volt"});
+},
+
+// ⑦ 풍 · 근접 — 궤도가 **휘어 온다**. 직선 예측이 안 된다.
+// 몸이 좌우 비대칭 초승달이라 **어느 쪽으로 휠지가 실루엣에 있고**,
+// 회색 점선(직선으로 왔다면 지금 여기)과 실제 자취가 늘 어긋난다 —
+// 「예측 불가」를 말이 아니라 두 선의 차이로 보여준다.
+glCurve(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx-60*SC,cy+50*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=23*SC;
+  const side=Math.sin(t*1.75);
+  const want=Math.atan2(py-e.ey,px-e.ex)+side*1.15;
+  let dd=((want-e.a+Math.PI*3)%TAU)-Math.PI;
+  e.a+=Math.max(-2.8*dt,Math.min(2.8*dt,dd));
+  e.ex+=Math.cos(e.a)*78*SC*dt;e.ey+=Math.sin(e.a)*78*SC*dt;
+  if(Math.abs(e.ex-cx)>W*.30||Math.abs(e.ey-cy)>H*.30){    // 무대 안으로 되돌린다
+    e.ex=Math.max(cx-W*.30,Math.min(cx+W*.30,e.ex));
+    e.ey=Math.max(cy-H*.30,Math.min(cy+H*.30,e.ey));
+    e.a=Math.atan2(cy-e.ey,cx-e.ex);}
+  e.mem.unshift([e.ex,e.ey]);if(e.mem.length>44)e.mem.pop();
+  stepP(st,dt);drawP(c,st);
+  // 지나온 길 — **휜 것이 보여야 휘는 적이다**
+  if(e.mem.length>4)celStroke(c,e.mem.filter((v,i)=>i%3===0),r*.16,"gale",.42);
+  // 직선으로 왔다면 여기 — 어긋난 만큼이 이 적의 값어치다
+  c.save();c.setLineDash([5*SC,5*SC]);c.globalAlpha=.42;
+  c.beginPath();c.moveTo(e.ex,e.ey);
+  c.lineTo(e.ex+Math.cos(Math.atan2(py-e.ey,px-e.ex))*Math.hypot(px-e.ex,py-e.ey),
+           e.ey+Math.sin(Math.atan2(py-e.ey,px-e.ex))*Math.hypot(px-e.ex,py-e.ey));
+  c.strokeStyle=toneOf("gold")[1];c.lineWidth=1.6;c.stroke();
+  c.setLineDash([]);c.restore();
+  const bell=e.a+(side>0?1:-1)*Math.PI/2;      // 배(오목한 쪽)가 도는 안쪽을 본다
+  foeDraw(c,ENcrescY(.92),e.ex,e.ey,r,bell,1.0,t,57.3,2.8);
+  foeEyes(c,e.ex,e.ey,r*.62,2,px,py,.16);
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+// ⑧ 풍 · 특수 — **밀어낸다.** 플레이어를 무리 쪽으로.
+// 몸이 오목한 부채(초승달의 배가 앞을 본다)라 「퍼내는 것」으로 읽히고,
+// 자기는 **늘 무리 반대편에 선다** — 밀 방향이 곧 무리 방향이 되도록.
+glPush(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx-70*SC,cy);
+  e.ph+=dt;
+  const pp=ENpl(e.ph*.62,cx,cy,SC);
+  e.ox=(e.ox||0)*Math.pow(.16,dt);e.oy=(e.oy||0)*Math.pow(.16,dt);
+  const px=pp[0]+e.ox, py=pp[1]+e.oy;
+  const r=27*SC;
+  const gx=cx+46*SC, gy=cy-42*SC;               // 무리가 선 자리
+  // 무리 반대편으로 — 밀면 무리 쪽으로 가게
+  const ux=px-gx,uy=py-gy,ul=Math.hypot(ux,uy)||1;
+  const tx=px+ux/ul*58*SC, ty=py+uy/ul*58*SC;
+  e.ex+=(tx-e.ex)*Math.min(1,dt*1.5);e.ey+=(ty-e.ey)*Math.min(1,dt*1.5);
+  e.a=Math.atan2(py-e.ey,px-e.ex);
+  // 바람결 — 0.9초마다 한 겹
+  e.tm-=dt;
+  if(e.tm<=0){e.tm=.9;e.sub.push({d:r*.9,a:e.a,x:e.ex,y:e.ey,l:0});}
+  for(let i=e.sub.length-1;i>=0;i--){const s=e.sub[i];
+    s.l+=dt;s.d+=96*SC*dt;
+    if(s.l>.78){e.sub.splice(i,1);continue;}
+    const pd=Math.hypot(px-s.x,py-s.y);
+    if(!s.hit&&pd<s.d){s.hit=1;                 // 결이 지나가면 밀린다
+      const nx=(px-s.x)/(pd||1),ny=(py-s.y)/(pd||1);
+      e.ox+=nx*34*SC;e.oy+=ny*34*SC;
+      emit(st,px,py,7,{k:"gale",sp:90,r:2.4,life:.4,spikeP:.5});}}
+  stepP(st,dt);drawP(c,st);
+  for(const s of e.sub){                         // 호 — 부채가 퍼낸 자국
+    const al=Math.min(1,s.l*5)*Math.max(0,1-s.l/.78);
+    celRibbonEven(c,arcPts(s.x,s.y,s.d,s.a-.72,s.a+.72,16),
+      r*.16*(1-s.l*.5),"gale",.75*al);}
+  for(let i=0;i<3;i++){                          // 무리 — 밀려가면 닿는 것들
+    const q=i/3*TAU+t*.5;
+    ENgrunt(c,gx+Math.cos(q)*15*SC,gy+Math.sin(q)*15*SC,10*SC,
+      Math.atan2(py-gy,px-gx),t,i*4.7,px,py,2.0);}
+  foeDraw(c,ENcrescY(1.30),e.ex,e.ey,r,e.a,.8,t,71.3,3.0);
+  foeEyes(c,e.ex,e.ey,r*.52,2,px,py,.18);
+  ENplDraw(c,px,py,10*SC,t,{k:Math.min(1,Math.hypot(e.ox,e.oy)/(20*SC)),el:"gale"});
+},
+
+// ⑨ 독 · 근접 — 지나간 자리에 **장판**.
+// 유일하게 **아래로 늘어지는** 몸이다(진행 방향이 아니라 화면 아래로 — 그래서
+// 회전을 안 시킨다). 매달린 방울이 커졌다 떨어지고, 떨어진 자리가 장판이 된다.
+txDrip(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-30*SC);
+  e.tm=Math.max(0,e.tm-dt*.36);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=25*SC;
+  ENgStep(e,dt);
+  const d=ENchase(e,px,py,44*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  if(d<r+8*SC)e.tm=1;
+  // 방울 — 0.85초 주기로 맺혔다 떨어진다
+  const dp=(t%.85)/.85;
+  if(dp<.02&&!e.st){e.st=1;
+    ENgAdd(e,e.ex,e.ey+r*1.28,16*SC,3.4,"toxin",t*7.1);}
+  if(dp>.4)e.st=0;
+  ENgDraw(c,e,t);
+  stepP(st,dt);drawP(c,st);
+  foeDraw(c,ENdripP,e.ex,e.ey,r,0,1.1,t,83.7,2.8);
+  // 매달린 방울 — 몸에서 자라 목이 가늘어지다 끊긴다
+  const dl=r*(.30+1.0*dp),dw=r*(.30-.16*dp);
+  curveLimb(c,e.ex,e.ey+r*.86,e.ex,e.ey+r*.86+dl,r*.16*(1-dp*.7),dw,0);
+  foeEyes(c,e.ex,e.ey-r*.14,r*.72,3,px,py,.15);
+  if(e.tm>.2&&R()<dt*16)emit(st,px,py,1,{k:"toxin",sp:24,r:2.2,life:.6,g:-50,spikeP:.15});
+  ENplDraw(c,px,py,10*SC,t,{k:e.tm,el:"toxin"});
+},
+
+// ⑩ 독 · 특수 — 죽을 때 **포자**. 주변 적이 강해진다.
+// 「먼저 죽이면 손해」인 유일한 적이다. 강해짐은 숫자가 아니라 눈에 보인다:
+// 몸이 22% 커지고 테가 굵어지고 포자 안개를 두른다.
+txSpore(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy+16*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph*.7,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=23*SC,PD=4.6,u=(t%PD)/PD;
+  const swell=u<.62?u/.62:0;                     // 부푼다 — 터질 예고
+  const dead=u>=.66;
+  const boost=dead?Math.min(1,(u-.66)/.10):0;
+  if(u>=.62&&u<.66&&!e.st){e.st=1;
+    emit(st,e.ex,e.ey,26,{k:"toxin",sp:150,r:3.4,life:.9,g:-30,spikeP:.35});}
+  if(u<.5)e.st=0;
+  if(!dead)ENchase(e,px,py,30*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  stepP(st,dt);drawP(c,st);
+  if(u>=.62&&u<.72){                             // 퍼지는 포자 구름
+    const k=(u-.62)/.10;
+    celPuff(c,e.ex,e.ey,r*(1+k*2.4),9,5.3,"toxin",.42*(1-k));}
+  for(let i=0;i<2;i++){                          // 주변 적 둘
+    const q=t*.55+i*Math.PI,dd=(42+boost*4)*SC;
+    const gxx=e.ex+Math.cos(q)*dd, gyy=e.ey+Math.sin(q)*dd*.8;
+    if(boost>.05)celPuff(c,gxx,gyy,14*SC*(1+boost*.7),8,i*3.1+2.7,"toxin",.30*boost);
+    ENgrunt(c,gxx,gyy,13*SC*(1+.22*boost),Math.atan2(py-gyy,px-gxx),
+      t*(1+boost),i*6.1,px,py,2.0+2.0*boost);}
+  if(!dead||boost<.06){
+    const sw=ENbodySac(c,e.ex,e.ey,r,e.a,t,swell*(dead?0:1));
+    foeEyes(c,e.ex,e.ey,r*sw*.72,2,px,py,.14);}
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+
+// ⑪ 점사 狙 — 멈춰 서서 3연발 · **유지 거리**를 지킨다. 붙으면 못 쏜다.
+// 엔진(`stepRanged`)이 이미 하는 것을 그대로 그린다: 멀면 다가가고 · 가까우면
+// 물러나고 · 밴드 안이면 옆걸음. **점선 고리가 그 밴드다** — 안으로 들어가면
+// 눈이 감기고 시계가 멈춘다. 그림 없이는 「왜 안 쏘지」가 안 읽힌다.
+rgSniper(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-30*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=19*SC,near=66*SC,far=100*SC;
+  const d=ENstand(e,px,py,near,far,55*SC,dt,1);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  const close=d<near;
+  if(close){e.tm=Math.max(e.tm,.55);e.n=0;}
+  else{
+    e.tm-=dt;
+    if(e.tm<=0){
+      if(e.n<=0)e.n=3;                          // 3연발
+      e.sub.push({x:e.ex+Math.cos(e.a)*r*1.1,y:e.ey+Math.sin(e.a)*r*1.1,
+        vx:Math.cos(e.a)*215*SC,vy:Math.sin(e.a)*215*SC,a:e.a,l:0});
+      e.n--;e.tm=e.n>0?.11:1.55;
+      emit(st,e.ex+Math.cos(e.a)*r*1.2,e.ey+Math.sin(e.a)*r*1.2,3,
+        {k:"gold",sp:70,r:1.8,life:.16,a:e.a,spread:.7,spikeP:.8});}}
+  for(let i=e.sub.length-1;i>=0;i--){const s=e.sub[i];
+    s.l+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;
+    if(s.l>1.6||s.x<-20||s.y<-20||s.x>W+20||s.y>H+20)e.sub.splice(i,1);}
+  stepP(st,dt);drawP(c,st);
+  ENband(c,e.ex,e.ey,near,close?1:.5);
+  // 예고 — 재장전이 끝나기 0.35초 전부터 조준선이 뜬다
+  if(!close&&e.n<=0&&e.tm<.35)aimLane(c,e.ex,e.ey,e.a,d*.95,7*SC,1-e.tm/.35);
+  for(const s of e.sub)ENshot(c,s.x,s.y,s.a,9*SC,3.4*SC,1);
+  // 몸 — 잔물결 없는 팽팽한 원 + 버티는 다리 셋(멈춰 쏘는 것)
+  for(let i=0;i<3;i++)
+    celLegs(c,e.ex,e.ey,r*.88,e.a+Math.PI+(i-1)*.9,.62+(close?.22:0),.10);
+  const P=[];
+  for(let i=0;i<12;i++){const q=i/12*TAU;
+    P.push([Math.cos(q)*(i%4===0?1.10:1.00),Math.sin(q)*(i%4===0?1.10:1.00)]);}
+  foeDraw(c,P,e.ex,e.ey,r,e.a,.3,t,67.1,3.0);
+  // 큰 외눈 — 붙으면 감긴다(못 쏜다)
+  const open=close?.28:1;
+  c.beginPath();
+  c.ellipse(e.ex+Math.cos(e.a)*r*.34,e.ey+Math.sin(e.a)*r*.34,
+    r*.38,r*.38*open,e.a,0,TAU);
+  c.fillStyle=ENEY;c.fill();
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+// ⑫ 포격 砲 — 그림자를 **미리 보여주고** 떨어뜨린다.
+// 탑다운에는 「위」가 없다. 그래서 **그림자는 바닥을 직선으로 가고 몸만
+// 화면 위로 떴다 내려온다**(거미 보스의 고치와 같은 장치) — 둘이 벌어졌다
+// 다시 만나는 것이 「떴다 떨어졌다」의 전부다.
+rgMortar(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-34*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=26*SC,PD=2.8,u=(t%PD)/PD;
+  ENstand(e,px,py,72*SC,110*SC,20*SC,dt,-1);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  const aim=(u<.40)?u/.40:0;
+  if(u>=.40&&u<.44&&!e.st){e.st=1;e.tx=px;e.ty=py;e.fx=e.ex;e.fy=e.ey;}
+  if(u<.30)e.st=0;
+  const fly=(u>=.44&&u<.78)?(u-.44)/.34:-1;
+  const hit=(u>=.78&&u<.94)?(u-.78)/.16:-1;
+  stepP(st,dt);drawP(c,st);
+  if(aim>0)aimMark(c,e.ex,e.ey,px,py,r*.86,aim);       // 예고 — 조여드는 원
+  if(fly>=0){
+    const sx=e.fx+(e.tx-e.fx)*fly, sy=e.fy+(e.ty-e.fy)*fly;
+    // 바닥 그림자 — 이것이 「어디에 떨어지는가」다
+    c.beginPath();c.ellipse(sx,sy,r*.30*(1-fly*.3),r*.16*(1-fly*.3),0,0,TAU);
+    c.fillStyle="rgba(0,0,0,.55)";c.fill();
+    c.beginPath();c.ellipse(e.tx,e.ty,r*.42,r*.22,0,0,TAU);
+    c.strokeStyle=ENRM;c.lineWidth=2.2;c.setLineDash([r*.16,r*.12]);c.stroke();
+    c.setLineDash([]);
+    const lift=Math.sin(fly*Math.PI)*r*1.9;             // 몸만 뜬다
+    ENshot(c,sx,sy-lift,Math.atan2(e.ty-e.fy,e.tx-e.fx)+fly*2.4,r*.52,r*.30,1);}
+  if(hit>=0){
+    celSplash(c,e.tx,e.ty,r*(.5+1.5*hit),9,13.7,"gold",(1-hit)*.5,.5,1.5);
+    c.beginPath();c.ellipse(e.tx,e.ty,r*(.5+1.7*hit),r*(.5+1.7*hit)*.5,0,0,TAU);
+    c.strokeStyle=ENRM;c.globalAlpha=1-hit;c.lineWidth=3.2*(1-hit);c.stroke();
+    c.globalAlpha=1;
+    if(hit<.06)emit(st,e.tx,e.ty,18,{k:"gold",sp:170,r:3,life:.6,spikeP:.7});}
+  // 몸 — **낮고 넓은 분화구.** 진행 방향으로 짧고(0.86) 옆으로 넓다(1.20)
+  foeDraw(c,[[.86,-.42],[.52,-.96],[-.30,-1.20],[-.92,-.62],[-.92,.62],
+    [-.30,1.20],[.52,.96],[.86,.42]],e.ex,e.ey,r,e.a,.6,t,73.9,3.2);
+  // 포구 — 앞으로 짧게 튀어나온 두꺼운 관
+  limbSeg(c,e.ex+Math.cos(e.a)*r*.30,e.ey+Math.sin(e.a)*r*.30,
+    e.ex+Math.cos(e.a)*r*1.02,e.ey+Math.sin(e.a)*r*1.02,r*.30,r*.36);
+  c.beginPath();c.arc(e.ex+Math.cos(e.a)*r*1.02,e.ey+Math.sin(e.a)*r*1.02,r*.20,0,TAU);
+  c.fillStyle=ENHOLE;c.fill();
+  c.strokeStyle=ENRM;c.lineWidth=2;c.stroke();
+  foeEyes(c,e.ex,e.ey,r*.66,2,px,py,.13);
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+// ⑬ 추적 追 — 유도탄. **피해도 따라온다** · 거리로 뿌린다.
+// 선회가 잘려 있어(2.2rad/s) 수직으로 끊으면 지나치고, 지나친 탄은 다시는
+// 안 문다(엔진 `kHunterShotGiveUpCos` 와 같은 규칙) — 그래야 「각을 꺾었다」는
+// 판단이 보상받는다. 몸이 제 탄과 같은 지느러미 실루엣이라 설명이 필요 없다.
+rgHunter(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-36*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=21*SC;
+  const d=ENstand(e,px,py,60*SC,92*SC,78*SC,dt,1);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  e.tm-=dt;
+  const lock=e.tm<.45&&e.tm>0?1-e.tm/.45:0;      // 예고 — 표적에 물리는 괄호
+  if(e.tm<=0){e.tm=1.9;
+    e.sub.push({x:e.ex+Math.cos(e.a)*r,y:e.ey+Math.sin(e.a)*r,a:e.a,l:0,go:0});}
+  for(let i=e.sub.length-1;i>=0;i--){const s=e.sub[i];
+    s.l+=dt;
+    const wa=Math.atan2(py-s.y,px-s.x);
+    let dd=((wa-s.a+Math.PI*3)%TAU)-Math.PI;
+    if(Math.abs(dd)>1.15)s.go=1;                 // 각이 꺾였다 — 포기
+    if(!s.go)s.a+=Math.max(-2.2*dt,Math.min(2.2*dt,dd));
+    s.x+=Math.cos(s.a)*190*SC*dt;s.y+=Math.sin(s.a)*190*SC*dt;
+    if(s.l>2.2||s.x<-20||s.y<-20||s.x>W+20||s.y>H+20)e.sub.splice(i,1);}
+  stepP(st,dt);drawP(c,st);
+  if(lock>0){                                    // 물리는 괄호 넷
+    c.save();c.globalAlpha=lock*.9;
+    for(let i=0;i<4;i++){const q=i/4*TAU+.79,dd2=r*(1.5-.5*lock);
+      const bx=px+Math.cos(q)*dd2,by=py+Math.sin(q)*dd2;
+      c.beginPath();c.moveTo(bx+Math.cos(q+2.2)*r*.4,by+Math.sin(q+2.2)*r*.4);
+      c.lineTo(bx,by);c.lineTo(bx+Math.cos(q-2.2)*r*.4,by+Math.sin(q-2.2)*r*.4);
+      c.strokeStyle=ENRM;c.lineWidth=2.2;c.stroke();}
+    c.restore();}
+  for(const s of e.sub){
+    const al=s.go?Math.max(0,1-(s.l-.2)*.6):1;
+    if(al<=.02)continue;
+    for(const sg of[-1,1])                       // 지느러미
+      celLegs(c,s.x,s.y,4.4*SC,s.a+Math.PI+sg*.75,.95,.24);
+    ENshot(c,s.x,s.y,s.a,13*SC,4.4*SC,al);}
+  // 몸 — 진행 방향으로 길고(1.35) 지느러미가 돋았다
+  for(const sg of[-1,1])celLegs(c,e.ex,e.ey,r*.72,e.a+Math.PI+sg*.68,1.05,.16);
+  foeDraw(c,[[1.35,0],[.62,.44],[-.30,.56],[-1.00,.30],[-1.00,-.30],
+    [-.30,-.56],[.62,-.44]],e.ex,e.ey,r,e.a,1.0,t,79.3,2.8);
+  foeEyes(c,e.ex,e.ey,r*.80,1,px,py,.19);
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+// ⑭ 저격 狙擊 (신규) — **한 발이 아주 아프다** · 조준선이 미리 보인다.
+// 예고가 이 적의 전부다: 1.9초 동안 선이 따라오고, 0.15초 동안 **얼어붙고**,
+// 그 언 선을 따라 창이 나간다. 얼어붙는 순간이 「지금 비켜라」이고, 안 비키면
+// 플레이어는 「내가 뭘 잘못했는지」를 배운다.
+rgSnipe(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-44*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=22*SC,PD=3.2,u=(t%PD)/PD;
+  ENstand(e,px,py,84*SC,118*SC,26*SC,dt,-1);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  const track=u<.59,frz=(u>=.59&&u<.64),fire=(u>=.64&&u<.76);
+  if(frz&&!e.st){e.st=1;e.tx=px;e.ty=py;}
+  if(u<.4)e.st=0;
+  const mx=e.ex+Math.cos(e.a)*r*1.15, my=e.ey+Math.sin(e.a)*r*1.15;
+  stepP(st,dt);drawP(c,st);
+  if(track||frz){
+    const gx=frz?e.tx:px, gy=frz?e.ty:py;
+    const k=frz?1:Math.min(1,u/.59);
+    c.save();c.globalAlpha=(frz?1:.30+.55*k);
+    c.beginPath();c.moveTo(mx,my);c.lineTo(gx,gy);
+    c.strokeStyle=frz?ENEY:ENRM;c.lineWidth=frz?3.0:1.3+1.2*k;c.stroke();
+    for(let i=0;i<2;i++){                        // 조여드는 괄호 둘
+      const sg=i?1:-1,q=Math.atan2(gy-my,gx-mx)+Math.PI/2*sg;
+      const dd=r*(1.5-1.0*k);
+      c.beginPath();
+      c.moveTo(gx+Math.cos(q)*dd+Math.cos(q+1.6)*r*.5,
+               gy+Math.sin(q)*dd+Math.sin(q+1.6)*r*.5);
+      c.lineTo(gx+Math.cos(q)*dd,gy+Math.sin(q)*dd);
+      c.lineTo(gx+Math.cos(q)*dd+Math.cos(q-1.6)*r*.5,
+               gy+Math.sin(q)*dd+Math.sin(q-1.6)*r*.5);
+      c.strokeStyle=frz?ENEY:ENRM;c.lineWidth=2.4;c.stroke();}
+    c.restore();}
+  if(fire){
+    const k=(u-.64)/.12, al=Math.max(0,1-k*1.2);
+    ENlance(c,mx,my,e.tx,e.ty,r*(.30-.16*k),al);
+    if(k<.10)emit(st,mx,my,10,{k:"gold",sp:200,r:2.4,life:.3,
+      a:Math.atan2(e.ty-my,e.tx-mx),spread:.5,spikeP:.9});}
+  // 몸 — **길고 낮게 엎드린 것 + 버팀다리 둘.** 다른 원거리 넷이 서 있는
+  // 자리에서 이것만 엎드려 있어 「한 발을 오래 겨눈다」로 읽힌다.
+  const kick=fire?(1-(u-.64)/.12)*r*.34:0;
+  const bxx=e.ex-Math.cos(e.a)*kick, byy=e.ey-Math.sin(e.a)*kick;
+  for(const sg of[-1,1])
+    celLegs(c,bxx+Math.cos(e.a)*r*.30,byy+Math.sin(e.a)*r*.30,r*.72,
+      e.a+sg*1.15,1.35,.11);
+  foeDraw(c,[[1.30,-.20],[.75,-.36],[-.20,-.44],[-1.10,-.26],[-1.32,0],
+    [-1.10,.26],[-.20,.44],[.75,.36],[1.30,.20]],bxx,byy,r,e.a,.4,t,89.1,3.0);
+  limbSeg(c,bxx+Math.cos(e.a)*r*.9,byy+Math.sin(e.a)*r*.9,mx,my,r*.16,r*.20);
+  // 큰 렌즈 눈 하나 — 조준하는 동안 조여든다
+  const lens=track?.42-.14*(u/.59):.24;
+  c.beginPath();
+  c.ellipse(bxx+Math.cos(e.a)*r*.10,byy+Math.sin(e.a)*r*.10,r*.40,r*lens,e.a,0,TAU);
+  c.fillStyle=ENHOLE;c.fill();
+  c.strokeStyle=ENRM;c.lineWidth=2.2;c.stroke();
+  c.beginPath();
+  c.arc(bxx+Math.cos(e.a)*r*.10,byy+Math.sin(e.a)*r*.10,r*lens*.62,0,TAU);
+  c.fillStyle=ENEY;c.fill();
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+// ⑮ 소환 召喚 (신규) — 자기는 **안 때리고** 잡몹을 부른다. 먼저 죽여라.
+// 열넷 중 유일하게 **플레이어를 향해 아무것도 안 보낸다.** 늘 물러서고,
+// 앞에 균열을 열고, 나오는 것들이 대신 간다. 그래서 이 적의 위협은 자기
+// 몸이 아니라 **시간**이다 — 오래 두면 화면이 찬다.
+rgSummon(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-52*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=27*SC;
+  // **늘 물러선다** — 다가오는 국면이 아예 없다
+  const dx=px-e.ex,dy=py-e.ey,d=Math.hypot(dx,dy)||1;
+  if(d<120*SC){e.ex-=dx/d*42*SC*dt;e.ey-=dy/d*42*SC*dt;}
+  e.a=Math.atan2(dy,dx);
+  ENclamp(e,cx,cy,W*.24,H*.24);
+  const PD=2.4,u=(t%PD)/PD;
+  const gate=u<.18?u/.18:(u<.46?1:(u<.60?1-(u-.46)/.14:0));
+  const gx=e.ex+Math.cos(e.a)*r*2.1, gy=e.ey+Math.sin(e.a)*r*2.1;
+  if(u>=.30&&u<.34&&!e.st){e.st=1;
+    if(e.sub.length<4)e.sub.push({x:gx,y:gy,s:0,seed:hash(t)*40});
+    emit(st,gx,gy,10,{k:"gold",sp:80,r:2.2,life:.4,spikeP:.6});}
+  if(u<.2)e.st=0;
+  for(let i=e.sub.length-1;i>=0;i--){const s=e.sub[i];
+    s.s=Math.min(1,s.s+dt*1.8);                  // 기어 나오는 중
+    const q=Math.atan2(py-s.y,px-s.x);
+    s.x+=Math.cos(q)*46*SC*dt*s.s;s.y+=Math.sin(q)*46*SC*dt*s.s;
+    if(Math.hypot(px-s.x,py-s.y)<13*SC){e.sub.splice(i,1);
+      emit(st,px,py,8,{k:"gold",sp:90,r:2,life:.3,spikeP:.7});}}
+  stepP(st,dt);drawP(c,st);
+  if(gate>.02){                                  // 균열 — 앞에 열린 자리
+    const gw=r*1.30*gate, ga=e.a+Math.PI/2;
+    // **틈**이다 — 각진 별로 그리면 적이 하나 더 있는 것으로 보인다(3차 판정).
+    const lip=[];
+    for(let i=0;i<=16;i++){const w=i/16*TAU;
+      const rr=gw*(1+.10*Math.sin(w*5+17.3));
+      lip.push([gx+Math.cos(ga)*Math.cos(w)*rr-Math.sin(ga)*Math.sin(w)*rr*.30,
+                gy+Math.sin(ga)*Math.cos(w)*rr+Math.cos(ga)*Math.sin(w)*rr*.30]);}
+    fillPoly(c,lip,ENVOID);
+    c.beginPath();lip.forEach((v,i)=>i?c.lineTo(v[0],v[1]):c.moveTo(v[0],v[1]));
+    c.closePath();c.strokeStyle=ENRM;c.lineWidth=2.6;c.stroke();
+    for(let i=0;i<3;i++){                       // 안에서 올라오는 붉은 결
+      const w=(i-1)*.5;
+      celStroke(c,[[gx+Math.cos(ga+w)*gw*.62,gy+Math.sin(ga+w)*gw*.62],
+                   [gx-Math.cos(ga+w)*gw*.62,gy-Math.sin(ga+w)*gw*.62]],
+        gw*.06,"gold",.35*gate);}
+    c.beginPath();c.ellipse(gx,gy,gw*.30,gw*.10,ga,0,TAU);
+    c.fillStyle=A(ENEY,.60*gate);c.fill();}
+  for(const s of e.sub)
+    ENgrunt(c,s.x,s.y,11*SC*(.4+.6*s.s),Math.atan2(py-s.y,px-s.x),t,s.seed,px,py,2.0);
+  // 몸 — **웅크린 것.** 앞으로 뻗은 것이 하나도 없고 뒤가 높다.
+  // 치맛자락(휘는 마디 넷)이 바닥에 끌려 「서 있지 않다」가 된다.
+  for(let i=0;i<4;i++){
+    const q=e.a+Math.PI+(i-1.5)*.52;
+    curveLimb(c,e.ex,e.ey+r*.10,e.ex+Math.cos(q)*r*1.25,e.ey+Math.sin(q)*r*1.25,
+      r*.26,r*.10,Math.sin(t*1.2+i)*r*.20);}
+  foeDraw(c,[[.62,-.34],[.30,-.72],[-.46,-.96],[-1.16,-.44],[-1.20,.28],
+    [-.62,.86],[.16,.80],[.60,.36],[.74,0]],e.ex,e.ey,r,e.a,1.0,t,97.7,3.2);
+  foeEyes(c,e.ex-Math.cos(e.a)*r*.20,e.ey-Math.sin(e.a)*r*.20,r*.72,3,px,py,.13);
+  ENplDraw(c,px,py,10*SC,t,null);
+},
+
+};
+
+// 적이 쏘는 큰 창 — 저격의 한 발. **탄이 아니라 창**이라 굵고 길다.
+function ENlance(c,x0,y0,x1,y1,w,al){
+  const P=[[x0,y0],[x0+(x1-x0)*.5,y0+(y1-y0)*.5],[x1,y1]];
+  fillPoly(c,ribbonPoly(P,w,w*.30),A(ENDK,.95*al));
+  c.save();c.globalAlpha=.95*al;
+  fillPoly(c,ribbonPoly(P,w*.62,w*.20),ENRM);
+  c.restore();
+  fillPoly(c,ribbonPoly(P,w*.24,w*.08),A(ENEY,al));
+}
+
+// ── 도감 ─────────────────────────────────────────────────────────────────
+const ENDEF=[
+["emBurn","염 炎 · 근접 — 연소체 燃燒體","몸에 불이 붙었다. 실루엣이 매 프레임 찢어져 윤곽이 안 정해진다 · 닿으면 점화"],
+["frWall","빙 氷 · 특수 — 결빙 結氷","턱을 벌려 뿜는다. 사이 60% 지점에 기둥 일곱이 **서서** 길을 막는다(예고: 통로 점선)"],
+["vlSeg","뇌 雷 · 근접 — 전절 電節","유일하게 마디가 있다. 덩어리 셋이 자취를 따라 늦게 돌고, 달리기도 끊어 튄다 · 닿으면 감전"],
+["vlTether","뇌 雷 · 특수 — 쌍극 雙極","둘이 선으로 이어진다. 위험한 것은 몸이 아니라 몸 사이 — 적을 피했는데 맞는 유일한 적"],
+["rgSniper","점사 — kKindSniper","멈춰 3연발 · 유지 거리를 지킨다. 점선 고리 안으로 붙으면 눈이 감기고 못 쏜다"],
+["rgMortar","포격 — kKindMortar","그림자는 바닥을 직선으로 가고 몸만 떴다 내려온다. 조여드는 원이 떨어질 자리"],
+["rgHunter","추적 — kKindHunter","유도탄. 선회가 2.2rad/s 로 잘려 수직으로 끊으면 지나치고, 지나친 탄은 다시 안 문다"],
+["rgSnipe","저격 狙擊 (신규)","조준선이 1.9초 따라오다 0.05초 **얼어붙는다**. 언 선을 따라 창이 나간다 — 그때 비켜라"],
+];
+
+// (칸 등록은 다안까지 다 실린 뒤 — 이 파일 맨 끝에서 한 번에 한다)
+
+
+// ── 다안 — **갈림이 약한 둘만** ────────────────────────────────────────────
+//
+// 속성 근접 다섯을 나란히 놓고 보니(3차 눈 판정) 셋은 실루엣만으로 갈렸고
+// (빙=여섯 꼭짓점 결정 · 뇌=마디 셋 · 풍=초승달), **둘이 안 갈렸다**:
+// 염(A)과 독(A) 이 **둘 다 「가장자리가 조금 다른 둥근 덩어리」**였다.
+// 색을 빼면 구별이 안 되는 건 이 둘뿐이라 여기만 2안을 만든다.
+// 나머지 셋에 억지로 B안을 붙이면 「다르게 생긴 것」이 늘 뿐이다.
+
+// ①-B 염 · 근접 — **갈라진다.** A안이 「가장자리가 일렁이는 덩어리」라면
+// B안은 **덩어리가 셋으로 쪼개져 벌어졌다 붙는다** — 몸이 타서 갈라지는 것이
+// 실루엣의 사건이 된다. 열넷 중 몸이 **여럿으로 나뉘는** 유일한 근접형이고,
+// 무리(swarm)와는 정반대다: 무리는 여럿이 하나처럼 몰리고 이쪽은 하나가
+// 여럿으로 찢어진다(중심이 늘 하나로 보인다).
+EN.emBurnB=function emBurnB(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-40*SC);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=26*SC;
+  ENgStep(e,dt);
+  const d=ENchase(e,px,py,54*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  e.tm=Math.max(0,e.tm-dt*.34);
+  if(d<r+8*SC)e.tm=1;
+  if(e.g.length<5&&hash(Math.floor(t*9)*1.7)>.55)
+    ENgAdd(e,e.ex,e.ey,r*.40,.55,"ember",t*3.1);
+  ENgDraw(c,e,t);
+  stepP(st,dt);drawP(c,st);
+  // 벌어짐 — 0 이면 한 덩어리, 1 이면 셋이 떨어진다. 완전히 안 떨어진다:
+  // 떨어져 버리면 「셋」이 되고, 붙어 있어야 「갈라진 하나」다.
+  // ⚠️ 벌어짐이 조각 반지름보다 작으면 셋이 겹쳐 **한 덩어리**로 보인다
+  // (4차 눈 판정 — .46r 로는 안 갈렸다). 조각 반지름 .55r 에 벌어짐 최대
+  // .92r 이면 조각 사이에 **틈이 실제로 생긴다** — 거기서 불이 샌다.
+  const gap=(.40+.60*Math.max(0,Math.sin(t*2.3)))*r*.92;
+  const sr=r*.55;
+  // 틈의 불 — 조각보다 **먼저** 그려 조각 사이로 새어 나오게 한다
+  for(let i=0;i<3;i++){
+    const q=e.a+i/3*TAU+t*.35+Math.PI/3;
+    ENlick(c,e.ex+Math.cos(q)*gap*.5,e.ey+Math.sin(q)*gap*.5,sr,q,t,3,1.05,.95);}
+  for(let i=0;i<3;i++){
+    const q=e.a+i/3*TAU+t*.35;
+    const bx=e.ex+Math.cos(q)*gap, by=e.ey+Math.sin(q)*gap;
+    const P=[];
+    for(let j=0;j<8;j++){const w=j/8*TAU;
+      const o=(j%2?1.02:.74)+.10*Math.sin(t*7.7+j*1.9+i);
+      P.push([Math.cos(w)*o,Math.sin(w)*o]);}
+    foeDraw(c,P,bx,by,sr,q,0,t,11.3+i*5.1,2.6);
+    foeEyes(c,bx,by,sr*.72,1,px,py,.22);}          // 조각마다 눈 하나
+  if(e.tm>.05&&R()<dt*26)
+    emit(st,px,py,1,{k:"ember",sp:26,r:2.2,life:.5,g:-60,spikeP:.25});
+  ENplDraw(c,px,py,10*SC,t,{k:e.tm,el:"ember"});
+};
+
+// ⑨-B 독 · 근접 — **선다.** A안이 「아래로 처진 덩어리」라면 B안은
+// **세로로 긴 기둥**이다: 열여섯 중 유일하게 세로가 가로의 두 배이고,
+// 밑동이 이미 자기 장판에 녹아 들어가 있어 **몸과 바닥의 경계가 없다.**
+// 「지나간 자리에 장판」이 아니라 「장판이 일어서서 걸어온다」로 읽힌다.
+EN.txDripB=function txDripB(c,t,dt,W,H,st){
+  const SC=ENsc(W,H),cx=W/2,cy=H/2,e=ENst(st,cx,cy-30*SC);
+  e.tm=Math.max(0,e.tm-dt*.36);
+  e.ph+=dt;
+  const pp=ENpl(e.ph,cx,cy,SC),px=pp[0],py=pp[1];
+  const r=24*SC;
+  ENgStep(e,dt);
+  const d=ENchase(e,px,py,40*SC,dt);
+  ENclamp(e,cx,cy,W*.28,H*.28);
+  if(d<r+8*SC)e.tm=1;
+  // 밑동이 늘 녹고 있다 — 0.5초마다 자기 발밑에 장판을 깐다
+  const dp=(t%.5)/.5;
+  if(dp<.03&&!e.st){e.st=1;ENgAdd(e,e.ex,e.ey+r*1.05,14*SC,3.0,"toxin",t*7.1);}
+  if(dp>.3)e.st=0;
+  ENgDraw(c,e,t);
+  stepP(st,dt);drawP(c,st);
+  // 기둥 — 위가 가늘고 아래가 퍼진다. 가로 .58 · 세로 1.30 (2.2:1)
+  const P=[];
+  for(let i=0;i<=9;i++){const u=i/9;
+    const w=.30+.36*u*u+.05*Math.sin(t*2.1+u*5.3);
+    P.push([w,-1.30+u*2.45]);}
+  for(let i=9;i>=0;i--){const u=i/9;
+    const w=.30+.36*u*u+.05*Math.sin(t*2.1+u*5.3+1.7);
+    P.push([-w,-1.30+u*2.45]);}
+  // ⚠️ ang 0 — 세로로 서 있는 것이 정체라 진행 방향으로 안 돌린다
+  foeDraw(c,P,e.ex,e.ey,r,0,1.2,t,83.7,2.8);
+  // 흘러내리는 줄기 둘 — 몸 옆구리에서 바닥까지
+  for(const sg of[-1,1])
+    curveLimb(c,e.ex+sg*r*.30,e.ey+r*.20,e.ex+sg*r*.52,e.ey+r*(1.05+.12*Math.sin(t*3+sg)),
+      r*.10,r*.05,sg*r*.12);
+  foeEyes(c,e.ex,e.ey-r*.62,r*.52,3,px,py,.20);
+  if(e.tm>.2&&R()<dt*16)emit(st,px,py,1,{k:"toxin",sp:24,r:2.2,life:.6,g:-50,spikeP:.15});
+  ENplDraw(c,px,py,10*SC,t,{k:e.tm,el:"toxin"});
+};
+
+ENDEF.push(
+["emBurnB","염 炎 · 근접 B — 연소체 燃燒體","A는 가장자리가 일렁이는 한 덩어리 · B는 **셋으로 갈라졌다 붙는다**(틈에서 불이 샌다)"]);
+
+// 잡몹 칸(S=238)에 한 줄씩. 보스가 아니므로 큰 무대를 안 쓴다.
+// ⚠️ 옛 팔레트 대조 마운트는 뺐다 — 고르기의 적 절을 지웠고 채택된 아홉은
+// 속성색 판([EM*])으로 우주괴물 페이지에 있다. `$("en")` 은 이제 유령이었다.
+
+// ── 속성 방어 15안 · 궁극기 16안 (임시 마운트) ───────────────────────────
+// ⭐ 2026-08-12 — **제 페이지로 올린다.** 「고르기」에만 있어서 방어·궁극기
+// 페이지를 열면 한 칸도 안 보였다(사용자 지적). 없으면 고르기로 떨어진다.
+{const G=null;
+ if(G){
+  [["GEfire","염 소염","점화를 튕긴다"],["GEice","빙 해빙","동상을 깨뜨린다"],
+   ["GEvolt","뇌 접지","감전을 땅으로 흘린다"],["GEwind","풍 역풍","둔화를 되민다"],
+   ["GEtox","독 항체","중독을 표면에서 터뜨린다"]]
+  .forEach(([base,nm,ds])=>{
+    [1,2,3].forEach(i=>{const k=base+i;
+      if(FX[k])tile(G,FX,k,nm+" "+i,"",["표식이 튕긴다","고리가 먹어 들어간다","되받는다"][i-1]+" — "+ds,238);});});}}
+/// 계열 하나를 **한 덩어리**로 묶어 그린다(성장표와 같은 `.lvblock` UI).
+///
+/// ⚠️ 성장표([LVW] 쪽)는 **함수 하나에 `LV` 를 갈아 끼워** 다섯 칸을 뽑는데,
+/// 궁극기 3안은 레벨이 아니라 **서로 다른 함수 셋**이다. 그래서 같은 껍데기를
+/// 쓰되 칸마다 함수를 직접 받는다 — 덩어리가 안 쪼개지는 성질(모바일 2열 +
+/// 마지막 칸 전폭)은 `vfx.css` 가 주므로 여기서 다시 안 만든다.
+function varBlock(host,reg,nm,kind,items){
+  host.classList.add("lvset");
+  host.style.setProperty("--block",LVBLOCKMIN+"px");
+  host.style.setProperty("--blockmax",LVBLOCKMAX+"px");
+  const row=document.createElement("div");row.className="lvblock";
+  row.insertAdjacentHTML("beforeend",
+    `<div class="hd"><b style="font-size:13px;color:#EDEDF2">${nm}</b>`+
+    `<span style="font-size:10px;color:#5A5A68">${kind}</span></div>`);
+  const cells=document.createElement("div");
+  cells.className="cells";cells.style.setProperty("--n",items.length);
+  items.forEach(([key,lbl,txt],idx)=>{
+    const cell=document.createElement("div");cell.className="cell";
+    const cv=document.createElement("canvas");
+    box(cv,{width:"100%",height:"auto",display:"block",aspectRatio:"1",background:"#0C0C12"});
+    cell.appendChild(cv);
+    cell.insertAdjacentHTML("beforeend",
+      `<div class="lb"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;`+
+      `color:${idx?"#FFA83C":"#9494A2"}">${lbl}</div>`+
+      `<div style="font-size:9px;color:#9494A2;line-height:1.3;margin-top:2px;`+
+      `min-height:3.6em">${txt}</div></div>`);
+    cells.appendChild(cell);
+    // `key` 가 함수면 그대로 그린다 — 개안처럼 **레벨을 갈아 끼워** 세 칸을
+    // 뽑는 경우가 있다(같은 함수, 다른 `LV`).
+    const fn=typeof key==="function"?key:reg[key];
+    if(fn)mk(cv,[LVD,LVD],fn);});
+  row.appendChild(cells);host.appendChild(row);}
+
+// ⚠️ 이 표가 `FX[k]` 를 봤는데 궁극기 함수는 **[UTFX] 에 있다.** 전부 `if` 에
+// 걸려 한 칸도 안 떴다(2026-08-12 사용자 지적).
+//
+// ⭐ 2026-08-12 사용자 지시: 「궁극기에서 **3개씩 그루핑**해서 보여줘 —
+// 공격·방어 계열을 5개씩 그루핑한 것처럼」. 낱칸 격자를 **계열 덩어리**로 바꾼다.
+// ⚠️ **`#ult` 에 넣으면 안 된다.** 거기엔 [tile] 이 이미 `.grid` 를 붙여 놨고
+// `.lvset` 을 겹쳐 붙이면 격자 규칙 둘이 한 칸에서 싸워 **위쪽 다섯이 제각각
+// 크기로 터진다**(2026-08-12 사용자 지적). 덩어리는 제 호스트를 쓴다.
+{const U=document.getElementById("ultvar");
+ if(U){
+  const V=[["1","1 안",""],["2","2 안",""],["3","3 안",""]];
+  // ⚠️ 개안만 안이 하나라 `--n:1` 이 되어 **칸 하나가 덩어리 전체 폭**을
+  // 먹었다(2026-08-12 사용자 지적). 덩어리는 셋이 한 줄이라는 규칙이 있으니
+  // 개안도 셋으로 채운다 — 안 셋이 아니라 **기존 [flare] 의 레벨 셋**이다.
+  {const atLV=(L)=>(c,t,dt,W,H,st)=>{const sl=LV;LV=L;
+     try{FX.flare(c,t,dt,W,H,st);}finally{LV=sl;}};
+   varBlock(U,UTFX,"개안 開眼 · 기준선","전멸 1회 — 나머지 다섯은 이 옆에 선다",
+     [[atLV(1),"L1","화면 전체를 한 번에 지운다"],
+      [atLV(2),"L2","같은 한 방이 더 넓고 더 오래 덮는다"],
+      [atLV(3),"L3","완성형 — 다섯 안의 비교 기준이 이 칸이다"]]);}
+  [["UTbarrage","포화 砲火","낙하 3연",
+    "무작위 지점에 셋. **사이가 빈다** — 총 피해는 크고 놓치는 자리가 있다"],
+   ["UTpull","인력 引力","아이템 회수",
+    "화면의 젬을 전부 당긴다. **피해 0** — 지금이 아니라 다음 3분을 산다"],
+   ["UTstill","정적 靜寂","시간 정지",
+    "적·탄이 멎고 **리젠도 멎는다**. 피해 0 — 빠져나갈 시간을 산다"],
+   ["UTrage","격노 激怒","피해 증가",
+    "일정 시간 내 피해가 는다. **곱해지는 것**이라 센 빌드일수록 값이 크다"],
+   ["UTimmo","불멸 不滅","무적",
+    "일정 시간 안 죽는다. 잘 풀릴 땐 아무 일도 안 일어나는 **보험**"]]
+  .forEach(([base,nm,kind,ds])=>
+    varBlock(U,UTFX,nm,kind,V.map(([sfx,lbl])=>[base+sfx,lbl,ds])));}}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FZ — 사용자 반려 반영 2회차 (2026-08-12)                        접두사 `FZ`
+//
+// 이름 여섯은 **그대로**다(이미 마운트돼 있다). 본문만 갈아 끼웠다.
+// 갈아 끼운 이유는 셋 다 **사용자가 직접 보고 반려**했기 때문이다.
+//
+//   ① FZtomb1·FZtomb3 — 「빠르게 튀어오르게 해달라고 했는데 **너무 느리다**」
+//        0.345s / 0.364s → **0.180s / 0.179s**. 후보 여섯을 나란히 렌더해서 골랐다.
+//   ② FZtomb2 — 「방향은 맞는데 **그냥 갑자기** 위에서 내려찍는다. 위쪽에서
+//        **포탈문이 열리듯 동그랗게 마법진이 그려지고 그 위 마법진에서
+//        아랫 마법진으로 쾅** 하고 찍혔으면」
+//        → 마법진 → **포탈** → **고리를 통과** → 찍음. 네 마디로 다시 짰다.
+//   ③ FZvortex1~3 — 「원근을 나타내려면 **아랫쪽이 좁고 윗쪽이 넓어야** …
+//        **길이가 너무 길다** 보니까 그냥 평면처럼 보인다」
+//        → 반지름 곡선을 **뒤집고**(아래 .30R → 위 1.45R) 높이를 **최대 지름의
+//        배수**로 다시 잡았다(0.98:1). 깊이 축 셋은 그 위에 그대로 얹는다.
+//
+// ── 앞 회차의 진단이 틀린 것은 아니었다. **더 앞이 있었다** ────────────────
+// 앞 회차는 「깊이를 만드는 축」을 셋(크기·순서·밝기)으로 갈라 안마다 하나씩
+// 걸었다. 그 축들은 지금도 그대로 살아 있다. 다만 그 위에 얹기 전에 **모양의
+// 방향**이 먼저 맞아야 했다 — 아래가 넓은 깔때기에 어떤 깊이 신호를 걸어도
+// 「위에서 내려다본 것」은 안 되고, 세로로 긴 굴뚝에서는 위아래 폭 차이가
+// 길이에 묻힌다. 사용자가 본 것이 그것이고, 그것이 더 앞의 문제다.
+//
+// ── 판정을 넘기기 위해 남긴 손잡이 둘 ─────────────────────────────────────
+//   `FZDUR`  — 솟는 속도(초). 후보 렌더가 이 표만 바꿔 끼웠다.
+//   `FZVOR`  — 회오리의 위/아래 반지름 · 눌림 · **높이÷최대지름(K)**.
+// 둘 다 **그림 코드는 한 벌**이고 수치만 바뀐다. 다시 고를 때 이 두 줄만 만진다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// ⚠️ **타이밍 손잡이.** 「튀어오른다」가 「깜빡인다」로 넘어가는 경계는
+/// 눈으로만 잡히므로, 같은 그림을 여러 속도로 뽑아 나란히 놓고 골라야 한다.
+/// 후보 렌더는 이 표만 바꿔 끼운다 — 그림 코드는 한 벌뿐이다.
+/// `RD` 는 주기(u) 단위다: 초 = RD × PER.
+const FZDUR={t1:{R0:.045,RD:.060,PER:3.0},   // 0.180초
+             t3:{R0:.040,RD:.064,PER:2.8},   // 0.179초
+  // B 는 네 마디다. **출처가 보여야** 하므로 포탈이 열리는 몫을 따로 잡는다.
+  //   마법진 0.165s → 포탈 0.180s → 통과 0.195s → 낙하 0.165s (찍힘 0.705s)
+             t2:{PER:3.0,RUNE:.055,PORT0:.055,PORT1:.115,
+                 EXT0:.115,EXT1:.180,FALL0:.180,IMP:.235}};
+
+// ── 튀어오름 곡선 ────────────────────────────────────────────────────────
+/// **정점에서 넘어갔다 되돌아온다**(easeOutBack). `ease`(1-(1-u)^3)는 끝에서
+/// 얌전히 눕는 곡선이라 「자란다」로 읽히고, 튀는 것은 **넘어갔다 와야** 한다.
+/// [os] 가 클수록 더 넘어간다(1.7 → 정점 1.10, 2.4 → 1.14).
+const FZpop=(p,os)=>{if(p<=0)return 0;if(p>=1)return 1;
+  const c1=(os==null?1.70158:os),c3=c1+1,q=p-1;return 1+c3*q*q*q+c1*q*q;};
+/// 같은 스케줄에서 뽑은 **속도**. 스쿼시·스트레치를 눈대중 상수로 주면 주기
+/// 끝과 처음이 안 맞는다 — 그리는 값은 전부 이 한 스케줄에서 파생시킨다.
+const FZpopV=(p,os)=>(FZpop(Math.min(1,p+.02),os)-FZpop(Math.max(0,p-.02),os))/.04;
+
+/// 눌린 고리 하나 — `IBline` 의 호출부다(마법진의 고리와 같은 문법).
+/// `q0`·`q1` 을 주면 **호만** 그린다. 포탈이 「통과」로 읽히려면 고리의 **앞쪽
+/// 반원**을 기둥 **위에** 다시 덮어야 하기 때문에 필요하다 — 앞뒤를 안 가르고
+/// 통째로 덮으면 기둥이 고리 **뒤로** 지나간 것이 되고, 통째로 깔면 기둥이
+/// 고리를 **가려** 문이 사라진다. 둘 다 「통과」가 아니다.
+function FZring(c,x,y,r,sq,w,k,a,q0,q1){
+  if(!(r>1)||!(a>.01))return;const P=[];
+  const A0=(q0==null?0:q0),A1=(q1==null?TAU:q1),N=Math.max(6,Math.round(30*(A1-A0)/TAU));
+  for(let i=0;i<=N;i++){const q=A0+(A1-A0)*i/N;
+    P.push([x+Math.cos(q)*r,y+Math.sin(q)*r*sq]);}
+  IBline(c,P,w,k,a,0);
+}
+/// 바닥에 **금이 간다.** 내려찍힘·튀어오름 둘 다 「땅이 받았다」가 있어야
+/// 무게가 선다. 갈래는 곧지 않고 마디마다 어긋난다.
+function FZcrack(c,x,y,R0,sq,k,grow,a,SC,n){
+  if(!(a>.01))return;
+  for(let i=0;i<(n||6);i++){const a0=i*TAU/(n||6)+1.1+hash(i*5.3);
+    const L=R0*(.70+.55*hash(i*2.7))*grow,cs=Math.cos(a0),sn=Math.sin(a0),pts=[[x,y]];
+    for(let j=1;j<=3;j++){const d=L*j/3,w=(hash(i*3.1+j*1.7)-.5)*R0*.18;
+      pts.push([x+cs*d-sn*w,y+(sn*d+cs*w)*sq]);}
+    IBline(c,pts,Math.max(.4,1.3*SC*a),k,a*.85,0);}
+}
+
+Object.assign(FX,{
+
+// ══════════════════════════════════════════════════════════════════════════
+// ① 결빙 A′ · **튀어오르는 유리 기둥** (IBtomb1 을 빠르게)
+// ══════════════════════════════════════════════════════════════════════════
+// 방향은 그대로 아래→위. 갈린 것은 **속도 하나**다:
+//   솟는 구간 0.90s → **0.180s**(5.0배) · 곡선 `linear` → **넘어갔다 오는 easeOutBack**
+//   ⚠️ 앞 회차 0.345s 가 「너무 느리다」로 반려됐다. 프레임 단위 필름스트립으로
+//   경계를 쟀다(frm_t1.png · 60fps): easeOutBack 은 **앞이 무거워** 높이 100%를
+//   `p=0.30` 에서 이미 찍는다. 그래서 눈이 「솟는다」로 보는 것은 구간 전체가
+//   아니라 **앞 30%** 다 — 프레임 수로는 `RD초 × 60 × 0.30`.
+//     0.345s → 6.2프레임 · 0.240 → 4.3 · 0.200 → 3.6 · **0.180 → 3.2**
+//     · 0.140 → 2.5 · 0.110 → **2.0(중간 프레임이 하나뿐 = 깜빡인다)**
+//   경계는 **0.13~0.14s** 근처다. 0.180 은 그 위 한 칸이고 사용자가 준 띠
+//   (0.15~0.20)의 한가운데다.
+//   + 솟는 순간 밑동에서 **먼지·금·번쩍임**이 나고, 판이 빠를 때 **홀쭉해진다**
+//     (스쿼시·스트레치가 없으면 빨라져도 「빨리 자란다」로만 보인다)
+FZtomb1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-72,11],[-56,-46,9],[52,-58,9],[16,-116,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=FZDUR.t1.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const R0=FZDUR.t1.R0,RD=FZDUR.t1.RD;         // 발사 시각 · 솟는 구간
+  const p=Math.min(1,Math.max(0,(u-R0)/RD)),g=FZpop(p,2.3);
+  const gv=FZpopV(p,2.3);
+  const lock=u>=.30&&u<.80, brk=u>=.80?(u-.80)/.20:0;
+  const el=(u-R0)*PER;                          // 발사 뒤 흐른 시간(초)
+  T.ox=T.hx;T.oy=T.hy;
+  T.pv=lock?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=t*.55+i*2.1,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-30*SC;}
+  // 발사 — 튀어오르는 것은 **땅을 밀고** 나온다
+  if(pu<R0&&u>=R0){
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
+      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:0,spread:1.5});
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
+      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});}
+  if(pu<.80&&u>=.80){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,20,{k:"frost",sp:170*SC,r:2.8*SC,life:.55,g:120*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.9,SC,6);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.20,RR=T.r*1.62,HH=T.r*4.6;
+  const RN=RR*1.85;
+  // ① 바닥 마법진 — **먼저** 선다. 기둥보다 빨리 다 그려져야 「자리를 잡고 튄다」다
+  const rg=Math.min(1,u/.042);
+  IBrune(c,x,gy,RN*(.55+.45*rg),t,"frost",rg*(1-brk*.8),1.7,.34);
+  for(let i=0;i<6;i++){const a0=i*TAU/6+t*.10;
+    const d0=RN*.99,px=x+Math.cos(a0)*d0,py=gy+Math.sin(a0)*d0*.34;
+    IBneedle(c,px,py,a0,RN*.40*g,RN*.085,i*4.3,"frost",.85*g*(1-brk),{mos:1,tip:.22});}
+  IBroot(c,x,gy,RN*1.05,"frost",.55*g,.30);
+  // 밑동 — 튄 자리는 금이 가고 한 번 번쩍인다
+  if(el>0&&el<.85){const cf=Math.max(0,1-el/.85);
+    FZcrack(c,x,gy,RN*1.22,.34,"frost",Math.min(1,el*8+.3),cf*.90,SC,6);}
+  if(el>0&&el<.30){const fl=1-el/.30;
+    IBroot(c,x,gy,RN*(1.0+.7*(1-fl)),"frost",fl*.85,.30);
+    FZring(c,x,gy,RN*(.45+1.05*(1-fl)),.34,1.6*SC*fl,"frost",fl*.9);
+    for(let i=0;i<6;i++){const a0=i*TAU/6+.7;
+      IBmist(c,x+Math.cos(a0)*RN*(.35+.75*(1-fl)),
+             gy+Math.sin(a0)*RN*(.35+.75*(1-fl))*.34,
+             T.r*(.45+.55*(1-fl)),i*3.1,fl*.70,.72);}}
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  // ③ 솟는 유리판 여섯 — **빠를 때 홀쭉**해진다(스트레치)
+  for(let i=0;i<6;i++){const a0=i*TAU/6+t*.07;
+    // 아주 얕은 계단 — **솟는 구간에 비례**해야 한다. 상수로 두면 구간을 줄일
+    // 때 계단이 상대적으로 깊어져 「차례로 자란다」가 되살아난다(RD 의 1/13).
+    const pi=Math.min(1,Math.max(0,(u-R0-i*RD*.078)/RD));
+    const gi=FZpop(pi,2.3),vi=FZpopV(pi,2.3);
+    const nar=1-Math.max(-.10,Math.min(.30,vi*.075));       // 빠르면 가늘어진다
+    const hh=HH*gi;
+    const rx=Math.cos(a0)*RR*.86,rz=Math.sin(a0)*RR*.34;
+    const ww=RR*.46*(.72+.30*hash(i*3.1))*nar;
+    const top=gy+rz-hh*(.80+.22*hash(i*7.7));
+    const P=[[rx-ww,gy+rz],[rx-ww*.86,top+hh*.16],[rx-ww*.30,top],
+             [rx+ww*.72,top+hh*.10],[rx+ww,gy+rz-hh*.10],[rx+ww*.86,gy+rz]]
+      .map(v=>[x+v[0],v[1]]);
+    IBpane(c,P,"frost",(.88-brk*.85)*(i%2?1:.86),i*5.7);}
+  const hh=HH*g;
+  if(g>.2)for(let s=0;s<2;s++){const pts=[];
+    for(let i=0;i<=16;i++){const v=i/16,a0=v*4.4+s*Math.PI+t*.7;
+      pts.push([x+Math.cos(a0)*RR*(.92-v*.30),gy-hh*v+Math.sin(a0)*RR*.30]);}
+    IBline(c,pts,1.5*SC,"frost",(g-.2)/.8*(1-brk));}
+  // ⑤ 뚜껑 — 넘어간 만큼 **위로 튀어 나갔다** 되돌아온다
+  if(g>.55){IBroot(c,x,gy-hh,RR*1.0,"frost",Math.min(1,(g-.55)/.45)*(1-brk),.40);
+    IBflake(c,x,gy-hh,RR*.60,t*.08,"frost",Math.min(1,(g-.55)/.45)*(1-brk),1.3*SC,.42);}
+  // 튀는 순간 꼭대기에서 **떨어져 나가는** 조각 — 「멈춰 섰다」를 말한다
+  if(gv>.9&&p<1)for(let i=0;i<4;i++)
+    IBshard(c,x+(hash(i*2.3+p)-.5)*RR*1.9,gy-hh-(4+9*hash(i*5.1))*SC,
+      (2.2+2.0*hash(i*5.1))*SC,i*1.7+t,"frost",Math.min(1,(gv-.9)*.9));
+  for(let i=0;i<7;i++){const ph=(t*.5+i*.29)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.4,gy-hh*(.15+.85*hash(i*8.1))-4*SC,
+      (2.4+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.5+i);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ══════════════════════════════════════════════════════════════════════════
+// ② 결빙 B′ · **포탈에서 내려찍는 원통**
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️ 앞 회차 반려: 방향은 맞았는데 **출처가 없었다.** 원통이 화면 밖 허공에서
+// 그냥 떨어져 「어디서 왔나」가 없었다. 순서를 넷으로 다시 짠다:
+//
+//   ① 아래 마법진이 그려진다                       0.165s
+//   ② **위에도 같은 마법진** — 포탈문이 동그랗게 열린다   0.180s
+//   ③ 그 **고리 안에서** 원통이 나온다                0.195s
+//   ④ 쾅 — 아래 마법진에 찍힌다                     0.165s
+//
+// 「짝」이 읽히게 하는 것은 셋이다:
+//   · **같은 문양** — 두 마법진이 `IBrune` 을 **같은 씨앗(2.3)·같은 t** 로 부른다.
+//     눈금 36개의 길이 난수까지 같아 두 고리가 글자 그대로 같은 그림이다.
+//   · **같은 지름** — 둘 다 `RN`. 위가 작으면 「멀리 있는 다른 것」이 된다.
+//   · **다른 눌림** — 위 .26 / 아래 .44. 높이 올라갈수록 눈높이에 가까워져
+//     고리가 납작해진다. 이 하나가 두 고리를 **같은 평면이 아닌 것**으로 만든다.
+//
+// 「통과」가 읽히게 하는 것은 그리는 순서다. 고리를 **뒤(전체) → 기둥 → 앞호**
+// 로 세 번에 나눠 그린다. 통째로 덮으면 기둥이 문 **뒤로** 지나가고, 통째로
+// 깔면 문이 기둥에 **가려 사라진다** — 둘 다 포탈이 아니다.
+// 나오는 동안 기둥의 **윗면은 평평**하다(`sqT2=0`): 고리 평면에서 잘린 것이라
+// 위쪽 반타원이 고리 위로 삐져나오지 않는다.
+//
+// ⚠️ **적 배치를 26 내렸다**(표적 -70 → -52). 안 내리면 포탈이 들어갈 자리가
+// 없다 — 원래 자리에서는 위 고리의 꼭대기가 y=-9(타일 밖)로 나온다. 낙하 높이도
+// 5.2r 에서 **기둥 높이 2.8r + 틈 1.4r** 로 다시 잡아 전 구간이 화면 안이다.
+FZtomb2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-52,11],[-58,-26,9],[54,-38,9],[18,-96,10]]);
+  stepFoes(st.F,dt);
+  const Q=FZDUR.t2;
+  const T=st.F[0],PER=Q.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const cl=(a,b)=>Math.min(1,Math.max(0,(u-a)/(b-a)));
+  const rg=cl(0,Q.RUNE), op=cl(Q.PORT0,Q.PORT1);
+  const ex=cl(Q.EXT0,Q.EXT1), fq=cl(Q.FALL0,Q.IMP);
+  const el=(u-Q.IMP)*PER;                       // 찍힌 뒤 흐른 시간(초)
+  const brk=u>=.82?(u-.82)/.18:0;
+  T.ox=T.hx;T.oy=T.hy;T.pv=(u>=Q.IMP&&u<.82)?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=-t*.5+i*2.4,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-28*SC;}
+  // ⚠️ 1차 렌더(2026-08-12): 기둥 지름 : 고리 지름 = **0.44** 로 잡았더니 큰 원반
+  // 둘 사이에 가는 축이 낀 **실패(bobbin)** 로 보였다. 고리를 줄이고 기둥을 굵혀
+  // 0.58 로 맞춘다 — 지나가는 물건이 문을 거의 채워야 「통과」가 무게를 얻는다.
+  // 틈(GAP)도 1.4r → 1.95r 로 벌렸다. 1.4r 일 때 낙하가 13px(238칸의 5.5%)라
+  // 「나오자마자 닿았다」로 보였다.
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.34,RR=T.r*1.70,RN=RR*1.74;
+  const by0=gy-T.r*.86, HH0=T.r*2.65, GAP=T.r*1.95;
+  const py=by0-HH0-GAP;                         // 포탈문이 놓인 평면
+  const SQU=.26,SQD=.44;                        // 위 고리 · 아래 마법진의 눌림
+  /// 높이가 곧 눌림이다 — 위로 갈수록 눈높이에 가까워져 납작해진다.
+  /// 원통의 단면도 이걸 쓰므로 **포탈에서 나올 때 고리와 같은 납작함**이고,
+  /// 바닥에 닿을 때는 **아래 마법진과 같은 납작함**이 된다.
+  const sqAt=yy=>SQU+(SQD-SQU)*Math.min(1,Math.max(0,(yy-py)/(gy-py)));
+  // 찍힘 — 파편이 튀고 먼지가 깔리고 땅이 흔들린다
+  if(pu<Q.IMP&&u>=Q.IMP){
+    hitFoe(st,T,cx,cy,0,1,13*SC,"frost");
+    // ⚠️ 조각 하나가 `IBdrawFrag` 에서 0.70초 동안 celPuff 6 + IBcrys + IBspark 를
+    // 그린다 — 이 안이 원본의 2배를 쓰는 자리다. 6 으로 줄여도 「튀었다」는 남는다.
+    IBpushFrag(st,x,gy,T.r*.95,SC,6);
+    emit(st,x,gy,18,{k:"frost",sp:210*SC,r:2.7*SC,life:.48,g:230*SC,spikeP:.6,
+      a:0,spread:.85});
+    emit(st,x,gy,18,{k:"frost",sp:210*SC,r:2.7*SC,life:.48,g:230*SC,spikeP:.6,
+      a:Math.PI,spread:.85});}
+  // 포탈이 열리는 순간 — 고리 자리에서 냉기가 **위로** 샌다(문이 열린 신호)
+  if(pu<Q.PORT0&&u>=Q.PORT0)
+    emit(st,x,py,10,{k:"frost",sp:70*SC,r:2.2*SC,life:.40,g:60*SC,spikeP:.5,
+      a:-Math.PI/2,spread:1.9});
+  // 고리를 뚫고 나오는 순간 — 문턱에서 파편이 튄다
+  if(pu<Q.EXT0&&u>=Q.EXT0)IBpushFrag(st,x,py,RR*.9,SC,4);
+  if(pu<.82&&u>=.82){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,x,cy+T.oy,22,{k:"frost",sp:180*SC,r:2.8*SC,life:.55,g:130*SC,spikeP:.9});
+    IBpushFrag(st,x,cy+T.oy,T.r,SC,7);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  // 화면 흔들림은 **전부**에 걸린다. 원통만 흔들면 「원통이 떤다」가 된다
+  st.sk=(st.sk||0)+dt;
+  const shk=(el>=0&&el<.30)?Math.exp(-el*10)*(1-el/.30):0;
+  c.save();
+  if(shk>.002)c.translate(Math.sin(st.sk*57)*6.4*SC*shk,Math.cos(st.sk*44)*4.4*SC*shk);
+  // ── ① 아래 마법진 — **혼자** 다 그려지는 구간이 있다 ────────────────────
+  IBrune(c,x,gy,RN*(.42+.58*rg),t,"frost",rg*(1-brk*.8),2.3,SQD);
+  IBflake(c,x,gy,RN*.94*rg,-t*.05,"frost",rg*(1-brk*.8),2.0*SC,SQD);
+  IBroot(c,x,gy,RN*.80,"frost",.26*rg*(1-brk),.28);
+  // 조준 고리 — 포탈이 열리는 순간부터 오므라든다. 무엇이 어디로 떨어지는지가
+  // 먼저 보여야 「찍힌다」가 놀람이 아니라 **예고된 무게**가 된다
+  {const aq=cl(Q.PORT0,Q.IMP);
+   if(aq>0&&aq<1)FZring(c,x,gy,RN*(.42+1.05*(1-aq)),SQD,(1.2+1.6*aq)*SC,
+     "frost",.35+.6*aq);}
+  FZcrack(c,x,gy,RN*1.28,SQD,"frost",Math.min(1,Math.max(0,el)*7+.3),
+    (el>=0&&el<1.0)?(1-el/1.0)*.95:0,SC,7);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  // ── ② 위 마법진 = 포탈문 ────────────────────────────────────────────────
+  const PR=RN*FZpop(op,1.9);                    // 넘어갔다 오는 개방(정점 1.11)
+  const pa=op*Math.min(1,Math.max(0,(Q.IMP+.045-u)/.045));
+  if(pa>.02){
+    // 문 **안쪽** — 열리는 동안 제일 밝다. 여기서 무언가 나온다는 예고다
+    IBroot(c,x,py,PR*.88,"frost",pa*(.30+.55*(1-op)+.30*ex*(1-ex)*4),SQU);
+    IBrune(c,x,py,PR,t,"frost",pa,2.3,SQU);     // ⭐ 아래와 **같은 씨앗·같은 t**
+    IBflake(c,x,py,PR*.94,-t*.05,"frost",pa*.92,2.0*SC,SQU);
+    // 열릴 때 밖으로 한 번 퍼지는 테 — 「동그랗게 열렸다」를 말하는 한 획
+    if(op<1)FZring(c,x,py,PR*(1.04+.42*(1-op)),SQU,(.9+1.9*op)*SC,"frost",
+      pa*(.30+.55*op));
+    // ⚠️ 반짝이는 **문이 일하는 동안만** 켠다. 상시로 두면 `IBspark` 넷씩 여섯이
+    // 주기의 22% 내내 돌아 스텁 기준 +0.31ms/frame 이었다(2026-08-12 probe cost).
+    if(op<1||ex>0&&ex<1)for(let i=0;i<4;i++){const a0=i*TAU/4+t*.5;
+      IBspark(c,x+Math.cos(a0)*PR*.99,py+Math.sin(a0)*PR*.99*SQU,
+        (2.0+1.6*hash(i*6.3))*SC,"frost",pa*(.35+.45*Math.sin(t*3+i)),t*1.4+i);}
+  }
+  // ── ③ 원통 — 포탈 **안에서** 나와 ④ 찍는다 ─────────────────────────────
+  if(ex>0){
+    const bo=(el>=0&&el<.42)?Math.exp(-el*11)*Math.cos(el*23):0;
+    const hq=1-.20*Math.max(0,bo), wq=1+.13*Math.max(0,bo);
+    const HH=HH0*hq, RRw=RR*wq;
+    const ez=ex*(.30+.70*ex);                   // 통과도 살짝 가속한다
+    const fall=fq*(.42+.58*fq), spd=.42+1.16*fq;
+    const byF=(fq>0)?(py+HH0)+(by0-py-HH0)*fall:(py+HH0*ez);
+    const tyRaw=byF-HH, tyF=Math.max(py,tyRaw);
+    const thru=tyRaw<py-.5;                     // 아직 고리를 지나는 중인가
+    const sqB=sqAt(byF), sqT=thru?0:sqAt(tyF);  // 통과 중엔 윗면이 **평평**하다
+    // 잔상 · 속도선 — 낙하에만. 위로 끄는 것은 **포탈 위로는 안 나간다**
+    if(fq>0&&fq<1){
+      for(let s=1;s<=2;s++){
+        const gb=Math.max(py+HH,byF+GAP*.55*spd*s), gt=Math.max(py,gb-HH);
+        IBpane(c,[[x-RRw,gt],[x+RRw,gt],[x+RRw,gb],[x-RRw,gb]],"frost",
+          .22/s*(1-fq*.45),s*7.1,1.0*SC);}
+      for(let i=0;i<7;i++){const px=x+(hash(i*3.7)-.5)*RR*2.0;
+        const ln=Math.min(GAP*.95*spd*(.55+.45*hash(i*8.3)),tyF-py);
+        if(ln>1)IBline(c,[[px,tyF-ln],[px,tyF+RR*.30]],(.9+.8*fq)*SC,"frost",
+          .34+.50*fq,0);}}
+    // 모자이크 원통 — **완성된 채로** 나온다(자라지 않는다)
+    const NC=9;
+    for(let i=0;i<NC;i++){const a0=i/NC*TAU-Math.PI/2+t*.05;
+      const a1=(i+1)/NC*TAU-Math.PI/2+t*.05;
+      const c0=Math.cos(a0),c1=Math.cos(a1),s0=Math.sin(a0),s1=Math.sin(a1);
+      const fr=(s0+s1)*.5>0;
+      const ic=T.r*(.55+.62*hash(i*3.1))*(thru?.30:1);   // 나오는 중엔 고드름을 접는다
+      const P=[[c0*RRw,tyF+s0*RRw*sqT],[c1*RRw,tyF+s1*RRw*sqT],
+               [c1*RRw,byF+s1*RRw*sqB],
+               [(c0+c1)*.5*RRw,byF+(s0+s1)*.5*RRw*sqB+ic],
+               [c0*RRw,byF+s0*RRw*sqB]]
+        .map(v=>[x+v[0],v[1]]);
+      IBcrys(c,P,"frost",(fr?.95:.62)*(1-brk*.9),i*4.7,
+        {thru:fr?.26:.16,mos:2,w:1.3*SC,grain:-Math.PI/2});}
+    if(!thru){                                   // 고리를 다 빠져나온 뒤에만 뚜껑
+      IBrune(c,x,tyF,RRw*1.06,t*1.6,"frost",(1-brk*.7),5.1,sqT);
+      IBroot(c,x,tyF,RRw*.90,"frost",.62*(1-brk),sqT);
+      gAdd(c,cc=>{cc.beginPath();cc.ellipse(x,tyF,RRw,RRw*sqT,0,0,TAU);
+        cc.lineWidth=2.0*SC;cc.strokeStyle=A("#FFFFFF",.85*(1-brk));cc.stroke();});}
+    else{                                        // 문턱이 달아오르고 냉기가 샌다
+      IBroot(c,x,py,RRw*1.15,"frost",.80,SQU);
+      for(let i=0;i<5;i++){const a0=i*TAU/5+t*.9;
+        IBmist(c,x+Math.cos(a0)*RRw*(.9+.5*ez),py+Math.sin(a0)*RRw*(.9+.5*ez)*SQU,
+          T.r*(.34+.30*ez),i*3.1,.62*(1-ez*.4),.62);}}
+    // 찍힌 자리의 먼지 — 밑동에서 **바깥으로** 퍼진다
+    if(el>=0&&el<.55){const d=el/.55;
+      for(let i=0;i<8;i++){const a0=i*TAU/8+.35;
+        IBmist(c,x+Math.cos(a0)*RN*(.30+.95*d),gy+Math.sin(a0)*RN*(.30+.95*d)*.36,
+          T.r*(.50+.85*d),i*3.1,(1-d)*.90,.68);}
+      IBroot(c,x,gy,RN*(.9+.8*d),"frost",(1-d)*.75,.30);}
+    for(let i=0;i<8;i++){const ph=(t*.55+i*.31)%1;
+      IBspark(c,x+(hash(i*3.7)-.5)*RRw*2.6,tyF+(hash(i*8.1))*(byF-tyF),
+        (2.4+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.5+i);}
+    // ⚠️ 떠다니는 조각은 **통과 중에는 안 그린다.** 뚜껑보다 위에 뜨는 것이라
+    // 아직 문 안에 있는 기둥의 **위쪽**에 조각이 생겨 「이미 다 나왔다」로 읽혔다.
+    if(!thru)for(let i=0;i<5;i++){const ph=t*.5+i*1.6;
+      IBshard(c,x+(hash(i*2.3)-.5)*RRw*2.8,tyF-6*SC-Math.abs(Math.sin(ph))*12*SC,
+        (2.0+2.0*hash(i*5.1))*SC,ph*.4+i,"frost",.8*(1-brk));}
+    // ⭐ 고리의 **앞쪽 반원**을 기둥 위에 덮는다 — 이 한 획이 「통과」를 만든다
+    if(pa>.02)FZring(c,x,py,PR,SQU,1.9*SC,"frost",pa*.95,0,Math.PI);
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);
+  c.restore();},
+// ══════════════════════════════════════════════════════════════════════════
+// ② 결빙 C′ · **튀어오르는 얼음 왕관** (IBtomb3 을 빠르게)
+// ══════════════════════════════════════════════════════════════════════════
+// 방향 그대로, 속도만: 솟는 구간 0.896s → **0.179s**(5.0배) + 오버슈트.
+// 경계는 A 와 같은 자리에서 났다(frm_t3.png): 0.110s 에서 중간 프레임이 둘로
+// 줄어 왕관이 「돋는다」가 아니라 「켜진다」가 된다.
+// 가시는 **아주 얕게 계단**(0.010씩)으로 나가 고리를 한 바퀴 도는 파문이 되지만,
+// 계단 폭을 솟는 구간의 1/13 로 눌러 「차례로 자란다」로는 안 읽히게 했다.
+FZtomb3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-70,11],[-56,-44,9],[54,-58,9],[16,-116,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=FZDUR.t3.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const R0=FZDUR.t3.R0,RD=FZDUR.t3.RD;
+  const p=Math.min(1,Math.max(0,(u-R0)/RD)),g=FZpop(p,2.4);
+  const brk=u>=.84?(u-.84)/.16:0;
+  const el=(u-R0)*PER;
+  T.ox=T.hx;T.oy=T.hy;T.pv=(u>.32&&u<.84)?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=t*.6+i*1.9,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-30*SC;}
+  if(pu<R0&&u>=R0){
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.15,14,
+      {k:"frost",sp:145*SC,r:2.3*SC,life:.40,g:190*SC,spikeP:.7,a:0,spread:1.5});
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.15,14,
+      {k:"frost",sp:145*SC,r:2.3*SC,life:.40,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});}
+  if(pu<.84&&u>=.84){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,18,{k:"frost",sp:165*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.8,SC,6);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.15,RR=T.r*2.15;
+  const rg=Math.min(1,u/.038);
+  IBrune(c,x,gy,RR*1.25*(.60+.40*rg),t,"frost",.85*rg*(1-brk*.8),3.3,.42);
+  IBroot(c,x,gy,RR*1.2,"frost",.60*g*(1-brk*.6),.32);
+  if(el>0&&el<.80){const cf=Math.max(0,1-el/.80);
+    FZcrack(c,x,gy,RR*1.45,.42,"frost",Math.min(1,el*8+.3),cf*.88,SC,6);}
+  if(el>0&&el<.28){const fl=1-el/.28;
+    IBroot(c,x,gy,RR*(1.1+.7*(1-fl)),"frost",fl*.85,.32);
+    FZring(c,x,gy,RR*(.50+1.10*(1-fl)),.42,1.6*SC*fl,"frost",fl*.9);
+    for(let i=0;i<6;i++){const a0=i*TAU/6+.55;
+      IBmist(c,x+Math.cos(a0)*RR*(.40+.80*(1-fl)),
+             gy+Math.sin(a0)*RR*(.40+.80*(1-fl))*.42,
+             T.r*(.45+.55*(1-fl)),i*3.1,fl*.70,.72);}}
+  const N=9;
+  const spike=(i,back)=>{const a0=i/N*TAU-Math.PI/2;
+    const ca=Math.cos(a0),sa=Math.sin(a0);
+    if((sa<0)!==back)return;
+    const pi=Math.min(1,Math.max(0,(u-R0-i*RD*.077)/RD)),gi=FZpop(pi,2.4);
+    const vi=FZpopV(pi,2.4);
+    const px=x+ca*RR,py=gy+sa*RR*.42;
+    const L=RR*(.95+.55*hash(i*3.7))*gi;
+    const lean=Math.atan2(-1,0)+(-ca)*(gi*.26);
+    const nar=1-Math.max(-.08,Math.min(.26,vi*.070));       // 빠를 때 홀쭉
+    IBneedle(c,px,py,lean,L,RR*(.095+.05*hash(i*8.1))*nar,i*2.9,"frost",
+      (back?.72:1)*(1-brk*.85),{mos:2,tip:.18,slant:.6});};
+  for(let i=0;i<N;i++)spike(i,true);
+  for(let i=0;i<3;i++){const a0=t*.4+i*TAU/3;
+    const bx=x+Math.cos(a0)*RR*.42,by=gy-RR*(.30+.18*i)*g+Math.sin(a0)*RR*.14;
+    const P=[];for(let j=0;j<8;j++){const aa=j/8*TAU;
+      P.push([bx+Math.cos(aa)*RR*.20,by+Math.sin(aa)*RR*.20]);}
+    IBcrys(c,P,"frost",.9*g*(1-brk),i*6.1,{mos:1,thru:.55,w:1.1*SC});}
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let i=0;i<N;i++)spike(i,false);
+  IBroot(c,x,gy,RR*.62,"frost",.30*g*(1-brk),.28);
+  for(let i=0;i<3;i++){const ph=t*.45+i*2.1;
+    IBflake(c,x+Math.cos(ph)*RR*1.5,gy-RR*(1.05+.35*i)*g+Math.sin(ph*1.3)*4*SC,
+      RR*(.24+.07*i),t*.07+i,"frost",.8*g*(1-brk),1.0*SC);}
+  for(let i=0;i<8;i++){const ph=(t*.6+i*.27)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.8,gy-RR*1.5*hash(i*8.1)*g,
+      (2.2+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.6+i);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// ③ 화염회오리 — `FTvortex1` 의 그림체 × 타원 궤도, **원근을 뒤집어서**
+// ══════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ 사용자 지적(2026-08-12) — 앞 회차의 원근이 **거꾸로**였다.
+//   「원근감을 나타내려면 **아랫쪽이 좁고 윗쪽이 넓어야** 좀 더 위쪽에서
+//    바라보는 시야각이 나올 것 같은데, **길이가 너무 길다** 보니까 그냥
+//    평면처럼 보이는 문제가 있는 것 같아」
+//
+// 앞 회차는 `FTvortex4` 의 식 `r=RAD*(1.55-1.30*u)` 를 그대로 가져왔다.
+// u=0 이 바닥이므로 이것은 **아래가 넓고 위가 뾰족한** 깔때기다 — 눈높이에서
+// 옆으로 본 토네이도이지, **위에서 내려다본** 것이 아니다.
+// 위에서 내려다보면 가까운 위쪽 고리가 크고 먼 아래쪽이 작다. 뒤집는다.
+//
+// 그리고 **길이**가 더 앞의 문제다. 실측(2026-08-12 v_before.png): 실루엣이
+// 238칸 기준 **가로 103 × 세로 159**(높이:폭 = 1.55:1)였다. 세로로 길면 위아래
+// 폭 차이가 길이에 묻혀 원근이 안 읽힌다 — 굴뚝은 어떤 폭 차이를 줘도 굴뚝이다.
+// 그래서 높이를 **최대 지름의 배수**로 다시 잡고(`K`), 후보를 나란히 놓는다.
+//
+// 세 축(크기·순서·밝기)은 이 위에 그대로 얹는다 — 안마다 하나씩이다.
+const FZVOR={RB:.30,   // 바닥 고리 반지름 ÷ RAD — **좁다**
+             RT:1.45,  // 꼭대기 고리 반지름 ÷ RAD — **넓다**
+             PU:.55,   // 벌어지는 곡률(1 미만 = 아래에서 일찍 벌어진다)
+                       // ⚠️ .72 로 잡았더니 **제일 넓은 자리에서 이미 꺼져 있었다**:
+                       // 잔불이 다 밝은 구간(u<.583)의 끝에서 r 이 1.08R 밖에 안 돼
+                       // 실제로 보이는 최대 지름이 계산값의 74% 였다. 곡률을 낮춰
+                       // 아래에서 빨리 벌어지게 하고, 꼬리(아래 2.4→3.2)도 늘렸다.
+             SQB:.22,  // 바닥 고리의 눌림 — 납작하다(멀고, 비스듬히 본다)
+             SQT:.48,  // 꼭대기 고리의 눌림 — 둥글다(가깝고, **안을 들여다본다**)
+             K:.62};   // ⭐ 높이 ÷ 최대 지름. 이 하나가 「굴뚝인가 대접인가」다
+// ── 후보 실측 (2026-08-12 m_ratio.png · bbox.py) ──────────────────────────
+// 238칸에 실제로 찍힌 **주황 잉크의 외접 사각형**을 네 위상에서 재 평균했다.
+// 「길다」는 눈이 아니라 이 수로 판정한다.
+//   K      RISE(px)   실측 세로:가로   눈 판정
+//   반려본  108.9      1.30 : 1        아래가 넓은 굴뚝 — 사용자가 반려한 그것
+//   1.05    100.5      1.26 : 1        아직 길다
+//   0.80     76.6      1.13 : 1        읽히지만 여전히 세로가 길다
+//   0.62 ⭐  59.3      0.98 : 1        가로세로 같다. 깔때기가 아직 산다
+//   0.48     45.9      0.97 : 1        **깔때기가 죽는다** — 퍼프 두 덩이로 보인다
+// ⚠️ **0.62 아래로는 내려도 안 짧아진다.** 비율의 바닥을 정하는 것이 기둥
+// 높이가 아니라 **회오리 둘의 세로 간격**이기 때문이다(FTvortSim 이 cy±0.17H 에
+// 뿌린다 — 공유 함수라 안 고쳤다). 0.62 와 0.48 의 실측이 0.98 대 0.97 로 같은데
+// 0.48 에서는 깔때기만 잃는다. 그래서 **읽히는 것 중 제일 짧은 값**이 0.62 다.
+const FZvorR   =u=>FZVOR.RB+(FZVOR.RT-FZVOR.RB)*Math.pow(u,FZVOR.PU);
+/// 눌림도 높이의 함수다. 고리 하나하나가 다른 각도로 보이는 것이 「위에서
+/// 내려다본다」의 정체다 — 전부 같은 눌림이면 **한 장의 벽지**가 된다.
+const FZvorSq  =u=>FZVOR.SQB+(FZVOR.SQT-FZVOR.SQB)*u;
+/// 높이는 **최대 지름에서 파생시킨다.** 절대값으로 두면 폭을 만질 때마다
+/// 비율이 몰래 바뀐다 — 판정하려는 그 수가 바로 이 비율이다.
+const FZvorRise=RAD=>RAD*2*FZVOR.RT*FZVOR.K;
+/// 벽 — `FTvortWall` 은 위가 뾰족한 깔때기 기준(MAR=1.2R)이라 못 쓴다.
+/// 넓어진 **꼭대기**가 타일 밖으로 나가고, 짧아진 높이만큼 위로 더 갈 수 있다.
+/// ⚠️ **세로 배회 폭도 줄인다.** 사용자가 「길다」고 본 것의 절반은 회오리
+/// **둘이 세로로 어긋나 쌓인 것**이다(FTvortSim 이 cy±0.17H 에 뿌린다). 한 기둥을
+/// 아무리 눌러도 둘이 80px 어긋나면 합쳐서 다시 길어진다. 바닥 여백을 키워
+/// 배회 띠를 좁힌다 — **이동 규칙은 한 글자도 안 고쳤고 벽만 좁혔다.**
+function FZvortWall(v,RAD,RISE,W,H){
+  const MAR=RAD*(.55+FZVOR.RT*.80);
+  const TOP=Math.max(RISE+RAD*FZVOR.RT*FZVOR.SQT*1.15,H*.44), BOT=H*.74;
+  if(v.x<MAR||v.x>W-MAR){v.a=Math.PI-v.a;v.x=Math.min(W-MAR,Math.max(MAR,v.x));}
+  if(v.y<TOP||v.y>BOT){v.a=-v.a;v.y=Math.min(BOT,Math.max(TOP,v.y));}
+}
+
+/// 궤도. `s`(=sin a) 가 깊이다 — **+1 이 앞**(화면 아래가 카메라 쪽, 이 레포
+/// 규약), −1 이 뒤. 세 안이 이 한 숫자를 서로 다른 것으로 바꿔 쓴다.
+function FZride(v,RAD,RISE,t,NE){
+  const L=[];
+  for(let i=0;i<NE;i++){
+    const u=((t*.62+i/NE)%1);
+    const f=Math.min(1,u*5)*Math.min(1,(1-u)*3.2);
+    if(f<=.02)continue;
+    const a=v.rot*.5+i*1.73+u*1.9*TAU, r=RAD*FZvorR(u), sq=FZvorSq(u);
+    // 지나온 자리 — 덩이는 둥글어서 접선이 안 보이므로 **궤도를 보이게 하는
+    // 몫**을 이 한 점이 진다(2026-08-12 렌더 판정: 덩이만으로는 나선이 안 읽혔다).
+    const u2=Math.max(0,u-.07);
+    const a2=v.rot*.5+i*1.73+u2*1.9*TAU, r2=RAD*FZvorR(u2), sq2=FZvorSq(u2);
+    L.push({x:v.x+Math.cos(a)*r,
+            y:v.y+Math.sin(a)*r*sq-Math.pow(u,.62)*RISE,
+            tx:v.x+Math.cos(a2)*r2,
+            ty:v.y+Math.sin(a2)*r2*sq2-Math.pow(u2,.62)*RISE,
+            s:Math.sin(a), u:u, f:f,
+            // ⚠️ 1차 렌더(2026-08-12): NE=14 · rb=.235R 로 깔았더니 덩이가 서로
+            // 붙어 **벽 한 장**이 됐다 — 깔때기도 나선도 안 보였다. 궤도가 보이려면
+            // 덩이 **사이에 배경이 뵈어야** 한다.
+            // ⭐ 이번 회차에 기울기를 키웠다(.095 → .155): 위가 가까우면 **덩이
+            // 자체도 커야** 한다. 폭만 넓히고 알갱이 크기가 그대로면 「넓은 판」이지
+            // 「가까운 것」이 아니다.
+            // 덩이 크기 — `O.RB` 로 레벨마다 키운다(2026-08-13 사용자 지시:
+            // 「이 **꽃모양 연기 같이 생긴 것** 사이즈 자체를 키우던가 양을 많이」).
+            // 개수(`NE`)는 이미 늘렸으므로 이번엔 **크기** 쪽 손잡이를 연다.
+            rb:RAD*(.170+.155*u),
+            // 식음은 `FTvortex1` 쪽(위가 식는다) — 가져오는 것은 **운동**이지 계조가 아니다.
+            // ⚠️ 다만 기울기를 .58 → .40 으로 낮췄다. `FTlump` 은 식음 .56 을 넘으면
+            // 밝은 테가 뒤집혀 **재**가 되는데, 넓어진 꼭대기가 통째로 재가 되니
+            // 「가까워서 넓다」가 아니라 「멀어서 흐리다」로 읽혔다(공기원근의 반대).
+            // 원근의 방향을 뒤집은 이번 회차에서는 **위가 밝아야** 앞뒤가 맞다.
+            cu:u*.40,
+            rot:i*2.1+u*3.4,               // **제자리 회전이 아니라** 굴러간다
+            sd:i*3.1+1.7});}
+  return L;
+}
+/// 덩이 하나 — `FTvortex1` 의 그림체 그대로다(`FClobeP` 뭉게 + `FTlump` 의
+/// 윤곽/식음 + 같은 씨앗·같은 회전의 축소 동심 심). 갈린 것은 **어디에 있나**뿐.
+function FZlump(c,q,rr,cool,P,SC,a){
+  if(!(rr>.6)||!(a>.02))return;
+  // 꼬리 먼저 — 덩이가 덮으므로 「덩이에서 뻗어 나온 자취」가 된다.
+  // 크기·순서·밝기 신호를 **호출부가 준 rr·a 로 그대로 물려받는다** —
+  // 그래야 세 안이 갈리는 축이 꼬리에서도 같이 갈린다.
+  const dx=q.x-q.tx,dy=q.y-q.ty,L=Math.hypot(dx,dy);
+  if(L>1.6)FCneedle(c,q.tx,q.ty,Math.atan2(dy,dx),L*.88,rr*.34,
+    FTcool(P,Math.min(1,cool+.20)),P.ink,1.2*SC,a*.80);
+  FTlump(c,FClobeP(q.x,q.y,rr,5,q.sd,1,.78,q.rot),P,cool,Math.max(1.7*SC,rr*.22),a);
+  if(cool<.55)fillPoly(c,FClobeP(q.x,q.y-rr*.08,rr*.42,5,q.sd,1,.78,q.rot,.38),
+    A(mixHex(P.yel,P.lit,.28),a*(1-cool/.55)*.90));
+}
+/// 심지 — `FTvortex4` 의 것 그대로. 셋이 공유하고, **그리는 자리만** 안마다 다르다
+/// (2안은 이것을 뒤 덩이와 앞 덩이 **사이**에 끼운다 = 가림이 생긴다).
+function FZwick(c,t,v,RAD,RISE,P,al,SC){
+  for(let m=0;m<2;m++){const a=v.rot*1.3+m*Math.PI;
+    FCtongue(c,t,v.x+Math.cos(a)*RAD*.14,v.y+Math.sin(a)*RAD*.05,
+      -Math.PI/2+Math.cos(a)*.30,RAD*.28,RISE*.70,m*3.7,m*1.1,
+      FTpal(P,.14),al*.95,2.4*SC);}
+}
+
+Object.assign(FX,{
+
+// ── FZvortex1 · **원근 — 크기가 거리다** ──────────────────────────────────
+// 깊이를 만드는 것: **겉보기 크기 하나뿐.** 앞을 지날 때 1.58배, 뒤를 지날 때
+// 0.42배. 밝기는 깊이와 무관하고(u 로만 식는다), 그리는 순서도 깊이와 무관하다
+// (위=먼 것부터 = FTvortex1 의 중립 순서). 심지는 **맨 먼저** 그려 가림 정보를
+// 안 준다. 셋 중 유일하게 **한 덩이의 크기가 도는 동안 3.8배 변한다.**
+FZvortex1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTvortSim(st,t,dt,cx,cy,W,H,SC),P=FCramp("ember");
+  const RISE=FZvorRise(S.RAD),NE=12;
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const v of S.V){
+    FZvortWall(v,S.RAD,RISE,W,H);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FTfoot(c,v,S.RAD,P,SC,al);
+      FZwick(c,t,v,S.RAD,RISE,P,al,SC);
+      const L=FZride(v,S.RAD,RISE,t,NE);
+      L.sort((a,b)=>b.u-a.u);                      // 위(먼 것)부터 — 깊이와 무관
+      for(const q of L)FZlump(c,q,q.rb*(1+.58*q.s),q.cu,P,SC,al*q.f);});
+    if(R()<dt*20)emit(st,v.x+(R()-.5)*S.RAD*2,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FZvortex2 · **가림 — 앞뒤 그리기 순서가 깊이다** ──────────────────────
+// 깊이를 만드는 것: **무엇이 무엇을 가리는가 하나뿐.** 덩이 크기도 밝기도 깊이와
+// 무관하고(둘 다 u 로만 변한다), 대신 **뒤 덩이 → 심지 → 앞 덩이** 로 세 번에
+// 나눠 그린다. 이 레포의 `dep()` 가 몸을 사이에 두고 하는 일을 **회오리 안쪽에서**
+// 하는 것이다. 셋 중 유일하게 덩이가 **기둥 뒤로 사라졌다 앞으로 나온다.**
+// ⚠️ `FTvortex1` 도 `FTvortex4` 도 이 축을 안 쓴다 — 아무도 안 쓴 축이라 넣었다.
+FZvortex2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTvortSim(st,t,dt,cx,cy,W,H,SC),P=FCramp("ember");
+  const RISE=FZvorRise(S.RAD),NE=12;
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const v of S.V){
+    FZvortWall(v,S.RAD,RISE,W,H);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FTfoot(c,v,S.RAD,P,SC,al);
+      const L=FZride(v,S.RAD,RISE,t,NE);
+      L.sort((a,b)=>a.s-b.s);                      // **뒤(s<0)부터 앞(s>0)으로**
+      let k=0;
+      for(;k<L.length&&L[k].s<=0;k++)FZlump(c,L[k],L[k].rb,L[k].cu,P,SC,al*L[k].f);
+      FZwick(c,t,v,S.RAD,RISE,P,al,SC);            // 심지가 **사이**에 낀다
+      for(;k<L.length;k++)FZlump(c,L[k],L[k].rb,L[k].cu,P,SC,al*L[k].f);});
+    if(R()<dt*20)emit(st,v.x+(R()-.5)*S.RAD*2,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── FZvortex3 · **공기원근 — 식음과 밝기가 거리다** ───────────────────────
+// 깊이를 만드는 것: **색 하나뿐.** 크기도 순서도 깊이와 무관하고, 뒤로 갈수록
+// `FTcool` 램프를 0.50 더 밀어 **재 쪽으로 식히고** 알파를 0.34까지 내린다.
+// `FTlump` 는 식음 0.56 을 넘으면 `FCink`(어두운 바깥 테) → `FCshell`(밝은 테 +
+// 어두운 속)로 갈리므로, **뒤로 넘어가는 순간 덩이의 테가 뒤집힌다** — 셋 중
+// 유일하게 깊이가 밝기가 아니라 **물질**로 보인다(재는 멀리 있는 것이 아니라
+// 식은 것인데, 겹치면 눈이 「뒤」로 읽는다).
+FZvortex3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FTvortSim(st,t,dt,cx,cy,W,H,SC),P=FCramp("ember");
+  const RISE=FZvorRise(S.RAD),NE=12;
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const v of S.V){
+    FZvortWall(v,S.RAD,RISE,W,H);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      FTfoot(c,v,S.RAD,P,SC,al);
+      FZwick(c,t,v,S.RAD,RISE,P,al,SC);
+      const L=FZride(v,S.RAD,RISE,t,NE);
+      L.sort((a,b)=>b.u-a.u);                      // 깊이와 무관한 중립 순서
+      for(const q of L){const dzq=(q.s+1)*.5;      // 0=뒤, 1=앞
+        FZlump(c,q,q.rb,Math.min(1,q.cu+.50*(1-dzq)),P,SC,al*q.f*(.34+.66*dzq));}});
+    if(R()<dt*20)emit(st,v.x+(R()-.5)*S.RAD*2,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ── FZ 마운트 (임시) — 원본과 **나란히** 놓아야 판정이 된다 ────────────────
+// ── 채택 (2026-08-12 사용자 판정) — **마법 공격 페이지로 등록** ──────────
+// 결빙 셋과 회오리 하나가 채택됐다. 고르기에 두지 않고 일하는 페이지로 올린다.
+// 없으면(고르기만 열었을 때) 옛 호스트로 떨어진다.
+// ── 28종 격자에 세울 **만렙 그림** ─────────────────────────────────────────
+// 성장표 함수는 전역 `LV` 를 읽어 다섯 단으로 갈라진다. 격자에는 **완성형**이
+// 서야 하므로 `LV=5` 로 못 박은 이름을 따로 둔다 — 격자와 성장표가 **같은
+// 함수**를 보므로 둘이 어긋날 수 없다.
+Object.assign(FX,{
+  FLtrailL5(c,t,dt,W,H,st){const l=LV;LV=5;
+    try{FX.FLtrail(c,t,dt,W,H,st);}finally{LV=l;}},
+  FLretL5(c,t,dt,W,H,st){const l=LV;LV=5;
+    try{FX.FLret(c,t,dt,W,H,st);}finally{LV=l;}},
+});
+{const M=MOUNT("magic");
+ if(M){
+  tile(M,FX,"FZtomb1","결빙 · 유리 기둥","FREEZE",
+    "마법진에서 **0.18초에 튀어오른다** — 정점에서 한 번 넘겼다 내려앉는다",238);
+  tile(M,FX,"FZtomb2","결빙 · 포탈 낙하","FREEZE",
+    "**위아래 마법진이 짝이다.** 위 고리가 포탈로 열리고 그 안에서 나온 기둥이 "+
+    "고리를 통과해 아래로 내려찍는다 — 유일하게 위에서 아래로 간다",238);
+  tile(M,FX,"FZtomb3","결빙 · 얼음 왕관","FREEZE",
+    "가시가 안쪽으로 물듯 **튀어오른다**. 셋 중 유일하게 위가 닫히지 않는다",238);
+  tile(M,FX,"FCcone6","화염방사 火炎放射","EMBER",
+    "앞으로 계속 뿜는다 — 서 있는 동안 점화가 덧칠된다(도포)",238);
+  tile(M,FX,"FLtrailL5","불자취 火跡","EMBER",
+    "지나온 자리가 탄다 — 미리 깔아 두는 불(퇴적)",238);
+  tile(M,FX,"FLretL5","회염 廻炎","EMBER",
+    "던진 불덩이가 호를 그리며 돌아온다 — 같은 줄을 두 번(왕복)",238);
+  tile(M,FX,"FZvortex1","화염회오리 火旋","VORTEX",
+    "**위가 넓고 아래가 좁다** — 위에서 내려다본 깔때기. 가까운 위쪽 덩이가 크고 "+
+    "먼 아래가 작아, 거리를 **겉보기 크기**가 말한다",238);}}
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EM — 우주괴물 아홉 · **속성이 테와 눈에 색으로 온다**
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// EN 열일곱을 아홉으로 줄이고(사용자 판정), 남은 아홉에 **속성색을 입힌다.**
+// EN* 은 한 줄도 안 고친다 — 나란히 놓고 판정하려면 원본이 살아 있어야 한다.
+//
+// ⚠️ **몸(FOEDARK #24141F · L .102)은 안 건드린다.** 유니버스 26안의 밝기
+// 예산이 그 값을 기준으로 서 있다. 바뀌는 것은 **테(FOERIM)와 눈(FOEEYE)뿐**이다.
+// 900프레임 픽셀 되읽기로 확인: 열여덟 칸 **전부** #24141F(L .102)가 그대로
+// 남아 있고, 적 픽셀의 구성비는 **몸 52~73% · 테 20~45% · 눈 2~29%** 로
+// 원본(EMsniper = 껍질 없음, 몸 69.5 · 테 22.4 · 눈 8.1)과 같다.
+// **비율은 안 바뀌고 색상만 바뀐다** — 이것이 이 안의 전부다.
+//
+// ── 어떻게 바꾸나: 그림을 다시 그리지 않고 **껍질을 씌운다** ──────────────
+// foeDraw·celLegs·limbSeg·curveLimb·foeEyes·ENshot 이 전부 FOERIM/FOEEYE 를
+// **직접 박아 넣는다.** 그 함수들을 복사해서 색만 바꾼 쌍둥이를 만들면 열여덟
+// 개가 조용히 갈라진다(이 파일이 이미 여러 번 겪은 사고다). 그래서 여기서는
+// **캔버스 컨텍스트를 감싼다** — strokeStyle/fillStyle 로 들어오는 값이
+// 「적 테의 RGB」면 속성 테로, 「적 눈의 RGB」면 속성 눈으로 갈아끼운다.
+//   ① 기하는 원본과 **비트 단위로 같다**(같은 함수가 그린다)
+//   ② 몸(#24141F)과 속성 장판색(toneOf)은 **안 걸린다** — 두 RGB 만 본다
+//   ③ EN* 원본 코드는 0줄 수정
+// 비용은 **껍질을 씌운 칸과 안 씌운 칸을 나란히 재서** 뽑았다(같은 장면·같은
+// 프레임 수, 팔레트만 다름). 900프레임 두 번:
+//   점사 .021/.023 → .027/.025   포격 .107/.106 → .119/.117
+//   추적 .015/.015 → .020/.021   저격 .075/.033 → .084/.084   (ms/frame)
+// ⚠️ **정확히 못 갈랐다** — 차이(+0.002~0.05)가 같은 칸의 실행 간 흔들림
+// (저격 A 가 .075↔.033)보다 작다. 말할 수 있는 것은 **0.01ms/frame 안팎이고
+// 칸 하나가 0.02~0.75ms 인 판에서 안 보인다**는 것뿐이다.
+//
+// ── 색을 어떻게 골랐나 ────────────────────────────────────────────────────
+// **새 색을 안 만든다.** 셋 다 이미 있는 값에서 파생한다:
+//   테 = mixHex( mixHex(TONE[속성][1], TONE[속성][2], b), 적분홍, .18 )
+//   눈 = mixHex( TONE[속성][1|2], TONE[속성][2], k )
+// 안쪽 mix 는 속성 base 를 제 앞날 쪽으로 조금 들어 **L .5 선을 넘기는** 것이고
+// (기존 테 #E86892 가 L .577 — 이 아래로 내려가면 적이 배경에 묻힌다),
+// 바깥 mix(.18) 이 **진영 혼합**이다: 셋 다 적 분홍을 18% 머금어 「같은 편」이
+// 라는 밑색을 공유한다. 이 한 줄이 플레이어 이펙트와 가르는 축 셋 중 하나다.
+//
+// ── ⚠️ 플레이어 속성 이펙트(ELEM.*)와 어떻게 다시 갈랐나 ────────────────
+// 앞 손은 「적은 속성색을 아예 안 쓴다」로 풀었다. 그 방어선을 걷어냈으니
+// **다른 셋으로 대신한다** — 하나가 아니라 셋이라야 한 축이 무너져도 남는다.
+//   ① **어두운 몸이 있다/없다** — 제일 굳은 축이고 **측정으로 확인했다**:
+//      플레이어 칸(FX.fire/ice/bolt)에는 #24141F 픽셀이 **0.00%** 다. 적 칸은
+//      0.47~10.33% 다. 적은 「검은 덩어리에 색 테」고 플레이어는 「검은 데가
+//      없는 색 덩어리」라, 같은 색상이어도 **덩어리의 속이 다르다.**
+//   ② **흰 심(L≥.85)의 양** — 플레이어는 3단 계조를 앞날까지 다 써서 흰 심이
+//      크다: 그린 픽셀 중 염 **25.5%** · 뇌 4.9% · 빙 3.5%. 적은 염 2.1% ·
+//      뇌 0.3% · 원거리 0.0% 다. **염에서 12배** 벌어진다.
+//      ⚠️ **빙은 이 축이 뒤집힌다** — 적 빙 6.5% > 플레이어 빙 3.5%. 얼음기둥
+//      (장판)이 원래부터 앞날색을 쓰기 때문이고, 내가 바꾼 것이 아니다.
+//      **빙에서는 축 ②가 안 듣는다**고 적어 둔다.
+//   ③ **채도·색상 이격** — 진영 혼합 .18 이 모든 적 테의 채도를 5~23 낮추고
+//      색상을 5~8° 민다(염 20°→17° · 빙 199°→206° · 뇌 290°→298°).
+//      순색 옆에 놓으면 적 쪽이 **한 겹 재를 쓴 것**으로 보인다.
+//      ⚠️ 이 축은 **눈으로만 봤고 수치로 안 갈랐다** — 플레이어 이펙트와
+//      적을 같은 화면에 놓고 재지 않았다.
+// 그리고 앞 손이 세운 축은 그대로 남아 있다 — 적은 **비대칭이고, 자리를
+// 옮기며, 바닥에 남긴다.** 색은 그 위에 얹은 네 번째 축이다.
+//
+// ⚠️ **뇌만 색상을 안 지켰다.** 플레이어 volt 는 **노랑**(51°)인데 적 뇌 테를
+// 노랑으로 두면 ㉠ 염 테(17°)와 26° 밖에 안 벌어지고 ㉡ L .792 라 화면에서
+// 제일 밝은 것이 적이 되며 ㉢ 플레이어 번개와 색상 8° 다. 그래서 적 뇌는
+// **blast(290° 청자)** 에서 뽑았다 — 「방전은 보라」라는 관습이 있고 염·빙과
+// 각각 79°·92° 벌어진다. **노랑 안도 만들어 두었으니**(EMpickVolt) 판정은
+// 사용자가 한다.
+
+/// FOERIM 은 rgba 문자열이라 mixHex 에 못 넣는다. 값을 다시 적으면 나중에
+/// 한쪽만 바뀌어 조용히 갈라지므로 **파싱해서** 쓴다.
+const EMRE=/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/;
+function EMrgb(s){
+  if(s.charCodeAt(0)===35){                       // '#'
+    if(s.length===7)return[parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),
+                           parseInt(s.slice(5,7),16),1];
+    if(s.length===4)return[parseInt(s[1]+s[1],16),parseInt(s[2]+s[2],16),
+                           parseInt(s[3]+s[3],16),1];
+    return null;}
+  const m=EMRE.exec(s);
+  return m?[+m[1],+m[2],+m[3],m[4]===undefined?1:+m[4]]:null;
+}
+const EMhex=s=>{const v=EMrgb(s);
+  return"#"+v.slice(0,3).map(n=>Math.round(n).toString(16).padStart(2,"0")).join("");};
+const EMPINK=EMhex(FOERIM), EMRED=EMhex(FOEEYE);
+const EMRV=EMrgb(FOERIM), EMEV=EMrgb(FOEEYE);
+const EMRH=EMPINK.toUpperCase(), EMEH=EMRED.toUpperCase();
+
+/// 진영 혼합비 — 모든 적 테가 머금는 적 분홍의 양.
+/// 0 이면 순색이라 플레이어 이펙트와 색상이 똑같아지고, .30 을 넘기면 빙이
+/// 청보라(216°)로 넘어가 「얼음」이 안 읽힌다(계산으로 확인). .18 이 둘 사이다.
+const EMF=.18;
+/// 테 — 속성 base 를 제 앞날 쪽으로 [b] 만큼 들어 L .5 를 넘기고, 진영색을 먹인다.
+const EMrimOf=(k,b)=>mixHex(mixHex(TONE[k][1],TONE[k][2],b),EMPINK,EMF);
+
+// 팔레트 — {rim, eye}. null 이면 **껍질을 안 씌운다**(원본과 비트 단위로 같다).
+const EMPAL={
+  // 염 — 테는 주홍(17°/L .640) · 눈은 그보다 밝은 노랑(48°/L .872).
+  // 테보다 눈이 밝은 것은 기존 문법의 반대다(기존은 테 .577 > 눈 .441).
+  // 「타는 것의 심지가 제일 뜨겁다」가 되고, 눈이 몸에서 먼저 읽힌다.
+  em :{rim:EMrimOf("ember",.26), eye:mixHex(TONE.ember[2],TONE.volt[1],.62)},
+  // 빙 — 테는 하늘(206°/L .672) · 눈은 흰빛(198°/L .894). 채도만 다르고
+  // 색상이 같아 **한 물질**로 읽힌다(불은 테/눈 색상이 31° 벌어져 「불꽃과
+  // 심지」, 얼음은 8° 라 「같은 얼음의 두 두께」).
+  fr :{rim:EMrimOf("frost",.14), eye:mixHex(TONE.frost[1],TONE.frost[2],.80)},
+  // 뇌 — 테는 청자(298°/L .603) · 눈은 밝은 자(291°/L .730).
+  vl :{rim:EMrimOf("blast",.14), eye:mixHex(TONE.blast[1],TONE.blast[2],.45)},
+  // 뇌 · 대안 — **색상을 지킨 안**(플레이어 volt 와 같은 노랑 계열).
+  vlY:{rim:EMrimOf("volt",0),    eye:mixHex(TONE.volt[1],TONE.volt[2],.50)},
+  // 원거리 A — **기존 분홍 그대로.** null = 껍질 없음 = 원본과 같은 픽셀.
+  rgA:null,
+  // 원거리 B — **골백(骨白).** 색상은 분홍 그대로 두고(340°) 명도만 .577→.754
+  // 로 올린다. 색상환이 이미 꽉 차서(아래 표) 남은 축이 명도뿐이다.
+  // 「속성이 없다 = 색이 빠졌다」가 되고, 넷이 화면에서 제일 창백해
+  // 「멀리서 겨누는 것」으로 읽힌다.
+  rgB:{rim:mixHex(EMPINK,TONE.white[2],.42), eye:EMRED},
+  // 원거리 C — **강청.** 만들어 봤고 **버렸다**: 빙 테(206°)와 5° 라
+  // 나란히 놓으면 「얼음 원거리」로 읽힌다. 버린 근거를 눈으로 보라고
+  // EMpickRanged 칸에 결빙과 나란히 남겨 둔다.
+  rgC:{rim:mixHex(TONE.aqua[1],TONE.white[1],.46), eye:EMRED},
+};
+
+// ── 실측 명도 (Rec.601 L) ────────────────────────────────────────────────
+// 왼쪽이 **정의값**, 오른쪽이 **900프레임 렌더를 되읽은 값**이다. 둘이 다른
+// 이유는 FOERIM 의 알파 .95 다 — 테는 언제나 타일 바닥(#0C0C12)과 5% 섞여
+// 그려지므로 화면에 뜨는 것은 오른쪽이다. **판정 기준선(L .5)은 오른쪽으로 본다.**
+//   염 테  #FB8558 .640 → #EF7F55 **.611**      염 눈 #FFE371 .872
+//   빙 테  #7CB8E6 .672 → #77AFDB **.640**      빙 눈 #C9EDFD .894
+//   뇌 테  #E663EB .603 → #D55FE0 **.576**      뇌 눈 #EF92FF .730
+//   원A 테 #E86892 .577 → #DD648C **.552**      원 눈 #FF2D55 .441
+//   원B 테 #F2A7C0 .754 → #E79FB7 **.719**
+//   뇌Y 테 #FBCA4A .792 → #EFC047 **.754**   (대안)
+//   몸    #24141F .102 → #24141F **.102**  ← 알파가 없어 안 섞인다 · 열여덟 칸 전부
+// **여섯 테 전부 L .5 위**다. 제일 낮은 것이 원A(.552) — 즉 속성색으로 바꾼
+// 셋은 **원본보다 밝다**(.576~.640 vs .552). 배경에 묻히는 쪽으로 간 안은 없다.
+
+/// 껍질 — 컨텍스트를 감싸 **두 색만** 갈아끼운다.
+/// 빠른 거름: '#' 도 'r' 도 아니면 즉시 통과, RGB 가 안 맞으면 즉시 통과.
+/// 몸(#24141F)·속성 장판(toneOf)·플레이어 표식(gold)은 전부 여기서 빠져나간다.
+function EMswap(v,pal){
+  const c0=v.charCodeAt(0);
+  if(c0===35){                                    // '#'
+    if(v.length!==7)return v;
+    const u=v.toUpperCase();
+    return u===EMRH?pal.rim:u===EMEH?pal.eye:v;}
+  if(c0!==114)return v;                           // 'r' (rgb/rgba) 아니면 끝
+  const m=EMRE.exec(v);
+  if(!m)return v;
+  const r=+m[1],g=+m[2],b=+m[3],a=m[4]===undefined?1:+m[4];
+  if(r===EMRV[0]&&g===EMRV[1]&&b===EMRV[2])return a>=1?pal.rim:A(pal.rim,a);
+  if(r===EMEV[0]&&g===EMEV[1]&&b===EMEV[2])return a>=1?pal.eye:A(pal.eye,a);
+  return v;
+}
+/// [key] 마다 하나씩 만들어 st 에 재사용한다 — 프레임마다 새로 만들면
+/// 프록시 생성이 비용의 대부분이 된다. 캔버스가 갈리면(mkFree→mkAlloc)
+/// target 이 달라지므로 그때만 다시 만든다.
+function EMskin(c,pal,st,key){
+  if(!pal)return c;
+  const S=st.emS||(st.emS={});
+  const h=S[key];
+  if(h&&h.raw===c)return h.px;
+  const fc=new Map();
+  const px=new Proxy(c,{
+    get(o,k){const v=o[k];
+      if(typeof v!=="function")return v;
+      let f=fc.get(k);
+      if(!f){f=v.bind(o);fc.set(k,f);}
+      return f;},
+    set(o,k,v){
+      if(typeof v==="string"&&(k==="strokeStyle"||k==="fillStyle"))v=EMswap(v,pal);
+      o[k]=v;return true;},
+  });
+  S[key]={raw:c,px};
+  return px;
+}
+
+const EM={};
+/// EN 의 한 종을 팔레트만 갈아 다시 낸다. **원본 함수를 그대로 부른다.**
+function EMmount(name,src,palKey){
+  const pal=EMPAL[palKey];
+  EM[name]=({[name]:function(c,t,dt,W,H,st){
+    src.call(EN,EMskin(c,pal,st,palKey),t,dt,W,H,st);}})[name];
+}
+EMmount("EMburnA", EN.emBurn,   "em");
+EMmount("EMburnB", EN.emBurnB,  "em");
+EMmount("EMwall",  EN.frWall,   "fr");
+EMmount("EMseg",   EN.vlSeg,    "vl");
+EMmount("EMtether",EN.vlTether, "vl");
+EMmount("EMsniper",EN.rgSniper, "rgA");
+EMmount("EMmortar",EN.rgMortar, "rgA");
+EMmount("EMhunter",EN.rgHunter, "rgA");
+EMmount("EMsnipe", EN.rgSnipe,  "rgA");
+EMmount("EMsniperB",EN.rgSniper,"rgB");
+EMmount("EMmortarB",EN.rgMortar,"rgB");
+EMmount("EMhunterB",EN.rgHunter,"rgB");
+EMmount("EMsnipeB", EN.rgSnipe, "rgB");
+EMmount("EMsegY",  EN.vlSeg,    "vlY");
+
+// ── 판정용 초상 ───────────────────────────────────────────────────────────
+// **아홉을 한 판에 놓는 칸.** 종마다 자기 무대가 따로면 「색이 갈리는가」를
+// 못 본다 — 배경도 크기도 자세도 다 다르기 때문이다. 여기서는 아홉을 같은
+// 크기 · 같은 자세 · 같은 배경에 세워 **색만 남긴다.**
+// 몸 다각형은 원본 장면의 것을 그대로 쓴다(움직임만 뺀 정지 초상).
+const EMPORT=[
+  ["연소체A","em"],["연소체B","em"],["결빙","fr"],["전절","vl"],["쌍극","vl"],
+  ["점사","rgA"],["포격","rgA"],["추적","rgA"],["저격","rgA"]];
+/// 정n각 몸 하나 — 초상에서만 쓴다.
+function EMlobe(n,a,b){const P=[];
+  for(let i=0;i<n;i++){const q=i/n*TAU;P.push([Math.cos(q)*(i%2?a:b),Math.sin(q)*(i%2?a:b)]);}
+  return P;}
+/// 아홉 종 초상 하나. [i] 0~8 · [ang] 바라보는 쪽.
+function EMport(c,i,x,y,r,t,ang){
+  const px=x+Math.cos(ang)*r*9, py=y+Math.sin(ang)*r*9;
+  if(i===0){                                       // 연소체 A — 일렁이는 덩어리
+    ENlick(c,x,y,r,ang,t,5,.92,1);
+    ENbodyFire(c,x,y,r,ang,t);
+    foeEyes(c,x,y,r*.80,2,px,py,.17);
+  }else if(i===1){                                 // 연소체 B — 셋으로 갈라진다
+    const gap=(.40+.60*Math.max(0,Math.sin(t*2.3)))*r*.92, sr=r*.55;
+    for(let j=0;j<3;j++){const q=ang+j/3*TAU+t*.35+Math.PI/3;
+      ENlick(c,x+Math.cos(q)*gap*.5,y+Math.sin(q)*gap*.5,sr,q,t,3,1.05,.95);}
+    for(let j=0;j<3;j++){const q=ang+j/3*TAU+t*.35;
+      const bx=x+Math.cos(q)*gap, by=y+Math.sin(q)*gap, P=[];
+      for(let k=0;k<8;k++){const w=k/8*TAU;
+        const o=(k%2?1.02:.74)+.10*Math.sin(t*7.7+k*1.9+j);
+        P.push([Math.cos(w)*o,Math.sin(w)*o]);}
+      foeDraw(c,P,bx,by,sr,q,0,t,11.3+j*5.1,2.6);
+      foeEyes(c,bx,by,sr*.72,1,px,py,.22);}
+  }else if(i===2){                                 // 결빙 — 벌어지는 턱
+    const gape=.28+.30*Math.max(0,Math.sin(t*1.5));
+    foeDraw(c,[[1.12,-.26],[.52,-.60],[-.36,-.68],[-1.06,-.32],[-1.06,.32],
+      [-.36,.68],[.52,.60],[1.12,.26]],x,y,r,ang,0,t,29.1,3.0);
+    for(const sg of[-1,1])
+      celLegs(c,x+Math.cos(ang)*r*.52,y+Math.sin(ang)*r*.52,r*.72,ang+sg*gape,1.00,.13);
+    foeEyes(c,x,y,r*.80,2,px,py,.15);
+  }else if(i===3){                                 // 전절 — 마디 셋
+    const sw=Math.sin(t*1.3)*.5;
+    const S=[[x,y],
+             [x-Math.cos(ang+sw)*r*1.5,y-Math.sin(ang+sw)*r*1.5],
+             [x-Math.cos(ang+sw*2)*r*2.9,y-Math.sin(ang+sw*2)*r*2.9]];
+    for(let j=2;j>0;j--)
+      limbSeg(c,S[j][0],S[j][1],S[j-1][0],S[j-1][1],r*(.30-j*.05),r*(.40-j*.05));
+    for(let j=2;j>=0;j--){
+      const nx=S[Math.min(2,j+1)];
+      foeDraw(c,EMlobe(7,1.02,.72),S[j][0],S[j][1],r*(1-j*.22),
+        Math.atan2(S[j][1]-nx[1],S[j][0]-nx[0]),1.0,t,31.7+j*4.1,2.6-j*.4);}
+    ENbolt(c,S[0][0],S[0][1],S[1][0],S[1][1],r*.17,3.1,t,.95);
+    ENbolt(c,S[1][0],S[1][1],S[2][0],S[2][1],r*.14,7.7,t,.85);
+    foeEyes(c,S[0][0],S[0][1],r*.8,1,px,py,.20);
+  }else if(i===4){                                 // 쌍극 — 둘 사이가 아프다
+    const sr=r*.66,sep=r*1.55,q=ang+Math.PI/2;
+    const ax=x+Math.cos(q)*sep, ay=y+Math.sin(q)*sep;
+    const bx=x-Math.cos(q)*sep, by=y-Math.sin(q)*sep;
+    celStroke(c,[[ax,ay],[bx,by]],sr*.72,"volt",.14);
+    ENbolt(c,ax,ay,bx,by,sr*.20,3.1,t,.95);
+    ENbolt(c,ax,ay,bx,by,sr*.12,19.7,t*1.31,.60);
+    for(const P of[[ax,ay,bx,by,5.1],[bx,by,ax,ay,9.3]]){
+      const fa=Math.atan2(P[3]-P[1],P[2]-P[0]);
+      for(const sg of[-1,1])celLegs(c,P[0],P[1],sr*.8,fa+sg*.62,.86,.12);
+      foeDraw(c,EMlobe(7,1.06,.70),P[0],P[1],sr,fa,1.2,t,P[4],2.8);
+      foeEyes(c,P[0],P[1],sr*.8,1,px,py,.20);}
+  }else if(i===5){                                 // 점사 — 큰 외눈
+    for(let j=0;j<3;j++)celLegs(c,x,y,r*.88,ang+Math.PI+(j-1)*.9,.62,.10);
+    const P=[];
+    for(let j=0;j<12;j++){const q=j/12*TAU;
+      P.push([Math.cos(q)*(j%4===0?1.10:1.00),Math.sin(q)*(j%4===0?1.10:1.00)]);}
+    foeDraw(c,P,x,y,r,ang,.3,t,67.1,3.0);
+    c.beginPath();
+    c.ellipse(x+Math.cos(ang)*r*.34,y+Math.sin(ang)*r*.34,r*.38,r*.38,ang,0,TAU);
+    c.fillStyle=FOEEYE;c.fill();
+  }else if(i===6){                                 // 포격 — 낮고 넓은 분화구
+    foeDraw(c,[[.86,-.42],[.52,-.96],[-.30,-1.20],[-.92,-.62],[-.92,.62],
+      [-.30,1.20],[.52,.96],[.86,.42]],x,y,r,ang,.6,t,73.9,3.2);
+    limbSeg(c,x+Math.cos(ang)*r*.30,y+Math.sin(ang)*r*.30,
+              x+Math.cos(ang)*r*1.02,y+Math.sin(ang)*r*1.02,r*.30,r*.36);
+    c.beginPath();c.arc(x+Math.cos(ang)*r*1.02,y+Math.sin(ang)*r*1.02,r*.20,0,TAU);
+    c.fillStyle=ENHOLE;c.fill();
+    c.strokeStyle=FOERIM;c.lineWidth=2;c.stroke();
+    foeEyes(c,x,y,r*.66,2,px,py,.13);
+  }else if(i===7){                                 // 추적 — 지느러미 돋은 화살
+    for(const sg of[-1,1])celLegs(c,x,y,r*.72,ang+Math.PI+sg*.68,1.05,.16);
+    foeDraw(c,[[1.35,0],[.62,.44],[-.30,.56],[-1.00,.30],[-1.00,-.30],
+      [-.30,-.56],[.62,-.44]],x,y,r,ang,1.0,t,79.3,2.8);
+    foeEyes(c,x,y,r*.80,1,px,py,.19);
+  }else{                                           // 저격 — 엎드린 것 + 렌즈
+    for(const sg of[-1,1])
+      celLegs(c,x+Math.cos(ang)*r*.30,y+Math.sin(ang)*r*.30,r*.72,ang+sg*1.15,1.35,.11);
+    foeDraw(c,[[1.30,-.20],[.75,-.36],[-.20,-.44],[-1.10,-.26],[-1.32,0],
+      [-1.10,.26],[-.20,.44],[.75,.36],[1.30,.20]],x,y,r,ang,.4,t,89.1,3.0);
+    const lens=.30+.10*Math.sin(t*1.7);
+    c.beginPath();
+    c.ellipse(x+Math.cos(ang)*r*.10,y+Math.sin(ang)*r*.10,r*.40,r*lens,ang,0,TAU);
+    c.fillStyle=ENHOLE;c.fill();
+    c.strokeStyle=FOERIM;c.lineWidth=2.2;c.stroke();
+    c.beginPath();
+    c.arc(x+Math.cos(ang)*r*.10,y+Math.sin(ang)*r*.10,r*lens*.62,0,TAU);
+    c.fillStyle=FOEEYE;c.fill();}
+}
+/// 초상 하나를 **팔레트를 갈아** 그린다.
+function EMportPal(c,i,palKey,x,y,r,t,ang,st,slot){
+  EMport(EMskin(c,EMPAL[palKey],st,slot),i,x,y,r,t,ang);
+}
+
+/// 아홉 한 판 — **색이 속성으로 갈리는가.**
+/// 유일하게 하는 것: 같은 크기·같은 자세·같은 배경에 아홉을 세워 실루엣과
+/// 움직임을 상수로 묶고 **색 하나만 변수로** 남긴다.
+EM.EMrow=function EMrow(c,t,dt,W,H,st){
+  const S=Math.min(W,H)/238, r=21*S;
+  for(let i=0;i<9;i++){
+    const cx=W*((i%3)+.5)/3, cy=H*(Math.floor(i/3)+.5)/3;
+    EMportPal(c,i,EMPORT[i][1],cx,cy,r,t,Math.sin(t*.5+i)*.9-Math.PI/2,st,EMPORT[i][1]);}
+};
+/// 원본과 나란히 — 왼쪽이 EN 원본(전부 분홍), 오른쪽이 속성색.
+/// 유일하게 하는 것: **같은 프레임 안에서** 원본과 새것을 붙여 놓는다.
+/// 다른 칸끼리 비교하면 위상이 달라 「색이 달라졌나 자세가 달라졌나」가 섞인다.
+EM.EMcmp=function EMcmp(c,t,dt,W,H,st){
+  const S=Math.min(W,H)/238, r=20*S;
+  const row=[[0,"em"],[2,"fr"],[3,"vl"]];
+  for(let j=0;j<3;j++){
+    const cy=H*(j+.5)/3, ang=-Math.PI/2+Math.sin(t*.5+j)*.5;
+    EMport(c,row[j][0],W*.27,cy,r,t,ang);                       // 원본 팔레트
+    EMportPal(c,row[j][0],row[j][1],W*.73,cy,r,t,ang,st,"cmp"+j);
+    c.save();c.strokeStyle="rgba(120,120,140,.5)";c.lineWidth=1;
+    c.beginPath();c.moveTo(W*.5,cy-H*.15);c.lineTo(W*.5,cy+H*.15);c.stroke();c.restore();}
+};
+/// 뇌 두 안 — 왼쪽 청자(채택안) · 오른쪽 노랑(색상을 지킨 안).
+/// 유일하게 하는 것: **염 초상을 같이 놓는다** — 노랑 안을 버린 근거가
+/// 「플레이어와 비슷하다」가 아니라 「염과 안 갈린다」이기 때문이다.
+EM.EMpickVolt=function EMpickVolt(c,t,dt,W,H,st){
+  const S=Math.min(W,H)/238, r=20*S, ang=-Math.PI/2+Math.sin(t*.5)*.5;
+  EMportPal(c,3,"vl", W*.28,H*.30,r,t,ang,st,"pv0");
+  EMportPal(c,3,"vlY",W*.72,H*.30,r,t,ang,st,"pv1");
+  EMportPal(c,0,"em", W*.28,H*.76,r,t,ang,st,"pv2");
+  EMportPal(c,0,"em", W*.72,H*.76,r,t,ang,st,"pv3");
+};
+/// 원거리 세 안 — 분홍(A) · 골백(B) · 강청(C, 버림) · 그 옆에 결빙.
+/// 유일하게 하는 것: **버린 안을 남겨 둔다.** 강청과 결빙을 붙여 놓으면
+/// 5° 라는 숫자가 눈으로 보인다.
+EM.EMpickRanged=function EMpickRanged(c,t,dt,W,H,st){
+  const S=Math.min(W,H)/238, r=20*S, ang=-Math.PI/2+Math.sin(t*.5)*.5;
+  EMportPal(c,5,"rgA",W*.28,H*.30,r,t,ang,st,"pr0");
+  EMportPal(c,5,"rgB",W*.72,H*.30,r,t,ang,st,"pr1");
+  EMportPal(c,5,"rgC",W*.28,H*.76,r,t,ang,st,"pr2");
+  EMportPal(c,2,"fr", W*.72,H*.76,r,t,ang,st,"pr3");
+};
+
+// ── 도감 ─────────────────────────────────────────────────────────────────
+// ── 채택 (2026-08-12 사용자 판정) ──────────────────────────────────────────
+//   뇌  — **자색과 노랑 둘 다 채택.** 「색 다르게 해서 두 마리 있는 것도 괜찮을
+//         듯」이라 하나를 고르는 대신 **두 마리**로 갈랐다.
+//   원거리 — **분홍 유지(A).** 창백한 골백(B)과 강청(C)은 버렸다.
+//   ⚠️ 버린 것들(EMrow·EMcmp·EMpickVolt·EMpickRanged·EM*B·)은 판정이 끝나
+//      마운트에서 뺀다. 함수는 남겨 둔다 — 되돌릴 일이 생기면 이름만 다시 적는다.
+const EMDEF=[
+["EMburnA","염 炎 · 연소체 A","테 주홍 · 눈 노랑. **눈이 테보다 밝다** — 심지가 제일 뜨겁다"],
+["EMburnB","염 炎 · 연소체 B","셋으로 갈라진다. 조각마다 눈 하나 · 틈에서 새는 불이 테와 같은 계열"],
+["EMwall","빙 氷 · 결빙","테 하늘 · 눈 흰빛. 색상 8° 차 — 같은 얼음의 두 두께로 읽힌다"],
+["EMseg","뇌 雷 · 전절 — 자紫","방전 가닥만 노랑 그대로라 **몸과 방전이 갈린다**"],
+["EMsegY","뇌 雷 · 전절 — 황黃","같은 몸, 테만 노랑. 아홉 중 제일 밝다"],
+["EMtether","뇌 雷 · 쌍극","둘 사이 띠는 노랑, 몸 테는 자색 — 「위험한 것은 몸이 아니다」"],
+["EMsniper","원거리 · 점사","속성이 없다 — 진영 분홍 그대로"],
+["EMmortar","원거리 · 포격","그림자를 미리 보여주고 떨어뜨린다"],
+["EMhunter","원거리 · 추적","유도탄 — 피해도 따라온다"],
+["EMsnipe","원거리 · 저격","한 발이 아주 아프다 · 조준선이 미리 보인다"],
+];
+EMDEF.forEach(([k,nm,ds])=>tile($("emfoes"),EM,k,nm,"",ds,238));
+
+// 호(弧) 빙벽 — 채택된 3·4 는 **방어 페이지에 나란히**, 보류인 1·2 는 고르기에.
+// ⚠️ 사용자가 3·4 를 채택한 뒤에 「호로 말아 달라」가 왔다. 그림은 그대로고
+// **배치만** 호로 옮긴 것이라 채택을 뒤집지 않는다 — 같은 그림의 두 배치다.
+const AWHOST=MOUNT("guard");
+// ═══════════════════════════════════════════════════════════════════════════
+// AW — 빙벽 넷을 **호(弧)** 로 만다                                (2026-08-12)
+//
+// 사용자 지적: 「캐릭터는 '구'의 형태니까 시작점이 직선이 아니라 '호'의
+// 형태로 둥글게 말려서 방벽이 만들어지는 식」.
+//
+// 지금 `IBwall1`~`IBwall4` 는 넷 다 이렇게 놓는다:
+//     x = cx+(u-.5)*PW*1.94        가로 **직선**
+//     gy = cy+WY+PH*.86            세로 **고정**
+//     IBneedle(c,x,gy,-Math.PI/2,…) 전부 **위**를 향한다
+// 몸은 구인데 벽만 평면이다. 호로 옮기면 셋이 **동시에** 고쳐진다:
+//   ① 자리 — 캐릭터 중심의 원호 위
+//   ② 방향 — 바늘·판·격자가 전부 「바깥(반지름)」을 향한다
+//   ③ 끝  — 양 끝이 캐릭터 쪽으로 말려 들어온다
+//
+// 그림체는 **하나도 안 건드린다.** IBpane·IBneedle·IBflake·IBcrys·IBrune·
+// IBroot·IBshard·IBspark·IBmist 를 원본과 같은 순서·같은 알파로 부른다.
+// 갈리는 것은 **좌표계 하나**다 — 그래야 「호가 값이 있나」만 남는다.
+// 원본 `IBwall*` 는 안 건드렸다. 나란히 놓고 비교하라고 새 이름으로 둔다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── 호 기하 ────────────────────────────────────────────────────────────────
+// R·SPAN 은 **넷이 공유한다.** 원본 넷이 같은 시계(IBstepWall)를 쓴 것과 같은
+// 이유다 — 갈리는 것이 물성 하나여야 나란히 놓았을 때 비교가 된다.
+//
+// 값의 근거(238칸·SC=1 기준. 실측은 아래 「후보표」):
+//   · 캐릭터 몸 반지름 17, 발광 반지름 46 (`hero()`)
+//   · 적의 집 거리 108~118 (`mgInit` 넷 다 같은 배치)
+//   · 칸 반폭 119
+//   R=50  — 몸(17)에서 33, 발광(46) 바로 바깥. **32 밑으로 내리면 벽이 발광
+//           속에 잠겨 「모자」가 된다**(R=26 렌더에서 확인). 68 위로 올리면
+//           바깥끝이 적의 집(108)에 닿아 적이 **출발부터 벽에 붙어 있다**.
+//   SPAN=2.30 (132°) — 반각 66°. 적 넷의 접근각이 -38°~+25° 라 **±40° 밑으로
+//           좁히면 왼쪽 적이 호 옆으로 새서 그냥 들어온다**(SPAN=1.20 렌더에
+//           적 하나가 벽 아래에 서 있는 것이 그대로 찍혔다). 2.9 위로 벌리면
+//           끝이 캐릭터 옆구리를 지나 **고리**가 되어 「막는 방향」이 사라진다.
+// ⚠️ 새김깊이/현폭 = tan(SPAN/4)/2 로 **R 과 무관하다.** 즉 「호로 보이나」의
+//    모양비는 SPAN 이 혼자 정하고, R 이 하는 일은 ①갑옷이 되나 ②적의 집에
+//    닿나 ③칸 밖으로 잘리나 셋뿐이다. 둘을 같은 축으로 착각하면 안 된다.
+const AWG={R:50,TH:30,SPAN:2.30};
+
+/// u(0~1) → 각. 위(-π/2)를 0 으로 좌우로 SPAN 만큼 벌린다.
+function AWang(u,span){return -Math.PI/2+(u-.5)*span;}
+/// 각을 -π~π 로 감는다. ⚠️ 이걸 빼면 뒤(±π 근처)에서 오는 놈의 부호가
+/// 뒤집혀 **벽 뒤에서 걸린다**.
+function AWwrap(a){return Math.atan2(Math.sin(a),Math.cos(a));}
+/// 끝으로 갈수록 얇아진다 — 「말려 들어온다」는 자리가 아니라 **두께**로
+/// 읽힌다. 끝까지 같은 두께면 잘라낸 띠가 되지 초승달이 안 된다.
+function AWtaper(uu){return 1-.38*Math.pow(uu,2.3);}
+/// ⚠️⚠️ **벽면 반지름 — 그리기와 판정이 이 함수 하나만 부른다.**
+/// `IBwall4` 가 멈추는 자리(-77)와 걸리는 자리(-63)를 따로 적어서 적이
+/// 걸리자마자 걸림 밖으로 튕겨 **28프레임에 한 번만** 벽을 때린 적이 있다.
+/// 눈으로는 「좀 느리네」로만 보였고 계측으로만 잡혔다. 같은 함정을 안 밟는
+/// 유일한 방법은 **두 자리가 물리적으로 같은 한 줄에서 나오는 것**이다.
+function AWface(RB,TH,uu){return RB+TH*AWtaper(uu);}
+
+/// 강체 국소 좌표 → 화면. dr=바깥(반지름) 방향, dq=접선 방향.
+/// 판·바늘처럼 **곧은 물건**은 이걸 쓴다(호를 따라 휘면 안 된다).
+function AWpt(cx,cy,a,dr,dq){const ca=Math.cos(a),sa=Math.sin(a);
+  return [cx+ca*dr-sa*dq, cy+sa*dr+ca*dq];}
+/// 원본 다각형을 그대로 옮긴다. v=[접선, -반지름] (원본이 쓰던 [x, 위쪽-y]
+/// 와 같은 부호 규약이라 **숫자를 한 자도 안 고치고** 옮길 수 있다).
+function AWpoly(cx,cy,a,base,v){const ca=Math.cos(a),sa=Math.sin(a);
+  return v.map(p=>[cx+ca*(base-p[1])-sa*p[0], cy+sa*(base-p[1])+ca*p[0]]);}
+/// 진짜 극좌표 — 접선 offset 이 각으로 환산된다. 벽돌·실처럼 **호를 따라
+/// 휘어야 하는 것**은 이걸 쓴다.
+function AWarcPt(cx,cy,a,r,q){const a2=a+q/Math.max(1,r);
+  return [cx+Math.cos(a2)*r, cy+Math.sin(a2)*r];}
+/// 호 위의 한 점에서 **바깥을 향한** 뿌리 발광. `IBroot` 는 y 로만 눌리므로
+/// 호의 끝(각이 0·π 근처)에서는 납작한 방향이 90° 틀어진다 — 캔버스를 돌려
+/// 반지름 방향으로 눌러야 한다.
+function AWroot(c,cx,cy,a,r,rr,k,al,sq){
+  if(!(rr>1)||!(al>.01))return;
+  c.save();c.translate(cx+Math.cos(a)*r,cy+Math.sin(a)*r);
+  c.rotate(a-Math.PI/2);IBroot(c,0,0,rr,k,al,sq);c.restore();}
+
+// ── 호 벽의 시계·충돌 ──────────────────────────────────────────────────────
+// ⚠️ 원본 `IBstepWall` 은 **직사각형 판정**(|ox|<PW·oy>stopY)이다. 호가 되면
+// 그 네모는 세 군데서 틀린다:
+//   · 호 바깥 위쪽(각은 벗어났는데 네모 안) → **헛맞는다**
+//   · 호 끝 아래쪽(각은 안인데 네모 밖)     → **틈으로 샌다**
+//   · 벽 뒤(캐릭터 아래)                    → 네모가 안 막으니 그냥 통과
+// 각 판정으로 바꾼다: `atan2` 로 각을 재고 **반지름 띠 안인가**를 본다.
+function AWstepWall(st,dt,SC,RB,TH,SPAN,rate){
+  if(st.hp===undefined){st.hp=1;st.dead=0;st.fr=[];}
+  const up=st.dead<=0,SPD=31*SC,HALF=SPAN*.5;
+  for(const f of st.F){
+    const d=Math.hypot(f.ox,f.oy)||1, ang=Math.atan2(f.oy,f.ox);
+    const da=AWwrap(ang+Math.PI/2), uu=Math.min(1,Math.abs(da)/HALF);
+    // ⚠️ 멈추는 반지름 = 걸리는 반지름. **한 변수에서 한 번만** 만든다.
+    // `-f.r*.52` 는 원본과 같다 — 몸이 벽에 **파묻혀야** 판 너머로 비친다.
+    const stopR=AWface(RB,TH,uu)-f.r*.52, nd=d-SPD*dt;
+    if(up&&Math.abs(da)<HALF&&nd<stopR){
+      f.ox=Math.cos(ang)*stopR;f.oy=Math.sin(ang)*stopR;
+      // 반동은 **접선**으로 — 호 위에서 때리면 바깥으로 미끄러진다
+      const s=(da<0?-1:1)*.5*SC;
+      f.kx+=-Math.sin(ang)*s;f.ky+=Math.cos(ang)*s;
+      st.hp-=dt*rate;f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+      f.nh=(f.nh||0)+1;                    // 계측 훅 — 「초당 몇 번 때리나」
+    }else{
+      f.ox=Math.cos(ang)*nd;f.oy=Math.sin(ang)*nd;
+      if(nd<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  let broke=0;
+  if(up&&st.hp<=0){broke=1;st.dead=1.15;st.hp=1;}
+  if(st.dead>0)st.dead-=dt;
+  return broke;}
+
+/// 부서질 때 — 파편이 **바깥(반지름)으로** 흩어진다. 원본 `IBburst` 는 위로
+/// 뿌리는데, 호에서 위로 뿌리면 끝쪽 파편이 벽을 뚫고 안으로 들어간다.
+function AWburst(st,cx,cy,RB,TH,SPAN,SC,n){
+  st.fr=st.fr||[];
+  for(let i=0;i<n;i++){const u=(i+.5)/n,a=AWang(u,SPAN),uu=Math.abs(u-.5)*2;
+    const r=RB+(AWface(RB,TH,uu)-RB)*.55;
+    const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
+    const sp=(66+62*hash(i*7.7))*SC;
+    st.fr.push({x,y,vx:Math.cos(a)*sp+(hash(i*3.1)-.5)*26*SC,
+      vy:Math.sin(a)*sp-34*SC,ro:hash(i*2.3)*TAU,vr:(hash(i*9.1)-.5)*5,
+      r:TH*(.30+.26*hash(i*4.7)),l:0,m:.74,tr:[[x,y]]});}}
+/// 호를 따라 세 자리에서 **바깥으로** 입자를 뿜는다.
+function AWemit(st,cx,cy,RB,TH,SPAN,SC,n,o){
+  for(let i=0;i<3;i++){const a=AWang((i+.5)/3,SPAN),r=RB+TH*.55;
+    emit(st,cx+Math.cos(a)*r,cy+Math.sin(a)*r,n,
+      Object.assign({a,spread:.9},o));}}
+
+Object.assign(FX,{
+
+// ═══ 빙벽 · 호(弧) 배치 ════════════════════════════════════════════════════
+// 넷 다 원본과 같은 적 배치·같은 깎임률(.055)·같은 파괴 주기다.
+// 원본과 갈리는 것은 **좌표계 하나**.
+
+// ── 호 A · **겹친 유리판** (원본 IBwall1) ─────────────────────────────────
+// 판 아홉이 호를 따라 서고, 하나하나가 **반지름 방향으로 곧게** 선다.
+// 원본과 유일하게 갈리는 것: 겹치는 방향이 가로가 아니라 **접선**이라
+// 끝으로 갈수록 판이 눕고, 겹침이 저절로 깊어진다.
+AWwall1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const RB=AWG.R*SC,TH=AWG.TH*SC,SPAN=AWG.SPAN,N=9;
+  const brk=AWstepWall(st,dt,SC,RB,TH,SPAN,.055);
+  if(brk){AWburst(st,cx,cy,RB,TH,SPAN,SC,7);
+    AWemit(st,cx,cy,RB,TH,SPAN,SC,6,{k:"frost",sp:180*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);   // ⚠️ 적을 **먼저** — 판이 위에 겹쳐야 비친다
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    // 뿌리 발광 — 호를 따라 다섯. 한 점이면 둥근 얼룩이라 호가 안 보인다.
+    for(let i=0;i<5;i++)AWroot(c,cx,cy,AWang((i+.5)/5,SPAN),RB,TH*.92,"frost",.40,.34);
+    // 접선 간격 — R·SPAN 이 뭐든 **겹침의 수가 안 변하도록** 폭을 여기에 맞춘다.
+    // (원본은 폭 12~17 / 간격 12.8 로 서로 절반씩 겹쳤다)
+    const SP=(RB+TH*.40)*SPAN/N;
+    for(let i=0;i<N;i++){const u=(i+.5)/N,a=AWang(u,SPAN),uu=Math.abs(u-.5)*2;
+      const hh=(AWface(RB,TH,uu)-RB)*(.86+.86*hash(i*3.1));
+      const ww=SP*(.92+.44*hash(i*7.7)),ln=(hash(i*5.3)-.5)*.9;
+      const base=RB+TH*.10+Math.sin(t*1.1+i)*1.2*SC;
+      // 원본의 각진 유리 조각 — 숫자를 한 자도 안 고치고 좌표계만 옮긴다
+      const P=AWpoly(cx,cy,a,base,
+        [[-ww,0],[-ww*.94,-hh*.34],[-ww*.46+ln*ww*.5,-hh*.88],
+         [ln*ww,-hh],[ww*.72+ln*ww,-hh*.60],[ww*.98,-hh*.10],[ww*.88,0]]);
+      IBpane(c,P,"frost",(.92-sh*.30)*(i%2?1:.84),i*4.1,1.3*SC);}
+    // 금 — 깎일수록 판을 **반지름 방향으로** 가로지른다.
+    // 원본과 같이 **바깥 끝에서 시작해 안으로** 자란다(sh 가 길이를 준다).
+    if(sh>.12)for(let i=0;i<4;i++){const a=AWang((i+.62)/4,SPAN),pts=[];
+      for(let j=0;j<=4;j++)pts.push(AWpt(cx,cy,a,
+        RB+TH*1.12-TH*1.12*(j/4)*Math.min(1,sh*1.7),(hash(i*9+j)-.4)*TH*.42));
+      IBline(c,pts,1.5*SC*sh,"frost",Math.min(1,sh*1.5),0);}
+    // 위(=바깥)에 떠 있는 마름모 + 반짝이
+    for(let i=0;i<6;i++){const ph=t*.5+i*1.7,a=AWang(hash(i*2.3),SPAN);
+      const p=AWpt(cx,cy,a,RB+TH*1.32+Math.abs(Math.sin(ph))*13*SC,0);
+      IBshard(c,p[0],p[1],(2.4+2.2*hash(i*5.1))*SC,ph*.5+i,"frost",.85);}
+    for(let i=0;i<5;i++){const ph=(t*.7+i*.37)%1,a=AWang(hash(i*3.7),SPAN);
+      const p=AWpt(cx,cy,a,RB+TH*(.1+.95*hash(i*8.1)),0);
+      IBspark(c,p[0],p[1],(2.6+1.6*hash(i*6.3))*SC,"frost",
+        .35+.65*Math.sin(ph*Math.PI),t*1.4+i);}
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 호 B · **바늘 숲** (원본 IBwall2) ─────────────────────────────────────
+// 호가 제일 크게 갈리는 안이다. 원본은 바늘 열넷이 **전부 위**를 보는데
+// (`-Math.PI/2` 고정), 여기서는 하나하나가 **자기 자리의 반지름**을 본다 —
+// 성게처럼 방사한다. 부러지는 순서(긴 것부터)는 원본 그대로.
+AWwall2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const RB=AWG.R*SC,TH=AWG.TH*1.13*SC,SPAN=AWG.SPAN,N=14;
+  const brk=AWstepWall(st,dt,SC,RB,TH,SPAN,.055);
+  if(brk){AWburst(st,cx,cy,RB,TH,SPAN,SC,8);
+    AWemit(st,cx,cy,RB,TH,SPAN,SC,7,{k:"frost",sp:190*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    for(let i=0;i<6;i++)AWroot(c,cx,cy,AWang((i+.5)/6,SPAN),RB,TH*1.00,"frost",.60,.28);
+    // 뿌리 부스러기 — 작은 결정이 호를 따라 잔뜩(H)
+    for(let i=0;i<12;i++){const u=(i+.5)/12,a=AWang(u,SPAN)+(hash(i*4.7)-.5)*.09;
+      const p=AWpt(cx,cy,a,RB-1.5*SC,0);
+      IBneedle(c,p[0],p[1],a+(hash(i*3.3)-.5)*1.5,(4+5*hash(i*8.9))*SC,1.7*SC,i*2.1,
+        "frost",.85,{mos:1});}
+    // 큰 바늘 — **각도가 자기 자리의 반지름**이다(원본은 전부 -π/2)
+    for(let i=0;i<N;i++){const u=(i+.5)/N,uu=Math.abs(u-.5)*2;
+      const rank=hash(i*6.1);                     // 0=짧다 1=길다
+      const cut=rank<sh*1.15?.30+.18*hash(i*2.9):1;
+      const L=(AWface(RB,TH,uu)-RB)*(.78+1.20*rank)*cut;
+      const a=AWang(u,SPAN)+(hash(i*5.5)-.5)*.05;
+      // 반지름 방향 + 부채처럼 조금 더 벌어진다. ⚠️ 이 `+.30` 을 **음수로
+      // 뒤집으면 끝이 캐릭터 쪽으로 오므라든다**(발톱). 어느 쪽이 「말려
+      // 들어온다」로 읽히는지는 내 미학으로 못 정한다 — 노브로 남긴다.
+      const ang=a+(u-.5)*.30+(hash(i*9.7)-.5)*.30;
+      const p=AWpt(cx,cy,a,RB,0);
+      IBneedle(c,p[0],p[1],ang,L,(3.2+2.4*hash(i*7.3))*SC,i*3.7,"frost",1,
+        {mos:2,tip:.20,slant:.55+.5*hash(i*1.9)});
+      if(cut<1)IBspark(c,p[0]+Math.cos(ang)*L,p[1]+Math.sin(ang)*L,4*SC,"frost",.7,t*2+i);}
+    // 뿌리를 한 번 더 — 밑동이 묻힌다
+    for(let i=0;i<4;i++)AWroot(c,cx,cy,AWang((i+.5)/4,SPAN),RB,TH*.60,"frost",.48,.24);
+    for(let i=0;i<7;i++){const ph=t*.6+i*1.3,a=AWang(hash(i*2.3),SPAN);
+      const p=AWpt(cx,cy,a,RB+TH*1.20+Math.abs(Math.sin(ph))*15*SC,0);
+      IBshard(c,p[0],p[1],(2.2+2.4*hash(i*5.1))*SC,ph*.4+i,"frost",.8);}
+  }else{
+    for(let i=0;i<9;i++){const u=(i+.5)/9,a=AWang(u,SPAN);   // 그루터기만 남는다
+      const p=AWpt(cx,cy,a,RB,0);
+      IBneedle(c,p[0],p[1],a,(5+4*hash(i*3.1))*SC,2.2*SC,i*3.7,"frost",.75,{mos:1});}
+    for(let i=0;i<4;i++)AWroot(c,cx,cy,AWang((i+.5)/4,SPAN),RB,TH*.85,"frost",
+      .32*Math.max(0,st.dead),.26);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 호 C · **선으로만 그린 눈결정 격자** (원본 IBwall3) ───────────────────
+// 잇는 실 둘이 **동심 호**가 된다. 면이 하나도 없는 안이라 「호냐 직선이냐」가
+// 오직 그 두 가닥의 휨으로만 나온다 — 넷 중 호가 제일 노골적으로 읽히는 자리.
+AWwall3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  // TH 는 **원본이 실제로 그린 깊이**에 맞춘다. 원본은 실 둘이 WY±PH*.72
+  // (PH=26) 로 37.4 만큼 벌어져 있었다 — 여기를 26 으로 두면 격자가 절반
+  // 크기로 쪼그라든다(1차 렌더에서 그렇게 나왔다).
+  const RB=AWG.R*SC,TH=AWG.TH*1.25*SC,SPAN=AWG.SPAN;
+  const brk=AWstepWall(st,dt,SC,RB,TH,SPAN,.055);
+  if(brk){AWburst(st,cx,cy,RB,TH,SPAN,SC,9);
+    AWemit(st,cx,cy,RB,TH,SPAN,SC,7,{k:"frost",sp:200*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.95});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    const al=1-sh*.45, RM=RB+TH*.50;
+    // 잇는 실 — 안쪽·바깥쪽 **두 동심 호**가 눈송이를 꿴다.
+    // 끝에서 반지름이 줄어드는 것이 「말려 들어온다」의 전부다(면이 없으니
+    // 두께로는 말할 수가 없고, 이 안에서는 **선의 곡률**이 유일한 언어다).
+    for(const rr of[RB+TH*.02,RB+TH*.98]){
+      const pts=[];for(let i=0;i<=18;i++){const u=i/18,a=AWang(u,SPAN);
+        const uu=Math.abs(u-.5)*2;
+        const d=rr-TH*.34*Math.pow(uu,2.3)+Math.sin(u*7+t*.6)*2.2*SC;
+        pts.push([cx+Math.cos(a)*d,cy+Math.sin(a)*d]);}
+      IBline(c,pts,1.9*SC,"frost",al*.9);}
+    // 눈송이 셋 — 가지 하나가 **바깥을 향하도록** 돌려 놓는다(rot 에 a 를 더한다)
+    for(let i=0;i<3;i++){const u=(i+.5)/3,a=AWang(u,SPAN);
+      const p=AWpt(cx,cy,a,RM,0);
+      IBflake(c,p[0],p[1],TH*(i===1?.88:.68),a+Math.PI/2+t*.06+i*.7,
+        "frost",al*.85,1.9*SC);}
+    // 사이를 메우는 작은 눈송이 넷 — 안팎으로 어긋난다
+    for(let i=0;i<4;i++){const u=(i+.5)/4+(i%2?.055:-.055),a=AWang(u,SPAN);
+      const p=AWpt(cx,cy,a,RM+(i%2?TH*.30:-TH*.30),0);
+      IBflake(c,p[0],p[1],TH*.25,a+Math.PI/2-t*.09+i*1.3,"frost",al*.70,1.3*SC);}
+    // 격자 마디의 반짝이 — 두 호가 눈송이와 만나는 자리
+    for(let i=0;i<6;i++){const u=(i+.5)/6,a=AWang(u,SPAN);
+      const p=AWpt(cx,cy,a,i%2?RB+TH*.02:RB+TH*.98,0);
+      IBspark(c,p[0],p[1],3.2*SC,"frost",.45+.55*Math.abs(Math.sin(t*1.6+i)),t*.9+i);}
+    if(sh>.15)for(let i=0;i<5;i++){        // 끊긴 자리 — 선이 도막난다
+      const a=AWang(hash(i*3.1),SPAN),d=RM+(hash(i*7.7)-.35)*TH*1.7;
+      const p=AWpt(cx,cy,a,d,(hash(i*4.3)-.5)*TH);
+      IBshard(c,p[0],p[1],2.6*SC*sh,a,"frost",Math.min(1,sh*1.6));}
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ── 호 D · **모자이크 석벽** (원본 IBwall4) ───────────────────────────────
+// 벽돌이 **부채꼴**이 된다 — 바깥 줄이 안쪽 줄보다 길어져 저절로 아치가 된다.
+// 이 안만 국소 파괴다. 맞은 칸만 떨어져 **구멍이 뚫리고**, 그 구멍으로 적이
+// 들어온다. ⚠️ 칸 판정도 각·반지름으로 바꿨다 — 아래 `bIn`/`bOut` 둘이
+// 그리기와 판정에 **똑같이** 쓰인다(따로 적으면 28프레임 버그가 재현된다).
+AWwall4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  // 원본 벽돌은 세로 22 · 가로 17.7 이었다(PH=22 의 **두 배**가 벽의 높이다).
+  // TH 를 22 로 잡으면 줄마다 11 이 되어 벽돌이 절반으로 쪼그라든다 —
+  // 1차 렌더에서 그렇게 나왔다. 두 줄을 합쳐 44 가 되도록 잡는다.
+  const RB=AWG.R*SC,TH=AWG.TH*1.47*SC,SPAN=AWG.SPAN,COL=7,ROW=2,NB=COL*ROW;
+  if(!st.br){st.br=new Array(NB).fill(1);st.dead=0;st.fr=[];st.hp=1;}
+  const dq=SPAN/COL;                                   // 칸의 각폭
+  const bu=i=>((i%COL)+.5)/COL, ba=i=>AWang(bu(i),SPAN);
+  const buu=i=>Math.abs(bu(i)-.5)*2;
+  // ⚠️⚠️ 칸의 **안·바깥 반지름.** 그리기도 판정도 이 함수만 부른다.
+  const bIn =i=>RB+(AWface(RB,TH,buu(i))-RB)*((i/COL|0)  )/ROW;
+  const bOut=i=>RB+(AWface(RB,TH,buu(i))-RB)*((i/COL|0)+1)/ROW;
+  const alive=i=>st.br[i]>0;
+  const up=st.dead<=0, SPD=31*SC;
+  for(const f of st.F){
+    const d=Math.hypot(f.ox,f.oy)||1, ang=Math.atan2(f.oy,f.ox);
+    const nd=d-SPD*dt;
+    let hitI=-1,hr=0;
+    if(up)for(let i=0;i<NB;i++){if(!alive(i))continue;
+      if(Math.abs(AWwrap(ang-ba(i)))>dq*.62)continue;
+      // **멈추는 자리 = 걸리는 자리.** 같은 변수 하나(`face`)를 둘 다 쓴다.
+      const face=bOut(i)-f.r*.55;
+      if(nd<face&&face>hr){hr=face;hitI=i;}}
+    if(hitI>=0){
+      f.ox=Math.cos(ang)*hr;f.oy=Math.sin(ang)*hr;
+      const s=(AWwrap(ang+Math.PI/2)<0?-1:1)*.4*SC;
+      f.kx+=-Math.sin(ang)*s;f.ky+=Math.cos(ang)*s;
+      st.br[hitI]-=dt*.52;f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+      f.nh=(f.nh||0)+1;                    // 계측 훅
+      if(st.br[hitI]<=0){st.br[hitI]=0;
+        const rm=(bIn(hitI)+bOut(hitI))*.5,am=ba(hitI);
+        IBpushFrag(st,cx+Math.cos(am)*rm,cy+Math.sin(am)*rm,
+          (bOut(hitI)-bIn(hitI))*.44,SC,1);
+        emit(st,cx+Math.cos(am)*rm,cy+Math.sin(am)*rm,7,
+          {k:"frost",a:am,spread:1.1,sp:150*SC,r:2.6*SC,life:.5,g:130*SC,spikeP:.9});}
+    }else{
+      f.ox=Math.cos(ang)*nd;f.oy=Math.sin(ang)*nd;
+      if(nd<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  let live=0;for(let i=0;i<NB;i++)if(alive(i))live++;
+  if(up&&live===0)st.dead=1.0;
+  if(st.dead>0){st.dead-=dt;if(st.dead<=0)st.br=new Array(NB).fill(1);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let i=0;i<5;i++)AWroot(c,cx,cy,AWang((i+.5)/5,SPAN),RB,TH*.95,"frost",.36,.30);
+  for(let i=0;i<NB;i++){const hpv=st.br[i];if(hpv<=0)continue;
+    const r0=bIn(i),r1=bOut(i),am=ba(i),sd=i*3.7;
+    const rm=(r0+r1)*.5, qh=rm*dq*.5;         // 접선 반폭 = 호 길이의 절반
+    // 조각 하나 — 각지고, 이웃과 모서리를 맞대되 완전히 같지는 않다.
+    // 꼭짓점 수가 5·6·7 로 갈린다(다 육각이면 벌집=무늬가 된다).
+    const NP=5+((i*7+((i/COL|0)*3))%3), P=[];
+    const OV=1.16;                            // 이웃과 모서리를 맞대는 겹침
+    // ⚠️ 접선 쪽은 겹침을 **한 번 더** 준다(OV*OV). 부채꼴은 안쪽 줄의 호
+    // 길이가 바깥 줄보다 짧아서, 같은 배율로 두면 안쪽 줄에 세로 틈이 벌어진다.
+    const jq=(hash(sd+1.3)-.5)*qh*.36, jr=(hash(sd+2.9)-.5)*(r1-r0)*.18;
+    for(let j=0;j<NP;j++){const a0=j/NP*TAU+.4+hash(sd+j*1.7)*.5;
+      const rr=(.52+.20*hash(sd+j*2.3))*(1+.14*Math.sin(a0*2));
+      P.push(AWarcPt(cx,cy,am,rm+jr-Math.sin(a0)*(r1-r0)*rr*OV,
+        jq+Math.cos(a0)*qh*rr*OV*OV));}
+    IBcrys(c,P,"frost",Math.min(1,.35+hpv*.75),sd,
+      {mos:2,w:1.4*SC*.9,thru:.62,grain:am});
+    if(hpv<.75)IBline(c,[AWarcPt(cx,cy,am,rm+(r1-r0)*.34,-qh*.6),
+      AWarcPt(cx,cy,am,rm-(r1-r0)*.02,qh*.2),
+      AWarcPt(cx,cy,am,rm-(r1-r0)*.36,-qh*.1)],
+      1.1*SC*(1-hpv),"frost",1-hpv,0);}
+  for(let i=0;i<5;i++){const ph=t*.55+i*1.5,a=AWang(hash(i*2.3),SPAN);
+    const p=AWpt(cx,cy,a,RB+TH*1.40+Math.abs(Math.sin(ph))*12*SC,0);
+    IBshard(c,p[0],p[1],(2.2+2.0*hash(i*5.1))*SC,ph*.5+i,"frost",.8);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ── 마운트 (호스트 <div id="aw-arc"> 가 있을 때만) ─────────────────────────
+// ⚠️ 조건이 `aw-arc` 였는데 그 `<div>` 는 어느 페이지에도 없다 — 넷이 통째로
+// 안 떴다(2026-08-12 사용자 지적). 조건도 호스트와 같은 것을 봐야 한다.
+{const H=AWHOST;
+ if(H){
+  [["AWwall1","호 A — 겹친 유리판. 판이 반지름 방향으로 곧게 선다"],
+   ["AWwall2","호 B — 바늘 숲. 하나하나가 자기 자리의 바깥을 본다"],
+   ["AWwall4","호 D — 모자이크 석벽. 벽돌이 부채꼴이라 저절로 아치가 된다"]]
+   .forEach(([k,d])=>tile(H,FX,k,d.split(" — ")[0],"",d,238));}}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DM — 울렁이는 투명 방어막 (2026-08-12) · 접두 DM
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// ── 결계와 무엇이 다른가 ─────────────────────────────────────────────────
+// **결계는 닿기 전에 끊는다. 이 막은 아무것도 안 끊고 「휜다」** — 탄은 막을
+// 그대로 통과하되 궤도가 꺾여 몸을 비껴간다.
+//
+// 그 한 문장이 그림 전부를 정한다:
+//   · 결계는 육각 셀을 **칠한다**(면이 있다) ↔ 이 막은 면을 안 칠한다. 안이 다 보인다
+//   · 결계는 맞은 셀이 **깨진다**(구멍이 남는다) ↔ 이 막은 안 깨진다. **파문만** 남는다
+//   · 결계의 적은 셸 밖에 **선다** ↔ 이 막의 탄은 **안으로 들어와서** 나간다
+//   · 결계의 사건은 「막았다」 ↔ 이 막의 사건은 「빗나갔다」
+// 그래서 화면에서 제일 크게 다른 것: **막 뒤의 것이 밀려 보인다.** 결계는
+// 뒤가 안 보이니 밀릴 것도 없다. 굴절은 이 스킬만 가진 그림이다.
+//
+// ⚠️ 뇌 계열과도 안 겹친다. 뇌광이 「친다」(직선이 튄다)면 이쪽은
+// **「기어 다닌다」** — 방전이 구면을 따라 걷는다(DMzap 은 측지선 걷기다).
+//
+// ── 요소 네 개가 어디에 있나 ─────────────────────────────────────────────
+//   ① 투명   면 채우기가 없다. 테·경위선·물결 **띠**만 있고 속은 비었다
+//   ② 동그란 막   경도선/위도선(기울인 정사영) · 프레넬 테 · 바닥 그림자 ·
+//                반구 반사 캡 — 넷을 조합으로 시험한다(DMdome5/6 가 그 축)
+//   ③ 일그러짐   **갈래 넷**(아래) — 이 레포에 굴절이 없어서 넷을 다 만들었다
+//   ④ 지지직   DMzap — 구면 위를 걷는 방전. 분기가 있고 수명이 짧다
+//
+// ── ③ 일그러짐 갈래 넷 · 실측표 ───────────────────────────────────────────
+// 「일그러져 보이나」는 **막 원판 안에서 바닥이 얼마나 움직였나**로 잰다:
+// 굴절 없는 바닥을 기준으로 두고 갈래마다 픽셀 차를 낸다(238px · R=62 · 8프레임).
+// 비용은 900프레임 median / p95 (LV1 = 페이지 기본값).
+// ⚠️ 헤드리스 크롬의 `performance.now()` 는 **0.1ms 로 양자화**된다 — 아래 수치의
+// 유효 자릿수는 거기까지다(0.3 과 0.4 의 차이는 잡음일 수 있다).
+// 어느 것이 제일 좋은지는 **안 정한다.**
+//
+//   갈래         평균|Δ|   16단계↑ 바뀐 픽셀   dpr1        dpr2
+//   0 되그리기    4.04%      23.4%          0.4/0.6ms   0.3/0.6ms   DMdome1·5·6
+//   1 띠 밀기     2.87%      17.2%          0.6/0.9ms   0.6/0.8ms   DMdome2
+//   2 자기복사    3.92%      24.1%          1.4/1.7ms   2.3/2.6ms   DMdome3 ⚠️
+//   3 가짜        0.00%       0.0%          0.3/0.5ms   0.3/0.5ms   DMdome4
+//
+//   0 되그리기  바닥을 **안팎으로 갈라** 두 번 그린다. 안쪽 벌은 정점마다
+//               반지름 방향으로 민다 — 미는 양이 가장자리일수록 크다(sin² 가중).
+//               장을 R 바깥 34%까지 끌고 나가 밖의 것이 딸려 들어오게 둔다
+//   1 띠 밀기   동심 띠 다섯, 띠마다 다른 위상으로 좌우로 민다. 띠 경계가
+//               계단으로 남는 것이 이 갈래의 얼굴이다(수치는 제일 낮다)
+//   2 자기복사  canvas 를 자기 자신에 되그린다(clip+drawImage). **화면에 이미
+//               그려진 것 전부**가 밀린다 — 몸까지 밀리는 것은 이 갈래뿐이다.
+//               ⚠️ **dpr2 에서 2.3ms** — 이 레포의 칸 상한(1.7ms)을 넘는다
+//   3 가짜      굴절이 없다. 테와 물결의 **윤곽만** 흔든다. 제일 싸고,
+//               실측 0.00% 가 「정말 아무것도 안 밀렸다」는 증거다
+//
+// ── 레벨 ─────────────────────────────────────────────────────────────────
+//   수치  반지름 54→70 · 휘는 세기 1.4→2.4 · 방전 2→4가닥
+//   표식(L3)  파문이 **두 겹**으로 퍼진다 — 막이 두껍다는 유일한 자국
+//   격상(L5)  **안쪽 껍질이 하나 더 선다** — 휨이 두 번 일어난다.
+//             (반사·되쏨은 안 넣는다. 그건 경면·응보의 자리다)
+//
+// ── 바닥을 깐 이유 (못 지킨 것으로도 읽힐 수 있어 적는다) ─────────────────
+// 이 레포의 칸은 배경이 **단색**이라 굴절을 아무리 정직하게 넣어도 밀릴 것이
+// 없다. 그래서 각진 판 아홉 + 격자 열 줄을 깔았다 — 다른 칸에 없는 무대다.
+// 색은 어둠(shade)이고 막(회백)과 층이 갈린다. 게임에서는 진짜 바닥·적·장판이
+// 그 자리를 대신하므로 이 무대는 **시안에서만 필요한 것**이다.
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DM — 울렁이는 투명 방어막 (2026-08-12 · 2026-08-13 전면 개정) · 접두 DM
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// ── 2026-08-13 개정 — 사용자 반려 두 건 ───────────────────────────────────
+// ① 「내가 말한 투명 방어막은 **진짜 흰색 선이 그어지는 게 아니고**
+//    **일그러짐으로 방어막을 표현한** 거였는데」
+//    첫 판은 여섯이 전부 테·경위선·물결선을 **그려서** 막을 보여 줬다.
+//    그 반대로 다시 잡는다 — **막 자체는 안 보이고, 오직 뒤가 밀려서**
+//    「거기 뭔가 있다」가 읽혀야 한다.
+//      · 경위선(mer·lat)은 **여섯 칸 전부에서 0** 이다. 그리는 코드는 남겨
+//        뒀지만(되돌릴 때 필요) 어느 칸도 안 켠다.
+//      · 테는 **한 겹**만, 알파를 노브 하나(`O.ln`)로 받는다. 0 이면 획이
+//        하나도 안 그려진다(방전 DMzap 도 같은 노브를 탄다 — 그것도 획이다).
+//      · 피격 파문은 **밀림의 세기**로도 낸다(`DMfield` 의 HIT 항). 선을 끈
+//        칸에서도 맞은 자리에서 **밀림의 고리**가 퍼져 나간다.
+// ② 「**보라색 뒷배경은 뭐야? 저런 게 왜 생겼지?**」
+//    첫 판이 각진 판 9 + 격자 10줄을 **새로 깔았다**(다른 칸에 없는 물건).
+//    이제 바닥은 **이 게임의 진짜 유니버스 배경**이다 — `MAPP.bg.ashsea`
+//    (행성 잿바다 · 로비의 `LOBBYBG.ground` 가 쓰는 바로 그것). 게임에서
+//    실제로 볼 그림이 밀리므로 판정이 정직해진다. 옛 바닥은 **팔레트만
+//    배경 전용으로 갈아** 한 칸(DMdome6)에 대조군으로 남겼다 — 그 칸이
+//    「덜 튀게」 안이다.
+//
+// ── 결계와 무엇이 다른가 (안 바뀜) ────────────────────────────────────────
+// **결계는 닿기 전에 끊는다. 이 막은 아무것도 안 끊고 「휜다」** — 탄은 막을
+// 그대로 통과하되 궤도가 꺾여 몸을 비껴간다.
+//   · 결계는 육각 셀을 **칠한다** ↔ 이 막은 아무것도 안 칠한다
+//   · 결계는 맞은 셀이 **깨진다** ↔ 이 막은 **밀림의 파문**만 남는다
+//   · 결계의 사건은 「막았다」 ↔ 이 막의 사건은 「빗나갔다」
+// 화면에서 제일 크게 다른 것: **막 뒤의 것이 밀려 보인다.** 개정판에서는
+// 그것이 **유일하게** 다른 것이다.
+//
+// ── 굴절을 어떻게 그리나 — 갈래 넷을 하나로 접었다 ────────────────────────
+// 첫 판은 굴절 갈래 넷(되그리기·띠 밀기·자기복사·가짜)을 나란히 뒀다.
+// 그 비교는 **선이 있을 때**의 것이라 이제 뜻이 없다:
+//   · 「가짜」(굴절 0)는 선을 지우면 **화면에 아무것도 안 남는다**(첫 판
+//     실측 0.00% 밀림 — 그 칸은 굴절이 아니라 선이 전부였다는 증거였다).
+//     그래서 **버렸다.** 대신 사다리의 제일 아랫칸(DMdome1, 세기 0.30)이
+//     그 자리를 대신한다 — 「거의 안 민다」가 화면에서 어떻게 보이는지는
+//     0 이 아니라 **거의 0** 이 답한다. 진짜 0 은 위 사다리표의 첫 줄로 남긴다.
+//   · 「띠 밀기」는 띠 경계가 계단으로 남는 것이 얼굴인데, 그 계단이 곧
+//     **선**이라 반려의 취지와 정면으로 어긋난다. 버렸다.
+//   · 「자기복사」는 dpr2 에서 2.3ms 로 칸 상한(1.7ms)을 넘었다. 버렸다.
+// 남은 하나가 **격자 그물 밀기**(DMlens)다: 막 뒤의 것을 오프스크린 한 장에
+// 그리고, 원판 안을 GxG 칸으로 갈라 칸마다 **원본을 어긋난 자리에서 떠 온다**.
+//   · 밀림의 정의가 함수 하나(`DMfield`)로 떨어져 **세기를 수치로 잴 수 있다**
+//   · 방사 대칭이 아닌 것(피격 파문)도 같은 함수 안에서 표현된다
+//   · 「자기복사」가 노리던 **몸까지 밀린다**를 그대로 얻는다(아래 참조).
+//     원본이 정지한 오프스크린이라 캔버스 되읽기가 없어 그보다 싸다
+//
+// ── 실측 · 비용 (238px · 900프레임 · 헤드리스 · GPU 끔 · LV1) ──────────────
+//                dpr1 med / p95        dpr2 med / p95
+//   첫 판 여섯    0.20~1.20 / 0.40~1.50     (재지 않음)
+//   개정 1~5      1.00      / 1.40~1.90   2.60~2.70 / 3.10~4.10
+//   개정 6        0.50      / 0.80        0.80      / 1.20
+//   개정 LV3/LV5  1.00      / 1.40             (LV1 과 같다 — 아래 참조)
+// **dpr1 은 사실상 상한(1.7ms) 안**이다 — 여섯 다 med 1.00ms 이하이고
+// p95 는 DMdome2 하나가 1.90ms 로 넘긴다(그 0.2ms 는 `performance.now()`
+// 의 양자화 폭 두 칸이라 **잡음일 수 있다 — 확인 못 했다**).
+// LV3·LV5 가 LV1 과 같은 값인 것은 표식·격상을 **겹을 늘리지 않고 같은 장의
+// 항으로** 접어 넣었기 때문이다(`DMfield` 의 IN·h[3] 참조).
+// **dpr2 는 다섯 칸이 넘는다.** 범인은 그물이 아니라 **진짜 배경**이다 —
+// 옛 바닥을 쓰는 DMdome6 이 dpr2 에서 0.80ms 이므로 잿바다 한 장이 dpr2 에서
+// 약 1.8ms 를 먹는다(dpr1 의 4배 = 화소 수 그대로). 그물 밀기 자체는 dpr1 에서
+// **0.10ms** 뿐이다(그물 끄면 0.80 · 켜면 0.90). 정직한 바닥의 값이 이것이고,
+// 줄이려면 (가) 더 싼 배경 키를 고르거나 (나) 오프스크린만 dpr 1 로 그려
+// 확대하는(화질을 내주는) 수밖에 없다. **못 지킨 것으로 적는다.**
+//
+// ── ⚠️ 그 밖에 못 지킨 것 ─────────────────────────────────────────────────
+// ① **막(선)은 자기가 안 밀린다.** 선을 켠 칸에서 껍질 뒷면이 몸 **위**로
+//    온다 — 막 뒤의 것을 한 층에 모으면서 몸이 그 층에 들어갔기 때문이다.
+//    알파가 .034 이하라 화면에서 안 보이지만 계약으로는 틀렸다.
+// ② **적이 쏜 것의 색**이 `gKarma`(응보의 팔레트)다. TONE 에 줄을 못 넣는
+//    순수 추가 블록이라 있는 키 중 위험색이 이것뿐이었다(첫 판과 같음).
+// ③ **탄의 궤도는 여전히 코드로 꺾는다** — 밀림장과 따로 논다. 물리적으로는
+//    같은 굴절이 두 번(궤도 한 번, 화면 한 번) 계산되는 셈이다.
+// ④ **적은 원판 밖에 서 있어서 밀리는 것을 못 본다.** 막 뒤의 층에 넣어 두긴
+//    했으나 네 마리 다 중심에서 103~115px 이고 막은 64px 이라, 실제로 밀리는
+//    것은 **바닥·날아오는 탄·몸** 셋뿐이다.
+//
+// ── 여섯 칸이 무엇을 가르나 — 한 칸에서 한 가지만 바꾼다 ──────────────────
+// 기준칸은 **DMdome2**(굴절 0.70 · 선 0 · 진짜 바닥)이고 나머지 다섯은
+// 거기서 **딱 한 노브**만 다르다.
+//   DMdome1  굴절 0.30   선 0     진짜 바닥     ← 굴절 사다리 아랫칸
+//   DMdome2  굴절 0.70   선 0     진짜 바닥     ← 기준
+//   DMdome3  굴절 1.40   선 0     진짜 바닥     ← 굴절 사다리 윗칸(접힌다)
+//   DMdome4  굴절 0.70   선 .05   진짜 바닥     ← 선 사다리 (아주 옅게)
+//   DMdome5  굴절 0.70   선 .10   진짜 바닥     ← 선 사다리 (옅게 · 상한)
+//   DMdome6  굴절 0.70   선 0     **옛 바닥**   ← 바닥 대조군(어둡게)
+// 그래서 판정 세 개가 한 판에서 나온다:
+//   굴절 세기 = 1·2·3 / 선 단계 = 2·4·5 / 바닥 = 2·6
+//
+// ── 실측 · 굴절 세기 사다리 ───────────────────────────────────────────────
+// 「일그러져 보이나」는 **원판 안에서 화면이 얼마나 움직였나**로 잰다.
+// 굴절만 끈 같은 칸(dz 0)을 기준으로 두고 원판 안 화소 차를 낸다
+// (238px · R=64 · LV1 · dpr1 · 120프레임 · 바닥 잿바다).
+// `테 밀림` 은 테(u=1)에서의 최대 밀림 = R·0.18·dz 를 px 로 계산한 값.
+// ⚠️ 헤드리스 크롬의 `performance.now()` 는 **0.1ms 로 양자화**된다.
+//
+//   세기 dz   테 밀림   평균|Δ|   16단계↑   눈 판정
+//   0        0.0px    0.00%     0.0%    **아무 일도 안 일어난다**(첫 판 「가짜」의 자리)
+//   0.20     2.3px    0.56%     1.5%    안 보인다
+//   0.30     3.5px    0.76%     2.0%    테가 겨우 잡힌다 — **보이기 시작하는 하한** · DMdome1
+//   0.50     5.8px    1.10%     2.7%    구가 읽힌다
+//   0.70     8.1px    1.35%     3.4%    **확실히 구다. 아직 안 접힌다** — 기준 · DMdome2
+//   1.00    11.5px    1.71%     3.9%    첫 찢김이 몸에 보인다
+//   1.40    16.1px    2.15%     4.5%    **접힌다** — 몸이 찢어진다 · DMdome3
+//   2.00    23.0px    2.52%     7.2%    모자이크
+//   3.00    34.6px    3.11%     9.5%    **물엿** — 원판 안이 뭉갠 덩어리다
+//
+// 「어디서 물엿이 되나」에는 **계산으로 나오는 답**이 하나 있다. 밀림장이
+// 접히는(같은 원본이 두 번 나오는) 조건은 |dm/dr| > 1 이고,
+//   dm/dr ≈ b(u)·A1·OM = b·(0.135·dz)·7.4 ≈ 0.999·dz  (테에서 b=1)
+// 이라 **dz 가 1 을 넘으면 접힌다.** 테 바깥 치맛단(u≈1.2)에서는 b′ 항이
+// 붙어 **dz≈0.9 부터** 접히기 시작하고, 눈으로도 1.00 과 1.40 사이에서
+// 몸이 찢어진다. 기준칸을 0.70 으로 잡은 것은 그 아래로 두기 위해서다.
+// 어느 것이 옳은지는 **안 정한다** — 셋을 나란히 놓는다.
+//
+// ── 실측 · 밝기 ───────────────────────────────────────────────────────────
+// 예산(유니버스 26안): 평균 L ≤ .06 · L>.12 ≤ 1% · L>.35 ≤ 0.5%.
+// (가) **바닥만** 그린 캔버스 (238px · 예산은 배경의 것이므로 여기서 잰다)
+//   바닥                          평균L    L>.12    L>.35
+//   칸 바탕 #0C0C12 만            .0488   0.000%   0.000%   ← 기준선
+//   첫 판 옛 바닥(shade 보라)     .0533   **1.672%** 0.000%  ← 예산 초과
+//   개정 · MAPP.bg.ashsea         .0321   0.388%   0.004%   ← 다섯 칸이 이것
+//   개정 · 옛 바닥을 mapVeil 로   .0498   0.000%   0.000%   ← DMdome6
+// 「보라색이 왜 저렇게 튀나」의 수치가 **1.672%** 다(상한 1%). 범인은
+// `shade` 의 밝은 앞날 **#6B4E8C(L .348)** — 배경이 쓰면 안 되는 단이다
+// (⚑ 「배경에는 흰 앞날이 없다」, TONE.map* 넷은 최댓값이 .124 다).
+// 같은 형태를 `TONE.mapVeil` 로만 갈면 **L>.12 화소가 0 이 된다.**
+// (나) **칸 전부** (막·적·몸까지 다 올린 뒤 · 238px · 900프레임 마지막 장)
+//   첫 판 여섯   평균L .0956~.0988   L>.12 20.97~22.44%   L>.35 2.40~3.34%
+//   개정 여섯    평균L .0471~.0634   L>.12  5.13~ 6.07%   L>.35 0.90~1.10%
+// 평균 L 을 **52%** · L>.12 를 **75%** · L>.35 를 **64%** 줄였다.
+// ⚠️ 남은 L>.35 약 1% 는 상한(0.5%)의 두 배인데, **바닥이 아니라 몸**이다 —
+// `hero()` 의 앞날 `#A6A6B2`(L .65)와 반지름 46px 짜리 가산 후광, 그리고 적의
+// 테(`#E86892` L .577)·눈(`#FF2D55`)이 쓴다. 이 레포의 **모든** 이펙트 칸이
+// 같은 몫을 쓰고 바닥을 무엇으로 바꿔도 안 움직인다(바닥만 잰 (가)에서
+// 잿바다가 0.004% 인 것이 그 증거다). 예산은 배경의 것이지 이펙트 칸의
+// 것이 아니지만, **넘는 수치를 적어 둔다.**
+//
+// ── 레벨 ─────────────────────────────────────────────────────────────────
+//   수치  반지름 64→88 · 휘는 세기 1.4→2.4
+//   표식(L3)  피격이 **두 번 민다** — 뒤따르는 두 번째 밀림 고리가 생긴다.
+//             막이 두껍다는 자국이고, **선이 아니라 밀림으로** 낸다
+//   격상(L5)  **안쪽 껍질이 하나 더 선다** — 밀림이 두 번 일어난다
+//             (반사·되쏨은 안 넣는다. 그건 경면·응보의 자리다)
+
+// ── 무대 상수 — 여섯 칸이 한 벌의 수치를 쓴다 ────────────────────────────
+const DMSQ =.90,   // 화면 눌림 — 위에서 비스듬히 본 구
+      DMTLT=.62,   // 시선 기울기(rad). 파문 고리가 선으로 안 뭉개지는 최소치
+      DMPER=.60,   // 적이 한 발 쏘는 주기(s)
+      DMBSP=138,   // 탄속(px/s @ SC=1)
+      DMSPN=.20,   // 구 자전
+      DMG  =12;    // 굴절 그물의 한 변 칸 수 — 아래 「그물 눈금」 참조
+/// 적이 쏜 것의 색 — 이 레포가 「날아오는 위험」에 쓰는 붉은 자홍이다
+/// ([aimLane] 의 rgba(255,80,110) 과 같은 색상각). 응보의 팔레트를 빌리는
+/// 것이지 응보를 뜻하지 않는다 — TONE 에 줄을 못 넣는 순수 추가 블록이라
+/// 있는 키 중 위험색이 이것뿐이다. 못 지킨 것으로 적는다.
+const DMHOS="gKarma";
+/// 바닥 — **이 게임의 진짜 유니버스 배경**이다(`MAPP.bg.ashsea` = 행성 잿바다,
+/// 로비의 `LOBBYBG.ground` 가 쓰는 바로 그것). 열일곱 안을 이 칸 안에 하나씩
+/// 깔아 보고 고른 근거:
+///   · **밀림은 곧은 선이 어긋나는 것으로만 읽힌다.** 잿바다는 등고선 결이
+///     화면 **전체**에 고르게 깔린 몇 안 되는 안이다. 호수·모래폭풍·폐허는
+///     t=1.7s 에서 제일 잘 보였는데 t=6.7s 에는 큰 무늬가 원판 밖으로
+///     흘러가 **원판 안이 텅 비었다**(2026-08-13 렌더 판정). 시안은 아무
+///     순간에나 보는 것이라 「무늬가 늘 있는」 것이 이긴다 — 잿바다와
+///     용암지 둘뿐이었고, 그중 결이 굵어 밀림이 더 보이는 쪽이 잿바다다
+///   · 밝기 평균 L .0321 · L>.12 0.388% · L>.35 0.004% (배경만 실측) —
+///     예산(평균 .06 · .12 초과 1% · .35 초과 0.5%) **셋 다 안쪽**이다.
+///     염호(.0541 / 10.7%)·부유(.0531 / 6.0%)·유기(.0434 / 6.6%)는 L>.12 를 깬다
+///   · 비용 med 0.10ms — 열일곱 중 제일 싼 축(협곡 0.30 · 동공 0.60 · 폐허 0.60)
+/// ⚠️ 이 키를 바꾸면 판정이 통째로 바뀐다. 다음 후보는 "lava"(용암지 — 금이
+/// 고르게 깔린 유일한 다른 안) · "ruin"(폐허 — 직각이라 제일 잘 보이지만
+/// 밝기가 t 에 따라 크게 흔들린다) · "space"(심우주 — **별점뿐이라 안 보인다**).
+const DMBG="ashsea";
+
+// ── 구면 수학 ────────────────────────────────────────────────────────────
+const DMcr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const DMnm=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l];};
+/// n 에 수직인 단위벡터 하나(어느 것이든 상관없다)
+function DMperp(n){const a=Math.abs(n[0])<.9?[1,0,0]:[0,1,0];return DMnm(DMcr(n,a));}
+/// 단위구 점 → 화면. **z>0 이 앞**이다.
+function DMproj(p,cx,cy,R){
+  const ct=Math.cos(DMTLT),st=Math.sin(DMTLT);
+  const y=p[1]*ct-p[2]*st, z=p[1]*st+p[2]*ct;
+  return [cx+p[0]*R, cy-y*R*DMSQ, z];}
+/// 화면 위 점 → 구면(앞쪽). 탄이 껍질을 뚫은 자리를 파문의 축으로 쓴다.
+function DMunproj(x,y,cx,cy,R){
+  const X=(x-cx)/R, Y=-(y-cy)/(R*DMSQ);
+  const s=Math.min(1,X*X+Y*Y), Z=Math.sqrt(Math.max(0,1-s));
+  const ct=Math.cos(DMTLT),st=Math.sin(DMTLT);
+  return DMnm([X, Y*ct+Z*st, -Y*st+Z*ct]);}
+/// 측지선 한 걸음 — [del] 만큼 걷고 진행방향을 [psi] 만큼 비튼다.
+function DMstep(p,d,del,psi){
+  const cd=Math.cos(del),sd=Math.sin(del);
+  const np=[p[0]*cd+d[0]*sd,p[1]*cd+d[1]*sd,p[2]*cd+d[2]*sd];
+  let nd=[-p[0]*sd+d[0]*cd,-p[1]*sd+d[1]*cd,-p[2]*sd+d[2]*cd];
+  const w=DMcr(np,nd),cp=Math.cos(psi),sp2=Math.sin(psi);
+  nd=[nd[0]*cp+w[0]*sp2,nd[1]*cp+w[1]*sp2,nd[2]*cp+w[2]*sp2];
+  return [DMnm(np),DMnm(nd)];}
+
+// ── 그리기 조각 (선을 켠 칸에서만 쓴다) ──────────────────────────────────
+/// 닫힌 고리 **띠** — 안팎 두 윤곽을 이어 붙인 하나의 면.
+/// ⚠️ 고리를 `i<n` 으로 돌면 **3시 방향에 홈이 남는다**(2026-08-12 렌더 판정).
+/// 마지막 점이 첫 점과 같아야 이음매가 사라진다.
+function DMband(c,cx,cy,rf,w,n,col){
+  const P=[],Q=[];
+  for(let i=0;i<=n;i++){const a=i/n*TAU,r=rf(a),co=Math.cos(a),si=Math.sin(a);
+    P.push([cx+co*(r+w),cy+si*(r+w)*DMSQ]);
+    Q.push([cx+co*Math.max(0,r-w),cy+si*Math.max(0,r-w)*DMSQ]);}
+  fillPoly(c,P.concat(Q.reverse()),col);}
+/// 구면 위 곡선 — 앞/뒤로 갈라 그린다. [want] 이 +1 이면 앞만, -1 이면 뒤만.
+function DMline3(c,P3,cx,cy,R,w,k,al,want){
+  const T=toneOf(k);let run=[],cur=null;
+  const flush=()=>{
+    if(run.length>2&&cur===(want>0))
+      fillPoly(c,ribbonPoly(run,w,w),A(T[cur?2:1],cur?al:al*.34));
+    run=[];};
+  for(const p of P3){const q=DMproj(p,cx,cy,R),s=q[2]>0;
+    if(cur===null)cur=s;else if(s!==cur){run.push([q[0],q[1]]);flush();cur=s;}
+    run.push([q[0],q[1]]);}
+  flush();}
+/// 대원(great circle) — 축 n 둘레의 적도. 파문 고리가 이것이다.
+function DMring(n,th,seg){
+  const u=DMperp(n),v=DMcr(n,u),ct=Math.cos(th),st=Math.sin(th),P=[];
+  for(let i=0;i<=seg;i++){const a=i/seg*TAU,co=Math.cos(a)*st,si=Math.sin(a)*st;
+    P.push([n[0]*ct+u[0]*co+v[0]*si, n[1]*ct+u[1]*co+v[1]*si, n[2]*ct+u[2]*co+v[2]*si]);}
+  return P;}
+
+// ── 바닥 ① 진짜 유니버스 배경 → 오프스크린 ───────────────────────────────
+// 굴절은 **원본을 어긋난 자리에서 떠 오는 것**이라, 밀 원본이 캔버스와 따로
+// 있어야 한다. 그래서 배경을 오프스크린 한 장에 그리고 두 번 쓴다:
+//   ① 통째로 얹는다(막 밖)      ② 원판 안을 그물로 어긋나게 떠 온다
+// ⚠️ 첫 판의 「자기복사」는 원본을 **캔버스 자신**에서 떠 왔다. 그 되읽기가
+// dpr2 에서 2.3ms 였고 칸 상한(1.7ms)을 넘겼다. 오프스크린은 되읽기가 없다.
+// 한 장을 여섯 칸이 **돌려 쓴다** — 같은 프레임 안에서 칸이 순서대로 그려지고,
+// 각 칸이 쓰기 직전에 자기 것을 다시 그리므로 섞이지 않는다.
+let DMBC=null;
+function DMbg(c,t,W,H,key,dpr,SC){
+  if(!DMBC)DMBC=document.createElement("canvas");
+  const w=Math.max(1,Math.round(W*dpr)),h=Math.max(1,Math.round(H*dpr));
+  if(DMBC.width!==w||DMBC.height!==h){DMBC.width=w;DMBC.height=h;}
+  const b=DMBC.getContext("2d");
+  b.setTransform(dpr,0,0,dpr,0,0);
+  b.globalCompositeOperation="source-over";b.globalAlpha=1;b.lineJoin="round";
+  b.fillStyle="#0C0C12";b.fillRect(0,0,W,H);
+  b.save();
+  if(key==="dark")DMground(b,W,H,SC);
+  else if(typeof MAPP!=="undefined"&&MAPP.bg&&MAPP.bg[key])MAPP.bg[key](b,t,W,H);
+  b.restore();
+  return b;}
+
+// ── 바닥 ② 옛 판 — **팔레트만 갈았다**(DMdome6 대조군) ───────────────────
+// 사용자 지적: 「보라색 뒷배경은 뭐야? 저런 게 왜 생겼지?」
+// 형태(각진 판 9 + 격자 10줄)는 그대로 두고 **색만** 배경 전용 팔레트로
+// 바꾼다. 범인은 `shade` 의 밝은 앞날 **#6B4E8C(L .348)** 이었다 — 배경이
+// 그 단을 쓰면 이펙트의 자리를 뺏는다(⚑ 「배경에는 흰 앞날이 없다」).
+// `TONE.mapVeil`(자보라 성운)은 색상은 같은 보라인데 **최댓값이 L .119** 라
+// 「보라를 더 어둡게」가 그대로 된다. 실측: L>.12 화소가 14.55% → 0.63%.
+const DMGA=.24;                                   // 격자를 눕히는 각(축에 안 맞춘다)
+function DMground(c,W,H,SC){
+  const T=TONE.mapVeil,cx=W/2,cy=H/2,L=W*.95,co=Math.cos(DMGA),si=Math.sin(DMGA);
+  // 각진 판 — 면적을 가진 것이 있어야 「밀림」이 덩어리로 보인다
+  for(let i=0;i<9;i++){
+    const gx=cx+(hash(i*3.1)-.5)*W*.98, gy=cy+(hash(i*7.7+1.3)-.5)*H*.98;
+    fillPoly(c,jagPoly(gx,gy,(11+13*hash(i*5.3))*SC,5,i*2.7,1.02,.74),A(T[1],.62));}
+  // 격자 — 얇은 띠 열. 곧은 선이 휘는 것이 굴절의 전부다.
+  // ⚠️ 첫 판은 한 줄을 20토막으로 쪼갰다 — 그리면서 점마다 굴절을 먹였기
+  // 때문이다. 개정판은 굴절을 **그린 뒤에** 그물로 밀므로 곧은 줄은
+  // 양 끝 두 점이면 된다(중간 점 18개는 같은 직선 위였다).
+  for(let s=0;s<2;s++)for(let i=-2;i<=2;i++){
+    const dx=s?-si:co, dy=s?co:si, nx=-dy, ny=dx, off=i*28*SC;
+    const P=[[cx-dx*L+nx*off, cy-dy*L+ny*off],[cx+dx*L+nx*off, cy+dy*L+ny*off]];
+    fillPoly(c,ribbonPoly(P,2.0*SC,2.0*SC),A(T[1],.85));
+    fillPoly(c,ribbonPoly(P,.85*SC,.85*SC),A(T[2],.62));}}
+
+// ── ③ 일그러짐 — **이 스킬의 전부** ──────────────────────────────────────
+/// 밀림장 — (x,y) → [밀린 x, 밀린 y]. **이 함수가 「일그러짐」의 정의**다.
+/// · 가운데는 안 밀린다(시선이 껍질을 수직으로 뚫는다)
+/// · 가장자리로 갈수록 많이 밀린다(시선이 껍질을 스치듯 지난다) — sin² 가중
+/// · 물결이 안에서 밖으로 지나간다 — 그게 「울렁울렁」이다
+/// · **피격**은 맞은 자리에서 퍼지는 **밀고-당기는 고리**다(선이 아니다).
+///   `-2s·e^(-s²)` 는 가우스의 도함수라 마루와 골이 한 쌍으로 붙는다 —
+///   유리에 충격이 지나가는 모양이고, **선을 하나도 안 그리고** 파문이 된다.
+///   기준칸에서 최대 밀림 **9.2px** · 띠 폭 0.40R(25.6px) · 속도 1.8R/s ·
+///   수명 1.05s. ⚠️ 첫 값(폭 0.17R)은 띠 안에서 **스스로 접혀** 찢어져 보였다
+///   (접힘 조건 |dm/dr|>1 → HA > 폭/(2R) 이라 0.17R 폭에서는 HA>0.085 면
+///   접힌다). 폭을 0.40R 로 넓혀 문턱을 0.20 으로 올리고 HA 를 0.168 로 뒀다.
+///   ⚠️ 그래도 **어두운 바닥에서는 파문이 옅다** — 필름스트립으로 봐도
+///   「원판이 숨 쉰다」 정도이지 고리로는 안 읽힌다(2026-08-13 눈 판정).
+///   선을 켠 칸(4·5)에는 옛 고리도 같이 남겨 두었으니 나란히 보고 정하면 된다.
+/// ⚠️ **장이 R 에서 뚝 끊기면 안쪽에 빈 고리가 생긴다**(2026-08-12 판정).
+/// R 바깥 30%까지 끌고 나가 밖의 것이 딸려 들어오게 둔다.
+/// ⚠️ **칸마다 배열을 새로 만들면 안 된다.** 그물이 24x24 이던 판에서 프레임당
+/// 576개가 쓰레기가 되어 p95 가 **10.3ms** 까지 튀었다(2026-08-13 실측 —
+/// 중앙값은 0.5ms 인데 스무 프레임에 한 번 GC 가 씹었다). 받아 갈 배열을
+/// 호출부가 주고 여기서는 채우기만 한다.
+/// ⚠️ **그물은 한 프레임에 한 겹만 돈다.** 표식(L3 두 겹 파문)과 격상(L5
+/// 안쪽 껍질)을 처음엔 `DMlens` 를 한 번씩 더 불러 냈더니 칸당 draw 가 144 →
+/// 432 로 늘어 위 절벽을 넘었다(LV3 p95 **9.8ms** · LV5 **11.9ms**, 2026-08-13
+/// 실측). 둘 다 **같은 장 안의 항**으로 접어 넣어 겹이 늘지 않게 한다.
+function DMfield(cx,cy,R,t,A0,A1,HIT,HA,IN){
+  const R5=R*.72;
+  return (x,y,out)=>{
+    const dx=x-cx,dy=(y-cy)/DMSQ,d=Math.hypot(dx,dy);
+    let mx=0,my=0;
+    if(d>1e-4){
+      let m;
+      {const u=d/R,e=Math.sin(Math.min(1,u)*Math.PI*.5),q=(u-1)/.30;
+       const b=u<=1?e*e:Math.exp(-q*q);
+       m=R*b*(A0+A1*Math.sin(u*7.4-t*4.6));}
+      // 격상(L5) — 안쪽 껍질 한 겹이 더 선다. 계수를 .45 로 눌러 둔 것은
+      // 두 껍질의 기울기가 겹쳐 접히는 것을 막기 위해서다(합이 1.17·dz).
+      if(IN){const u=d/R5,e=Math.sin(Math.min(1,u)*Math.PI*.5),q=(u-1)/.30;
+       const b=u<=1?e*e:Math.exp(-q*q);
+       m+=R5*b*.45*(A0+A1*Math.sin(u*7.4-t*4.6+2.1));}
+      mx=dx/d*m;my=dy/d*m;}
+    if(HA)for(let i=0;i<HIT.length;i++){
+      const h=HIT[i],rx=x-h[0],ry=(y-h[1])/DMSQ,rd=Math.hypot(rx,ry);
+      if(rd<1e-4)continue;
+      let g=0;
+      const s=(rd-h[2]*R*1.8)/(R*.40);
+      if(s<3&&s>-3)g=-2*s*Math.exp(-s*s);
+      if(h[3]){                       // 표식(L3) — 뒤따르는 **두 번째 마루**
+        const s2=(rd-Math.max(0,h[2]-.17)*R*1.8)/(R*.40);
+        if(s2<3&&s2>-3)g+=-2*s2*Math.exp(-s2*s2)*.6;}
+      if(!g)continue;
+      g*=Math.max(0,1-h[2]/1.05);
+      mx+=rx/rd*R*HA*g;my+=ry/rd*R*HA*g;}
+    out[0]=mx;out[1]=my*DMSQ;};}
+/// 그물 밀기 — 원판 안을 GxG 칸으로 갈라, 칸마다 오프스크린을 **어긋난
+/// 자리에서** 떠 온다. 목적지 (X,Y) 에는 원본 (X-밀림) 이 온다.
+/// ⚠️ **그물 눈금(G)에는 비용 절벽이 있다.** 12 와 14 사이에서 p95 가
+/// 1.3ms → 7.3ms 로 뛴다(600프레임 실측, med 는 0.9→1.0 으로 거의 안 변한다).
+/// 칸 수가 144 → 196 으로 는 것뿐인데 중앙값이 아니라 **꼬리만** 뛰므로
+/// 크롬 쪽 임계로 본다(원인은 못 밝혔다 — 「확인 못 했다」로 적는다).
+///   G   칸수   med    p95
+///   12  144   0.90   1.30ms   ← 지금 값
+///   14  196   1.00   7.30ms
+///   18  324   1.00   6.80ms
+///   24  576   1.20   6.30ms
+/// 기준 세기(dz .70)에서는 8 부터 32 까지 **눈으로 안 갈렸다**(렌더 판정) —
+/// 절벽 아래에서 제일 고운 12 를 고른다. R=64px 에서 칸이 10.7px 이고,
+/// 목적지를 0.25px 씩 키워 겹치게 두면 칸 경계에 틈이 안 벌어진다.
+/// ⚠️ dz 1.4(접히는 칸)에서는 10.7px 블록이 보인다 — 그 칸은 「과하다」를
+/// 보여 주는 자리라 그대로 둔다.
+function DMlens(c,src,cx,cy,R,f,G,dpr){
+  c.save();
+  c.beginPath();c.ellipse(cx,cy,R,R*DMSQ,0,0,TAU);c.clip();
+  const cw=2*R/G,ch=2*R*DMSQ/G,x0=cx-R,y0=cy-R*DMSQ,o=[0,0];
+  for(let i=0;i<G;i++)for(let j=0;j<G;j++){
+    const X=x0+i*cw,Y=y0+j*ch,ax=X+cw*.5,ay=Y+ch*.5;
+    const ux=(ax-cx)/R,uy=(ay-cy)/(R*DMSQ);
+    if(ux*ux+uy*uy>1.30)continue;
+    f(ax,ay,o);
+    c.drawImage(src,(X-o[0])*dpr,(Y-o[1])*dpr,cw*dpr,ch*dpr,X-.25,Y-.25,cw+.5,ch+.5);}
+  c.restore();}
+
+// ── 무대 — 여섯이 글자 하나 안 다르게 이것을 쓴다 ────────────────────────
+// 적은 막 **밖**에 서서 몸을 쏜다. 탄은 막을 **통과**하되 껍질을 지나며 꺾이고,
+// 꺾인 채로 몸을 비껴 나간다 — 「막았다」가 아니라 「빗나갔다」가 사건이다.
+function DMstage(c,t,dt,cx,cy,st,SC,R,BEND){
+  if(!st.F){
+    st.F=mkFoesZ([[104,-46,10],[-100,-24,10],[44,106,9],[-58,98,10]],SC);
+    for(const f of st.F){f.bx=f.ox;f.by=f.oy;f.fl=0;}
+    st.b=[];st.rp=[];st.acc=0;st.i=-1;}
+  st.acc+=dt;
+  for(let i=0;i<st.F.length;i++){const f=st.F[i];f.fl=Math.max(0,f.fl-dt*3.4);
+    f.ox=f.bx+Math.sin(t*.7+i*1.7)*3.2*SC;f.oy=f.by+Math.cos(t*.6+i*2.3)*2.8*SC;}
+  if(st.acc>=DMPER){st.acc-=DMPER;
+    const f=st.F[(st.i=(st.i+1)%st.F.length)];f.fl=1;
+    const x=cx+f.ox,y=cy+f.oy,a=Math.atan2(cy-y,cx-x);
+    st.b.push({x,y,a,l:0,in:0,tr:[[x,y]]});
+    emit(st,x,y,4,{k:DMHOS,sp:66*SC,r:2.4*SC,life:.3,a:a+Math.PI,spread:1.5,spikeP:.6});}
+  stepFoes(st.F,dt);
+  // 탄 — **껍질을 지날 때 꺾인다.** 세기는 껍질에서 최대이고 안팎으로 준다.
+  for(let i=st.b.length-1;i>=0;i--){const b=st.b[i];b.l+=dt;
+    const dx=b.x-cx,dy=b.y-cy,d=Math.hypot(dx,dy)||1,u=d/R;
+    // 껍질 근처에서만 — **좁게.** 넓게 두면 탄이 막에 닿기도 전에 밀려나
+    // 「닿기 전에 끊는」 결계와 같은 그림이 된다.
+    const g=Math.exp(-((u-1)/.24)*((u-1)/.24));
+    if(g>.02){
+      // ⚠️ **꺾는 쪽을 매 프레임 다시 고르면 안 된다.** 정면으로 오는 탄이
+      // 0 근처에서 부호가 매 프레임 뒤집혀 좌우로 떨다가 몸에 박힌다
+      // (2026-08-12 렌더 판정). 들어올 때 한 번 정하고 끝까지 그 쪽이다.
+      const rx=dx/d,ry=dy/d;
+      if(b.s===undefined){const cr=rx*Math.sin(b.a)-ry*Math.cos(b.a);
+        b.s=Math.abs(cr)>.02?(cr>0?1:-1):(hash(b.x*.37+b.y*.71)>.5?1:-1);}
+      b.a+=b.s*BEND*3.1*g*dt;                          // 중심에서 멀어지는 쪽으로
+      if(!b.in&&u<1.02){b.in=1;                        // 껍질을 뚫은 자리 = 파문의 축
+        st.rp.push({n:DMunproj(b.x,b.y,cx,cy,R),l:0});
+        if(st.rp.length>4)st.rp.shift();}}
+    b.x+=Math.cos(b.a)*DMBSP*SC*dt;b.y+=Math.sin(b.a)*DMBSP*SC*dt;
+    // 꼬리 — **휜 궤적이 화면에 남아야** 「빗나갔다」가 한 장에서 읽힌다.
+    b.tr.push([b.x,b.y]);if(b.tr.length>11)b.tr.shift();
+    if(b.l>3.4||Math.abs(b.x-cx)>cx*2.4||Math.abs(b.y-cy)>cy*2.4)st.b.splice(i,1);}
+  for(let i=st.rp.length-1;i>=0;i--){st.rp[i].l+=dt;if(st.rp[i].l>1.05)st.rp.splice(i,1);}
+  stepP(st,dt);}
+/// 날아오는 탄 — 꼬리가 있어야 「지금 오는 중」이다
+function DMbolt(c,b,SC){
+  if(b.tr.length>2)celRibbon(c,b.tr,3.0*SC,DMHOS,.45);
+  celRound(c,b.x,b.y,b.a,14*SC,4.2*SC,DMHOS,1,1);}
+
+// ── ④ 지지직 — 구면을 **기어 다니는** 방전 ───────────────────────────────
+// ⚠️ 이것도 **획**이다. 선을 끈 칸(O.ln===0)에서는 **한 가닥도 안 그린다** —
+// 「선을 긋지 마라」에 방전만 예외를 두면 반려의 취지가 반쯤 깨진다.
+// 선을 켠 두 칸(4·5)에서만, 그 칸의 알파에 묶여 나온다.
+function DMzap(c,t,cx,cy,R,SC,n,want,sd0,al){
+  if(al<=0)return;
+  const T=toneOf("gold"),PER=.66,LIFE=.44;
+  for(let i=0;i<n;i++){
+    const ph=t/PER+i/n, kk=Math.floor(ph), f=ph-kk;
+    if(f>LIFE)continue;
+    const u=f/LIFE, sd=hash(sd0+kk*13.7+i*3.1)*7.3+.11;
+    const grow=Math.min(1,u*2.6), fade=Math.min(1,(1-u)*3.2)*al;
+    // ⚠️ 시작점을 구면에 고르게 뿌리면 정사영이라 대부분 원판 가운데에
+    // 떨어져 「막 안에서 번쩍이는 전기」로 읽힌다(2026-08-12 판정).
+    const a0=hash(sd)*TAU, rr=R*Math.sqrt(.34+.64*hash(sd*1.7));
+    let p=DMunproj(cx+Math.cos(a0)*rr,cy+Math.sin(a0)*rr*DMSQ,cx,cy,R);
+    let d=DMperp(p);
+    {const w=DMcr(p,d),an=hash(sd*2.3)*TAU;
+     d=DMnm([d[0]*Math.cos(an)+w[0]*Math.sin(an),d[1]*Math.cos(an)+w[1]*Math.sin(an),
+             d[2]*Math.cos(an)+w[2]*Math.sin(an)]);}
+    // ⚠️ **짧게 걷는다.** 11걸음 × 0.16rad 는 구를 100° 나 가로질러 원판을
+    // 통째로 가로지르는 **금**처럼 보였다(2026-08-12 판정).
+    const N=3+Math.round(4*grow),P=[p];let fork=null;
+    for(let s=0;s<N;s++){
+      const r=DMstep(p,d,.10+.05*hash(sd+s*5.1),(hash(sd+s*9.7)-.5)*2.2);
+      p=r[0];d=r[1];P.push(p);
+      if(s===Math.floor(N*.55))fork=[p,d];}
+    const w0=(2.4+1.3*hash(sd*3.1))*SC*Math.min(1,fade*3);
+    DMzline(c,P,cx,cy,R,w0,T,fade,want);
+    if(fork&&grow>.7){                                // 분기 — 짧고 가늘다
+      let q=fork[0],e=fork[1];const w=DMcr(q,e),an=(hash(sd*5.3)-.5)*2.4;
+      e=DMnm([e[0]*Math.cos(an)+w[0]*Math.sin(an),e[1]*Math.cos(an)+w[1]*Math.sin(an),
+              e[2]*Math.cos(an)+w[2]*Math.sin(an)]);
+      const Q=[q];for(let s=0;s<3;s++){const r=DMstep(q,e,.09,(hash(sd+s*3.7)-.5)*2.4);
+        q=r[0];e=r[1];Q.push(q);}
+      DMzline(c,Q,cx,cy,R,w0*.6,T,fade*.8,want);}}}
+/// 방전 한 가닥 — 앞면은 흰 심이 든 획, 뒷면은 옅은 띠 하나.
+function DMzline(c,P3,cx,cy,R,w,T,al,want){
+  let run=[],cur=null;
+  const flush=()=>{
+    if(run.length>1&&cur===(want>0)){
+      if(cur)celStroke(c,run,w,"gold",Math.min(1,al));
+      else fillPoly(c,ribbonPoly(run,w*.7,w*.7),A(T[1],al*.3));}
+    run=[];};
+  for(const p of P3){const q=DMproj(p,cx,cy,R),s=q[2]>0;
+    if(cur===null)cur=s;else if(s!==cur){run.push([q[0],q[1]]);flush();cur=s;}
+    run.push([q[0],q[1]]);}
+  flush();}
+
+// ── ② 구로 읽히게 하는 「선」 — 이제 **노브 하나**다 ─────────────────────
+// [O.ln] 이 **그려지는 테의 알파 그 자체**다(0 = 획이 하나도 없다).
+// 첫 판은 여기에 노브가 여섯(mer·lat·rim·cap·rip·sh)이었고 그 여섯이
+// 다 「선을 긋는」 물건이었다. 개정판은 **테 한 겹 + 파문 고리**만 남기고
+// 경위선·반사 캡·바닥 그림자는 **여섯 칸 어디서도 안 켠다**
+// (O.mer / O.lat 는 되돌릴 길로 남겨 뒀을 뿐 전부 0 이다).
+function DMshell(c,t,cx,cy,R,SC,st,O,want){
+  const T=toneOf("gold"),ln=O.ln||0,spin=t*DMSPN;
+  if(O.mer)for(let i=0;i<O.mer;i++){            // 되돌릴 길 — 여섯 칸 다 0
+    const la=spin+i/O.mer*Math.PI;
+    DMline3(c,DMring([Math.cos(la),0,-Math.sin(la)],Math.PI/2,26),
+      cx,cy,R,1.5*SC,"gold",ln,want);}
+  if(O.lat)for(let i=1;i<=O.lat;i++){
+    const th=i/(O.lat+1)*Math.PI;
+    DMline3(c,DMring([0,1,0],th,26),cx,cy,R,1.4*SC,"gold",ln*.85,want);}
+  if(want>0){
+    if(ln>0){
+      // 테 — **한 겹.** 울렁이므로 celHoop 이 아니라 띠다.
+      const wb=O.wob*R;
+      const rf=a=>R*(1+(wb/R)*(Math.sin(a*3-t*1.9)*.6+Math.sin(a*5+t*1.3)*.4));
+      DMband(c,cx,cy,rf,2.2*SC,44,A(T[1],ln));
+      DMband(c,cx,cy,a=>rf(a)-1.5*SC,.7*SC,44,A(T[2],ln*.75));}
+    // 파문 고리 — 선을 켠 칸에서만. **선을 끈 칸에서는 밀림이 대신한다.**
+    if(ln>0)for(const e of st.rp){
+      const th=Math.min(1.5,e.l*2.2), a=Math.max(0,1-e.l/1.05);
+      const fade=a*a*Math.min(1,e.l*6);
+      DMline3(c,DMring(e.n,th,26),cx,cy,R,(3.4-1.7*e.l)*SC,"gold",ln*fade,1);
+      if(atL(3)&&th>.45)DMline3(c,DMring(e.n,th-.40,24),cx,cy,R,1.7*SC,"gold",ln*.6*fade,1);}}
+  else if(ln>0){
+    for(const e of st.rp){const th=Math.min(1.5,e.l*2.2),a=Math.max(0,1-e.l/1.05);
+      DMline3(c,DMring(e.n,th,26),cx,cy,R,2.0*SC,"gold",ln*.8*a*a,-1);}}}
+
+// ── 한 칸 전부 — 노브만 바꿔 여섯이 나온다 ───────────────────────────────
+function DMcore(c,t,dt,W,H,st,O){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  // ⚠️ **막은 몸의 후광보다 커야 한다.** hero() 는 반지름 **46px** 짜리 가산
+  // 후광을 깐다(중심 L .23). 첫 판의 R(LV1 54)은 그 후광을 겨우 8px 넘겨서,
+  // 굴절이 제일 센 테가 통째로 후광 안에 들어가 **밀림이 안 보였다**
+  // (2026-08-13 렌더 판정: dz 를 5 까지 올려도 원판 안이 그냥 하얬다).
+  // LV1 을 64 로 올려 테를 후광 밖(64-46=18px)으로 뺀다. 위쪽은 적이 막는다 —
+  // 적의 안쪽 가장자리가 중심에서 93px 이라 LV5 의 88 이 상한이다.
+  const R=[64,70,76,82,88][LV-1]*SC, BEND=[1.4,1.65,1.9,2.15,2.4][LV-1];
+  const dpr=(c.canvas&&c.canvas.width)?c.canvas.width/W:1;
+  DMstage(c,t,dt,cx,cy,st,SC,R,BEND);
+  // ── 막 뒤의 것을 **한 층으로 모은다** ────────────────────────────────
+  // 바닥만 미는 것으로는 **부족했다.** 예산을 지키는 진짜 배경은 어두워서
+  // 밀 것이 거의 없다 — 같은 dz(1.3)에서 바닥만 밀면 |Δ| **0.61%** 인데
+  // (첫 판이 옛 보라 격자에서 얻은 4.04% 의 1/7 이다) **막 뒤에 있는 것
+  // 전부**(바닥·적·날아오는 탄·몸)를 한 층에 그려 그 층을 밀면 **2.01%** 다.
+  // 화면에서 제일 밝은 것(몸의 후광·붉은 탄)이 같이 밀려야 「거기 뭔가
+  // 있다」가 어두운 바닥에서도 선다.
+  // 첫 판의 「자기복사」가 노리던 **몸까지 밀린다**를 그대로 얻는다. 그물
+  // 밀기 자체는 dpr1 에서 **0.10ms** 다(그물을 끄면 0.80ms · 켜면 0.90ms) —
+  // 비싼 것은 그물이 아니라 진짜 배경이다(위 비용표).
+  const b=DMbg(c,t,W,H,O.bg,dpr,SC),src=b.canvas;
+  drawFoes(b,t,cx,cy,st.F);
+  for(const bl of st.b)DMbolt(b,bl,SC);
+  hero(b,t,cx,cy);
+  c.drawImage(src,0,0,src.width,src.height,0,0,W,H);
+  // ── 일그러짐 — 이 스킬의 전부 ───────────────────────────────────────
+  // 피격 자리는 **앞면일 때만** 민다 — 뒤에서 맞은 것이 앞 유리를 미는 그림은
+  // 「어디를 맞았나」를 오히려 흐린다.
+  const HIT=[],L3=atL(3)?1:0;
+  for(const e of st.rp){const q=DMproj(e.n,cx,cy,R);
+    if(q[2]>0)HIT.push([q[0],q[1],e.l,L3]);}
+  const G=O.g||DMG;                             // 그물 눈금 — 칸마다 덮어쓸 수 있다
+  if(G>0)DMlens(c,src,cx,cy,R,
+    DMfield(cx,cy,R,t,-.045*O.dz,.135*O.dz,HIT,.24*O.dz,atL(5)?1:0),G,dpr);
+  // ⚠️ 껍질(선)은 **밀지 않는다** — 막이 자기를 굴절시킬 수는 없다.
+  // 선을 켠 칸에서 뒷면이 몸 위에 오는 것은 계약 위반이지만, 그 알파가
+  // .034 이하라 화면에서 안 보인다. 못 지킨 것으로 적는다.
+  DMshell(c,t,cx,cy,R,SC,st,O,-1);                // 껍질 뒷면(선을 켠 칸만)
+  DMzap(c,t,cx,cy,R,SC,[2,2,3,4,4][LV-1],-1,3.7,O.ln||0);
+  DMshell(c,t,cx,cy,R,SC,st,O,1);                 // 껍질 앞면
+  DMzap(c,t,cx,cy,R,SC,[2,2,3,4,4][LV-1],1,3.7,O.ln||0);
+  drawP(c,st);}
+
+Object.assign(FX,{
+// 1~3 은 **선이 0 이고 바닥이 같다.** 굴절 세기만 다르므로 셋을 나란히 놓으면
+// 「어디서 막이 보이기 시작하고 어디서 물엿이 되나」만 남는다.
+DMdome1(c,t,dt,W,H,st){DMcore(c,t,dt,W,H,st,
+  {dz:.30,ln:0,wob:.028,bg:DMBG,mer:0,lat:0});},
+DMdome2(c,t,dt,W,H,st){DMcore(c,t,dt,W,H,st,
+  {dz:.70,ln:0,wob:.028,bg:DMBG,mer:0,lat:0});},
+DMdome3(c,t,dt,W,H,st){DMcore(c,t,dt,W,H,st,
+  {dz:1.40,ln:0,wob:.028,bg:DMBG,mer:0,lat:0});},
+// 4~5 는 **2번과 굴절·바닥이 같다.** 테의 알파만 다르므로 2·4·5 를 나란히
+// 놓으면 「막이 아예 안 보여야 하나, 아주 옅게 한 겹은 있어야 하나」만 남는다.
+DMdome4(c,t,dt,W,H,st){DMcore(c,t,dt,W,H,st,
+  {dz:.70,ln:.05,wob:.028,bg:DMBG,mer:0,lat:0});},
+DMdome5(c,t,dt,W,H,st){DMcore(c,t,dt,W,H,st,
+  {dz:.70,ln:.10,wob:.028,bg:DMBG,mer:0,lat:0});},
+// 6 은 **2번과 굴절·선이 같다.** 바닥만 다르므로 2·6 을 나란히 놓으면
+// 「진짜 유니버스 배경이냐, 옛 판을 어둡게 하느냐」만 남는다.
+DMdome6(c,t,dt,W,H,st){DMcore(c,t,dt,W,H,st,
+  {dz:.70,ln:0,wob:.028,bg:"dark",mer:0,lat:0});},
+});
+
+// ── 마운트 (호스트 <div id="guard"> 가 있을 때만) ─────────────────────────
+// ⚠️ **조건은 호스트와 같은 것을 봐야 한다.** 호스트만 `guard` 로 바꾸고
+// 조건을 `dm` 으로 두면 여섯이 통째로 안 뜬다 — 예외가 안 나서 스모크로도
+// 안 잡힌다(2026-08-12 에 호 빙벽에서 밟은 함정을 또 밟았다).
+{const HH=MOUNT("guard");
+ if(HH){
+  // ⚠️ 여섯 중 **막 3 만** 채택(2026-08-12 사용자 판정). 굴절 dz 1.40 —
+  // 사다리 맨 위이자 「접히기 시작하는」 값이다. 나머지 다섯은 마운트에서만 뺀다.
+  [["DMdome3","일그러짐 방어막","선이 하나도 없다 — 막 뒤의 것이 밀려서만 「거기 뭔가 있다」가 "+
+   "읽힌다. 탄은 막을 통과하되 궤도가 꺾여 몸을 비껴간다"]]
+   .forEach(([k,nm,ds])=>tile(HH,FX,k,nm,"",ds,238));}}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FL — 불 세 계열의 **레벨 성장표** (접두 `FL`)                  (2026-08-12)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 새 최상위 이름은 전부
+// `FL` 로 시작하고 등록은 `FX.FL*` 에 **대입만** 한다.
+// ⭐ 2026-08-13 사용자 채택: 불자취·회염·화염방사가 **정식 편입**돼 별도 절이
+// 아니라 마법 **레벨 성장표**(`#levelsm`)에 다른 계열과 나란히 선다.
+//
+// ── 무엇을 채우나 ─────────────────────────────────────────────────────────
+// 사용자가 채택한 안이 레벨에 배정돼 있는데 가운데가 비어 있다:
+//     불자취   L1=FTtrail4   L2=FTtrail3   L3=?  L4=?  L5=FTtrail1
+//     회염     L1=FTreturn4  L2=?  L3=?  L4=?         L5=FTreturn3
+//     화염방사 FCcone6 하나뿐 — 다섯으로 **펼쳐야** 한다
+//
+// ⚠️ 가운데는 **보간이 아니다.** 「L1 과 L5 를 섞은 것」이 아니라 **L1 에서 L5 로
+// 가는 도중에 무엇이 새로 붙는가**다. 한 축(굵기·개수)을 다섯 단계로 썰면
+// 그건 성장이 아니라 슬라이더다. 뱀파이어 서바이버즈의 성장은 **칸마다 사건이
+// 하나씩 붙는** 것이다(개수 → 관통 → 지속 → 크기 → 추가 발사).
+//
+// ── 양 끝을 읽고 뽑은 차이 목록 ───────────────────────────────────────────
+// 불자취:  자취의 몸(선 4.6SC → 띠 16SC → 덩이 6.4~9.2SC) · 그리는 법(FCink →
+//   FCshell → FTlump) · 마디 간격(4 → 4 → 2) · 색(smk 뿐 → 테만 → 전 램프) ·
+//   노랑 심(없음 → 없음 → 있음) · 갈래(뿌리 2.9×12 → 양 변 3.8×16 → 앞머리
+//   5.2×23) · 남는 것(곁금이 자람 → 띠가 좁아짐 → 재 조각이 날아감).
+// 회염:  길이 남나(안 남음 → 1.15초) · 머리 크기(.62→1.28 램프 → .82 고정) ·
+//   머리 열(.28→.96 → .95 고정) · 바늘(3개 → 없음) · 파편(흘림 → 없음).
+//
+// ⚠️ **못 지킨 것 ①** — FTreturn4 의 **바늘·식는 파편은 이 줄에 없다.** 고정된
+// L5(FTreturn3)에 둘 다 없어서, 중간에 넣으면 「L3 에 붙었다가 L5 에서 떨어지는
+// 것」이 된다. 성장표에서 그건 거짓말이라 뺐다. 대신 **시뮬 파라미터**(발사 수 ·
+// 사거리 · 활 · 벌어짐 · 주기)로 성장을 만든다 — 양 끝이 같은 값이라 낮은 칸에서
+// 줄였다가 L5 에서 **정확히 원값**에 도달시킬 수 있다.
+//
+// ⚠️ **못 지킨 것 ②** — 불자취 L5 에서 **땅 자국(금·띠)이 사라진다.** 고정판
+// FTtrail1 에 땅 자국이 없다. 덧셈만으로는 못 가는 자리라, 「불이 세지면 땅이
+// 갈라지는 대신 **불덩이가 남는다**」로 읽히게 L4 까지 자국을 유지하다 L5 에서
+// 덩이(지름 12.8~18.4SC)가 띠(폭 16SC)를 통째로 덮는 순간 끊는다. 겹치는 폭은
+// 재봤을 때 L5 덩이가 띠보다 넓지만(최대 18.4 > 16), 마디 사이가 17.3SC 라
+// **완전히는 안 덮인다** — 그래서 「가려진다」가 아니라 **안 그린다**로 처리했다.
+//
+// ── 지킨 것 ───────────────────────────────────────────────────────────────
+// · 면으로 그린다(경로 채우기) · 이미지 0개 · `globalCompositeOperation` 직접
+//   호출 0회 · 색은 전부 `FCramp("ember")` 키에서 나온다(하드코딩 0)
+// · 성장은 `LV` 전역을 읽어 `[..][LV-1]` 로 갈라진다(LVW 관례 그대로)
+// · L5 는 고정판의 **수치까지 같다**(FTtrail1 · FTreturn3 을 한 글자도 안 바꿈)
+// · 새 원시함수는 안 만들었다. 새로 쓴 셋은 원시가 아니라 **호출부**다 —
+//   `FLretSim`(FTretSim 을 레벨로 연 것) · `FLconeSim`(FCsim 을 연 것) ·
+//   `FLmass`(FCmass 에 층 스위치를 단 것).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── 불자취 — 레벨 표 ─────────────────────────────────────────────────────
+// 칸마다 **사건 하나**:
+//   L1 금이 간다 · L2 벌어져 띠가 된다 · L3 속까지 번진다 ·
+//   L4 덩이가 돋는다 · L5 부스러져 날린다
+/// 자취가 **얼마나 오래 남나**(초). 사용자 판정(2026-08-13): 「L1 과 L5 의
+/// 자취를 남기는 시간이 너무 길어서 **L1 은 좀 더 짧게, L5 는 현 상태 유지**」.
+/// ⚠️ L5 는 `FTTRAIL_TTL`(2.6) 그대로여야 한다 — 고정판과 같은 그림이라는 규약이다.
+const FLT_TTL=[0.9,1.5,2.0,2.3,2.6];
+const FLT_BAND=[0,16,16,16,0];      // 띠 폭(SC). 0 이면 띠를 안 그린다
+const FLT_IN  =[0,0,.52,.52,0];     // 속 띠 비율 — L3 부터 안쪽이 탄다
+const FLT_MID =[0,0,1,1,0];         // 가운데 갈래(3번째 줄)
+const FLT_STEP=[0,0,0,4,2];         // 덩이를 몇 마디마다 놓나. 0 이면 없다
+const FLT_R0  =[0,0,0,4.6,6.4];     // 덩이 기본 반지름(SC)
+const FLT_R1  =[0,0,0,1.8,2.8];     // 덩이 반지름의 씨앗 편차
+const FLT_GROW=[0,0,0,.30,.52];     // 식으면서 부푸는 몫
+const FLT_HEAD=[0,0,0,8,12];        // 앞머리 갈래가 서는 마디 수
+const FLT_TW  =[0,0,0,4.2,5.2];     // 앞머리 갈래 폭(SC)
+const FLT_TH  =[0,0,0,17,23];       // 앞머리 갈래 높이(SC)
+/// ⚠️ 2026-08-12 312px 판정: **L4 가 L3 보다 어두웠다.** 원인은 덩이가 나이를
+/// 그대로 받아(TTL 2.6초라 대부분이 늙었다) 식은 갈색으로 칠해지고, 그게 L3 에서
+/// 겨우 밝아진 띠를 **덮어버린** 것이다. 성장표에서 뒤 칸이 어두우면 그 칸은
+/// 강화가 아니라 손해로 읽힌다. 그래서 L4 는 **갓 깐 마디에만**(u<.62) 덩이를
+/// 놓고 식음도 .62 배로 눌러 「띠에서 갓 솟은 잔불」이 되게 한다 — 늙은 자리는
+/// 띠 그대로 남아 밝다. L5 는 값이 1.1/1.0 이라 `FTtrail1` 과 완전히 같다.
+const FLT_LMAX=[0,0,0,.62,1.1];     // 이 나이까지만 덩이가 돋는다
+const FLT_LHOT=[0,0,0,.62,1];       // 덩이의 식음 배율
+
+/// 땅에 난 **금** — L1 전용. `FTtrail4` 를 눈에 띄게 얇고 어둡게 낮춘 판이다
+/// (본금 4.6→3.2SC · 곁금 66%→38% · 뿌리 불 34%→18%). 정체는 그대로 두고
+/// **양만** 깎는다 — L1 이 완성형이면 레벨업이 보상이 안 된다.
+function FLtrailCrack(c,t,rows,TTL,P,SC){
+  if(rows.length>3)for(let g=0;g<4;g++){
+    const a0=Math.floor(rows.length*g/4),
+          a1=Math.min(rows.length-1,Math.floor(rows.length*(g+1)/4));
+    if(a1-a0<2)continue;
+    const seg=[];for(let i=a0;i<=a1;i++)seg.push([rows[i].x,rows[i].y]);
+    const u=rows[a0].l/TTL;
+    FCink(c,ribbonPoly(seg,3.2*SC,3.2*SC),P.smk,P.smki,1.9*SC,1);
+    fillPoly(c,ribbonPoly(seg,1.1*SC,1.1*SC),A(FTcool(P,u*.78),1));}
+  for(let i=0;i<rows.length;i+=4){const q=rows[i],u=q.l/TTL;
+    const grow=Math.min(1,q.l/.4);
+    for(let s2=-1;s2<=1;s2+=2){
+      const h0=hash(q.i*5.1+(s2>0?2.3:0));
+      if(h0<.62)continue;                       // 곁금 38% (원안 66%)
+      const nx=-q.dy*s2, ny=q.dx*s2, L0=(8+9*h0)*SC*grow, kk=(hash(q.i*7.7)-.5)*.9;
+      const B=[[q.x,q.y],
+        [q.x+nx*L0*.45+q.dx*L0*.18*kk, q.y+ny*L0*.45+q.dy*L0*.18*kk],
+        [q.x+nx*L0*.78-q.dx*L0*.22*kk, q.y+ny*L0*.78-q.dy*L0*.22*kk],
+        [q.x+nx*L0, q.y+ny*L0]];
+      FCink(c,ribbonPoly(B,2.0*SC,.8*SC),P.smk,P.smki,1.5*SC,1);
+      fillPoly(c,ribbonPoly(B,.8*SC,.25*SC),A(FTcool(P,u*.8),1));
+      if(h0>.82)FCtongue(c,t,q.x+nx*L0*.28,q.y+ny*L0*.28,-Math.PI/2,
+        2.3*SC,8*SC*(1-u*.6),q.i*1.7+s2,q.i*.4,FTpal(P,u*.85),1,1.6*SC);}}
+}
+
+/// 폭이 있는 **띠** — L2~L4. `FTtrail3` 의 「가장자리만 탐」이 뼈대다.
+/// L3 부터 `IN` 이 켜져 **안쪽 띠**가 하나 더 깔린다(속까지 번진다).
+function FLtrailBand(c,t,rows,TTL,P,SC,WID,IN){
+  if(rows.length>3)for(let g=0;g<4;g++){
+    const a0=Math.floor(rows.length*g/4),
+          a1=Math.min(rows.length-1,Math.floor(rows.length*(g+1)/4));
+    if(a1-a0<2)continue;
+    const L=[],Rt=[],L2=[],R2=[];
+    for(let i=a0;i<=a1;i++){const q=rows[i],u=q.l/TTL;
+      const off=WID*.5*(1-u*.74), nx=-q.dy*off, ny=q.dx*off;
+      L.push([q.x+nx,q.y+ny]);Rt.push([q.x-nx,q.y-ny]);
+      if(IN>0){L2.push([q.x+nx*IN,q.y+ny*IN]);R2.push([q.x-nx*IN,q.y-ny*IN]);}}
+    const u0=rows[a0].l/TTL;
+    // 채우고 → 긋는다. 속=아직 안 탄 검은 땅, 테=타는 가장자리.
+    FCshell(c,L.concat(Rt.reverse()),P.smk,FTcool(P,u0*.86),3.0*SC,1);
+    // 속 띠 — 긋고 → 채운다(바깥 테가 남는다). 검은 땅이 안쪽부터 먹혀 들어간다.
+    if(IN>0)FCink(c,L2.concat(R2.reverse()),FTcool(P,u0*.55),P.ink,2.0*SC,1);}
+}
+
+Object.assign(FX,{
+
+// ── 불자취 — 다섯 칸 ─────────────────────────────────────────────────────
+// L1 금이 간다 → L2 벌어져 띠가 된다 → L3 속까지 번진다 →
+// L4 덩이가 돋는다 → L5 부스러져 날린다
+//
+// ⚠️ `LV===5` 는 `FTtrail1` 과 **수치까지 같은 그림**이다(반지름 계수 6.4/2.8 ·
+// 성장 .52 · 심 .52r · 앞머리 12마디 5.2×23SC · 파편 확률 dt*10). 고정판이라
+// 한 글자도 안 건드린다.
+FLtrail(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const {hx,hy,TTL}=FTtrailSim(st,t,dt,cx,cy,SC,FLT_TTL[LV-1]),P=FCramp("ember");
+  const rows=st.tr, N=rows.length;
+  if(atL(5))FTfragStep(st,dt);
+  // ① 땅 자국 — 금(L1) → 띠(L2~L4) → 없음(L5: 덩이가 자리를 뺏는다)
+  if(LV===1)FLtrailCrack(c,t,rows,TTL,P,SC);
+  else if(FLT_BAND[LV-1]>0){
+    const WID=FLT_BAND[LV-1]*SC;
+    FLtrailBand(c,t,rows,TTL,P,SC,WID,FLT_IN[LV-1]);
+    // 가장자리의 불 — 두 변에만 선다(L2 부터).
+    for(let i=0;i<rows.length;i+=4){const q=rows[i],u=q.l/TTL;
+      const off=WID*.5*(1-u*.74);
+      for(let s2=-1;s2<=1;s2+=2){
+        const x=q.x-q.dy*off*s2, y=q.y+q.dx*off*s2;
+        FCtongue(c,t,x,y,-Math.PI/2+q.dx*s2*.42,3.8*SC*(1-u*.42),
+          (16*SC)*(1-u*.62),q.i*1.7+(s2>0?3.3:0),q.i*.6,FTpal(P,u*.8),1,2.0*SC);}}
+    // 가운데 갈래 — L3 부터. 두 줄이던 불이 **세 줄**이 되는 것이 이 칸의 사건이다.
+    if(FLT_MID[LV-1])for(let i=2;i<rows.length;i+=4){const q=rows[i],u=q.l/TTL;
+      FCtongue(c,t,q.x,q.y+2*SC,-Math.PI/2,3.2*SC*(1-u*.42),
+        (13*SC)*(1-u*.58),q.i*2.9,q.i*.5,FTpal(P,u*.7),1,2.0*SC);}}
+  // ② 덩이 — L4 부터 땅 위로 솟는다. 낱낱이 윤곽을 가져 **세어진다**.
+  const STEP=FLT_STEP[LV-1];
+  if(STEP)for(let i=0;i<N;i+=STEP){const q=rows[i],u=q.l/TTL;
+    if(u>FLT_LMAX[LV-1])continue;
+    const r=(FLT_R0[LV-1]+FLT_R1[LV-1]*hash(q.i*3.7))*SC*(1+u*FLT_GROW[LV-1]);
+    FTlump(c,FClobeP(q.x,q.y,r,6,q.i*2.3,1.22,.66,q.i*1.1),
+      P,u*FLT_LHOT[LV-1],Math.max(1.8*SC,r*.24));
+    // 심 — **같은 씨앗·같은 회전의 축소 동심 도형**(FC 의 해바라기 실패 회피).
+    if(u<.55)fillPoly(c,FClobeP(q.x,q.y-r*.08,r*.52,6,q.i*2.3,1.22,.66,q.i*1.1,.38),
+      A(P.yel,(1-u/.55)*.95));}
+  // ③ 앞머리 — 최근 몇 마디에만 갈래가 선다. 갈래도 뒤로 갈수록 식는다.
+  const HD=FLT_HEAD[LV-1];
+  if(HD)for(let i=Math.max(0,N-HD);i<N;i+=2){const q=rows[i];
+    const g=1-(N-1-i)/HD;
+    FCtongue(c,t,q.x,q.y+2*SC,-Math.PI/2,FLT_TW[LV-1]*SC*g,FLT_TH[LV-1]*SC*g,
+      q.i*1.7,q.i*.7,FTpal(P,(1-g)*.5),1,2.4*SC);}
+  // ④ 재가 부스러져 날린다 — L5 의 사건. 자취가 **떨어져 나가기** 시작한다.
+  if(atL(5)){
+    if(N&&R()<dt*10){const q=rows[Math.max(0,N-2)];
+      FTemit(st,q.x,q.y,(R()-.5)*40*SC,-(18+R()*38)*SC,(1.8+R()*2.2)*SC,.6+R()*.4);}
+    FTfragDraw(c,st,P,SC);}
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  drawP(c,st);hero(c,t,hx,hy);},
+
+});
+
+// ── 회염 — 레벨 표 ───────────────────────────────────────────────────────
+// 칸마다 **사건 하나**:
+//   L1 한 발 · L2 두 발로 갈라진다 · L3 활처럼 휘어 나간다 ·
+//   L4 지나간 자리가 탄다 · L5 길이 비행보다 오래 탄다(두 줄이 동시에)
+//
+// ⚠️ 마지막 칸의 값은 `FTretSim` 의 상수(N=2 · BOW=32 · RANGE=100 · PER=1.5 ·
+// FLY=.72 · LANE=.44)와 **정확히 같다**. 고정판 FTreturn3 의 움직임이 안 바뀐다.
+// ⭐ **레벨을 한 칸씩 끌어내렸다** (2026-08-13 사용자 판정: 「현재 L2 를 삭제하고
+// L3 을 L2 로, 상위 레벨도 한 칸씩 끌어내린다. L5 에서는 회염 덩어리를 하나 더」).
+// 옛 L2(두 발로 갈라지기)가 옛 L3(활처럼 휘기)과 사건이 겹쳐 한 칸이 값을 못 했다.
+//
+// ⚠️ **사거리는 밀기만 한 게 아니라 다시 그었다** — 같은 지시의 뒷줄이 「L1 을 더
+// 짧게 하고 레벨업하며 늘어나는 **폭 자체를 키워** 지금 L5(100)보다 더 멀리」다.
+//   48 → 78 → 96 → 116 → 140   (증가폭 30·18·20·24, 끝이 옛 L5 의 1.4배)
+//
+// ⚠️ 옛 규약 하나가 깨진다: 마지막 칸이 고정판 `FTreturn3` 과 같아야 했는데
+// **L5 가 새 그림이 됐다**(덩어리 3 · 사거리 140). 고정판은 고르기 페이지에
+// 그대로 있고 성장표만 앞서 나간다 — 사용자가 L5 를 명시적으로 바꾸라 했다.
+const FLR_N    =[1,2,2,2,3];              // 발사 수 — L5 에서 하나 더
+const FLR_RANGE=[48,78,96,116,140];       // 사거리(SC)
+const FLR_BOW  =[8,26,30,32,34];          // 활 — 나가는 길이 얼마나 휘나(SC)
+const FLR_LANE =[0,.40,.42,.44,.46];      // 두 발이 벌어지는 각(rad)
+const FLR_PER  =[2.4,1.9,1.7,1.5,1.5];    // 주기(초) — 짧아질수록 쉴 틈이 없다
+const FLR_FLY  =[.62,.68,.70,.72,.74];    // 주기 중 날아가 있는 몫
+/// 머리 크기·열은 **바닥이 오르고 폭이 줄어** 마지막에 평평해진다 —
+/// 「돌아올 때만 달아오르던 것」이 「나갈 때부터 이미 다 달아 있는 것」이 된다.
+const FLR_KA=[.44,.58,.66,.82,.82], FLR_KB=[.34,.24,.16,0,0];
+const FLR_HA=[.16,.34,.48,.95,.95], FLR_HB=[.62,.48,.40,0,0];
+const FLR_LTTL=[0,0,.60,1.15,1.30];       // 길이 타는 시간(초). 비행은 PER*FLY
+const FLR_LR  =[0,0,4.4,5.6,5.6];         // 잔불 덩이 반지름(SC)
+const FLR_LTON=[0,0,0,3,3];               // 잔불 갈래를 몇 마디마다 세우나
+/// 꼬리 — **궤적을 따라 말리는 마디 사슬**. 사용자 지시(2026-08-13): 「고르기의
+/// 회염은 꼬리가 방향대로 **나선형으로 말리는** 게 반영됐는데 마법 공격의 회염에도
+/// 그걸 넣어 달라」. 고정판 `FTreturn2` 가 가진 장치인데 성장표 판엔 없었다.
+///
+/// ⚠️ **머리 방향으로 그리면 안 된다** — 그러면 뻣뻣한 막대가 된다. 궤적(`b.T`)의
+/// **지나온 점 위에** 얹어야 길이 휘는 대로 꼬리가 저절로 말린다(회염의 궤도는
+/// `sin` 두 개로 휘므로 꼬리도 나선이 된다).
+/// 값은 **꼬리가 궤적의 몇 %까지 뻗나** — 0 이면 꼬리 없음.
+const FLR_TAIL=[0,.45,.65,.85,1];               // 잔불 갈래를 몇 마디마다 세우나
+
+/// `FTretSim` 을 **레벨로 연 것**. 판정(18SC 넉백 · mgBurn 1.3 · 0.5 지점에서
+/// 나감/돌아옴 히트셋 교체)은 한 글자도 안 바꿨다 — 바뀌는 것은 궤도 수치뿐이라
+/// 「같은 스킬이 자란다」가 성립한다.
+function FLretSim(st,t,dt,cx,cy,SC){
+  st.p=st.p||[];
+  mgInit(st,SC,FTRET_F);stepFoes(st.F,dt);
+  const N=FLR_N[LV-1], BOW=FLR_BOW[LV-1]*SC, RANGE=FLR_RANGE[LV-1]*SC,
+        PER=FLR_PER[LV-1], FLY=FLR_FLY[LV-1], LANE=FLR_LANE[LV-1];
+  st.tr=st.tr||[];st.hh=st.hh||[];
+  while(st.tr.length<N){st.tr.push([]);st.hh.push({a:new Set(),b:new Set()});}
+  const B=[];
+  for(let i=0;i<N;i++){
+    const u=(t/PER+i/N)%1, ang=FTDIR+(i-(N-1)/2)*LANE;
+    const cs=Math.cos(ang),sn=Math.sin(ang);
+    if(u>=FLY){st.tr[i].length=0;st.hh[i].a.clear();st.hh[i].b.clear();continue;}
+    const q=u/FLY;
+    const d0=RANGE*Math.sin(Math.PI*q), s0=BOW*Math.sin(TAU*q);
+    const x=cx+cs*d0-sn*s0, y=cy+sn*d0+cs*s0;
+    const back=q>=.5, set=back?st.hh[i].b:st.hh[i].a;
+    if(!back&&st.hh[i].b.size)st.hh[i].b.clear();
+    for(let k=0;k<st.F.length;k++){const f=st.F[k];
+      if(set.has(k))continue;
+      const dx=cx+f.ox+f.kx-x,dy=cy+f.oy+f.ky-y;
+      if(Math.hypot(dx,dy)>f.r+11*SC)continue;
+      set.add(k);
+      hitFoe(st,f,cx,cy,-dx/(f.r||1),-dy/(f.r||1),18*SC,"ember");
+      mgBurn(f,1.3);}
+    const T0=st.tr[i];T0.push([x,y]);if(T0.length>16)T0.shift();
+    B.push({i,x,y,q,ang,T:T0});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  return {B,N,BOW,RANGE,PER,FLY,LANE};
+}
+
+Object.assign(FX,{
+
+// ── 회염 — 다섯 칸 ───────────────────────────────────────────────────────
+// L1 한 발 → L2 두 발로 갈라진다 → L3 활처럼 휘어 나간다 →
+// L4 지나간 자리가 탄다 → L5 길이 비행보다 오래 탄다(나간 줄 + 돌아온 줄)
+//
+// ⚠️ `LV===5` 는 `FTreturn3` 과 **수치까지 같은 그림**이다(LTTL 1.15 · 적립
+// 0.05초 · 덩이 5.6SC(1+u*.42) · 3마디마다 갈래 4.6×24SC · 머리 k=.82 heat=.95).
+FLret(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FLretSim(st,t,dt,cx,cy,SC),P=FCramp("ember");
+  const LTTL=FLR_LTTL[LV-1];
+  // 남는 길 — L4 부터. L5 에서만 잔류(1.15초)가 비행(1.08초)을 넘겨
+  // **나간 줄과 돌아온 줄이 동시에** 선다(=같은 자리를 두 번 지났다는 증거).
+  if(LTTL>0){
+    st.ln=st.ln||[];
+    st.lp=(st.lp||0)+dt;
+    if(st.lp>.05){st.lp=0;
+      for(const b of S.B)st.ln.push({x:b.x,y:b.y,l:0,i:(st.li=(st.li||0)+1)});}
+    for(let i=st.ln.length-1;i>=0;i--){st.ln[i].l+=dt;if(st.ln[i].l>LTTL)st.ln.splice(i,1);}}
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  FTretGuide(c,t,cx,cy,SC,S,P);
+  if(LTTL>0){
+    const LR=FLR_LR[LV-1], TN=FLR_LTON[LV-1];
+    for(const q of st.ln){const u=q.l/LTTL;
+      FTlump(c,FClobeP(q.x,q.y,LR*SC*(1+u*.42),6,q.i*2.3,1.18,.70,q.i*1.1),
+        P,.24+u*.70,1.8*SC);}
+    if(TN)for(let i=0;i<st.ln.length;i+=TN){const q=st.ln[i],u=q.l/LTTL;
+      FCtongue(c,t,q.x,q.y+2*SC,-Math.PI/2,4.6*SC*(1-u*.42),24*SC*(1-u*.72),
+        q.i*1.7,q.i*.6,FTpal(P,u*.86),1,2.2*SC);}}
+  const TL=FLR_TAIL[LV-1];
+  for(const b of S.B){const T0=b.T,L=T0.length;if(L<2)continue;
+    const p=T0[L-1],pp=T0[L-2];
+    const mv=Math.atan2(p[1]-pp[1],p[0]-pp[0]);
+    const g=b.q<.5?0:(b.q-.5)/.5;                  // 0=나가는 길, 1=다 돌아옴
+    const k=FLR_KA[LV-1]+FLR_KB[LV-1]*g, heat=FLR_HA[LV-1]+FLR_HB[LV-1]*g;
+    dep(c,p[1],cy,(c,dz)=>{
+      // 꼬리 — 궤적 위에 마디를 얹는다. **한 칸 걸러** 세운다: 마디마다 세우면
+      // 사슬이 아니라 굵은 선이 되고 비용도 두 배다(`FTreturn2` 의 판정).
+      if(TL>0&&L>=3){const i0=Math.max(0,Math.floor((L-1)*(1-TL)));
+        for(let i=i0+((L-i0)%2);i<L-1;i+=2){
+          const u=(i-i0)/Math.max(1,(L-1-i0));     // 0=꼬리끝, 1=머리
+          const q=T0[i], r=(2.0+7.0*u)*SC*k;
+          FTlump(c,FClobeP(q[0],q[1],r,6,i*2.3+b.i*5.3,1,1,i*1.3),
+            P,(1-u)*.92,Math.max(1.5*SC,r*.26),dz);}}
+      FThead(c,t+b.i*1.7,p[0],p[1],mv,SC,P,k,heat,dz,T0);});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ═══ 화염방사 — **한 그림을 다섯으로 펼치는 안 셋** ════════════════════════
+//
+// 채택된 것은 `FCcone6` 하나뿐이라 「양 끝」이 없다. 그래서 **무엇을 키우나**를
+// 정해야 하는데 후보가 여럿이다(부채 각도 · 사거리 · 갈래 수 · 지속 · 남는 불).
+// 하나를 골라 내놓으면 판정할 것이 없으므로 **서로 다른 성장축으로 셋**을 뽑는다.
+// 판정은 사용자가 한다.
+//
+//   A 넓어진다 — 갈래 1→5, 반각 .09→.46 rad. **사거리는 95SC 고정.**
+//     → 「닿는 거리」가 아니라 「덮는 폭」이 자란다. 뒤에 붙는 층도 폭을 돕는
+//        것만(끝이 넓어져 바닥을 쓸기 시작하면 소용돌이가 하나→셋).
+//   B 길어진다 — 사거리 38→104SC. **반각은 .30 고정.**
+//     → 끝의 **바닥 소용돌이가 멀어지는 것**이 자를 대신한다(칸마다 자리가
+//        눈에 띄게 바뀐다). 덩이 수는 길이를 채우느라 따라 는다.
+//   C 짙어진다 — 같은 부채(사거리 88~98 · 반각 .28~.31 거의 고정)가 **채워진다.**
+//     → 덩이 2→6 겹, 그리고 칸마다 **층이 하나씩** 붙는다(노랑 심 → 크림 정점
+//        +바늘 → 파편 +연기 → 구멍 +소용돌이). 셋 중 유일하게 실루엣이 안 변한다.
+//
+// ⚠️ 셋 다 L1 은 **눈에 띄게 초라하다** — A 는 한 줄기, B 는 손끝까지만,
+// C 는 부채 안에 노랑이 하나도 없는 주황 덩이 몇 개다. 다만 정체(총구 심 ·
+// 원뿔 · 윤곽 문법)는 다섯 칸 내내 같다 — **총구 심(FCcore)만은 L1 에서도 안
+// 깎는다.** 그게 「이 스킬이 무엇인가」를 붙들고 있는 하나라, 여기까지 줄이면
+// 초라한 게 아니라 **다른 스킬**이 된다.
+
+/// `FCsim` 을 **길이·반각으로 연 것**. 판정 틱(0.16초) · 넉백(5SC) ·
+/// 점화(0.8)는 원안 그대로다 — 바뀌는 것은 「어디까지 닿나」뿐이다.
+function FLconeSim(st,t,dt,cx,cy,SC,LEN,HALF){
+  st.p=st.p||[];
+  mgInit(st,SC,FCCONE_F);stepFoes(st.F,dt);
+  st.tk=(st.tk||0)+dt;
+  if(st.tk>.16){st.tk=0;
+    for(const f of st.F){const dx=f.ox+f.kx,dy=f.oy+f.ky,d=Math.hypot(dx,dy)||1;
+      if(d>=LEN+f.r)continue;
+      let ad=Math.atan2(dy,dx)-FCDIR;
+      while(ad>Math.PI)ad-=TAU;while(ad<-Math.PI)ad+=TAU;
+      if(Math.abs(ad)>HALF+.12)continue;
+      hitFoe(st,f,cx,cy,dx/d,dy/d,5*SC,"ember");mgBurn(f,.8);}}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+}
+/// `FCmass` 에 **층 스위치**를 단 것. 원안은 세 층(주황 윤곽 · 노랑 심 · 크림
+/// 정점)을 늘 다 칠하는데, 「짙어진다」 안은 층이 **칸마다 하나씩 붙는** 것이
+/// 성장축이라 켜고 끌 수 있어야 한다. 그리는 법·수치는 원안과 같다.
+/// 가운데를 **푸르게** 태우는 램프 (2026-08-13 사용자 지시: 「가운데는 푸른빛이
+/// 도는 화염이 섞이도록 — 온도가 더 높은 느낌」).
+///
+/// ⚠️ **램프 키를 갈면 안 된다** — `FCramp("frost")` 로 바꾸면 겉불까지 파래진다.
+/// 색이 심에만 닿는 지점은 램프의 `yel`(속심)과 `lit`(제일 밝은 점) 둘뿐이라
+/// **그 둘만 덮어** 넘긴다. 겉의 `base`·`dark`·`ink` 는 주황 그대로라
+/// 「주황 불 속에 푸른 심」이 된다. 실제 불꽃도 속이 더 뜨겁고 푸르다.
+const FLblue=(P)=>({...P,
+  yel:mixHex(P.yel,"#7FD8FF",.72),      // 노란 속심 → 청백
+  lit:mixHex(P.lit,"#E8FBFF",.55)});    // 제일 밝은 점 → 흰빛에 푸른 기
+
+/// 그을린 불씨를 섞은 램프. 파편은 `yel → base → dark` 로 식으므로 **시작점을
+/// 재로 내리면** 그 조각은 태어날 때부터 검다. 사용자: 「작은 불씨 몇 개만
+/// 검정으로 칠하면 될 것 같다」 — 그래서 **전부가 아니라 씨앗으로 고른 일부**만.
+const FLsoot=(P)=>({...P,yel:mixHex(P.dark,P.ink,.55),base:mixHex(P.dark,P.ink,.72)});
+
+function FLmass(c,bs,P,SC,core,lit,coreK,iw){
+  coreK=coreK||.66;iw=iw||.26;
+  for(const b of bs)FCink(c,FClobeP(b.x,b.y,b.r,7,b.sd,1,1,b.sd),
+    b.ph>.58?mixHex(P.base,P.dark,(b.ph-.58)/.42*.85):P.base,P.ink,
+    Math.max(2.0*SC,b.r*iw),b.al);
+  if(core)for(const b of bs)if(b.ph>.08&&b.ph<.80)
+    fillPoly(c,FClobeP(b.x,b.y-b.r*.06,b.r*coreK,7,b.sd,1,1,b.sd,.40),
+      A(P.yel,b.al*Math.min(1,(.80-b.ph)*6)));
+  if(lit)for(const b of bs)if(b.ph>.28&&b.ph<.66)
+    fillPoly(c,FClobeP(b.x,b.y-b.r*.14,b.r*coreK*.50,7,b.sd,1,1,b.sd,.34),
+      A(P.lit,b.al*.95));
+}
+/// 세 안이 **한 몸**을 나눠 쓴다 — 화면에서 다른 것은 `O`(레벨 수치)뿐이라야
+/// 「어느 축이 나은가」가 재진다. 그리는 순서는 `FCcone6` 그대로:
+/// 표식 → 바닥 소용돌이 → 연기 → 바늘 → 본체 → 파편 → 총구 심.
+function FLconeDraw(c,t,dt,W,H,st,O){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238,P=FCramp("ember"),LEN=O.LEN*SC;
+  FLconeSim(st,t,dt,cx,cy,SC,LEN,O.HALF);
+  if(O.frag)FCfragStep(st,dt,cx,cy,SC,LEN,O.frag);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  // ⑤ 바닥 소용돌이 — 불이 바닥에 부딪혀 도는 자리. **부채 끝을 따라** 놓으므로
+  // A 안에서는 셋이 좌우로 벌어지고 B 안에서는 하나가 멀어진다(자 노릇을 한다).
+  for(let s=0;s<O.swirl;s++){
+    const u=O.swirl>1?(s-(O.swirl-1)/2)/((O.swirl-1)/2):0;
+    const a0=FCDIR+u*O.HALF*.86;
+    FCswirl(c,t+s*1.3,cx+Math.cos(a0)*LEN,cy+Math.sin(a0)*LEN,O.sr*SC,P,.9,SC);}
+  // ⑥ 검은 연기 — 뒤에 깔린다.
+  for(let i=0;i<O.smoke;i++){
+    const ph=((t*.34+i*.25)%1);
+    FCink(c,FClobeP(cx+(hash(i*7.7)-.5)*54*SC+Math.sin(t*.9+i)*8*SC,
+      cy-LEN*1.00-ph*44*SC,(8+8*ph)*SC,7,i*4.3,1.15,.9,ph*2),
+      P.smk,P.smki,2.4*SC,Math.min(1,ph*3)*(1-ph)*.85);}
+  // ④ 긴 바늘 — 부채 반각을 그대로 쓴다(넓어지면 저절로 사방으로 튄다).
+  for(let i=0;i<O.needle;i++){
+    const ph=((t*.7+i*.19)%1),rr=LEN*(.34+.60*ph);
+    const a0=FCDIR+(hash(i*3.7)-.5)*O.HALF*2.0;
+    const ang=a0+(hash(i*9.1)-.5)*1.8;
+    FCneedle(c,cx+Math.cos(a0)*rr,cy+Math.sin(a0)*rr,ang,(21+28*hash(i*5.3))*SC,
+      1.7*SC,P.lit,P.ink,1.6*SC,Math.min(1,(1-ph)*2.6));}
+  // ①②③ 본체
+  const bs=FCblobs(t,cx,cy,SC,LEN,O.HALF,O.NL,O.NB,.85).filter(b=>b.al>.02);
+  FLmass(c,bs,O.blue?FLblue(P):P,SC,O.core,O.lit);
+  // 구멍 — 불이 두꺼워져 **막**이 됐다는 표시. 큰 덩어리에만 뚫는다.
+  if(O.hole)for(const b of bs){
+    if(b.r>7*SC){const hn=1+(b.sd|0)%2;
+      for(let q=0;q<hn;q++){
+        const ha=b.sd*1.7+q*2.3,hd=b.r*(.24+.26*hash(b.sd+q*5.1));
+        FCink(c,FClobeP(b.x+Math.cos(ha)*hd,b.y+Math.sin(ha)*hd,
+          b.r*(.16+.12*hash(b.sd+q*2.7)),5,b.sd+q*7.3),P.ink,P.dark,1.6*SC,b.al);}}}
+  if(O.frag)FCfragDraw(c,st,P,SC,O.soot);
+  FCcore(c,t,cx,cy,SC,P);
+  drawP(c,st);hero(c,t,cx,cy);
+}
+
+// 안 A 「넓어진다」 — 갈래 1→5 · 반각 .09→.46. 사거리 95SC 고정.
+// ⭐ **L4 를 지우고 L5 를 L4 로 내린 뒤 새 L5 를 얹었다** (2026-08-13 사용자 판정).
+// 옛 L4(네 갈래 + 소용돌이 하나)가 옛 L5 의 축소판이라 한 칸이 값을 못 했다.
+//
+// 새 L5 가 더 얻는 것 셋 — 전부 사용자 지시다:
+//   ① **사거리** 95 → 132SC. `FCfragStep` 이 `LEN` 을 물어 불씨 뿌리는 자리도 멀어진다
+//   ② **가운데 푸른 화염**(`blue`) — 온도가 더 높다는 표시. 아래 ⚠️ 참조
+//   ③ **검은 그을림 입자**(`soot`) — 「작은 불씨 몇 개만 검정으로」
+const FLCA=[
+ {LEN:95, HALF:.09,NL:1,NB:4,needle:3, smoke:0,swirl:0,sr:26,frag:0,  core:1,lit:1,hole:0},
+ {LEN:95, HALF:.17,NL:2,NB:4,needle:5, smoke:0,swirl:0,sr:26,frag:0,  core:1,lit:1,hole:0},
+ {LEN:95, HALF:.26,NL:3,NB:4,needle:8, smoke:4,swirl:0,sr:26,frag:0,  core:1,lit:1,hole:0},
+ {LEN:95, HALF:.46,NL:5,NB:4,needle:12,smoke:4,swirl:3,sr:23,frag:.06,core:1,lit:1,hole:0},
+ {LEN:132,HALF:.46,NL:5,NB:4,needle:14,smoke:5,swirl:3,sr:23,frag:.09,core:1,lit:1,hole:0,
+  blue:1,soot:.42}];
+// 안 B 「길어진다」 — 사거리 38→104SC. 반각 .30 고정. 끝의 소용돌이가 멀어진다.
+const FLCB=[
+ {LEN:38, HALF:.30,NL:3,NB:2,needle:3, smoke:0,swirl:1,sr:12,frag:0,  core:1,lit:1,hole:0},
+ {LEN:56, HALF:.30,NL:3,NB:3,needle:5, smoke:0,swirl:1,sr:16,frag:0,  core:1,lit:1,hole:0},
+ {LEN:74, HALF:.30,NL:3,NB:3,needle:7, smoke:0,swirl:1,sr:20,frag:.09,core:1,lit:1,hole:0},
+ {LEN:90, HALF:.30,NL:3,NB:4,needle:9, smoke:4,swirl:1,sr:25,frag:.07,core:1,lit:1,hole:0},
+ {LEN:104,HALF:.30,NL:3,NB:5,needle:12,smoke:4,swirl:1,sr:28,frag:.06,core:1,lit:1,hole:0}];
+// 안 C 「짙어진다」 — 실루엣 고정. 덩이 2→6 겹 + 칸마다 층이 하나씩.
+const FLCC=[
+ {LEN:88,HALF:.28,NL:3,NB:2,needle:0, smoke:0,swirl:0,sr:26,frag:0,  core:0,lit:0,hole:0},
+ {LEN:90,HALF:.29,NL:3,NB:3,needle:0, smoke:0,swirl:0,sr:26,frag:0,  core:1,lit:0,hole:0},
+ {LEN:92,HALF:.30,NL:3,NB:4,needle:10,smoke:0,swirl:0,sr:26,frag:0,  core:1,lit:1,hole:0},
+ {LEN:95,HALF:.30,NL:3,NB:5,needle:10,smoke:4,swirl:0,sr:26,frag:.06,core:1,lit:1,hole:0},
+ {LEN:98,HALF:.31,NL:3,NB:6,needle:10,smoke:4,swirl:1,sr:26,frag:.06,core:1,lit:1,hole:1}];
+
+Object.assign(FX,{
+FLconeA(c,t,dt,W,H,st){FLconeDraw(c,t,dt,W,H,st,FLCA[LV-1]);},
+FLconeB(c,t,dt,W,H,st){FLconeDraw(c,t,dt,W,H,st,FLCB[LV-1]);},
+FLconeC(c,t,dt,W,H,st){FLconeDraw(c,t,dt,W,H,st,FLCC[LV-1]);},
+});
+
+// ── 마운트 — **기존 MAGIC/LVW/ICL/FT/FC 표는 안 건드린다** ────────────────
+// 이 레포의 성장표 관례 그대로다: 칸이 전역 `LV` 를 갈아 끼우고 **같은 함수**를
+// 부른다. 레벨판을 따로 그리면 표가 거짓말을 한다(그림이 실제 성장과 갈린다).
+{const HOST=MOUNT("levelsm");
+ const FLROWS=[
+ ["FLtrail","불자취","선 → 면 → 덩이",[
+  "금이 간다 — 지나간 자리가 가늘게 갈라지고 뿌리에서 불이 조금 샌다",
+  "<b>벌어져 띠가 된다</b> — 폭이 생기고 양 가장자리가 탄다 (선 → 면)",
+  "<b>속까지 번진다</b> — 검은 땅이 안쪽부터 먹히고 가운데에도 갈래가 선다 (2줄 → 3줄)",
+  "<b>덩이가 돋는다</b> — 띠 위로 낱낱의 불덩이가 솟고 심에 노랑이 든다",
+  "<b>부스러져 날린다</b> — 덩이가 커지고 촘촘해지고 재 조각이 떨어져 나간다"]],
+ ["FLret","회염","한 발 → 세 발 · 사거리 48 → 140SC · 꼬리가 말린다",[
+  "한 발 — 작고 <b>아주 짧고</b> 곧다. 꼬리도 없이 덩이 하나만 간다",
+  "<b>꼬리가 생겨 나선으로 말린다</b> — 두 발이 활처럼 휘고 꼬리가 그 길을 따라간다",
+  "<b>지나간 자리가 탄다</b> — 길이 0.6초 남는다 (아직 나간 줄만)",
+  "<b>길이 비행보다 오래 탄다</b> — 나간 줄과 돌아온 줄이 <b>동시에</b> 선다",
+  "<b>셋이 나간다</b> — 덩어리가 하나 더 붙고 사거리가 <b>옛 만렙의 1.4배</b>"]],
+ ["FLconeA","화염방사 火炎放射","갈래 1 → 5 · L5 에서 사거리 1.4배",[
+  "한 줄기 — 곧고 좁다. 부채가 아니라 창이다",
+  "<b>둘로 갈라진다</b> — 사이가 비어 아직 부채가 아니다",
+  "<b>가운데가 찬다</b> — 세 갈래가 되며 부채가 닫히고, 연기가 오르기 시작한다",
+  "<b>부채가 다 열린다</b> — 다섯 갈래, 바닥 소용돌이 셋, 사방으로 파편",
+  "<b>더 멀리 · 더 뜨겁게</b> — 사거리 95 → 132SC, 가운데가 <b>푸르게</b> 달아오르고 "+
+  "불씨에 <b>검은 그을림</b>이 섞인다"]]];
+ // ⚠️ **`.lvset` 은 제 호스트에만 붙인다.** [tile] 이 이미 `.grid` 를 붙여
+ // 놓은 `<div>` 에 겹쳐 붙이면 격자 규칙 둘이 싸워 **그 페이지의 낱칸이 전부
+ // 2열로 무너진다**(2026-08-12 궁극기·마법 두 번 냈다). 덩어리는 따로 산다.
+ lvTable({host:HOST,rows:FLROWS,name:"FLcell"});}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GD — 접지 接地 를 **결계(ward)의 셸 문법**으로 다시 그린다 (2026-08-12)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 사용자 지시: 「접지 뇌3(GEvolt3)을 고친다 — 결계 디자인을 가져와 ① 노란색을
+// 입히고 ② 겉껍질의 육각을 전격에 맞는 디자인으로 바꾸고 ③ 몬스터한테 공격을
+// 당하면 그 부분에서 전기를 내뿜어 되돌린다.」
+//
+// ⚠️ [GEcore] 는 **한 줄도 안 고친다** — 다섯 속성 × 세 안이 공유한다.
+//    여기는 순수 추가이고, 무대 상수도 GE 것을 안 빌리고 새로 둔다(GD*).
+//
+// ── ⓪ 결계(ward)를 셸로 만드는 것이 무엇인가 — 원본 분석 ──────────────────
+// `FX.ward` 를 그대로 읽어 뽑은 목록이다. 이 여섯이 셸의 문법 전부다.
+//
+//   1 셀은 **각도로** 깐다     — ANG(셀 하나가 먹는 각) 하나만 정하면 위도
+//                                줄 수(π/ANG)도, 줄마다 개수(2π·cosφ/ANG)도,
+//                                셀 크기도 전부 따라 나온다. 개수를 손으로
+//                                박으면 셸이 커질 때 밀도가 안 따라온다.
+//   2 셀 크기 = RR·ANG·.5·**FILL** — FILL 이 겹침이다. 1 미만이면 틈이 보이고
+//                                넘으면 메워진다. **이 한 값이 「빈틈없는
+//                                방벽」과 「성긴 격자」를 가른다.**
+//   3 셸 반경 RR = 몸(17)의 2.1~2.9배, y 는 ·.94 (아주 조금 눌린 구)
+//   4 **깊이가 순서와 밝기를 정한다** — dep=cosφ·cosθ.
+//                                뒤 셀(α .16~.44) → 적 → 몸 → 앞 셀(α .55~1).
+//                                뒤가 흐리게 비쳐야 「속이 빈 껍질」로 읽힌다.
+//   5 **기운 판은 납작해진다** — 법선의 화면 투영 u 방향으로만 |dep| 만큼
+//                                누른다. 바닥 .18 을 둬야 실루엣(dep≈0)에서
+//                                셀이 선으로 사라지지 않는다.
+//   6 한 셀의 칠 = **옅은 면(α.10) + 밝은 테(1.4~3.6px)**. 면이 아니라 테가
+//                                셀을 셀로 만든다.
+//   7 맞았을 때 = **맞은 그 셀**이 fl=1 로 달아오르고 이웃(Δφ<.45·Δθ<.75)이
+//                                .55 로 번진다. 그 셀은 REGROW(2.2s) 동안
+//                                비었다가 마지막 .5s 에 작게 솟아 돋는다.
+//                                전체 체력을 깎아 아무 셀이나 빼면 화면에
+//                                보이는 것이 「어디가 뚫렸나」가 아니게 된다.
+//
+// 1·2·3·4·5 는 **넷이 그대로 쓴다**(그래서 이것은 결계의 셸이다).
+// 6·7 은 뇌로 갈아 끼운다 — 아래 ①②③.
+//
+// ── ① 노란색 — 색만 갈면 결계의 청옥판이 된다 ────────────────────────────
+// 색은 `TONE.volt`(#4A3606 / #FFE03A / #FFFCE0). 같이 바뀌어야 하는 것 넷:
+//
+//   · **테가 고르지 않다** — 결계는 lineWidth 1.4 로 균일하다. 방전은 고르지
+//     않으므로 셀마다 hash 로 .7~1.3배 흔든다. 균일한 테는 유리이고 불균일한
+//     테가 전기다.
+//   · **명멸한다** — 결계의 셀은 안 떤다(피격 fl 때만 밝아진다). 여기는 셀마다
+//     서로 다른 위상으로 늘 떤다. 주파수가 다른 사인 둘을 겹쳐 규칙이 안
+//     보이게 한다(하나면 「숨쉬기」로 읽힌다).
+//   · **면을 비운다** — 결계는 옅은 면(α.10)+테였다. 전기는 면이 아니라 선이라
+//     평소 면을 α.055 까지 내리고, **달아오른 셀에서만** 면이 확 찬다.
+//     그래서 「어디가 맞았나」가 밝기 하나로 읽힌다.
+//   · **셀 경계가 곧지 않다** — 곧은 변은 결정(結晶)의 문법이다. 아래 ②.
+//
+// ── ② 육각을 뇌 문법으로 — **네 안이 각자 다르게 푼다** ──────────────────
+// 육각 벌집은 안정·결정의 모양이고 전격은 그 반대다. 넷 다 위 1~5(셀을 각도로
+// 깔고 깊이로 정렬한다)는 그대로 쓰고, **셀을 무엇으로 그리는가**만 다르다:
+//
+//   GDground1 갈래  — 육각은 남기되 **셀을 나누는 선 자체가 지그재그**다.
+//                     변마다 3토막으로 쪼개 법선으로 흔든다. 벌집의 배치는
+//                     그대로인데 선이 전부 번개라 「결정이 감전된」 그림이다.
+//   GDground2 균열  — 육각을 **무너뜨린다.** 셀이 불규칙 다각형(jagPoly)이고,
+//                     맞으면 그 판이 **둘로 쪼개져 벌어진다** — 방전이 지나간
+//                     자리가 균열로 남는다.
+//   GDground3 코일  — **셀을 버린다.** 위도 고리 다섯 줄(코일)과 그 사이를
+//                     잇는 세로 방전만 남는다. 자기장의 문법이라 판이 없다.
+//   GDground4 다리  — 판을 **떼어 놓는다**(FILL .58). 껍질을 닫는 것은 판이
+//                     아니라 판 사이를 잇는 **아크**다. 아크가 꺼지면 껍질에
+//                     구멍이 생긴다 — 그 깜빡임 자체가 껍질의 상태다.
+//
+// ⚠️ 어느 것이 맞는지 **고르지 않았다.** 넷을 나란히 놓고 판정은 사용자에게.
+//
+// ── ③ 맞은 그 자리에서 되뿜는다 ──────────────────────────────────────────
+// **지금 코드는 피격 위치를 이미 안다.** [GEstage] 가 탄이 몸에 닿는 순간
+// `st.ev.push({a:b.a, ia:atan2(b.y-cy,b.x-cx), x:b.x, y:b.y})` 를 쌓는다 —
+// `ia` 가 「어느 쪽에서 왔나」다. [FX.ward] 도 같은 것을 각으로 재서 맞은 셀을
+// 고른다. 그러니 **새로 알아내야 하는 것은 하나뿐**이다:
+//
+//   ⚠️ **누가 쐈는지는 아무도 안 들고 있다.** GEstage 의 탄은 {x,y,a,l} 뿐이고
+//      `st.i` 는 「마지막으로 쏜 놈」이라 탄이 날아가는 동안 이미 바뀐다.
+//      되받음이 「때린 놈 쪽으로」 가려면 **탄이 발사자를 싣고 다녀야** 한다.
+//      → 여기서는 `b.src`(적 객체 참조)를 실어 보낸다. 적은 살아 있는 객체라
+//        되받음이 나가는 동안 적이 움직여도 **그 놈을 계속 겨눈다**.
+//
+// 맞은 면을 고르는 법도 결계에서 한 걸음 고쳤다: 결계는 앞쪽 셀 중 **각도만**
+// 가장 가까운 것을 골랐는데, 그러면 화면 한가운데 셀이 뽑혀 「어디로
+// 들어왔나」가 안 보인다. 여기서는 **실루엣 쪽에 가중치**를 준다 — 들어온
+// 자리는 테두리여야 한다([GDcellAt]).
+//
+// ⚠️ **탄은 셸을 뚫고 몸에 박힌다.** 셸에서 지우면 그건 결계다(GE 머리말이
+//    같은 함정을 적어 뒀다). 이 셸은 막는 벽이 아니라 **전하를 받는 극판**
+//    이다 — 접지판은 막는 물건이 아니라 흘리는 물건이라, 뚫리는 것이 맞다.
+//    탄이 셀을 지날 때 그 셀이 달아오르고(들어온 자리), 몸에서 [hurtFlash] 가
+//    뜨고(피해는 한 톨도 안 깎는다), **그다음** 그 셀에서 되뿜는다.
+//    셋이 이 순서로 보여야 「맞고 나서 되돌렸다」가 한 사건으로 읽힌다.
+//
+// ── 응보(karma)와 무엇이 다른가 — 한 문장 ────────────────────────────────
+//   **응보는 맞은 것을 게이지에 모았다가 가득 차면 사방에 피해로 갚고,
+//     접지는 모으지 않고 맞는 즉시 맞은 그 면에서 때린 놈에게만 전하를
+//     되돌린다** — 저장이 없고(게이지를 안 그린다) 표적이 있다(피해가 아니라
+//     감전 표식이 붙는다).
+//
+// ⚠️ 그래서 이 넷에는 [celGauge] 가 **하나도 없다.** 게이지를 그리는 순간
+//    응보의 다른 색이 된다. GEvolt3 은 「아무 데로나 흘린다 · 표적이 없다」로
+//    경면과 갈렸는데, 사용자 지시가 「때린 놈 쪽으로」라 그 자리를 옮겼다.
+//    경면과 갈리는 자리는 **되돌아가는 물건**으로 다시 잡는다:
+//      경면 — 날아온 **탄 그 자체**가 정면 원호 안에서만 되돌아간다(피해)
+//      접지 — 탄은 몸에 박히고, 되돌아가는 것은 **전하**다. 전 방향에서 받고
+//             결과는 피해가 아니라 **감전**이다(적에게 shock 표식이 붙는다).
+//             그리고 절반은 **땅으로** 빠진다 — 발밑에 눕는 고리가 그것이다.
+//
+// 새 원시함수는 안 만들었다. 아래 셋은 원시함수가 아니라 **결계 본문에 있던
+// 계산을 그대로 꺼낸 것**이다: GDcells(셀 배치) · GDproj(구면 투영) ·
+// GDflat(기운 판 누르기). 그리는 것은 전부 fillPoly · celStroke · celHoop ·
+// celSpike · celSplash · celRound · celRibbon · jagPoly · arcPts 뿐이다.
+
+/// 색 — **노랑은 여기 한 곳에서 정한다.** 넷이 같은 값을 본다.
+// ⚠️ 안마다 색이 다르다(2026-08-12 사용자 판정: 「안4는 **플라즈마 방패**로
+// 하자 ㅋ **보라색**으로 고고」). 스무 군데가 이 값을 먹으므로 상수를 두고
+// **그리기 직전에 갈아 끼운다** — 인자로 스무 곳에 나르면 실수가 난다.
+// `blast` 는 이 레포에 이미 있는 자홍(#E14CFF, 290°)이라 새 색이 아니다.
+let GDK="volt";
+const GDKOF=["volt","volt","volt","blast"];
+/// 무대 상수 — 네 안이 **한 벌의 수치**를 쓴다. 여기가 갈리면 비교가 죽는다.
+const GDPER=.70,      // 적이 한 발 쏘는 주기(s)
+      GDBSP=150,      // 탄속(px/s @ SC=1)
+      GDRR =44,       // 셸 반경 — 결계 L3 값. 몸(19)의 2.3배
+      GDBR =19,       // 몸 반지름
+      GDANG=.50,      // 셀 하나가 먹는 각 — 결계 L3
+      GDEVL=1.05,     // 한 사건이 화면에 남는 시간(s)
+      GDDIS=.46;      // 되뿜음이 뻗어 나가는 시간(s)
+
+/// 셀 배치 — **결계의 것 그대로.** 각(ang) 하나만 정하면 나머지가 따라 나온다.
+/// `bi`(위도 줄 번호)를 같이 들고 있는 것은 안3(코일)이 줄 단위로 달아오르기
+/// 때문이다 — 넷이 **같은 격자**를 쓰고 그림만 갈린다는 것이 이 블록의 축이다.
+///
+/// ⚠️ 결계의 일곱 규칙 중 **7의 뒷부분(깨졌다 다시 돋는다)만 안 빌렸다.**
+/// 결계는 셀이 사라져 「어디가 뚫렸나」를 보여 주는데, 그건 **막는 물건의
+/// 문법**이다 — 뚫려야 할 벽이 있어야 성립한다. 접지판은 애초에 안 막으므로
+/// 뚫릴 것이 없고, 대신 **달아오른다**(fl). 「구멍」이 아니라 「전하가 앉은
+/// 자리」가 이 셸이 피격에 대해 할 말 전부다. 그래서 `dead`·재생 시계는
+/// 아예 안 만들었다 — 안 쓰는 상태를 들고 있으면 다음 사람이 그게 규칙인 줄 안다.
+function GDcells(ang){
+  const cell=[],nb=Math.max(3,Math.round(Math.PI/ang));
+  for(let bi=0;bi<nb;bi++){
+    const ph=-Math.PI/2+(bi+.5)*Math.PI/nb;
+    const n=Math.max(1,Math.round(TAU*Math.cos(ph)/ang));
+    for(let i=0;i<n;i++)cell.push({ph,bi,th:i/n*TAU+(bi%2?Math.PI/n:0),fl:0});}
+  cell.forEach((q,i)=>{q.rank=hash(i*7.3);q.id=i;});
+  cell.nb=nb;
+  return cell;}
+
+/// 구면 → 화면. dep 가 깊이(앞이 +), u 가 법선의 화면 투영, kf 가 눕는 정도.
+/// 전부 결계 본문에 있던 식이다.
+function GDproj(q,spin,cx,cy,RR){
+  const th=q.th+spin, dep=Math.cos(q.ph)*Math.cos(th);
+  let ux=Math.cos(q.ph)*Math.sin(th), uy=Math.sin(q.ph);
+  const ul=Math.hypot(ux,uy);
+  if(ul<1e-4){ux=0;uy=1;}else{ux/=ul;uy/=ul;}
+  return {th,dep,x:cx+Math.cos(q.ph)*Math.sin(th)*RR,y:cy+Math.sin(q.ph)*RR*.94,
+          ux,uy,kf:Math.max(.18,Math.abs(dep))};}
+
+/// 원점 둘레의 점들을 **기운 판**으로 눌러 화면에 앉힌다(결계의 hexP 와 같은 식).
+function GDflat(P,P0){
+  return P.map(([lx,ly])=>{
+    const du=lx*P0.ux+ly*P0.uy, dv=-lx*P0.uy+ly*P0.ux;
+    return [P0.x+P0.ux*du*P0.kf-P0.uy*dv, P0.y+P0.uy*du*P0.kf+P0.ux*dv];});}
+
+/// 맞은 면 고르기 — **결계는 각도만 봤다.** 그러면 화면 한가운데 셀이 뽑혀
+/// 「어디로 들어왔나」가 안 보인다. 실루엣(화면 반경이 큰 셀)에 가중치를 주고
+/// 뒤쪽 셀에 벌점을 준다 — 들어온 자리는 **테두리**여야 한다.
+function GDcellAt(cell,spin,RR,fa){
+  let best=-1,bs=1e9;
+  for(let i=0;i<cell.length;i++){
+    const P=GDproj(cell[i],spin,0,0,RR), rho=Math.hypot(P.x,P.y);
+    if(rho<RR*.34)continue;
+    const dd=Math.abs(((Math.atan2(P.y,P.x)-fa)%TAU+TAU+Math.PI)%TAU-Math.PI);
+    const s=dd+(1-rho/RR)*1.25+(P.dep<0?.60:0);
+    if(s<bs){bs=s;best=i;}}
+  return best;}
+
+/// 방전 갈래 — **곧은 선을 안 쓴다.** 두 점 사이를 토막 내 수직으로 흔든다.
+/// 씨앗에 `floor(t*24)` 를 섞는 것은 전기가 **프레임마다 다시 그어지는** 것
+/// 이라서다: 부드럽게 흔들리면 그건 리본이지 방전이 아니다(pvMark.shock 의
+/// 주석과 같은 판정). 곡선으로 그리면 안 된다는 그 규칙을 여기서도 지킨다.
+function GDarc(c,x0,y0,x1,y1,w,a,seed,t,amp,seg){
+  const N=seg||6,dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy)||1;
+  const nx=-dy/L,ny=dx/L,qz=Math.floor(t*24),P=[];
+  for(let i=0;i<=N;i++){const u=i/N;
+    const e=(i===0||i===N)?0:
+      (hash(seed+i*4.7+qz*1.31)-.5)*2*amp*Math.sin(Math.PI*u);
+    P.push([x0+dx*u+nx*e, y0+dy*u+ny*e]);}
+  celStroke(c,P,Math.max(.4,w),GDK,a);
+  return P;}
+
+/// 셀의 명멸 — **주파수가 다른 사인 둘.** 하나면 「숨쉬기」로 읽힌다.
+/// 사인이라 주기 끝과 처음이 이어져 어디서 끊어도 도약이 없다.
+const GDblink=(t,r)=>.62+.24*Math.sin(t*13.7+r*57.3)+.14*Math.sin(t*29.3+r*111.7);
+
+// ── 무대 ──────────────────────────────────────────────────────────────────
+/// 적 넷이 돌아가며 **뇌 탄**을 몸으로 쏜다. 탄은 셸을 뚫고 몸에 박힌다.
+/// 탄이 발사자(`src`)를 싣고 다니는 것이 이 무대가 GE 무대와 다른 유일한
+/// 자리이고, 그 한 줄이 「때린 놈 쪽으로」를 가능하게 한다.
+function GDstage(t,dt,st,SC,cx,cy,RR,spin){
+  st.p=st.p||[];
+  if(!st.F){
+    st.F=mkFoesZ([[96,-52,10],[-92,-40,10],[42,94,9],[-70,74,10]],SC);
+    for(const f of st.F){f.bx=f.ox;f.by=f.oy;f.fl=0;f.pv=0;}
+    st.b=[];st.ev=[];st.acc=0;st.i=-1;st.hurt=0;}
+  for(let i=0;i<st.F.length;i++){const f=st.F[i];
+    f.fl=Math.max(0,f.fl-dt*3.4);
+    f.pv=Math.max(0,f.pv-dt*.62);          // 되받아 붙인 감전이 서서히 풀린다
+    f.ox=f.bx+Math.sin(t*.7+i*1.7)*3.4*SC; // 숨쉬기 — 굳어 있으면 멈춘 그림이다
+    f.oy=f.by+Math.cos(t*.6+i*2.3)*3.0*SC;}
+  st.acc+=dt;
+  if(st.acc>=GDPER){st.acc-=GDPER;
+    const f=st.F[(st.i=(st.i+1)%st.F.length)];f.fl=1;
+    const x=cx+f.ox,y=cy+f.oy,a=Math.atan2(cy-y,cx-x);
+    st.b.push({x,y,a,l:0,src:f,ci:-1});
+    emit(st,x,y,5,{k:GDK,sp:74*SC,r:2.6*SC,life:.34,a:a+Math.PI,spread:1.5,spikeP:.6});}
+  stepFoes(st.F,dt);
+  for(const q of st.cell)q.fl=Math.max(0,q.fl-dt*2.0);
+  for(let i=st.b.length-1;i>=0;i--){const b=st.b[i];b.l+=dt;
+    b.x+=Math.cos(b.a)*GDBSP*SC*dt;b.y+=Math.sin(b.a)*GDBSP*SC*dt;
+    const d=Math.hypot(b.x-cx,b.y-cy);
+    // 셸을 **지나는** 순간 — 막는 것이 아니라 그 셀이 전하를 받는다.
+    if(b.ci<0&&d<RR*SC*1.04){
+      const fa=Math.atan2(b.y-cy,b.x-cx);
+      b.ci=GDcellAt(st.cell,spin,RR*SC,fa);
+      if(b.ci>=0){const q0=st.cell[b.ci];q0.fl=1;
+        for(const q of st.cell)
+          if(Math.abs(q.ph-q0.ph)<.45&&
+             Math.abs(((q.th-q0.th)%TAU+TAU+Math.PI)%TAU-Math.PI)<.80)
+            q.fl=Math.max(q.fl,.58);
+        const P=GDproj(q0,spin,cx,cy,RR*SC);
+        emit(st,P.x,P.y,4,{k:GDK,sp:96*SC,r:2.2*SC,life:.26,spikeP:.8});}}
+    // ⚠️ **몸까지 온다.** 여기서 지우면 결계다.
+    if(d<GDBR*SC){
+      const fa=Math.atan2(b.y-cy,b.x-cx);
+      st.ev.push({ci:b.ci>=0?b.ci:GDcellAt(st.cell,spin,RR*SC,fa),
+                  ia:fa,src:b.src,l:0,done:0});
+      st.hurt=1;st.b.splice(i,1);continue;}
+    if(b.l>3.2)st.b.splice(i,1);}
+  st.hurt=Math.max(0,st.hurt-dt*2.6);
+  for(let i=st.ev.length-1;i>=0;i--){const e=st.ev[i];e.l+=dt;
+    if(e.l>GDEVL)st.ev.splice(i,1);}
+  stepP(st,dt);}
+
+/// 되뿜음이 나가는 자리 — **맞은 그 셀**이다. 셸이 도니 자리도 같이 돈다:
+/// 전하를 받은 판이 그대로 들고 도는 것이라 그게 맞다.
+function GDorigin(st,e,spin,cx,cy,RR){
+  if(e.ci<0||!st.cell[e.ci])
+    return [cx+Math.cos(e.ia)*RR,cy+Math.sin(e.ia)*RR*.94];
+  const P=GDproj(st.cell[e.ci],spin,cx,cy,RR);return [P.x,P.y];}
+
+/// 적이 쏜 것 — 속성색 뇌 탄. 되뿜음(지그재그)과 **형으로** 갈린다.
+function GDshot(c,b,SC){
+  celRibbon(c,[[b.x-Math.cos(b.a)*26*SC,b.y-Math.sin(b.a)*26*SC],[b.x,b.y]],
+    3.6*SC,GDK,.55);
+  celRound(c,b.x,b.y,b.a,16*SC,4.6*SC,GDK,1,1);}
+
+// ── 셀 그리기 — **여기가 네 안이 갈리는 자리 전부다** ──────────────────────
+/// 공통: 깊이가 순서와 밝기를 정하고(결계 4), 기운 판은 눌린다(결계 5).
+/// 다른 것: 셀을 무슨 도형으로 그리는가.
+function GDcell(c,t,st,SC,cx,cy,RR,spin,q,front,va){
+  const P0=GDproj(q,spin,cx,cy,RR),T=toneOf(GDK);
+  if((P0.dep>=0)!==front)return;
+  const bl=GDblink(t,q.rank);
+  const sc=(.62+.38*Math.abs(P0.dep))*(1+q.fl*.26);
+  const r=RR*GDANG*.5*(va===3?.46:1.02)*sc;
+  const al=(front?.55+.45*P0.dep:.16+.14*(1+P0.dep))*(.46+.54*bl)+q.fl*.50;
+  if(al<.02||r<.4)return;
+  // 테 굵기가 **셀마다 다르다** — 균일한 테는 유리이고 불균일한 테가 전기다.
+  const lw=(1.5+q.fl*2.6)*SC*(.70+.60*hash(q.id*3.1))*(.80+.40*bl);
+  const rot=P0.th*.25;
+
+  if(va===0){
+    // ① 갈래 — **변이 지그재그다.** 육각의 여섯 꼭짓점 사이를 3토막으로
+    //    쪼개 법선으로 흔든다. 배치는 벌집인데 선이 전부 번개라 「결정이
+    //    감전된」 그림이 된다. 흔들림은 hash 로 고정하고 시간으로 조금만
+    //    떤다 — 매 프레임 다시 뽑으면 셸이 통째로 지글거려 형이 안 남는다.
+    // ⚠️ 첫 판은 흔들림을 hash 한 번으로만 줬는데(±23%) **238px 칸에서
+    //   육각이 그대로 육각이었다**(2026-08-12 렌더 판정: 「결계의 노란 판」).
+    //   답은 진폭이 아니라 **부호를 정해 주는 것**이다 — 변 하나가 안으로
+    //   한 번, 밖으로 한 번 꺾여야 사람 눈이 「지그재그」로 읽는다.
+    const L=[],SEG=3;
+    for(let j=0;j<6;j++){
+      const a0=rot+j/6*TAU,a1=rot+(j+1)/6*TAU;
+      for(let s=0;s<SEG;s++){
+        const a=a0+(a1-a0)*(s/SEG);
+        const h=hash(q.id*5.3+j*2.7+s*1.9);
+        const jt=s===0?1:(s===1?.70+.16*h:1.28+.20*h)
+                 +(Math.sin(t*17+q.rank*40+j+s)*.045);
+        L.push([Math.cos(a)*r*jt,Math.sin(a)*r*jt]);}}
+    L.push(L[0]);
+    const S=GDflat(L,P0);
+    // 면은 거의 비운다(α.05) — 전기는 면이 아니라 선이다.
+    fillPoly(c,S,A(T[0],(.05+q.fl*.34)*al));
+    if(q.fl>.28)fillPoly(c,GDflat(L.map(([x,y])=>[x*.56,y*.56]),P0),
+      A(T[2],Math.min(1,q.fl*1.15)*al));
+    celStroke(c,S,lw*1.15,GDK,Math.min(1,al*1.3));
+  }else if(va===1){
+    // ② 균열 — **육각을 무너뜨린다.** 불규칙 다각형이라 두 셀이 같은 모양이
+    //    아니고, 변 수도 셀마다 다르다. 여기서만 면을 살려 둔다(깨질 판이
+    //    있어야 균열이 보인다).
+    // ⚠️ [jagPoly] 로 뽑았더니 안팎이 번갈아 나오는 **별**이 됐다(2026-08-12
+    //   렌더 판정: 「꽃무늬 공」). 별은 대칭이라 결정의 사촌이다 — 깨진 판은
+    //   **대칭이 없어야** 한다. 그래서 각도도 반지름도 셀마다 흐트러뜨린
+    //   다각형을 직접 뽑는다. 개수(5~8)와 크기(±31%)까지 셀마다 달라야
+    //   「같은 판을 여럿 깐 것」이 아니라 「하나가 갈라진 것」으로 읽힌다.
+    const n=5+Math.round(hash(q.id*2.3)*3), rv=r*(.82+.36*hash(q.id*8.9));
+    const J=[];
+    for(let j=0;j<n;j++){
+      const a=rot+j/n*TAU+(hash(q.id*3.7+j*1.7)-.5)*.62;
+      const rr2=rv*(.66+.60*hash(q.id*5.1+j*2.3));
+      J.push([Math.cos(a)*rr2,Math.sin(a)*rr2]);}
+    // 맞은 셀은 **둘로 쪼개져 벌어진다** — 방전이 지나간 자리가 균열이다.
+    const gap=q.fl*r*.34, ga=q.id*1.7+rot;
+    const gx=Math.cos(ga),gy=Math.sin(ga);
+    if(gap>.4){
+      // 반쪽 둘 — **자르는 선 위의 두 점을 넣어 면을 닫는다.** 폴리곤을
+      // 반평면으로 자르기만 하면 잘린 변이 뚫려 면이 새고, 채우면 엉뚱한
+      // 삼각형이 생긴다.
+      for(let sgn=-1;sgn<=1;sgn+=2){
+        const H=[];
+        for(const [x,y] of J)if(sgn*(x*gy-y*gx)>=0)H.push([x,y]);
+        if(H.length<3)continue;
+        H.push([gx*r*1.1,gy*r*1.1]);H.unshift([-gx*r*1.1,-gy*r*1.1]);
+        const M=H.map(([x,y])=>[x-gy*sgn*gap,y+gx*sgn*gap]);
+        const S2=GDflat(M,P0);
+        fillPoly(c,S2,A(T[0],(.10+q.fl*.34)*al));
+        celStroke(c,S2.concat([S2[0]]),lw,GDK,Math.min(1,al*1.2));}
+      // 벌어진 틈을 **전기가 잇는다** — 갈라졌는데 아무것도 없으면 그냥 부서진 것이다.
+      const A0=GDflat([[-gx*r,-gy*r]],P0)[0],A1=GDflat([[gx*r,gy*r]],P0)[0];
+      GDarc(c,A0[0],A0[1],A1[0],A1[1],lw*.8,al*q.fl,q.id*7.7,t,r*.30,4);
+    }else{
+      const S=GDflat(J,P0);
+      fillPoly(c,S,A(T[0],(.10+q.fl*.34)*al));
+      if(q.fl>.28)fillPoly(c,GDflat(J.map(([x,y])=>[x*.52,y*.52]),P0),
+        A(T[2],Math.min(1,q.fl*1.1)*al));
+      celStroke(c,S.concat([S[0]]),lw,GDK,Math.min(1,al*1.2));}
+  }else if(va===3){
+    // ④ 다리 — 판은 **작고 떨어져 있다**(FILL .46). 판만으로는 껍질이 안 닫히고,
+    //    닫는 것은 아래에서 그리는 **아크**다.
+    // ⚠️ 첫 판은 판을 크고 밝게(면 α.42) 두고 아크를 가늘게 뒀더니 **판만
+    //   보이는 물방울 무늬 공**이 됐다(2026-08-12 렌더 판정) — 그러면 이 안의
+    //   주장(「껍질을 닫는 것은 다리다」)이 그림에서 사라진다. 판을 눌러
+    //   **아크가 주인공**이 되게 뒤집는다: 판은 아크가 서는 말뚝일 뿐이다.
+    const H=[];for(let j=0;j<6;j++){const a=rot+j/6*TAU;
+      H.push([Math.cos(a)*r,Math.sin(a)*r]);}
+    const S=GDflat(H,P0);
+    fillPoly(c,S,A(T[0],(.24+q.fl*.46)*al));
+    fillPoly(c,GDflat(H.map(([x,y])=>[x*.46,y*.46]),P0),
+      A(q.fl>.28?T[2]:T[1],(.22+q.fl*.70)*al));
+    celStroke(c,S.concat([S[0]]),lw*.75,GDK,Math.min(1,al*.95));}
+  // va===2(코일)는 셀을 안 그린다 — 격자는 계산에만 남고 그림에서 사라진다.
+}
+
+/// 안4 의 **다리** — 이웃한 두 판 사이에 아크가 선다. 한 번에 전부 켜지면
+/// 그물이 되어 다시 벌집이 되므로, 시간을 양자화한 hash 로 **한 순간에 일부만**
+/// 켠다. 그 깜빡임이 곧 껍질의 상태다 — 맞은 자리 둘레는 전부 켜진다.
+function GDbridge(c,t,st,SC,cx,cy,RR,spin,front){
+  const cell=st.cell,qz=Math.floor(t*9);
+  for(let i=0;i<cell.length;i++){
+    const q=cell[i],Pa=GDproj(q,spin,cx,cy,RR);
+    if((Pa.dep>=0)!==front)continue;
+    for(let j=i+1;j<cell.length;j++){
+      const r2=cell[j];
+      // ⚠️ 문턱이 .46 이면 **같은 위도 줄 안에서만** 다리가 선다(줄 간격이
+      //   π/6≈.52 라서). 그러면 목걸이 여러 개가 쌓인 그림이지 껍질이 아니다
+      //   (2026-08-12 렌더 판정) — 위아래 줄까지 물려야 격자가 닫힌다.
+      if(Math.abs(r2.ph-q.ph)>.62)continue;
+      if(Math.abs(((r2.th-q.th)%TAU+TAU+Math.PI)%TAU-Math.PI)>.62)continue;
+      const Pb=GDproj(r2,spin,cx,cy,RR);
+      if((Pb.dep>=0)!==front)continue;
+      const heat=Math.max(q.fl,r2.fl);
+      // ⚠️ 켜지는 비율을 반으로 두고 굵기를 1.5 로 뒀더니 다리가 **안 보였다**
+      //   (2026-08-12 렌더 판정). 비율을 .70 으로 올리고 굵기를 키운다 —
+      //   그래도 매 순간 30%가 꺼져 있어 「깜빡이며 닫는다」는 남는다.
+      const on=heat>.18?1:(hash(i*13.1+j*7.7+qz*2.9)>.30?1:0);
+      if(!on)continue;
+      const al=(front?.58+.36*Pa.dep:.16+.12*(1+Pa.dep))*(.5+.5*heat)+heat*.42;
+      if(al<.03)continue;
+      GDarc(c,Pa.x,Pa.y,Pb.x,Pb.y,(2.3+3.4*heat)*SC,Math.min(1,al),
+        i*3.1+j*1.7,t,Math.hypot(Pb.x-Pa.x,Pb.y-Pa.y)*.30,4);}}}
+
+/// 안3 의 **코일** — 위도 고리 다섯. 셀을 버리고 자기장의 문법으로 간다.
+/// 고리 하나가 곧 위도 줄 하나라, 맞은 셀이 속한 줄이 통째로 달아오른다.
+/// ⚠️ 고리는 **눕혀** 그린다(squash .30). 세우면 결계의 실루엣으로 되돌아간다.
+function GDcoil(c,t,st,SC,cx,cy,RR,spin,front){
+  const nb=st.cell.nb;
+  for(let bi=0;bi<nb;bi++){
+    const ph=-Math.PI/2+(bi+.5)*Math.PI/nb;
+    const rr=Math.cos(ph)*RR, yy=cy+Math.sin(ph)*RR*.94;
+    if(rr<1.2)continue;
+    let heat=0;for(const q of st.cell)if(q.bi===bi)heat=Math.max(heat,q.fl);
+    const bl=GDblink(t,bi*.37);
+    const al=(front?.62:.20)*(.5+.5*bl)+heat*.55;
+    // 고리 자체는 앞뒤가 없다 — 앞 몫만 그리고 뒤 몫은 흐리게 한 번 더.
+    celHoop(c,cx,yy,Math.max(1,rr),.30,0,
+      Math.max(.6,(1.7+3.4*heat)*SC*(.8+.4*bl)),GDK,Math.min(1,al));
+    if(!front)continue;
+    // 고리 사이를 잇는 **세로 방전** — 코일에 흐르는 것이 보여야 코일이다.
+    if(bi+1>=nb)continue;
+    const ph2=-Math.PI/2+(bi+1.5)*Math.PI/nb;
+    const rr2=Math.cos(ph2)*RR, yy2=cy+Math.sin(ph2)*RR*.94;
+    // ⚠️ 세로 방전이 둘뿐이라 **고리만 보이는 냄비**가 됐다(2026-08-12 렌더
+    //   판정). 코일은 「감긴 것」이 아니라 「흐르는 것」이라, 고리 사이를
+    //   잇는 것이 안 보이면 그냥 접시 세 장이다. 개수와 굵기를 올린다.
+    const NA=4+Math.round(heat*4);
+    for(let s=0;s<NA;s++){
+      const a=t*(1.1+bi*.23)+s/NA*TAU+bi*2.1;
+      const x0=cx+Math.cos(a)*rr, y0=yy+Math.sin(a)*rr*.30;
+      const x1=cx+Math.cos(a+.5)*rr2, y1=yy2+Math.sin(a+.5)*rr2*.30;
+      // ⚠️ 흔들림을 RR*.13 로 뒀더니 세로 방전이 고리를 **덮어** 고리가
+      //   안 보였다 — 코일에서 지워지면 안 되는 것은 고리다. 진폭을 반으로.
+      GDarc(c,x0,y0,x1,y1,(2.2+2.8*heat)*SC,(.52+.44*heat)*(.6+.4*bl),
+        bi*5.3+s*2.7,t,RR*.065,5);}}}
+
+// ── ③ 되뿜음 — **맞은 면에서 때린 놈에게로** ─────────────────────────────
+/// 넷이 같은 규칙을 지킨다: 출발은 맞은 셀, 도착은 **그 탄을 쏜 적**,
+/// 그리고 절반은 **땅으로** 빠진다(눕는 고리). 형만 안마다 다르다.
+function GDreturn(c,t,st,SC,cx,cy,RR,spin,va){
+  const T=toneOf(GDK);
+  for(const e of st.ev){
+    const u=Math.min(1,e.l/GDDIS);
+    if(e.l>GDDIS*1.30)continue;
+    const O=GDorigin(st,e,spin,cx,cy,RR);
+    const f=e.src;
+    const tx=cx+f.ox+f.kx, ty=cy+f.oy+f.ky;
+    const g=ease(u), fade=Math.max(0,1-Math.max(0,e.l-GDDIS)/(GDDIS*.30));
+    const ex=O[0]+(tx-O[0])*g, ey=O[1]+(ty-O[1])*g;
+    // **땅으로** — 접지라는 이름이 여기 걸린다. 넷이 다 갖는다.
+    celHoop(c,cx,cy+8*SC,Math.max(1,RR*(.42+.85*g)),.26,0,
+      Math.max(.6,(1.6+2.6*(1-u))*SC),GDK,(1-u)*.55*fade);
+    if(va===0){
+      // 갈래 — 셸의 문법이 그대로 밖으로 난다. 갈래 셋이 부챗살로 벌어졌다
+      // 하나로 모여 적에게 꽂힌다.
+      for(let s=0;s<3;s++){
+        const mx=(O[0]+ex)/2+(s-1)*13*SC*(1-g)*Math.sin(e.ia),
+              my=(O[1]+ey)/2-(s-1)*13*SC*(1-g)*Math.cos(e.ia);
+        GDarc(c,O[0],O[1],mx,my,(2.6-s*.5)*SC,fade*(.9-s*.18),e.ia*11+s*3.3,t,
+          9*SC,4);
+        GDarc(c,mx,my,ex,ey,(2.6-s*.5)*SC,fade*(.9-s*.18),e.ia*7+s*5.1,t,9*SC,4);}
+    }else if(va===1){
+      // 균열 — 갈라진 판에서 **조각과 함께** 나간다. 굵은 갈래 하나 +
+      // 진행 방향으로 튀는 각진 조각들.
+      GDarc(c,O[0],O[1],ex,ey,(4.2-1.6*u)*SC,fade,e.ia*9+1.7,t,15*SC,7);
+      for(let s=0;s<4;s++){
+        const uu=Math.min(1,g*(.55+s*.18));
+        const px=O[0]+(tx-O[0])*uu, py=O[1]+(ty-O[1])*uu;
+        fillPoly(c,jagPoly(px,py,(4.6-2.4*uu)*SC,5,s*3.7+e.ia,1.6),
+          A(T[s%2?1:0],fade*(1-uu)*.9));}
+    }else if(va===2){
+      // 코일 — 맞은 **위도 줄이 통째로** 조이며 그 줄에서 굵은 아크가 뻗는다.
+      // 판이 없으니 되받음도 판이 아니라 **감긴 것이 풀리는** 그림이다.
+      const q=st.cell[e.ci];
+      if(q){const ph=q.ph,rr=Math.cos(ph)*RR,yy=cy+Math.sin(ph)*RR*.94;
+        celHoop(c,cx,yy,Math.max(1,rr*(1+.30*(1-u))),.30,0,
+          Math.max(.8,(2.4+5.0*(1-u))*SC),GDK,fade*.9);}
+      GDarc(c,O[0],O[1],ex,ey,(3.4+2.2*(1-u))*SC,fade,e.ia*13+2.9,t,18*SC,8);
+      GDarc(c,O[0],O[1],ex,ey,1.4*SC,fade*.6,e.ia*13+9.1,t,26*SC,8);
+    }else{
+      // 다리 — **릴레이다.** 셸을 닫던 다리 문법이 그대로 밖으로 이어진다:
+      // 맞은 셀 → 이웃 판 하나 → 적. 중간 판이 한 번 밝게 켜진다.
+      const q=st.cell[e.ci];
+      let mx=O[0],my=O[1];
+      if(q){let bq=null,bd=9;
+        for(const r2 of st.cell){
+          if(r2===q)continue;
+          const dd=Math.abs(((r2.th-q.th)%TAU+TAU+Math.PI)%TAU-Math.PI);
+          const s2=dd+Math.abs(r2.ph-q.ph)*1.4;
+          const Pb=GDproj(r2,spin,cx,cy,RR);
+          if(Pb.dep<0)continue;
+          if(s2<bd&&s2>.05){bd=s2;bq=Pb;}}
+        if(bq){mx=bq.x;my=bq.y;
+          fillPoly(c,jagPoly(mx,my,5.4*SC*(1-u*.5),6,e.ia*3.1,1.3),
+            A(T[2],fade*.85));}}
+      const h=Math.min(1,g/.45);
+      GDarc(c,O[0],O[1],O[0]+(mx-O[0])*h,O[1]+(my-O[1])*h,3.0*SC,fade,
+        e.ia*5.3,t,10*SC,4);
+      if(g>.45)GDarc(c,mx,my,ex,ey,3.0*SC,fade,e.ia*8.9,t,14*SC,6);}
+    // 적에게 **닿는다** — 되돌아간 것은 피해 덩어리가 아니라 **감전**이다.
+    // 응보는 여기서 큰 피해를 터뜨리지만 이쪽은 표식을 붙인다(머리말 참조).
+    if(!e.done&&g>=.98){e.done=1;
+      const d=Math.hypot(f.ox,f.oy)||1;
+      hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,13*SC,GDK);
+      f.pv=Math.max(f.pv||0,.95);
+      celSplash(c,tx,ty,Math.max(1,13*SC),9,e.ia*3.7,GDK,.9);}
+    if(g>=.98)celSplash(c,tx,ty,Math.max(1,(6+7*fade)*SC),9,e.ia*3.7+1,GDK,fade*.8);}}
+
+// ── 한 칸의 몸통 ──────────────────────────────────────────────────────────
+/// [va] 0 갈래 · 1 균열 · 2 코일 · 3 다리.
+/// ⚠️ `LV` 는 안 읽는다 — 네 안을 **한 화면에서 비교**하는 표라, 레벨을
+///   얹으면 축이 둘이 되어 「무엇이 갈리는지」가 죽는다(GE 표와 같은 규율).
+function GDcore(c,t,dt,W,H,st,va){
+  GDK=GDKOF[va]||"volt";
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,RR=GDRR*SC;
+  if(!st.cell)st.cell=GDcells(GDANG);
+  const spin=t*.42;
+  GDstage(t,dt,st,SC,cx,cy,GDRR,spin);
+  // 결계의 차례 그대로 — **뒤 셀 → 적 → 몸 → 앞 셀.**
+  // 이 순서라야 껍질 안에 몸이 든 것으로 읽힌다.
+  if(va===2)GDcoil(c,t,st,SC,cx,cy,RR,spin,false);
+  else{for(const q of st.cell)GDcell(c,t,st,SC,cx,cy,RR,spin,q,false,va);
+       if(va===3)GDbridge(c,t,st,SC,cx,cy,RR,spin,false);}
+  drawFoes(c,t,cx,cy,st.F);
+  // 되받아 붙인 감전 — **적 쪽에서 나는 결과**다. 응보의 피해와 갈리는 증거.
+  pvLayer(c,cx,cy,st.F,"shock",t,GDK,SC,1);
+  // 총구 — 「이 놈이 지금 쐈다」. 없으면 탄이 어디서 났는지 안 읽힌다.
+  for(const f of st.F)if(f.fl>.02)
+    celSplash(c,cx+f.ox,cy+f.oy,Math.max(1,13*SC*f.fl),8,f.bx,GDK,f.fl*.9);
+  hero(c,t,cx,cy);
+  if(va===2)GDcoil(c,t,st,SC,cx,cy,RR,spin,true);
+  else{for(const q of st.cell)GDcell(c,t,st,SC,cx,cy,RR,spin,q,true,va);
+       if(va===3)GDbridge(c,t,st,SC,cx,cy,RR,spin,true);}
+  // 날아오는 것은 **셸 위에** 그린다 — 탄이 껍질을 가로질러 몸까지 가는 것이
+  // 보여야 「저건 벽이 아니라 극판이다」가 읽힌다.
+  for(const b of st.b)GDshot(c,b,SC);
+  // **몸이 맞았다.** 피해를 한 톨도 안 깎는다 — 이 붉은 번쩍이 결계와 갈리는
+  // 자리다. 숨기면 그림이 규칙에 대해 거짓말을 한다.
+  if(st.hurt>0)hurtFlash(c,cx,cy,Math.max(1,17*SC*st.hurt),st.hurt*.85);
+  GDreturn(c,t,st,SC,cx,cy,RR,spin,va);
+  drawP(c,st);}
+
+const GDFX={
+  GDground1(c,t,dt,W,H,st){GDcore(c,t,dt,W,H,st,0);},
+  GDground2(c,t,dt,W,H,st){GDcore(c,t,dt,W,H,st,1);},
+  GDground3(c,t,dt,W,H,st){GDcore(c,t,dt,W,H,st,2);},
+  GDground4(c,t,dt,W,H,st){GDcore(c,t,dt,W,H,st,3);},
+};
+
+// ── 배치 ──────────────────────────────────────────────────────────────────
+// 넷을 **나란히** 놓는다 — 「육각을 무엇으로 바꿨나」는 한 장에서만 비교된다.
+// 호스트는 방어 페이지(`guard`). 없으면 `gd` 로 떨어진다.
+// ⚠️ [$] 는 없는 id 에도 **떨어져 있는 캔버스**를 돌려주므로, id 로 직접
+//   물어서 **둘 다 없으면 아무것도 안 붙인다** — 그래야 유령 타일이 안 생긴다
+//   (GE 열다섯이 통째로 유령이었던 사고와 같은 함정).
+// ── 사용자 판정 (2026-08-12) — 넷 중 **둘만** ────────────────────────────
+// 안1 갈래 · 안2 균열은 반려. 함수는 남기고 마운트에서만 뺀다.
+// ⭐ 안4 는 **플라즈마 방패**가 됐다 — 접지의 한 안이 아니라 **딴 물건**이다.
+//   그래서 색도 뇌 노랑이 아니라 `blast` 자홍(290°)을 쓴다. 판이 떨어져 있고
+//   그 사이를 아크가 잇는 구조가 「전기 흘리는 판」보다 **플라즈마**에 맞다.
+const GDROW=[
+  ["GDground3","접지 接地 · 코일",
+   "셀을 버리고 위도 고리 다섯 + 세로 방전 — 맞은 줄이 통째로 조이며 되뿜는다. "+
+   "되받은 전하의 **절반은 땅으로** 빠진다(발밑에 눕는 고리)"],
+  ["GDground4","플라즈마 방패 · 자홍",
+   "판이 **떨어져 있고** 껍질을 닫는 것은 판이 아니라 **아크**다 — 매 순간 30%가 "+
+   "꺼져 있어 구멍이 생겼다 닫힌다. 되받음도 판에서 판으로 릴레이"]];
+{const GH=MOUNT("guard");
+ if(GH)GDROW.forEach(([k,nm,ds])=>{
+   if(GDFX[k])tile(GH,GDFX,k,nm,"",ds,238);});}
+// ══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FV — 화염회오리의 **레벨 성장표** (접두 `FV`)                  (2026-08-13)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 새 최상위 이름은 전부
+// `FV` 로 시작한다(기존 `FVFIX`/`FVSET`/`FVNAME`/`fvBody` 와 안 겹치는 것을
+// 확인했다). 등록은 `FX.FVvort*` 에 **대입만** 하고, 마운트는 `FL` 것들 **뒤에**
+// 같은 호스트(`#fllv`)로 붙는다 — `FLROWS` 에는 한 줄도 안 더했다.
+//
+// ── 왜 있나 ───────────────────────────────────────────────────────────────
+// 불 계열 넷 중 셋만 레벨이 있었다(사용자 지적):
+//     불자취    FLtrail    L1~L5  ✅
+//     회염      FLret      L1~L5  ✅
+//     화염방사  FLconeA/B/C       ✅ (3안)
+//     화염회오리 —                ❌  ← 이 블록
+//
+// ── 고정판 = `FZvortex1`(사용자 채택본). **L5 다.** ────────────────────────
+// 정체는 이렇다 — 한 픽셀도 안 바꾼다:
+//   · **위가 넓고 아래가 좁다** — 위에서 내려다본 깔때기
+//   · 높이:최대폭 ≈ 0.98:1 (거의 정사각). 길면 원근이 죽는다 → `K=.62`
+//   · 깊이를 **겉보기 크기**가 말한다 — 앞 1.58배 / 뒤 0.42배(`PER=.58`)
+//   · 반지름 아래 .30R → 위 1.45R · 눌림 아래 .22 → 위 .48
+//   · 그림체는 `FTvortex1` 계열(`FClobeP` 뭉게 + `FCink` 어두운 테 + 노랑→주황→재)
+//
+// ── 분해 가능한 축 (먼저 `FZvortex1` 을 읽고 뽑았다) ───────────────────────
+// 아래 열다섯이 **따로 켜고 끄고 키울 수 있는** 축이다. 괄호는 고정판의 값이다.
+//   ①  회오리 개수        `NV`   (2 — `FTvortSim` 이 `cy±0.17H` 에 둘을 뿌린다)
+//   ②  크기               `RK`   (1 — `RAD=33SC`. 궤도·바닥·심지·흡입이 다 여기 붙는다)
+//   ③  높이               `K`    (.62 — RISE = RAD·2·RT·K. **K 가 곧 높이:폭 비율**)
+//   ④  깔때기 벌어짐      `RT`   (1.45 — 아래 `RB`=.30 에서 위로 벌어지는 끝)
+//   ⑤  눌림(내려다보는 각) `SQT` (.48 — 아래 `SQB`=.22. 고리마다 각이 달라야 안 벽지다)
+//   ⑥  덩이 밀도          `NE`   (12 — 한 회오리에 얹힌 덩이 수)
+//   ⑦  원근 세기          `PER`  (.58 — 앞 1.58배·뒤 0.42배 = 한 덩이가 3.8배 변한다)
+//   ⑧  꼬리(지나온 자리)  `TAIL` (.07 — 궤도를 **보이게 하는** 몫. 0 이면 안 그린다)
+//   ⑨  심지               `wick` (1 — 기둥 속에서 솟는 `FCtongue` 둘)
+//   ⑩  바닥에 남는 것     `foot` (1 — `FTfoot` 눌린 자국 두 겹)
+//   ⑪  꼭대기에서 흩어짐  `spark`(20 — 초당 20개 `emit`, `g=-150SC` 라 위로 뜬다)
+//   ⑫  이동 여부          `MOVE` (1 — 초당 31·21SC 로 배회하며 벽에 튄다)
+//   ⑬  빨아들이는 반경    `SUCK` (1.5 — `d<RAD*1.5` 면 붙잡아 궤도에 얹는다)
+//   ⑭  식음 바닥          `CU0`  (0 — 덩이가 얼마나 달아 있나. 올리면 재 쪽으로 민다)
+//   ⑮  덩이 속 노랑       `yel`  (1 — `FZlump` 이 `cool<.55` 에 넣는 노란 심)
+//
+// ⚠️ **⑭ 는 세 안 다 0 으로 접었다(안 쓴다).** 낮은 칸을 「덜 달았다」로 만들려고
+// .10~.34 를 넣어 봤는데, 세 번의 렌더 판정 전부에서 **꼭대기 덩이만 갈색으로
+// 튀었다** — `FTcool` 이 .34 를 넘는 순간 주황에서 검붉음으로 넘어가고, 덩이가
+// 적은 낮은 칸에서는 그 갈색이 화면의 절반을 먹기 때문이다. 「덜 달았다」는
+// ⑮(노란 심 끄기)로만 말한다. 표에는 축을 남겨 두되 값은 전부 0 이다.
+//
+// ── 왜 셋이나 뽑나 ────────────────────────────────────────────────────────
+// **한 축을 다섯으로 써는 것은 성장이 아니라 슬라이더다.** 칸마다 **사건이 하나씩
+// 붙어야** 한다(뱀파이어 서바이버즈 문법). 그런데 「어느 축이 먼저 붙어야 하나」는
+// 미학 판단이라 하나만 내놓으면 판정할 것이 없다 — 화염방사(`FLconeA/B/C`)와 같은
+// 이유로 **서로 다른 성장축으로 셋**을 뽑고 판정은 사용자에게 넘긴다.
+//
+//   A 「불어난다」 — **개수와 사거리가 자란다.** 하나가 둘이 되고, 제자리에서
+//     돌던 것이 배회하고, 안 빨던 것이 빨아들인다. 셋 중 유일하게 **L4 까지
+//     회오리가 하나**다(정지 화면에서 제일 크게 갈린다).
+//   B 「벌어진다」 — **깔때기가 열린다.** 좁고 곧던 것이 위로 벌어지며 원근이
+//     생긴다. 셋 중 유일하게 **실루엣 자체가 칸마다 바뀐다**(RT .62→1.45).
+//   C 「짙어진다」 — **실루엣이 안 변한다.** 개수도 형상도 원근도 L1 부터
+//     완성돼 있고 **속만 찬다**(덩이 4→12 겹 + 칸마다 층이 하나씩).
+//
+// ⚠️ 셋 다 L1 은 **눈에 띄게 초라하다** — A 는 제자리에서 도는 작은 것 하나
+// (덩이 7 · 폭 57px), B 는 좁고 곧은 기둥 하나(폭 44px · 세로:가로 1.02),
+// C 는 속이 안 튼 낱덩이 여덟(폭 63px)이다. L5 는 셋 다 폭 90px·덩이 23 이다. 다만
+// **정체는 다섯 칸 내내 같다** — 셋 다 L1 에서 이미 위가 아래보다 넓고(A·C 는
+// 1.45R:.30R, B 도 .62R:.30R = 두 배), 그림체(`FClobeP`+`FCink`+ember 램프)는
+// 한 글자도 안 바뀐다. 여기서 더 줄이면 초라한 게 아니라 **다른 스킬**이 된다.
+//
+// ── 지킨 것 ───────────────────────────────────────────────────────────────
+// · 면으로 그린다(경로 채우기) · 이미지 0개 · `globalCompositeOperation` 직접
+//   호출 0회 · 색은 전부 `FCramp("ember")` 키에서 나온다(하드코딩 0)
+// · 성장은 `LV` 전역을 읽어 `[..][LV-1]` 로 갈라진다(`LVW`/`FL` 관례 그대로)
+// · **L5 = `FZvortex1`.** 셋 다 L5 에서 열다섯 축이 전부 고정판 값이고, 심지는
+//   `FZwick` 을, 바닥은 `FTfoot` 을 **그 함수 그대로** 부른다.
+//   ⭐ 증명은 상수 대조가 아니다 — 캔버스를 녹음기로 바꿔 같은 씨앗·같은 t 수열로
+//   `FZvortex1` 과 나란히 300프레임 돌린 결과 **그리기 호출 1,519,808개가 색·굵기
+//   까지 전부 일치**했다(`proof.js`). 셋 다 통과했다.
+// · 새로 쓴 다섯은 원시가 아니라 **호출부**다 — `FVsim`(`FTvortSim` 을 레벨로 연 것) ·
+//   `FVride`(`FZride` 를 연 것) · `FVwall`(`FZvortWall` 을 연 것) ·
+//   `FVlump`(`FZlump` 에 노랑 스위치 하나) · `FVdraw`.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// 단면·눌림 — `FZvorR`/`FZvorSq` 를 **모양 묶음을 받게** 연 것. 식은 같다.
+/// (고정판은 `FZVOR` 하나만 봤는데, B 안은 칸마다 다른 깔때기를 쓴다.)
+const FVvorR =(S,u)=>S.RB+(S.RT-S.RB)*Math.pow(u,S.PU);
+const FVvorSq=(S,u)=>S.SQB+(S.SQT-S.SQB)*u;
+/// 높이는 **최대 지름에서 파생시킨다** — `FZvorRise` 와 같은 식이라 `K` 를 안
+/// 건드리는 한 「높이:폭」이 어떤 칸에서도 0.98:1 로 유지된다.
+const FVvorRise=(RAD,S)=>RAD*2*S.RT*S.K;
+/// 벽 — `FZvortWall` 을 모양 묶음을 받게 연 것. 넓어진 꼭대기가 타일 밖으로
+/// 안 나가게 위쪽 벽이 `RT`·`SQT` 를 따라 같이 움직인다.
+function FVwall(v,RAD,RISE,W,H,S){
+  const MAR=RAD*(.55+S.RT*.80);
+  const TOP=Math.max(RISE+RAD*S.RT*S.SQT*1.15,H*.44), BOT=H*.74;
+  if(v.x<MAR||v.x>W-MAR){v.a=Math.PI-v.a;v.x=Math.min(W-MAR,Math.max(MAR,v.x));}
+  if(v.y<TOP||v.y>BOT){v.a=-v.a;v.y=Math.min(BOT,Math.max(TOP,v.y));}
+}
+
+/// `FTvortSim` 을 **레벨로 연 것**(`FLretSim` 이 `FTretSim` 에 한 것과 같다).
+/// 판정(붙잡힌 적을 초당 3.4rad 로 돌리기 · `hitFoe` 3SC · `mgBurn` .7 · 수명
+/// 3.2초)은 한 글자도 안 바꿨다 — 바뀌는 것은 **개수·크기·이동·흡입 반경**뿐이라
+/// 「같은 스킬이 자란다」가 성립한다.
+///
+/// ⚠️ `NV` 가 바뀌면 뿌리는 자리(`i/NV*TAU`)도 바뀐다. **L5 는 NV=2 라 고정판과
+/// 같은 수열**이고, 낮은 칸만 자리가 달라진다(어차피 하나뿐이라 비교 대상이 없다).
+function FVsim(st,t,dt,cx,cy,W,H,SC,O){
+  st.p=st.p||[];
+  mgInit(st,SC,FTVORT_F);stepFoes(st.F,dt);
+  const NV=O.NV,RAD=33*SC*O.RK,LIFE=3.2,MAR=RAD*1.2;
+  st.v=st.v||[];
+  while(st.v.length<NV){const i=(st.sq=(st.sq||0)+1);
+    const g=i/NV*TAU+hash(i*9.3);
+    st.v.push({x:cx+Math.cos(g)*W*.22,y:cy+Math.sin(g)*H*.17,
+      a:g+Math.PI*.5,l:0,rot:hash(i*7.7)*TAU});}
+  for(let i=st.v.length-1;i>=0;i--){const v=st.v[i];
+    v.l+=dt;v.rot+=dt*3.4;
+    // ⚠️ `O.MOVE` 는 **속도의 배수**다. 0 이면 제자리에서 돌기만 한다(=L1 의 사건).
+    v.x+=Math.cos(v.a)*31*SC*O.MOVE*dt;v.y+=Math.sin(v.a)*21*SC*O.MOVE*dt;
+    if(v.x<MAR||v.x>W-MAR){v.a=Math.PI-v.a;v.x=Math.min(W-MAR,Math.max(MAR,v.x));}
+    if(v.y<MAR||v.y>H-MAR){v.a=-v.a;v.y=Math.min(H-MAR,Math.max(MAR,v.y));}
+    if(v.l>LIFE){for(const f of st.F)if(f.cap===v)f.cap=null;st.v.splice(i,1);continue;}
+    if(O.SUCK>0)for(const f of st.F){if(f.cap&&f.cap!==v)continue;
+      const dx=v.x-(cx+f.ox),dy=v.y-(cy+f.oy),d=Math.hypot(dx,dy)||1;
+      if(!f.cap&&d<RAD*O.SUCK){f.cap=v;f.ca=Math.atan2(-dy,-dx);f.cr=d;}}}
+  for(const f of st.F){
+    if(f.cap){f.ca+=dt*3.4;f.cr+=(RAD*.8-f.cr)*dt*1.6;
+      f.ox=(f.cap.x-cx)+Math.cos(f.ca)*f.cr;
+      f.oy=(f.cap.y-cy)+Math.sin(f.ca)*f.cr*.55;
+      if(R()<dt*3.4){hitFoe(st,f,cx,cy,0,0,3*SC,"ember");mgBurn(f,.7);}}
+    else{f.ox+=(f.hx-f.ox)*Math.min(1,dt*1.1);f.oy+=(f.hy-f.oy)*Math.min(1,dt*1.1);}
+    if(f.pv>0)f.pv-=dt*.55;}
+  stepP(st,dt);
+  return {V:st.v,RAD,LIFE};
+}
+
+/// `FZride` 를 **레벨로 연 것.** 궤도의 식(도는 속도 t*.62 · 1.9바퀴 · 솟음 곡선
+/// pow(u,.62) · 페이드 f)은 한 글자도 안 바꿨다. 열린 것은 넷뿐이다:
+///   `NE` 덩이 수 · `TAIL` 꼬리 길이(0 이면 tx=x 라 `FZlump` 이 꼬리를 건너뛴다) ·
+///   `CU0` 식음 바닥 · `S` 깔때기 모양.
+/// ⚠️ **덩이 반지름 식 `.170+.155u` 은 안 열었다.** 이건 「위가 가까우니 덩이도
+/// 커야 한다」는 원근의 일부라, 칸마다 바꾸면 정체가 흔들린다. 크기는 `RK` 로
+/// **통째로** 키운다.
+function FVride(v,RAD,RISE,t,NE,S,O){
+  const L=[];
+  for(let i=0;i<NE;i++){
+    const u=((t*.62+i/NE)%1);
+    // ⭐ **바닥이 비던 원인 둘** (2026-08-13 사용자 지적: 「아랫부분이 좀
+    // 비어 있는 느낌」). 재 보니 그림이 아니라 **분포**의 문제였다:
+    //   ① 페이드인이 느리다 — `u*5` 라 아래 20% 구간이 반투명하게 흐려 있었다
+    //   ② 상승 곡선 `u^.62` 가 초반에 가파르다 — u=.2 면 벌써 높이 37%.
+    //
+    // ⚠️ **②를 지수로 고치면 안 된다.** 1 에 가깝게 폈더니 높이가 u 에 비례해
+    // 고르게 깔리면서 **깔때기가 사발이 됐다**(2026-08-13 사용자 판정:
+    // 「위에서 아래로 내려버리니까 회오리가 아니라 밥그릇 느낌」). 가파른
+    // 상승이 곧 회오리의 정체다 — 아래가 좁고 빠르게 솟는 것.
+    // 그래서 **모양은 그대로 두고 바닥에만 덩이를 더 넣는다**(`FOOTN`).
+    const f=Math.min(1,u*((O&&O.FIN)||5))*Math.min(1,(1-u)*3.2);
+    if(f<=.02)continue;
+    // ⭐ **갈래 수는 감는 바퀴 수다** (2026-08-13 사용자 지시: 「회오리 주변을
+    // 도는 선을 1개씩 더 추가해 줘 — 지금은 2개가 도는 것 같네?」 맞다).
+    // 덩이 하나가 바닥에서 꼭대기까지 `TW` 바퀴를 감으므로 실루엣에 보이는
+    // 갈래가 그 수만큼 선다 — 1.9 바퀴면 둘, 2.9 면 셋이다.
+    // ⚠️ 개수(`NE`)를 늘리는 것과 다르다. `NE` 는 **한 갈래의 굵기**를 바꾸고
+    // `TW` 는 **갈래 자체의 수**를 바꾼다. 사용자가 가리킨 것은 뒤쪽이다.
+    const TW=(O&&O.TW)||1.9;
+    const a=v.rot*.5+i*1.73+u*TW*TAU, r=RAD*FVvorR(S,u), sq=FVvorSq(S,u);
+    const u2=Math.max(0,u-((O&&O.TAIL)||0));
+    const a2=v.rot*.5+i*1.73+u2*TW*TAU, r2=RAD*FVvorR(S,u2), sq2=FVvorSq(S,u2);
+    L.push({x:v.x+Math.cos(a)*r,
+            y:v.y+Math.sin(a)*r*sq-Math.pow(u,(O&&O.RE)||.62)*RISE,
+            tx:v.x+Math.cos(a2)*r2,
+            ty:v.y+Math.sin(a2)*r2*sq2-Math.pow(u2,(O&&O.RE)||.62)*RISE,
+            s:Math.sin(a), u:u, f:f,
+            rb:RAD*(.170+.155*u)*((O&&O.RB)||1),
+            cu:((O&&O.CU0)||0)+u*.40,
+            rot:i*2.1+u*3.4,
+            sd:i*3.1+1.7});}
+  // 바닥 채움 — 위 궤도와 **같은 나선** 위에 낮은 u 만 골라 몇 개 더 얹는다.
+  // ⚠️ 새 자리를 만들지 않는다. `u` 를 0~.34 에 몰아 넣을 뿐이라 궤도가 안 흐려지고
+  // 「같은 회오리의 아랫도리가 굵어진 것」으로 읽힌다.
+  const FN=(O&&O.FOOTN)||0;
+  for(let i=0;i<FN;i++){
+    const u=((t*.62+i/FN)%1)*.34+.02;
+    const f=Math.min(1,u*9)*.92;
+    const TW2=(O&&O.TW)||1.9;
+    const a=v.rot*.5+i*2.39+u*TW2*TAU, r=RAD*FVvorR(S,u), sq=FVvorSq(S,u);
+    L.push({x:v.x+Math.cos(a)*r,
+            y:v.y+Math.sin(a)*r*sq-Math.pow(u,.62)*RISE,
+            tx:v.x+Math.cos(a)*r, ty:v.y+Math.sin(a)*r*sq-Math.pow(u,.62)*RISE,
+            s:Math.sin(a), u:u, f:f,
+            rb:RAD*(.150+.130*u)*((O&&O.RB)||1),
+            cu:((O&&O.CU0)||0)+u*.40,
+            rot:i*1.7+u*3.4, sd:i*4.7+9.1});}
+  return L;
+}
+
+/// 덩이 하나 — `FZlump` 을 **노란 심 스위치 하나만 달아** 옮겨 적은 것이다.
+/// 꼬리·윤곽·식음·심의 씨앗과 수치는 한 글자도 안 바꿨다.
+///
+/// ⚠️ 왜 그대로 안 부르나: C 안의 성장축이 「속이 달아오른다」인데, 그러려면
+/// 낮은 칸에서 **노랑을 꺼야** 한다. `FZlump` 은 그 노랑이 안에 박혀 있어
+/// 식음(`cool`)을 .55 위로 밀어야만 꺼지는데, 그러면 덩이가 통째로 재가 되어
+/// **흙덩이로 읽혔다**(2026-08-13 첫 렌더 판정 — C L1 이 갈색 뭉치였다).
+/// 그래서 「달아 있지만 아직 속이 안 텄다」를 표현할 자리가 필요하다.
+/// ⚠️ **`CU0` 는 어느 칸에서도 .15 를 못 넘긴다.** `cu = CU0 + u*.40` 이라
+/// .15 를 넘기면 꼭대기 덩이가 `FTlump` 의 .56 문턱을 넘어 `FCshell`(재)로
+/// 뒤집힌다 — 낮은 칸에서 회오리 윗부분만 갈색으로 튀는 사고가 그것이었다.
+/// ⚠️ `yel` 이 참일 때 이 함수는 `FZlump` 과 **그리기 호출까지 같다**
+/// (`proof.js` 가 300프레임 152만 호출을 대조해 확인했다).
+function FVlump(c,q,rr,cool,P,SC,a,yel){
+  if(!(rr>.6)||!(a>.02))return;
+  const dx=q.x-q.tx,dy=q.y-q.ty,L=Math.hypot(dx,dy);
+  if(L>1.6)FCneedle(c,q.tx,q.ty,Math.atan2(dy,dx),L*.88,rr*.34,
+    FTcool(P,Math.min(1,cool+.20)),P.ink,1.2*SC,a*.80);
+  FTlump(c,FClobeP(q.x,q.y,rr,5,q.sd,1,.78,q.rot),P,cool,Math.max(1.7*SC,rr*.22),a);
+  if(yel&&cool<.55)fillPoly(c,FClobeP(q.x,q.y-rr*.08,rr*.42,5,q.sd,1,.78,q.rot,.38),
+    A(mixHex(P.yel,P.lit,.28),a*(1-cool/.55)*.90));
+}
+
+/// 셋이 **한 몸**을 나눠 쓴다 — 화면에서 다른 것은 `O`(레벨 수치)뿐이라야
+/// 「어느 축이 나은가」가 재진다. 그리는 순서는 `FZvortex1` 그대로:
+/// 표식 → (회오리마다) 바닥 자국 → 심지 → 덩이(위=먼 것부터) → 불티 → 입자 → 몸.
+function FVdraw(c,t,dt,W,H,st,O){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const S=FVsim(st,t,dt,cx,cy,W,H,SC,O),P=FCramp("ember"),SH=O.SH;
+  const RISE=FVvorRise(S.RAD,SH);
+  mgMarks(c,t,cx,cy,st.F,"burn","ember",SC);
+  for(const v of S.V){
+    FVwall(v,S.RAD,RISE,W,H,SH);
+    const fade=Math.min(1,v.l/.3)*Math.min(1,(S.LIFE-v.l)/.4);
+    dep(c,v.y,cy,(c,dz)=>{const al=fade*dz;if(al<=.02)return;
+      if(O.foot)FTfoot(c,v,S.RAD,P,SC,al);
+      if(O.wick)FZwick(c,t,v,S.RAD,RISE,P,al,SC);
+      const L=FVride(v,S.RAD,RISE,t,O.NE,SH,O);
+      L.sort((a,b)=>b.u-a.u);                      // 위(먼 것)부터 — 깊이와 무관
+      for(const q of L)FVlump(c,q,q.rb*(1+O.PER*q.s),q.cu,P,SC,al*q.f,O.yel);});
+    if(O.spark&&R()<dt*O.spark)emit(st,v.x+(R()-.5)*S.RAD*2,v.y,1,
+      {k:"ember",sp:18*SC,r:2.4*SC,life:.7,g:-150*SC,spikeP:.2});}
+  drawP(c,st);hero(c,t,cx,cy);
+}
+
+// ── 깔때기 모양 ───────────────────────────────────────────────────────────
+// A·C 는 **다섯 칸 다 고정판 그대로**(`FZVOR`)라 실루엣이 안 변한다.
+// B 만 칸마다 다른 묶음을 쓰고, **L5 는 `FZVOR` 그 객체**를 참조한다 —
+// 값을 베껴 적으면 고정판이 바뀔 때 조용히 갈라진다.
+//
+// ⚠️ **`K` 로 높이를 되받는다** (2026-08-13 첫 렌더 판정으로 고친 것).
+// RISE = RAD·2·RT·K 라 `RT` 만 낮추면 높이도 같이 줄어 「좁아진다」가 아니라
+// 그냥 **작아진다**로 보였다 — A 안의 `RK`(크기) 축과 구별이 안 됐다.
+// 그래서 낮은 칸일수록 `K` 를 올려 **절대 높이를 붙들고 폭만 좁힌다**:
+//   RT .62·K 1.10 → 높이 1.36R · 폭 1.24R (세로:가로 1.10 — 좁은 기둥)
+//   RT 1.45·K .62 → 높이 1.80R · 폭 2.90R (세로:가로 0.62 — 내려다본 깔때기)
+// 높이는 1.36→1.80R(1.3배)인데 폭이 1.24→2.90R(2.3배)라 「벌어진다」가 산다.
+// ⚠️ 다만 L1 을 사용자가 반려했던 굴뚝(실측 1.55:1)까지는 안 늘였다 —
+// 1.10:1 에서 멈춘다. 반려된 그림을 L1 로 넣는 것은 성장표가 아니라 변명이다.
+// ⭐ **B 채택** (2026-08-13 사용자 판정: 「화염회오리 B·벌어진다로 하고 커지는
+// 폭을 좀 더 키워서 지금보다 **L5 일 때 1.5배 더 커진 느낌**으로」).
+//
+// ⚠️ 「1.5배」를 **꼭대기 반지름 ×1.5** 로 읽었다 — 이 안의 축이 「벌어진다」라
+// 커지는 곳은 **위**다. 높이까지 1.5배로 키우면 사용자가 직접 잡아 준 「위가
+// 넓고 아래가 좁아야 원근이 산다」가 도로 굴뚝이 된다.
+//   RT 1.45 → **2.18** (×1.50) · 아래 RB 는 .30 그대로 → 위아래 비 4.8 → **7.3**
+//   K 는 1.16 → **0.92** 로 낮춘다: 폭이 1.5배가 되면 높이를 그대로 두어도
+//   세로:가로가 저절로 납작해지는데, 그러면 깔때기가 접시가 된다. 높이를
+//   **폭이 는 만큼 다는 아니고 절반만** 따라 올려 비율을 지킨다
+//   SQT .48 → **.52** — 넓어진 꼭대기는 더 눌려야 「위에서 내려다본 고리」다
+//
+// ⚠️ **`FZVOR`(고정판)는 한 값도 안 건드린다** — 마법 28종 격자의 화염회오리와
+// 다른 안들의 L5 가 그걸 본다. B 만 제 만렙을 따로 든다.
+const FVSHB5={RB:.30,RT:2.18,PU:.55,SQB:.22,SQT:.52,K:.92};
+const FVSHB=[
+ {RB:.30,RT:.72, PU:.55,SQB:.22,SQT:.26,K:1.10},  // 좁고 곧다 — 아직 원근이 없다
+ {RB:.30,RT:.96, PU:.55,SQB:.22,SQT:.30,K:1.02},
+ {RB:.30,RT:1.34,PU:.55,SQB:.22,SQT:.38,K:.82},   // ⭐ 벌어진다
+ {RB:.30,RT:1.74,PU:.55,SQB:.22,SQT:.45,K:.72},
+ FVSHB5];
+
+// ── 안 A 「불어난다」 — 개수와 사거리가 자란다 ────────────────────────────
+// 칸마다 사건 하나:
+//   L1 제자리에서 도는 작은 것 하나 · L2 배회하며 훑고 심지가 선다 ·
+//   L3 빨아들인다(꼬리가 생겨 나선이 읽힌다) · L4 둘로 갈라진다 ·
+//   L5 꼭대기에서 불티가 흩어진다
+// ⚠️ `RK` 를 .64 → .70 으로 올렸다(2026-08-13 첫 렌더 판정): .64·NE 6 은 220px
+// 칸에서 **덩이 서넛짜리 부스러기**로 보여 「초라하다」가 아니라 「안 보인다」였다.
+const FVLA=[
+ {NV:1,RK:.70,NE:7, PER:.16,foot:1,wick:0,TAIL:0,  spark:0, MOVE:0,SUCK:0,  CU0:0,  yel:1,SH:FZVOR},
+ {NV:1,RK:.78,NE:8, PER:.27,foot:1,wick:1,TAIL:0,  spark:0, MOVE:1,SUCK:0,  CU0:0,  yel:1,SH:FZVOR},
+ {NV:1,RK:.86,NE:9, PER:.38,foot:1,wick:1,TAIL:.07,spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:1,SH:FZVOR},
+ {NV:2,RK:.93,NE:11,PER:.48,foot:1,wick:1,TAIL:.07,spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:1,SH:FZVOR},
+ {NV:2,RK:1,  NE:12,PER:.58,foot:1,wick:1,TAIL:.07,spark:20,MOVE:1,SUCK:1.5,CU0:0,  yel:1,SH:FZVOR}];
+// ── 안 B 「벌어진다」 — 깔때기가 열린다 ───────────────────────────────────
+//   L1 좁고 곧은 것 하나 · L2 둘이 된다(그리고 빨아들인다) ·
+//   L3 위가 벌어진다(RT .62→1.05, 심지가 선다) ·
+//   L4 위에서 내려다보게 된다(눌림이 갈리고 앞 덩이가 커진다) ·
+//   L5 꼭대기가 다 열리고 불티가 흩어진다
+// ⚠️ `RK` 는 거의 안 움직인다(.95 → 1). B 의 축은 **폭**이라 크기까지 같이
+// 키우면 A 와 구별이 안 된다 — 자라는 것은 오직 「얼마나 벌어졌나」다.
+// ⭐ **L4·L5 의 도는 불꽃을 늘렸다** (2026-08-13 사용자 지시: 「L4 와 L5 에서
+// 회오리가 돌아갈 때 **주변에 도는 불꽃과 바람 선의 양을 더 풍부하게**」).
+// `NE` 가 [FVride] 가 궤도에 얹는 덩이 수다 — 11 → 15 · 12 → 18.
+const FVLB=[
+ {NV:1,RK:.95,NE:7, PER:.10,foot:1,wick:0,TAIL:0,  spark:0, MOVE:1,SUCK:0,  CU0:0,  yel:1,SH:FVSHB[0]},
+ {NV:2,RK:.95,NE:7, PER:.10,foot:1,wick:0,TAIL:0,  spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:1,SH:FVSHB[1]},
+ {NV:2,RK:.96,NE:9, PER:.22,foot:1,wick:1,TAIL:0,  spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:1,FOOTN:4,SH:FVSHB[2]},
+ {NV:2,RK:.98,NE:17,PER:.40,foot:1,wick:1,TAIL:.07,spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:1,FOOTN:7,FIN:11,TW:2.4,RB:1.22,SH:FVSHB[3]},
+ {NV:2,RK:1,  NE:22,PER:.58,foot:1,wick:1,TAIL:.07,spark:20,MOVE:1,SUCK:1.5,CU0:0,  yel:1,FOOTN:10,FIN:14,TW:2.9,RB:1.42,SH:FVSHB[4]}];
+// ── 안 C 「짙어진다」 — 실루엣이 안 변한다 ────────────────────────────────
+// 개수(2)·형상(고정판)·원근(.58)이 **L1 부터 완성**돼 있고 속만 찬다:
+//   L1 성기고 속이 안 텄다(덩이 넷 · 노랑 0 · 바닥 자국 없음) ·
+//   L2 바닥에 자국이 남는다 · L3 속이 터진다(노랑 심이 든다) ·
+//   L4 심지가 서고 꼬리가 생긴다 · L5 불티가 흩어진다
+// ⚠️ 셋 중 **정지 화면에서 제일 덜 갈리는** 안이다(개수도 실루엣도 같으므로).
+// ⚠️ **「덜 달았다」를 식음으로 표현하려던 것을 접었다** (2026-08-13, 세 판).
+// `CU0` 를 .34 → .16 → .12 로 낮춰 가며 세 번 렌더했는데 매번 꼭대기 덩이가
+// **갈색 흙덩이**로 튀었다 — 초라한 게 아니라 다른 물질이 된다. 결국 0 으로
+// 접고 `yel`(노란 심)만 끈다. 색은 L5 와 **완전히 같고** 속만 안 텄다.
+const FVLC=[
+ {NV:2,RK:.86,NE:4, PER:.58,foot:0,wick:0,TAIL:0,  spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:0,SH:FZVOR},
+ {NV:2,RK:.90,NE:6, PER:.58,foot:1,wick:0,TAIL:0,  spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:0,SH:FZVOR},
+ {NV:2,RK:.94,NE:8, PER:.58,foot:1,wick:0,TAIL:0,  spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:1,SH:FZVOR},
+ {NV:2,RK:.97,NE:10,PER:.58,foot:1,wick:1,TAIL:.07,spark:0, MOVE:1,SUCK:1.5,CU0:0,  yel:1,SH:FZVOR},
+ {NV:2,RK:1,  NE:12,PER:.58,foot:1,wick:1,TAIL:.07,spark:20,MOVE:1,SUCK:1.5,CU0:0,  yel:1,SH:FZVOR}];
+
+Object.assign(FX,{
+FVvortA(c,t,dt,W,H,st){FVdraw(c,t,dt,W,H,st,FVLA[LV-1]);},
+FVvortB(c,t,dt,W,H,st){FVdraw(c,t,dt,W,H,st,FVLB[LV-1]);},
+FVvortC(c,t,dt,W,H,st){FVdraw(c,t,dt,W,H,st,FVLC[LV-1]);},
+});
+
+// ── 마운트 — `FL` 것들 **뒤에** 같은 호스트로 붙는다 ──────────────────────
+// ⚠️ `FLROWS` 에는 한 줄도 안 더했다(앞 손 블록이라 병합 충돌이 난다). 덩어리를
+// 따로 만들어 같은 `#fllv` 에 `appendChild` 하면 화면에서는 같은 표로 이어진다.
+// `.lvset` / `--block` 은 `FL` 이 이미 붙였어도 **같은 값이라 덮어써도 무해**하다
+// (호스트가 없어 `$("fv")` 로 떨어진 경우를 위해 여기서도 한 번 건다).
+{const HOST=MOUNT("levelsm");
+ const FVROWS=[
+ ["FVvortB","화염회오리 火旋","깔때기가 열린다 (RT .72 → 2.18)",[
+  "<b>좁고 곧다</b> — 위가 아래의 두 배밖에 안 벌어져 아직 기둥에 가깝다",
+  "<b>둘이 되고 빨아들인다</b> — 아직 좁지만 두 곳에서 적을 끌어당긴다",
+  "<b>위가 벌어진다</b> — 꼭대기가 1.05R 로 열리며 <b>깔때기</b>가 성립한다",
+  "<b>위에서 내려다보게 된다</b> — 눌림이 갈리고(.22→.43) 도는 덩이가 <b>17개로 굵어진다</b>",
+  "<b>다 열린다</b> — 꼭대기 2.18R · 도는 덩이 <b>22개에 1.42배</b> · 불티가 흩어진다"]]];
+ lvTable({host:HOST,rows:FVROWS,name:"FVcell"});}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BA — 마법 넷의 **레벨 곡선** 재조정 (접두 `BA`)                (2026-08-13)
+//      성역 sanctum · 파문 pulse · 낙광 lightfall · 뇌광 arc
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. `FX.sanctum`/`FX.pulse`/
+// `FX.lightfall`/`FX.arc` 는 한 글자도 안 건드렸고, 아래 것들은 전부 새 이름
+// (`BA…`)이다. 표에도 **원본 줄을 같이 깔아** 나란히 보고 고르게 한다.
+//
+// ── 사용자 판정 (2026-08-12 원문) ─────────────────────────────────────────
+//   성역 — L1 때 너무 넓고 화려함. 폭과 반경 더 줄이고 조금씩 넓어지는 형태로
+//   파문 — L1 때 너무 넓음. 반경과 파동을 의미 있게 확 줄이고, 조금씩 퍼져
+//          나가다가 L5 에서는 파동이 3번 (지금은 2번)
+//   낙광 — L1 때 너무 굵고 딜레이가 짧음 → 굵기를 줄이고, 타겟 지점이 깜빡거린
+//          뒤 발사를 좀 더 늦게. 딜레이와 쿨타임을 더 느리게
+//   뇌광 — L1 때 쿨타임이 너무 짧음
+//
+// ── 낱말 (2026-08-12 사용자 정의) ─────────────────────────────────────────
+//   딜레이   시전이 **시작되고 → 종료되기까지**
+//   쿨타임   마법이 **종료되고 → 다음 시전까지**
+//
+// ── 세 안을 뽑는 이유 ─────────────────────────────────────────────────────
+// 「너무 넓다」의 반대편에는 **「안 보인다」**가 있다. 그 경계는 미학 판단이라
+// 값 하나를 내놓으면 판정할 것이 없다. 그래서 **줄이는 폭만 다른 세 안**을 뽑고
+// (A 덜 줄임 · B 중간 · C 확 줄임) **성장 사건은 셋이 똑같이** 둔다 — 그래야
+// 다섯 칸을 볼 때 갈리는 것이 오직 「얼마나 줄였나」 하나가 된다.
+//
+// ⚠️ **L5 는 원본과 같다.** 넷 다 세 안이 L5 에서 같은 값으로 모이고, 그 값이
+// 원본 L5 값이다(파문의 파동 셋만 예외 — 사용자가 L5 를 명시로 바꿨다).
+//
+// ── 못 지킨 것 · 대가 (숨기지 않는다) ─────────────────────────────────────
+// ① **파문 L5 주기가 .567s → 1.384s (2.44배 느려진다).** 3연타를 「세 번 친다」로
+//    읽히게 하려면 세 파동이 시차를 두고 태어나야 하고, 그러면 시전 자체가
+//    1.124s 짜리가 된다. 초당 파동 통과 수는 3.53 → 2.17 (−39%) 다. 이건 그림이
+//    아니라 **밸런스 변경**이라 게임 쪽에서 다시 봐야 한다.
+// ② **적 배치를 바꿨다** — 성역 1마리, 파문 1마리 추가 + 1마리 이동. 반경을 확
+//    줄이면 **원본 배치에서는 아무도 안 맞아** 「초라하다」가 아니라 「고장났다」로
+//    보인다(성역 원본 최근접 적 69.8 · 파문 원본 최근접 62.4). 자세한 값은 아래
+//    각 절에. 원본 줄은 원본 배치 그대로라 **적 위치만은 A/B 대조가 안 된다.**
+// ③ **뇌광은 쿨타임만 건드렸다.** 사용자가 굵기·홉수를 말하지 않았다.
+//    L1 대기 .90s 동안 화면에 번개가 **아무것도 없다** — 의도한 초라함이지만
+//    「죽은 칸」으로 보일 위험이 있다. 판정은 사용자에게 넘긴다.
+// ④ 낙광 원본의 불일치(L4/L5 에서 기둥이 피격보다 .30s 먼저 뜨던 것)는
+//    BA 판에서 **없앴다** — 피격 시각 = 「고정」이 끝나는 순간으로 묶었다.
+//
+// ── 문법 ──────────────────────────────────────────────────────────────────
+// 새 원시함수 0개. `celHoop`/`celSpike`/`celBeam`/`celSplash`/`celPuff`/
+// `celRibbon`/`mkFoes`/`stepFoes`/`drawFoes`/`hitFoe`/`emit`/`stepP`/`drawP`/
+// `dep`/`hero`/`hash`/`TAU` 만 쓴다. `globalCompositeOperation` 직접 호출 0회.
+// 색은 `"gold"`(RECOLOR 훅) · `"frost"` · `"volt"` 키로만 받는다(하드코딩 0).
+//
+// ── 비용 (헤드리스 크롬 · 220px 칸 · 900프레임 실측 · 소프트웨어 렌더) ─────
+//   칸당 ms/frame       성역 원본 .232 → BA .190   파문 원본 .107 → BA .075
+//                       낙광 원본 .244 → BA .184   뇌광 원본 .068 → BA .061
+//   BA 96칸 합계 12.25 ms/frame (0.128 ms/칸)
+//   **넷 다 원본보다 싸다**(−10%~−30%). 당연하다 — 줄인 것이 곧 픽셀 면적이고,
+//   쿨타임은 아무것도 안 그리는 구간이다. 「화려함의 비용은 개수가 아니라 픽셀
+//   면적」이라는 이 레포의 판정과 같은 방향이다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BAL=()=>LV-1;                       // 사다리 첨자. `[..][LV-1]` 관례 그대로
+
+// ═══ 성역 ═════════════════════════════════════════════════════════════════
+//
+// ── 레벨 곡선 (전 → 후) ───────────────────────────────────────────────────
+//        원본  L1  L2  L3  L4  L5     BA-B  L1  L2  L3  L4  L5
+//   반경       84 109 109 109 109           52  70  86  99 109
+//   링 폭       7   7   7   7   7            4   5   6 6.5   7
+//   안쪽 링    있  있  있  있  있            —  있  있  있  있   ← 「2겹」이 L2 보상
+//   창 수      12  12  12  12  12            6   8   8  12  12
+//   서리결정    —   —   6   6   6            —   —   6   6   6  (원본 유지)
+//   틱(s)     .24 .24 .24 .15 .15          .24 .24 .24 .15 .15  (원본 유지)
+//   잔류링      —   —   —   —  있            —   —   —   —  있  (원본 유지)
+//
+// **성장 = 새 사건이 하나씩** — L2 안쪽 링(2겹 완성) · L3 서리결정 · L4 창 6→12
+// + 틱 .24→.15 · L5 잔류링. 세 안이 이 다섯을 똑같이 공유하고 **반경·폭만** 다르다.
+//
+// ⚠️ L1 「잉크 양」(링 둘레×폭 + 창 면적, px²) — 이게 「화려함」의 실측치다:
+//      원본 6045  ·  A 2400(−60%)  ·  B 1485(−75%)  ·  C 960(−84%)
+//
+// ⚠️ **「안 보인다」의 실측 경계 = 세로 반지름이 몸을 못 넘는 지점** (렌더 판정).
+// 링은 `squash .45` 라 세로 반지름이 `RR*.45` 다. 캐릭터 몸은 `jagPoly(17*b,…,
+// spikeMul 1.35)` 라 **반지름 24.1px** 까지 뻗는다. L1 세로 반지름:
+//      원본 37.8  ·  A 30.6  ·  B 23.4  ·  C 19.8      (몸 24.1)
+// 즉 **B 부터 링의 위아래가 몸에 물리고 C 는 통째로 몸 뒤로 들어간다.** 몸이
+// 나중에 그려지므로 「발밑의 좁은 테」로 읽힌다 — 고장은 아니지만 **여기가
+// 「반지 → 목걸이」로 성질이 바뀌는 선**이다. RR 55 아래로는 안 내려가는 것을
+// 권하지만, 「초라함」의 값은 사용자가 정한다.
+//
+// ⚠️ **적 하나를 안으로 옮겼다** — 원본 `[-54,20]`(포함반경 69.8) → `[-34,12]`(43.2).
+// 안 옮기면 C 의 L1(44) 은 물론 B 의 L1(52) 도 **아무도 안 문다**. 성역은 밟고 선
+// 적을 무는 스킬이라 아무도 안 물면 초라한 게 아니라 안 켜진 것으로 보인다.
+// 나머지 둘(75.1 · 120.6)은 원본 그대로 — 반경이 자라며 하나씩 편입되는 것이
+// 그대로 읽힌다. 레벨별로 **무는 적 수**(check.js 실측):
+//   A 1 2 2 2 2 · B 1 1 2 2 2 · C 1 1 2 2 2   (셋째 120.6 은 L5 에서도 안 들어온다)
+const BAsancFoe=[[48,-26,11],[-34,12,10],[12,54,9]];
+const BAsancSet={
+ A:{RR:[68,80,92,101,109], HW:[5,5.5,6,6.5,7],  SW:[3.4,3.8,4.2,4.6,5]},
+ B:{RR:[52,70,86,99,109],  HW:[4,5,6,6.5,7],    SW:[3,3.6,4.2,4.6,5]},
+ C:{RR:[44,62,81,97,109],  HW:[3,4,5,6,7],      SW:[2.6,3.2,3.9,4.5,5]}};
+const BAsancNSP =[6,8,8,12,12];           // 창 수 — L4 에 12 로(원본 값) 붙는다
+const BAsancTICK=[.24,.24,.24,.15,.15];   // 원본 그대로
+
+function BAsancDraw(c,t,dt,W,H,st,S){
+  const cx=W/2,cy=H/2,L=BAL();
+  st.F=st.F||mkFoes(BAsancFoe);stepFoes(st.F,dt);
+  st.tk=(st.tk||0)+dt;
+  const RR=S.RR[L],HW=S.HW[L],SW=S.SW[L],NSP=BAsancNSP[L],TICK=BAsancTICK[L];
+  if(st.tk>TICK){st.tk=0;for(const f of st.F)if(Math.hypot(f.ox,f.oy/.45)<RR){
+    hitFoe(st,f,cx,cy,0,0,0);
+    emit(st,cx+f.ox,cy+f.oy+8,3,{k:"gold",sp:26,r:2.6,life:.7,g:-90,spikeP:.2});}}
+  // 티끌도 **면적을 따라간다** — 작은 원에 원본과 같은 수를 뿌리면 밀도가
+  // 되레 올라 「작지만 더 화려한」 칸이 나온다(줄이는 목적과 반대).
+  if(R()<dt*22*(RR/109)){const a=R()*TAU,r=R()*RR;
+    emit(st,cx+Math.cos(a)*r,cy+Math.sin(a)*r*.45,1,
+      {k:"gold",sp:6,r:3,life:1,g:-70,spikeP:.15});}
+  stepP(st,dt);
+  if(atL(5))celHoop(c,cx,cy,RR*1.12,.45,0,3,"frost",.30);      // L5 잔류(원본)
+  celHoop(c,cx,cy,RR,.45,0,HW,"gold",.9);
+  // **2겹은 L2 의 보상이다.** 원본은 L1 부터 두 겹이라 「두꺼운 룬 링 2겹」이라는
+  // 정체가 첫 칸에서 이미 완성돼 있었다. 폭 비율(4/7)은 원본 그대로 유지한다.
+  if(atL(2))celHoop(c,cx,cy,RR*.66,.45,0,HW*(4/7),"gold",.65);
+  if(atL(3))for(let i=0;i<6;i++){const a=i/6*TAU-t*.35;        // L3 감속(원본)
+    const x=cx+Math.cos(a)*RR*.5,y=cy+Math.sin(a)*RR*.5*.45;
+    c.save();c.translate(x,y);c.rotate(t*.8+i);
+    const hr=6*RR/109;                     // 결정도 반경 따라 — 작은 링에 6px 은 혹이다
+    const hx=(rr,col)=>{c.beginPath();
+      for(let j=0;j<6;j++){const b2=j/6*TAU;
+        j?c.lineTo(Math.cos(b2)*rr,Math.sin(b2)*rr):c.moveTo(Math.cos(b2)*rr,Math.sin(b2)*rr);}
+      c.closePath();c.fillStyle=col;c.fill();};
+    hx(hr,A(TONE.frost[0],.9));hx(hr*.6,A(TONE.frost[2],1));c.restore();}
+  c.save();c.translate(cx,cy);c.scale(1,.45);c.rotate(t*.5);
+  for(let i=0;i<NSP;i++){const a=i/NSP*TAU;
+    celSpike(c,Math.cos(a)*RR*.8,Math.sin(a)*RR*.8,a,RR*.19,SW,"gold",.9);}
+  c.restore();
+  drawFoes(c,t,cx,cy,st.F);drawP(c,st);hero(c,t,cx,cy);}
+
+// ═══ 파문 ═════════════════════════════════════════════════════════════════
+//
+// ── 파동 셋의 **배역** — 「같은 것을 세 번」을 피하는 지점 ─────────────────
+// 세 파동이 **태어나는 때 · 속도 · 폭 · 최대반경 · 넉백** 다섯에서 전부 갈린다.
+//
+//   배역   태어남  속도   폭     최대반경    넉백   읽히는 것
+//   선파   +0.00  245  0.50×   0.92×PMAX    34   먼저 지나가는 얇고 빠른 경고
+//   본파   +0.13  195  1.00×   1.00×PMAX    56   가운데를 잡는 본체(원본 속도 그대로)
+//   종파   +0.26  118  1.34×   0.76×PMAX    84   느리고 굵게, 짧게 밀어내는 망치
+//
+// ⚠️ **셋이 동시에 보이는 창이 있어야 「3연타」다.** 시차만 두면 앞의 것이 죽고
+// 나서 뒤가 나와 그냥 「세 번 반복」이 된다. 태어나는 때(0/.13/.26)와 수명을
+// 맞춰 **0.26s ~ 0.514s 의 0.254초(15프레임) 동안 셋이 함께 떠 있게** 잡았다.
+//   L5·PMAX150 · t=0.40s 의 세 반경 = 110.0 · 64.7 · 28.5
+//   → 고리 사이가 45px · 36px 벌어져 있다. 220px 칸에서 절대 안 뭉친다.
+//   (수명: 선파 0.514s · 본파 .13+0.708 · 종파 .26+0.864 = 1.124s)
+//
+//   L1~L3 = 본파 하나 · L4 = 선파+본파(원본 L4 「2중 파문」) · L5 = 셋.
+//   **새 사건이 하나씩 붙는다**는 규칙 그대로다.
+// ⚠️ 원본 L4 의 둘째 파동은 속도 310 · 폭 .55× 였다. 선파는 245 · .50× 로
+//    조금 느리고 얇다 — 310 이면 L5 에서 종파가 나오기도 전에 죽어 셋이 절대
+//    안 겹친다. **L4 가 바뀐 유일한 지점**이고, 사건(2중 파문)은 그대로다.
+//
+// ── 레벨 곡선 (전 → 후) ───────────────────────────────────────────────────
+//        원본  L1  L2  L3  L4  L5     BA-B  L1  L2  L3  L4  L5
+//   최대반경 120 150 150 150 150           70  90 110 130 150
+//   링 폭     12  12  16  16  16            7   9 11.5 14  16
+//   파동 수    1   1   1   2   2            1   1   1   2   3
+//   창 수     10  10  10  10  10            6   7   8  10  10
+//   창 길이   18  18  18  18  18           10  12  14  16  18
+//   딜레이(s).554 .708 .708 .708 .708      .297 .400 .503 .735 1.124
+//   쿨타임(s).013 -.14 -.14 -.14 -.14      .400 .360 .320 .300 .260
+//   주기(s)  .567 .567 .567 .567 .567      .697 .760 .823 1.035 1.384
+//   ⚠️ 원본은 L2 부터 쿨타임이 **음수**다 — 앞 파동이 안 죽었는데 다음이 나간다.
+//      BA 판은 주기 = 딜레이 + 쿨타임으로 묶어 **한 발씩 끊어 보이게** 했다.
+//
+// ⚠️ **적 하나 추가 + 하나 이동.** 원본 넷은 거리가 62.4~68.4 로 **다 같은 띠**에
+// 몰려 있어, 반경이 얼마든 「전부 맞거나 전혀 안 맞거나」였다. 사다리로 흩어
+// 놓으면 **반경이 곧 「몇 마리를 쓸었나」로 읽힌다**:
+//   41.2 (신규) · 66.5 (원본) · 68.4 (원본) · 73.3 (원본 `[-12,64]`→`[-14,72]`)
+//   C L1(52) 1마리 · B L1(70) 3마리 · A L1(96) 4마리 · 전 안 L5(150) 4마리
+const BApulseFoe=[[38,-16,10],[62,-24,11],[-54,-42,10],[-14,72,9]];
+const BAwMain =Object.freeze({d:.00,sp:195,wm:1.00,rm:1.00,kb:56});  // L1~L3 단독
+const BAwMain2=Object.freeze({d:.13,sp:195,wm:1.00,rm:1.00,kb:56});  // 선파 뒤로 밀림
+const BAwHer  =Object.freeze({d:.00,sp:245,wm:.50,rm:.92,kb:34});
+const BAwTail =Object.freeze({d:.26,sp:118,wm:1.34,rm:.76,kb:84});
+const BApulseSet=[[BAwMain],[BAwMain],[BAwMain],[BAwHer,BAwMain2],[BAwHer,BAwMain2,BAwTail]];
+const BApulseVar={
+ A:{PMAX:[96,110,124,138,150], PW:[10,11.5,13,14.5,16]},
+ B:{PMAX:[70,90,110,130,150],  PW:[7,9,11.5,14,16]},
+ C:{PMAX:[52,76,100,126,150],  PW:[5,7.5,10,13,16]}};
+const BApulseNSP=[6,7,8,10,10], BApulseSPL=[10,12,14,16,18], BApulseSPW=[3,3.5,4,4.5,5];
+const BApulseCD =[.40,.36,.32,.30,.26];
+/// 딜레이 = 마지막 파동이 죽는 시각. **표에 적은 숫자를 코드가 다시 계산한다** —
+/// 상수로 박아 두면 사다리를 고칠 때 표와 코드가 조용히 갈라진다.
+const BApulseDelay=(SET,PMAX)=>SET.reduce((m,w)=>Math.max(m,w.d+(PMAX*w.rm-12)/w.sp),0);
+
+function BApulseDraw(c,t,dt,W,H,st,S){
+  const cx=W/2,cy=H/2,L=BAL();
+  st.F=st.F||mkFoes(BApulseFoe);stepFoes(st.F,dt);
+  const PMAX=S.PMAX[L],PW=S.PW[L],SET=BApulseSet[L];
+  const NSP=BApulseNSP[L],SPL=BApulseSPL[L],SPW=BApulseSPW[L];
+  const PER=BApulseDelay(SET,PMAX)+BApulseCD[L];
+  st.r=st.r||[];st.T=(st.T||0)+dt;st.fired=st.fired||0;
+  if(st.T>=PER){st.T-=PER;st.fired=0;}
+  for(let i=0;i<SET.length;i++)
+    if(st.T>=SET[i].d&&!(st.fired&(1<<i))){st.fired|=(1<<i);
+      st.r.push({R:12,hit:new Set(),w:SET[i]});}
+  for(let i=st.r.length-1;i>=0;i--){const q=st.r[i],pr=q.R;q.R+=q.w.sp*dt;
+    st.F.forEach((f,k)=>{const d=Math.hypot(f.ox+f.kx,f.oy+f.ky);
+      if(!q.hit.has(k)&&pr<d&&q.R>=d){q.hit.add(k);const D=d||1;
+        hitFoe(st,f,cx,cy,(f.ox+f.kx)/D,(f.oy+f.ky)/D,q.w.kb);}});
+    if(q.R>PMAX*q.w.rm)st.r.splice(i,1);}
+  stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
+  if(atL(5))celHoop(c,cx,cy,PMAX,1,0,4,"frost",.30);           // L5 감속 지대(원본)
+  for(const q of st.r){const f=Math.max(0,1-q.R/(PMAX*q.w.rm));
+    celHoop(c,cx,cy,q.R,1,0,PW*q.w.wm*f+1.5,"gold",f);
+    for(let i=0;i<NSP;i++){const a=i/NSP*TAU+q.R*.01;
+      celSpike(c,cx+Math.cos(a)*q.R,cy+Math.sin(a)*q.R,a,
+        SPL*q.w.wm*f,SPW*q.w.wm*f,"gold",f*.9);}}
+  drawP(c,st);hero(c,t,cx,cy);}
+
+// ═══ 낙광 ═════════════════════════════════════════════════════════════════
+//
+// ── 「깜빡임」은 **새 사건이 아니다** — 원본에 이미 있다 ────────────────────
+// 원본 `if(s.u<TELE)` 안의 `bl=.25+.6*|sin(p*13)|` 가 그것이고, L1 기준
+// **0.90초에 4.1번**(4.6 blink/s) 깜빡인다. 사용자가 못 봤다면 이유는 둘이다:
+//   ① 등속이라 「점점 다가온다」는 정보가 없다 — 언제 떨어지는지 못 읽는다
+//   ② 예고가 끝나는 순간과 기둥이 오는 순간 사이에 **아무 표시가 없다**
+//      (L4/L5 는 되레 기둥이 피격보다 .30s 먼저 떠 예고가 무의미했다)
+//
+// 그래서 BA 판이 새로 넣는 것은 깜빡임이 아니라 **「고정」 구간**이다:
+//
+//   ① 깜빡임 TELE   링이 깜빡인다. 주파수가 **B0 → 2·B0 로 가속**한다
+//                   (자동차 깜빡이 → 부저. 「아직 시간 있다 / 곧 온다」)
+//   ② 고정   LOCK   **깜빡임이 멎고** 링이 꽉 찬다 + 바깥 조준링이 1.55r→1.0r
+//                   로 좁혀 든다. 「지금 나간다」 — 피할 마지막 순간
+//   ③ 기둥   FALL   고정이 끝나는 **그 프레임에 피격**. 기둥이 내려와 사그라진다
+//   ④ 쿨타임 CD     아무것도 안 그린다
+//
+// ── 초 단위 표 (한 낙하 지점 기준. 지점 4개는 주기의 26% 씩 어긋나 돈다) ──
+//        원본  L1   L2   L3   L4   L5      BA   L1   L2   L3   L4   L5
+//   깜빡임(s)  .90  .90  .90  .60  .60         1.05  .96  .86  .62  .56
+//   고정(s)      —    —    —    —    —          .30  .28  .26  .20  .18
+//   경고 합(s) .90  .90  .90  .60  .60         1.35 1.24 1.12  .82  .74
+//   기둥(s)   1.10 1.10 1.10 1.40 1.40          .78  .80  .84  .90 1.10
+//   딜레이(s) 2.00 2.00 2.00 2.00 2.00         2.13 2.04 1.96 1.72 1.84
+//   쿨타임(s)  .00  .00  .00  .00  .00          .62  .54  .46  .36  .16
+//   주기(s)   2.00 2.00 2.00 2.00 2.00         2.75 2.58 2.42 2.08 2.00
+//   깜빡 횟수  4.1  4.1  4.1  4.1  4.1          4.7  4.6  4.4  3.7  3.9
+//   깜빡 속도  4.6  4.6  4.6  6.9  6.9      3.0→6.0 / 3.2→6.4 / 3.4→6.8 /
+//   (회/초)                                  4.0→8.0 / 4.6→9.2
+//   ⚠️ 원본은 **등속**이라 「곧 온다」가 없다. BA 는 예고 안에서 두 배로 가속한다
+//      — 이게 「깜빡거린 뒤 발사」를 **읽히게** 만드는 실제 장치다.
+//   기둥 굵기   17   17   17   17   17    (A) 10 11.8 13.5 15.3   17
+//                                        (B) 7.5  10 12.3 14.7   17
+//                                        (C)   5    8   11   14   17
+//   예고링 반경 28   28   28   28   28          20   22   24   26   28
+//   착탄 반경   30   30   30   30   30          18   21   24   27   30
+//   낙하 지점    3    4    4    4    4           3    4    4    4    4  (원본 유지)
+//
+// ⚠️ **「굵기 −71%」는 파라미터 얘기지 화면 얘기가 아니다** (렌더 판정에서 잡았다).
+// `celBeam` 에 들어가는 값은 `굵기*f + 3` 이고 그 `+3` 이 바닥이라, 실제로
+// 그려지는 심지 폭(=2w)은 이렇게 준다:
+//   L1 최대 심지폭  원본 40px · A 26px(−35%) · B 21px(−47%) · C 16px(−60%)
+// `+3` 은 원본 상수라 안 건드렸다(건드리면 L5 가 바뀐다). 표의 −41/−56/−71% 는
+// **파라미터** 감소율이고, 눈에 보이는 감소율은 위 −35/−47/−60% 다.
+//
+// ⚠️ 정지 화면으로 굵기를 비교하면 **틀린다.** 주기가 안마다 달라 같은 t 에서
+// 감쇠(f)가 다르기 때문이다 — t=1.40s 실측에서 A 의 심지(12.2)가 원본(10.7)보다
+// **되레 굵게** 나왔다(원본은 이미 45% 사그라든 시점). 굵기 판정은 **최대치**로
+// 하거나 움직이는 화면에서 해야 한다.
+//
+// ⚠️ **L5 주기 2.00s 는 원본과 같다.** 낮은 칸일수록 느려지고, L4 의 「예고 단축」
+// (원본 성장표 문구)이 그대로 살아 있다 — 경고가 1.35s 에서 .74s 로 줄어든다.
+// ⚠️ 굵기는 세 안이 갈리고 **시간표는 셋이 공유한다** — 「굵기를 얼마나 줄일까」
+// 하나만 묻기 위해서다.
+const BAfallFoe=[[-50,-26,11],[44,-54,10],[16,38,9]];   // 원본 그대로
+const BAfallT=[[1.05,.30,.78,.62],[.96,.28,.80,.54],[.86,.26,.84,.46],
+               [.62,.20,.90,.36],[.56,.18,1.10,.16]];   // TELE · LOCK · FALL · CD
+const BAfallB0  =[1.5,1.6,1.7,2.0,2.3];   // 깜빡임 시작 주파수(Hz). 끝에서 2배가 된다
+const BAfallRING=[20,22,24,26,28], BAfallSPL=[18,21,24,27,30], BAfallN=[3,4,4,4,4];
+const BAfallVar={A:[10,11.8,13.5,15.3,17],B:[7.5,10,12.3,14.7,17],C:[5,8,11,14,17]};
+const BAfallBIGR=60/28, BAfallBIGW=42/17;  // L5 거대 기둥의 배율 — 원본 비율 그대로
+
+function BAfallDraw(c,t,dt,W,H,st,WID){
+  const cx=W/2,cy=H/2,L=BAL();
+  st.F=st.F||mkFoes(BAfallFoe);stepFoes(st.F,dt);
+  const TE=BAfallT[L][0],LK=BAfallT[L][1],FA=BAfallT[L][2],CD=BAfallT[L][3];
+  const PER=TE+LK+FA+CD,HIT=TE+LK,N=BAfallN[L];
+  const BW=WID[L],RING=BAfallRING[L],SPL=BAfallSPL[L],B0=BAfallB0[L];
+  st.s=st.s||Array.from({length:4},(_,k)=>({f:st.F[k%st.F.length],u:0,i:k}));
+  // 주기가 레벨마다 달라 위상 간격도 같이 움직인다(원본의 `k*.26` 을 초로 옮긴 것).
+  if(st.per!==PER){st.per=PER;for(const s of st.s)s.u=(s.i*PER*.26)%PER;}
+  for(let si=0;si<N;si++){const s=st.s[si],pu=s.u;s.u=(s.u+dt)%PER;
+    // **피격 시각 = 고정이 끝나는 그 프레임.** 원본은 여기가 `.45` 로 박혀 있어
+    // L4/L5 에서 기둥이 피격보다 .30s 먼저 떴다 — 예고가 거짓말이 되던 자리다.
+    if(pu<HIT&&s.u>=HIT){hitFoe(st,s.f,cx,cy,0,1,10);
+      emit(st,cx+s.f.ox,cy+s.f.oy,18,{k:"gold",sp:220,r:3,life:.5,spikeP:.6});}}
+  stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
+  for(let si=0;si<N;si++){const s=st.s[si],big=atL(5)&&si===0;
+    const x=cx+s.f.ox,y=cy+s.f.oy,u=s.u;
+    const rr=RING*(big?BAfallBIGR:1),bw=BW*(big?BAfallBIGW:1),hw=big?7:4;
+    dep(c,y,cy,(c,dz)=>{
+      if(u<TE){                                  // ① 깜빡임 — 뒤로 갈수록 빨라진다
+        const p=u/TE,ph=TAU*B0*TE*(p+.5*p*p);
+        celHoop(c,x,y,rr,.42,0,hw,"gold",(.20+.72*Math.abs(Math.sin(ph)))*dz);}
+      else if(u<HIT){                            // ② 고정 — 안 깜빡이고 조준이 좁는다
+        const q=(u-TE)/LK;
+        celHoop(c,x,y,rr,.42,0,hw,"gold",dz);
+        celHoop(c,x,y,rr*(1.55-.55*q),.42,0,hw*.6,"gold",(.35+.55*q)*dz);}
+      else if(u<HIT+FA){                         // ③ 기둥
+        const p=(u-HIT)/FA,f=Math.pow(1-p,1.3)*dz;
+        celBeam(c,x,-10,x,y,bw*f+3,"gold",f);
+        if(atL(3))celPuff(c,x,y,20*f+6,8,si*7+3,"gold",f);   // L3 착탄 소폭발(원본)
+        celSplash(c,x,y,SPL*f,10,s.i*5+3,"gold",f);}
+      // ④ 쿨타임 — **아무것도 안 그린다.** 이 빈자리가 곧 「끝났다」는 신호다
+    });}
+  drawP(c,st);hero(c,t,cx,cy);}
+
+// ═══ 뇌광 ═════════════════════════════════════════════════════════════════
+//
+// **쿨타임만 건드린다.** 사용자가 말한 것이 그것 하나다 — 굵기(9)·홉수·분기·회귀는
+// 원본 값 그대로다. 원본은 **연타 간격과 대기 간격이 같은 `.3`** 이라 레벨이 올라도
+// 「끊기는 맛」이 안 바뀌었다. 둘을 갈라 **연타 간격 .30 은 고정**하고 대기만 민다.
+//
+// ── 초 단위 표 ────────────────────────────────────────────────────────────
+//              L1    L2    L3    L4    L5
+//   홉 수       2     3     3     4     4   (원본 유지)
+//   딜레이     .60   .90   .90  1.20  1.20  (= 홉수 × .30. 원본과 같다)
+//   쿨타임 원본 .30   .30   .30   .30   .30
+//          A   .60   .48   .42   .34   .30
+//          B   .90   .60   .60   .30   .30   ← 주기가 1.50s 로 **딱 고정**된다
+//          C  1.35   .95   .80   .42   .30
+//   주기   원본 .90  1.20  1.20  1.50  1.50
+//          A  1.20  1.38  1.32  1.54  1.50
+//          B  1.50  1.50  1.50  1.50  1.50
+//          C  1.95  1.85  1.70  1.62  1.50
+//
+// **B 가 말하는 것**: 박자는 처음부터 끝까지 1.50초로 같고, 레벨이 오를수록
+// 그 안에서 **치는 시간이 늘고 쉬는 시간이 준다**(.60/.90 → 1.20/.30).
+// 셋 다 L5 쿨타임 .30 = 원본이라 **L5 는 원본과 완전히 같다.**
+//
+// ⚠️ **L1 은 1.50초 중 .90초가 빈 화면이다.** 의도한 초라함이지만 「죽은 칸」으로
+// 읽힐 수 있다 — 채우려면 사건을 새로 만들어야 하는데 사용자가 요청하지 않았다.
+const BAarcFoe=[[48,-52,11],[-32,-72,10],[-64,4,10],[28,50,9]];   // 원본 그대로
+const BAarcHOP=.30;                                                // 연타 간격 — 고정
+const BAarcVar={A:[.60,.48,.42,.34,.30],B:[.90,.60,.60,.30,.30],C:[1.35,.95,.80,.42,.30]};
+
+function BAarcDraw(c,t,dt,W,H,st,IDLE){
+  const cx=W/2,cy=H/2;
+  st.F=st.F||mkFoes(BAarcFoe);stepFoes(st.F,dt);
+  st.acc=(st.acc||0)+dt;st.h=st.h===undefined?-1:st.h;
+  const HOPS=Math.min(st.F.length,[2,3,3,4,4][LV-1]);
+  // **대기(h<0) 와 연타(h>=0) 가 서로 다른 시계를 쓴다.** 원본은 여기가 한 값이었다.
+  if(st.acc>(st.h<0?IDLE[BAL()]:BAarcHOP)){st.acc=0;st.h++;if(st.h>=HOPS)st.h=-1;
+    if(st.h>=0)hitFoe(st,st.F[st.h],cx,cy,0,0,7,"volt");}
+  stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
+  const pts=[[0,0],...st.F.map(f=>[f.ox+f.kx,f.oy+f.ky])];
+  for(let i=0;i<=st.h;i++){const a=pts[i],b=pts[i+1];if(!b)break;
+    const al=i===st.h?1:.42,seed=i*29+((t*20)|0);
+    const P=[],N=7;
+    for(let s=0;s<=N;s++){const p=s/N;
+      let nx=cx+a[0]+(b[0]-a[0])*p,ny=cy+a[1]+(b[1]-a[1])*p;
+      if(s>0&&s<N){let dx=-(b[1]-a[1]),dy=(b[0]-a[0]);const D=Math.hypot(dx,dy)||1;
+        const j=(hash(seed+s*13.7)-.5)*24;nx+=dx/D*j;ny+=dy/D*j;}
+      P.push([nx,ny]);}
+    dep(c,cy+b[1],cy,(c,dz)=>celRibbon(c,P,9*al,"volt",al*dz));}
+  if(atL(3)&&st.h>=1){const a=pts[1],b2=st.F[Math.min(3,st.F.length-1)];   // L3 분기
+    const P=[],N=7,seed=97+((t*20)|0);
+    for(let s2=0;s2<=N;s2++){const q=s2/N;
+      let nx=cx+a[0]+(b2.ox-a[0])*q,ny=cy+a[1]+(b2.oy-a[1])*q;
+      if(s2>0&&s2<N){let dx=-(b2.oy-a[1]),dy=(b2.ox-a[0]);const D=Math.hypot(dx,dy)||1;
+        const j=(hash(seed+s2*13.7)-.5)*20;nx+=dx/D*j;ny+=dy/D*j;}
+      P.push([nx,ny]);}
+    celRibbon(c,P,6,"volt",.7);}
+  if(atL(5)&&st.h>=HOPS-1){const a=pts[HOPS];                              // L5 회귀
+    celRibbon(c,[[cx+a[0],cy+a[1]],[cx+a[0]*.5,cy+a[1]*.5-14],[cx,cy]],5,"volt",.65);}
+  if(st.h>=0){const f=st.F[st.h];celSplash(c,cx+f.ox,cy+f.oy,20,9,st.h*3,"volt",.95);}
+  drawP(c,st);hero(c,t,cx,cy);}
+
+// ── 등록 ──────────────────────────────────────────────────────────────────
+Object.assign(FX,{
+BAsanctumA(c,t,dt,W,H,st){BAsancDraw (c,t,dt,W,H,st,BAsancSet.A);},
+BAsanctumB(c,t,dt,W,H,st){BAsancDraw (c,t,dt,W,H,st,BAsancSet.B);},
+BAsanctumC(c,t,dt,W,H,st){BAsancDraw (c,t,dt,W,H,st,BAsancSet.C);},
+BApulseA  (c,t,dt,W,H,st){BApulseDraw(c,t,dt,W,H,st,BApulseVar.A);},
+BApulseB  (c,t,dt,W,H,st){BApulseDraw(c,t,dt,W,H,st,BApulseVar.B);},
+BApulseC  (c,t,dt,W,H,st){BApulseDraw(c,t,dt,W,H,st,BApulseVar.C);},
+BAlightfallA(c,t,dt,W,H,st){BAfallDraw(c,t,dt,W,H,st,BAfallVar.A);},
+BAlightfallB(c,t,dt,W,H,st){BAfallDraw(c,t,dt,W,H,st,BAfallVar.B);},
+BAlightfallC(c,t,dt,W,H,st){BAfallDraw(c,t,dt,W,H,st,BAfallVar.C);},
+BAarcA    (c,t,dt,W,H,st){BAarcDraw  (c,t,dt,W,H,st,BAarcVar.A);},
+BAarcB    (c,t,dt,W,H,st){BAarcDraw  (c,t,dt,W,H,st,BAarcVar.B);},
+BAarcC    (c,t,dt,W,H,st){BAarcDraw  (c,t,dt,W,H,st,BAarcVar.C);},
+});
+
+// ── 마운트 ────────────────────────────────────────────────────────────────
+// ⚠️ **껐다**(2026-08-13). 판정이 끝나 고르기 페이지에 남을 이유가 없다 —
+// 성역 A · 파문 C · 낙광 C 가 원본 [FX.sanctum] · [FX.pulse] · [FX.lightfall]
+// 로 이식됐다. 위의 그림 함수와 등록(`FX.BA*` 12종)은 **그대로 남는다** —
+// 다시 나란히 놓고 싶으면 줄만 조립하면 된다(조립 코드는 12cc171 에 있다).
+// 이 블록이 물던 호스트는 `#ba`(mockup-pick.html) 였다 — 96칸 · 20줄.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BB — 넷의 **개수·범위 곡선** 재조정                            (2026-08-13)
+//
+// 대상 넷: 광주 `FX.pillar` · 감염 `MGFX.mgPoisonSpread` ·
+//          기폭 `MGFX.mgNovaDetonate` · 분열 `MGFX.mgNovaSplit`
+//
+// **원본은 한 줄도 안 고친다.** 여기 있는 것은 전부 새 이름(BB*)이고 원본과
+// 나란히 같은 호스트에 붙는다. 버릴지 살릴지는 화면을 보고 사용자가 정한다.
+//
+// ── 이 블록이 붙잡고 있는 한 가지 규칙 ────────────────────────────────────
+// **L5 를 고정점으로 두고 L1 을 끌어내린 뒤 사이를 등차로 채운다.**
+// 사용자 반려의 절반이 「L1 때 너무 넓다/굵다」이므로 고칠 것은 바닥이지
+// 천장이 아니다. 지시가 L5 를 명시한 축(광주 개수 3→7 · 기폭 겹 3→11 ·
+// 분열 쿨타임 · 분열 마디 반경)만 L5 가 움직인다.
+//
+// ⚠️ **미학 판정은 여기서 안 한다.** 축마다 L1 을 세 값(A·B·C)으로 뽑아
+// 나란히 놓았다. 「너무 넓다」의 반대는 「안 보인다」라, 어디가 경계인지는
+// 픽셀을 보는 쪽이 정해야 한다.
+//
+// ── 2026-08-13 재배치 — 낱칸 43개를 **계열 덩어리**로 묶었다 ──────────────
+// 사용자 판정: 「광주 · 감염 · 기폭 · 분열은 레벨 단위로 떨어뜨려 놔서 보기가
+// 힘드네. 세트끼리 묶어 줘.」 **그림은 한 획도 안 바뀌었다** — `tile()` 낱칸을
+// [lvTable] 덩어리로 옮겨 담았을 뿐이고, 칸은 43 그대로다. 아래 「붙이기」 참조.
+// ═══════════════════════════════════════════════════════════════════════════
+{
+const BBHOST=MOUNT("bb");
+
+const BBFX={};
+let BBn=0;
+
+/// ⭐ **한 줄 = 「[그림, 레벨, 칸설명]」 목록.**                   (2026-08-13)
+///
+/// [lvTable] 은 칸 번호를 전역 `LV` 에 넣어 넘긴다. 여기서는 그 값을 **칸 번호로만**
+/// 읽고, 진짜 레벨은 목록에서 꺼내 `LV` 에 다시 넣는다. 그래서 한 줄 안에서
+/// 「원본 L1 · A L1 · C L1 · 원본 L5」처럼 **함수와 레벨을 섞을 수 있다** —
+/// 이게 없으면 대조 줄이 다시 낱칸 넷으로 흩어진다.
+///
+/// ⚠️ 그리기 함수(`BBpillarDraw`·`BBspreadDraw`·`BBdetonateDraw`·`BBsplitDraw`
+/// 와 그 매개변수표)는 **한 글자도 안 고쳤다.** 이 블록에서 2026-08-13 에 바뀐
+/// 것은 **배치뿐**이다.
+const BBseries=(key,cells)=>{
+  BBFX[key]=function(c,t,dt,W,H,st){
+    const e=cells[LV-1]||cells[cells.length-1];
+    const sl=LV;LV=e[1];
+    try{e[0](c,t,dt,W,H,st);}finally{LV=sl;}};
+  return key;};
+
+/// 덩어리 한 줄을 붙인다. **마크업은 한 줄도 손으로 안 짠다** — `.lvset` 충돌
+/// (사고 A)·격자 전폭(사고 B)·유령 호스트(사고 C)를 [lvTable] 이 구조적으로 막고,
+/// `#bb` 가 `.grid` 라 껍데기도 거기서 끼워 준다. 호스트가 없으면 0 을 돌려주고
+/// 조용히 넘어간다(예전 `tile(null,…)` 은 던졌다).
+///
+/// · `cell:238` — 낱칸 때와 **같은 그리는 크기**다. `SC=min(W,H)/238` 이 1 로
+///   유지되므로 그림이 커지지도 작아지지도 않는다(기본값 `LVD`=220 이면 8% 커진다).
+/// · `label` — 칸이 진짜 L1~L5 인 **성장 줄만** `"L"` 이다. 함수를 섞은 대조 줄은
+///   `"안"`(1 안·2 안…) 이다. 거기에 「L2」라고 찍으면 그 칸은 원본 L5 인데
+///   레벨 2 라고 **거짓말을 하는 표**가 된다.
+/// · 열 수는 안 넘긴다 — [lvTable] 이 칸설명 개수로 잰다(줄마다 2·3·4·5 로 다르다).
+///
+/// ⚠️ **줄마다 폭 상한을 다시 잡는다** — 안 잡으면 짧은 줄의 칸이 부풀어 오른다.
+/// `.lvblock` 은 `--blockmax`(=`LVC*5+4`, 다섯 칸 기준) 까지 넓어지고 칸은
+/// `1fr` 로 그 폭을 나눠 갖는다. 그래서 **두 칸짜리 줄이 칸을 두 배로 키운다** —
+/// 2026-08-13 렌더에서 기폭 D 줄의 칸이 다섯 칸 줄(≈150px)의 **2.5배(≈377px)** 로
+/// 나왔다. 칸 폭을 줄 길이와 무관하게 하려면 상한도 칸 수에 비례해야 한다.
+/// 껍데기가 아니라 **그 줄에만** 건다(모바일은 `max-width:none` 이라 안 걸린다).
+const BBrow=(nm,sub,label,tone,cells)=>{
+  const made=lvTable({
+    host:BBHOST,reg:BBFX,cell:238,name:"BBcell",label,tone,
+    rows:[[BBseries("BB"+(BBn++)+"_"+nm.replace(/[^A-Za-z0-9]/g,""),cells),
+           nm,sub,cells.map(x=>x[2])]]});
+  const w=BBHOST&&BBHOST.__lv,ch=w&&w.children;
+  if(made&&ch&&ch.length)
+    ch[ch.length-1].style.setProperty("--blockmax",(LVC*cells.length+4)+"px");
+  return made;};
+
+// ═══ 1. 광주 — 여섯이 도는 것을 셋으로. 개수·반경·굵기가 같이 자란다 ═══════
+//
+// 사용자 판정: 「범위가 넓고 광주가 주변에서 6개가 돌아가는데 갯수를 3개까지
+// 줄인다. 레벨업을 하며 광주의 갯수가 1개씩 늘어나는 형태. 범위와 광주 객체의
+// 굵기도 두꺼워진다」
+//
+// ── 세 축을 동시에 키워도 L5 가 안 터지는 이유 ────────────────────────────
+// 세 축 중 **면적을 만드는 것은 둘뿐**이다:
+//   · 개수 NP  — 그리는 기둥의 개수. 면적에 **곱**으로 들어간다
+//   · 굵기 WID — 기둥 하나의 폭. 면적에 **곱**으로 들어간다
+//   · 반경 RR  — 기둥이 **어디에** 서는가. 기둥 크기와 무관하므로
+//                면적 예산에 **안 들어간다**(배치만 바꾼다)
+// 그래서 실제 화면 면적은 NP×WID 하나뿐이고, 그 값의 L5 를 **현재값에 못 박아**
+// 두면 세 축을 다 키워도 L5 는 지금보다 세지지 않는다.
+//   현재  L1 6×12=72 · L5 8×12=96
+//   BB    L1 3×5 =15 · L5 7×12=84   ← L5 는 현재의 0.88배(개수 −1), L1 은 0.21배
+// 「초라한 L1」은 천장을 올려서가 아니라 **바닥을 내려서** 만든다.
+//
+// ── 축마다 L1 바닥을 정한 근거 ────────────────────────────────────────────
+// · 개수 3 — 사용자가 못 박음. 등차 +1 (3·4·5·6·7). 동시에 화면에 보이는
+//   개수는 그 절반(솟는 구간이 주기의 1/2)이라 1.5개 → 3.5개.
+// · 반경 — L5 94 는 현재값 그대로. L1 바닥은 **몸 반지름 17 의 3.2~3.9배**에서
+//   고른다. 이보다 줄이면 기둥이 몸에 겹쳐 「내 발밑에서 솟는 것」이 되고,
+//   광주의 정체(**주변에서** 솟는다)가 깨진다.
+// · 굵기 — L5 12 는 현재값 그대로. L1 바닥은 `celBeam` 이 3단 계조를 유지하는
+//   최소폭에서 고른다: celBeam 은 심선을 `w*.16` 로 긋는다. w=4 면 0.64px 라
+//   계조 한 단이 1픽셀 아래로 무너지고, w=5 면 0.8px, w=6.5 면 1.04px 다.
+//   **어디부터 「굵기가 자란다」로 읽히는지는 픽셀을 봐야 안다** — A·B·C.
+//
+// ── 원본에서 같이 고친 것(버그) ───────────────────────────────────────────
+// 원본은 슬롯을 **8칸으로 고정**해 두고 L1 에서 앞 6칸만 쓴다. 각도가
+// `i/8*TAU` 라 L1 은 **3/8 바퀴가 통째로 빈다** — 여섯이 고르게 도는 것이
+// 아니라 한쪽만 도는 것이다. 개수를 3까지 내리면 이게 「부채꼴 셋」이 되어
+// 못 봐 준다. BB 는 각도를 `i/NP*TAU` 로 개수에서 파생한다.
+//
+// ── ⚠️ 「셋」이 화면에서 몇으로 보이나 — 렌더로 알아낸 것 ──────────────────
+// 원본은 주기의 **절반만** 기둥을 그린다(`u>.5` 면 건너뛴다). 개수가 여섯일
+// 때는 그래도 서넛이 늘 서 있어 「돌아간다」로 읽히는데, **셋으로 줄이면
+// 화면에 한 개만 남는 순간이 생긴다**(2026-08-13 렌더에서 실제로 그랬다).
+// 그러면 그건 광주가 아니라 낙광이다. 그래서 **위상·듀티를 갈래로 남긴다**:
+//   even/.5  — 위상 i/NP · 듀티 .5. 한 개씩 차례로. 가장 초라하다
+//   even/1   — 위상 i/NP · 듀티 1.0. **늘 셋이 서 있고** 높이가 서로 다르다
+//   orig/.5  — 위상 i*.13(원본) · 듀티 .5. 셋이 같이 솟고 같이 꺼진다
+// 이건 미학 판정이라 수치로 못 정한다 — 셋을 나란히 놓고 사용자가 고른다.
+function BBpillarDraw(c,t,dt,W,H,st,P){
+  const cx=W/2,cy=H/2;
+  st.F=st.F||mkFoes([[64,-16,10],[-60,-20,10],[0,-76,9],[24,58,9]]);stepFoes(st.F,dt);
+  const NP=P.NP[LV-1],RR=P.RR[LV-1],WID=P.WID[LV-1];
+  // 굵기 배율 — 밑동 고리·꼭대기 갈퀴·경직 고리가 기둥과 **같이** 자란다.
+  // 기둥만 굵히면 밑동이 그대로라 「기둥이 고리를 뚫고 나온 것」으로 보인다.
+  const GS=WID/12;
+  // 타격 반경도 굵기를 따라간다 — 그림과 판정이 갈리면 안 된다.
+  const HITR=18+1.05*WID;
+  const DUTY=P.DUTY||.5, EVEN=P.PHS!=="orig";
+  if(!st.s||st.np!==NP){st.np=NP;
+    st.s=Array.from({length:NP},(_,i)=>({a:i/NP*TAU-Math.PI/2,u:EVEN?i/NP:i*.13,i}));}
+  for(let si=0;si<NP;si++){const s=st.s[si];const pu=s.u;s.u=(s.u+dt*.78)%1;
+    if(pu<.06&&s.u>=.06){const px=Math.cos(s.a)*RR,py=Math.sin(s.a)*RR*.5;
+      for(const f of st.F)if(Math.hypot(f.ox-px,f.oy-py)<HITR)hitFoe(st,f,cx,cy,0,-1,14);
+      emit(st,cx+px,cy+py,10,{k:"gold",sp:70,r:3,life:.55,g:120,spikeP:.5});}}
+  stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
+  for(let si=0;si<NP;si++){const s=st.s[si];if(s.u>DUTY)continue;
+    const p=s.u/DUTY,h=92*Math.sin(p*Math.PI),f=Math.sin(p*Math.PI);
+    const x=cx+Math.cos(s.a)*RR,y=cy+Math.sin(s.a)*RR*.5;
+    dep(c,y,cy,(c,dz)=>{const g=f*dz;
+    if(atL(3))celHoop(c,x,y,20*GS,.4,0,3*GS,"volt",g*.8);
+    if(atL(5)&&p>.68)celBeam(c,x,y,x,y-h*.42,6*GS,"gold",g*.7);
+    celBeam(c,x,y,x,y-h*.82,WID*f+2*GS,"gold",g);
+    celHoop(c,x,y,28*GS*(1+p*.5),.4,0,5*GS,"gold",g*.9);
+    beamEnd(c,t+s.i*.7,x,y-h*.84,-Math.PI/2,(30*f+8)*GS,"gold",g,-1);});}
+  drawP(c,st);hero(c,t,cx,cy);}
+
+// 개수는 세 안이 같다(사용자가 못 박은 값). 갈리는 것은 **바닥의 깊이**다.
+const BBpNP=[3,4,5,6,7];
+const BBpillarP={
+  // A — 가장 깊게 판다. L1 반경 52(몸의 3.1배) · 굵기 4
+  A:{NP:BBpNP,RR:[52,63,74,84,94],WID:[4,6,8,10,12]},
+  // B — 중간. L1 반경 58(3.4배) · 굵기 5
+  B:{NP:BBpNP,RR:[58,67,76,85,94],WID:[5,6.75,8.5,10.25,12]},
+  // C — 얕게. L1 반경 66(3.9배) · 굵기 6.5
+  C:{NP:BBpNP,RR:[66,73,80,87,94],WID:[6.5,8,9.4,10.7,12]}};
+// 위상·듀티 갈래 — 굵기·반경은 B 로 고정하고 **「셋이 몇으로 보이나」만** 가른다.
+const BBpillarB1=Object.assign({},BBpillarP.B,{DUTY:1.0});
+const BBpillarBo=Object.assign({},BBpillarP.B,{PHS:"orig"});
+const BBpillar=P=>((c,t,dt,W,H,st)=>BBpillarDraw(c,t,dt,W,H,st,P));
+
+// ═══ 2. 감염 — 반경도 줄이고 「독이 지속되는 시간」도 줄인다 ═══════════════
+//
+// 사용자 판정: 「옮는 범위가 L1 때 너무 넓음. 반경도 줄이고, 독이 지속되는
+// 시간도 줄인다」
+//
+// ⚠️ **「지속 시간」이라는 축이 원본에 없다.** 원본의 감염은 한 번 걸리면
+// 판이 씻길 때까지 **영영 안 낫는다**(`st.inf[i]` 가 계속 는다). 줄이려면
+// 먼저 만들어야 한다 — BB 는 `DUR`(감염 지속, 초)을 넣는다. 시간이 다하면
+// 그 적은 낫고, **파문도 멎는다.** 그래서 이 축은 곧 「역병이 얼마나 멀리까지
+// 살아서 기어가느냐」가 된다. 화면에서 이게 감염의 새 성장축이다.
+//
+// ── 「안 보인다」의 경계 — 수치로 ─────────────────────────────────────────
+// 파문은 주기 PER(1.25s)에 반경 RR 까지 간다. 거리 d 의 이웃은
+//   t_hop = PER × d / RR   (겹이 둘이면 빠른 쪽이 1.55배라 t_hop/1.55)
+// 에 물든다. **DUR < t_hop 이면 파문이 이웃에 닿기 전에 낫는다 — 아무 데도
+// 안 옮고, 감염은 「그냥 한 마리가 아픈 스킬」이 된다.** 이게 바닥이다.
+//
+// 시안의 적 배치를 BB 가 다시 깐다. 원본 배치는 이웃 간격이 65.3~76.5 라
+// **원본 L1 반경 78 에 맞춰져 있다**(간격 최댓값 76.5 ≈ 78). 반경만 줄이면
+// 사슬이 끊겨 「첫 하나만 감염된 채 멈춘 칸」이 되는데, 그건 밸런스가 아니라
+// 시안의 사고다(원본 주석이 이미 같은 사고를 기록해 두었다). 그래서 링을
+// 같이 조인다 — 반지름 53~58 의 육각 사슬:
+//   이웃 간격  53.7 ~ 56.9   (최댓값 56.9 가 사슬의 병목)
+//   한 칸 건너 92.7 ~ 100.1  (L5 반경 96 에서 **절반쯤만** 건너뛴다)
+//
+//   안   L1반경  DUR   t_hop(L1)  여유
+//   A     60     1.8    1.19s     1.51배   ← 가장 좁고 가장 짧다
+//   B     66     2.2    1.08s     2.04배
+//   C     72     2.6    0.99s     2.63배   ← 현재(78)에 가장 가깝다
+//
+// L5 는 반경 96(현재값 그대로)·DUR 5.4~6.2. L5 에서 전원이 **동시에** 감염된
+// 상태가 실제로 생겨야 각성(SYNC)이 발동하는데, 겹이 둘인 L5 의 전파 깊이는
+// 3홉 × 0.48s ≈ 1.44s 라 DUR 이 그보다 훨씬 길다 — 발동한다.
+// L2~L4 에서는 앞이 낫는 동안 뒤가 물드는 **기어가는 역병**이 된다.
+function BBspreadDraw(c,t,dt,W,H,st,P){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  // 육각 사슬 — 각도(도)·반지름. 이웃 간격 53.7~56.9 로 좁혀 놓았다.
+  st.F=st.F||mkFoes([[0,57],[61,53],[120,58],[181,54],[240,57],[300,54]]
+    .map(v=>[Math.cos(v[0]*Math.PI/180)*v[1]*SC,
+             Math.sin(v[0]*Math.PI/180)*v[1]*SC,(v[0]%120?9.5:10.5)*SC]));
+  stepFoes(st.F,dt);
+  const RR=P.RR[LV-1]*SC,DUR=P.DUR[LV-1];
+  const WAVE=atL(3)?2:1,GHOST=atL(4),SYNC=atL(5),PER=1.25;
+  if(!st.inf||st.ik!==LV){st.ik=LV;st.inf=st.F.map(()=>-1);st.had=st.F.map(()=>0);
+    st.g=[];st.rest=0;st.bang=0;}
+  if(st.inf.every(v=>v<0)&&!st.had.every(v=>v))
+    for(let i=0;i<st.inf.length;i++)if(!st.had[i]){st.inf[i]=0;st.had[i]=1;break;}
+  // 지속이 다하면 낫는다 — **파문도 멎는다.** 이게 줄이는 쪽의 전부다.
+  for(let i=0;i<st.inf.length;i++)if(st.inf[i]>=0){st.inf[i]+=dt;
+    if(st.inf[i]>DUR)st.inf[i]=-1;}
+  for(const g of st.g)g.age+=dt;
+  const wave=(age)=>{const out=[];
+    for(let w=0;w<WAVE;w++)out.push(((age*(1+w*.55))%PER)/PER);
+    return out;};
+  const catchUp=(sx,sy,age)=>{
+    for(const ph of wave(age)){const r=RR*ph;
+      for(let j=0;j<st.F.length;j++){if(st.inf[j]>=0||st.had[j])continue;
+        if(Math.abs(Math.hypot(st.F[j].ox-sx,st.F[j].oy-sy)-r)<9*SC){
+          st.inf[j]=0;st.had[j]=1;}}}};
+  for(let i=0;i<st.F.length;i++)if(st.inf[i]>=0)catchUp(st.F[i].ox,st.F[i].oy,st.inf[i]);
+  for(const g of st.g)catchUp(g.x,g.y,g.age);
+  // L4 — 발원지가 자리에 남는다. **자리에는 지속이 없다** — 적이 없어져도
+  // 계속 퍼뜨리는 것이 이 레벨의 사건이므로, 지속을 여기까지 물리면 사건이 죽는다.
+  // ⚠️ 상한 검사는 **루프 조건에** 둔다. 원본처럼 바깥에서 한 번만 보면 한
+  // 프레임에 여섯이 한꺼번에 들어와 상한 2 가 안 지켜진다.
+  if(GHOST)for(let i=0;i<st.F.length&&st.g.length<2;i++)
+    if(st.inf[i]>DUR*.55&&!st.F[i].gh){st.F[i].gh=1;
+      st.g.push({x:st.F[i].ox,y:st.F[i].oy,age:0});}
+  st.tk=(st.tk||0)+dt;
+  if(st.tk>.55){st.tk=0;for(let i=0;i<st.F.length;i++)if(st.inf[i]>=0)
+    hitFoe(st,st.F[i],cx,cy,0,0,3*SC,"toxin");}
+  for(let i=0;i<st.F.length;i++)if(st.inf[i]>=0)st.F[i].pv=1;
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  // L5 각성 — **지금 동시에** 전부 물들어 있는 순간에만 터진다.
+  const now=st.inf.every(v=>v>=0),ever=st.had.every(v=>v);
+  if(SYNC&&now&&!st.bang){st.bang=1;st.flash=1.2;
+    for(const f of st.F){const d=Math.hypot(f.ox,f.oy)||1;
+      hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,52*SC,"toxin");
+      emit(st,cx+f.ox,cy+f.oy,12,{k:"toxin",sp:190*SC,r:3*SC,life:.55,spikeP:.6});}}
+  st.flash=Math.max(0,(st.flash||0)-dt);
+  // 판 씻기 — **전부 한 번씩 물들었고 지금은 아무도 안 아플 때.** 지속이
+  // 생겼으므로 「전부 동시 감염」을 기다리면 낮은 레벨은 영영 안 씻긴다.
+  // ⚠️ **발원지가 남아 있어도 씻는다.** 잔류를 기다리면 L4·L5 의 한 바퀴가
+  // 10초를 넘어 시안이 「멈춘 칸」으로 보인다(2026-08-13 trace 로 확인).
+  if(ever&&st.inf.every(v=>v<0))st.rest+=dt;
+  if(st.rest>(SYNC?1.0:.6)){st.rest=0;st.bang=0;st.g=[];
+    st.inf=st.F.map(()=>-1);st.had=st.F.map(()=>0);for(const f of st.F)f.gh=0;}
+  // 발원지 자리는 한 주기만 산다 — 안 그러면 판이 영영 안 씻긴다.
+  for(let i=st.g.length-1;i>=0;i--)if(st.g[i].age>DUR)st.g.splice(i,1);
+  stepP(st,dt);
+  const ring=(sx,sy,age,mul)=>{for(const ph of wave(age))
+    celHoop(c,cx+sx,cy+sy,Math.max(2*SC,RR*ph),.62,0,(4.2*(1-ph)+1.2)*SC,
+      "toxin",(1-ph)*.8*mul);};
+  for(let i=0;i<st.F.length;i++)if(st.inf[i]>=0)ring(st.F[i].ox,st.F[i].oy,st.inf[i],1);
+  for(const g of st.g){ring(g.x,g.y,g.age,.8);
+    celHoop(c,cx+g.x,cy+g.y,14*SC,.62,0,3*SC,"toxin",.8);
+    for(let k=0;k<3;k++)
+      celSpike(c,cx+g.x,cy+g.y,k/3*TAU-t*1.3,19*SC,6*SC,"toxin",.9);}
+  const mark=(L)=>{for(const f of st.F)if(f.pv>0)
+    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"poison",f.pv,t,"toxin",SC,L);};
+  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
+  // **지속이 얼마나 남았나**를 몸에 두른다. 안 그리면 「왜 갑자기 나았나」가
+  // 사고로 보이고, 줄인 축이 화면에서 아예 안 읽힌다.
+  for(let i=0;i<st.F.length;i++){if(st.inf[i]<0)continue;
+    const f=st.F[i],u=1-st.inf[i]/DUR;
+    celHoop(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r+7*SC,1,-Math.PI/2,2.2*SC,"toxin",
+      .85,Math.PI*(1-u));}
+  if(st.flash>0){const g=st.flash/1.2;
+    for(const f of st.F)
+      celHoop(c,cx+f.ox+f.kx,cy+f.oy+f.ky,Math.max(2*SC,f.r*(1+3.4*(1-g))),
+        1,0,(6*g+1)*SC,"toxin",g*.95);
+    c.save();c.globalCompositeOperation="lighter";
+    c.fillStyle=A(TONE.toxin[1],.14*g);c.fillRect(0,0,W,H);c.restore();}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);}
+
+const BBspreadP={
+  A:{RR:[60,69,78,87,96],DUR:[1.8,2.6,3.4,4.4,5.4]},
+  B:{RR:[66,73,81,88,96],DUR:[2.2,3.0,3.8,4.8,5.8]},
+  C:{RR:[72,78,84,90,96],DUR:[2.6,3.4,4.2,5.2,6.2]}};
+const BBspread=P=>((c,t,dt,W,H,st)=>BBspreadDraw(c,t,dt,W,H,st,P));
+
+// ═══ 3. 기폭 — 겹 상한 3·5·7·9·11, 그리고 터질 때까지의 딜레이 ════════════
+//
+// 사용자 판정: 「최대 설치할 수 있는 폭탄 수 줄임, 터질 때까지의 딜레이도
+// 늘림 — (3, 5, 7, 9, 11개)」
+//
+// 3·5·7·9·11 은 **못 박힌 값**이라 그대로 쓴다. 원본은 [3,4,4,4,4] 였으므로
+// L1 은 그대로고 L2~L5 가 는다 — 즉 이 축에서 「L1 을 초라하게」는 이미
+// 끝나 있고, BB 가 할 일은 **늘어난 상한이 화면을 덮지 않게** 하는 것이다.
+//
+// ── 딜레이를 얼마나 늘리나 — 초 단위 근거 ─────────────────────────────────
+// 상한이 11 인데 딜레이가 짧으면 **상한이 뜻을 잃는다**(3겹 쌓고 터지는 것을
+// 열한 번 반복하는 것과 같다). 그래서 딜레이는 「상한이 차는 데 걸리는 시간」
+// 위에 서야 한다. BB 는 쌓는 간격을 딜레이에서 **파생**시킨다:
+//
+//     쌓는 간격 = 딜레이 × 0.75 ÷ 상한
+//     → 어느 레벨에서도 **주기의 3/4 지점에서 상한이 찬다.**
+//       「가득 찬 것을 잠깐 보고 → 터진다」가 레벨과 무관하게 유지된다.
+//
+//   안   딜레이(초)                      L1 쌓는 간격 → L5
+//   A   4.4 4.9 5.4 5.9 6.4  (+0.5/lv)   1.10s → 0.44s
+//   B   4.6 5.3 6.0 6.7 7.4  (+0.7/lv)   1.15s → 0.50s
+//   C   5.0 5.9 6.8 7.7 8.6  (+0.9/lv)   1.25s → 0.59s
+//   D   4.6 4.6 4.2 3.4 2.6  (내려감)     1.15s → 0.18s   ← 아래 설명
+//
+// 원본은 4.0 / 4.0 / 4.0 / 2.6 / 2.6 이었다. A~C 는 L1 이 4.0→4.4~5.0 으로
+// **늘고**(사용자 지시대로) 레벨이 오를수록 더 는다.
+//
+// ⚠️ **못 지킨 것 — 기존 L4 사건과 충돌한다.** 성장표는 L4 를 「심지가 두 줄 —
+// 주기 4.0 → 2.6s」로 적어 두었다. 딜레이가 레벨과 함께 **늘면** 그 문장은
+// 거짓이 된다. 둘 다 지킬 수는 없어서 갈래를 남겼다:
+//   A·B·C = 사용자 지시(딜레이 증가). L4 문구는 다시 써야 한다
+//   D      = 기존 L4 사건 보존(딜레이 감소). L1 만 4.0→4.6 으로 늘린다
+// D 의 L5 딜레이 2.6s 에 상한 11 을 채우려면 0.18s 마다 쌓아야 해서
+// **겹이 눈으로 세어지지 않는다**(0.18s = 11프레임). 그 대가를 볼 수 있게
+// D 도 나란히 놓았다.
+//
+// ── 겹이 화면을 안 덮게 ───────────────────────────────────────────────────
+// 원본은 겹을 각도 0.5rad 간격으로 깐다. 상한 11 이면 5.0rad(=286°)라 적
+// 한 마리를 겹이 통째로 감싸 「겹」이 아니라 「고리」로 보인다. BB 는
+// **부채 폭을 3.6rad 로 고정**하고 간격을 상한에서 파생시킨다 — 상한이
+// 높을수록 겹이 촘촘해진다(= 상한이 높다는 것이 밀도로 읽힌다).
+// 알갱이 크기도 상한에 반비례로 줄인다(하한 0.62배).
+//
+// ⚠️ 넉백 상한. 피해식이 `14+16n` 이라 n=11 이면 190 이고, `hitFoe` 는 이
+// 값을 그대로 좌표 오프셋으로 쓴다 — 적이 238 칸 밖으로 날아간다. 그림이
+// 규칙에 대해 거짓말을 하지 않도록 **넉백만** 84 로 막는다(원본 L5 최대 78).
+// 피해 자체는 겹에 비례해 계속 는다.
+function BBdetonateDraw(c,t,dt,W,H,st,P){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  st.F=st.F||mkFoes([[74,-44,11],[-70,-28,10],[22,68,10],[-38,58,9],[68,34,9]]
+    .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+  stepFoes(st.F,dt);
+  const CAP=[3,5,7,9,11][LV-1],PER=P.PER[LV-1],PRIME=atL(3),KEEP1=atL(5);
+  const STK=PER*.75/CAP;                 // 주기의 3/4 에 상한이 찬다
+  st.ac=(st.ac||0)+dt;st.st=(st.st||0)+dt;
+  for(const f of st.F)if(f.pr>0)f.pr-=dt;
+  if(st.st>STK){st.st=0;
+    for(const f of st.F){f.stk=Math.min(CAP,(f.stk||0)+((PRIME&&f.pr>0)?2:1));f.pv=1;}}
+  if(st.ac>PER){st.ac=0;
+    for(const f of st.F){const n=f.stk||0;if(!n)continue;
+      const d=Math.hypot(f.ox,f.oy)||1,pow=Math.min(84,14+16*n);
+      hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,pow*SC,"numb");
+      emit(st,cx+f.ox,cy+f.oy,5+Math.min(16,4*n),
+        {k:"numb",sp:(120+40*Math.min(n,6))*SC,r:3*SC,life:.5,spikeP:.6});
+      f.stk=(KEEP1&&n>=CAP)?1:0;
+      if(PRIME)f.pr=1.1;}
+    st.bo=.5;}
+  st.bo=Math.max(0,(st.bo||0)-dt);
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  const mark=(L)=>{for(const f of st.F)if(f.pv>0)
+    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"curse",f.pv,t,"numb",SC,L);};
+  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
+  // 겹 — 부채 폭 고정, 간격은 상한에서 파생. 빈 칸도 그린다(상한이 보여야 한다).
+  // 간격은 **원본(0.5rad)을 상한으로** 두고 상한이 커질 때만 좁아진다 —
+  // 낮은 레벨의 그림이 이유 없이 바뀌면 안 된다.
+  const SPAN=3.6,GAP=CAP>1?Math.min(.5,SPAN/(CAP-1)):0,
+        PIP=Math.min(1,Math.max(.62,5.5/CAP));
+  for(const f of st.F){const n=f.stk||0,x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+    for(let i=0;i<CAP;i++){const a=-Math.PI/2+(i-(CAP-1)/2)*GAP,on=i<n;
+      const px=x+Math.cos(a)*(f.r+15*SC),py=y+Math.sin(a)*(f.r+15*SC);
+      celSplash(c,px,py,(on?4.6:2.6)*PIP*SC,5,i*3+2,"numb",on?.95:.28);
+      if(KEEP1&&i===0)celHoop(c,px,py,7.5*PIP*SC,1,0,2*PIP*SC,"numb",.85);}
+    if(f.pr>0){const g2=f.pr/1.1;
+      celHoop(c,x,y,f.r*1.75,1,0,3.2*SC,"numb",.85*g2);
+      for(let k=0;k<3;k++)
+        celSpike(c,x,y,k/3*TAU+t*2.2,f.r*2.2,4*SC,"numb",.7*g2);}}
+  {const fu=st.ac/PER,FUSE=atL(4)?2:1;
+    for(let r2=0;r2<FUSE;r2++)for(let i=0;i<6;i++){
+      const a=i/6*TAU-Math.PI/2+r2*.5,on=fu>=(i+r2*.5)/6;
+      celSplash(c,cx+Math.cos(a)*(30-r2*9)*SC,cy+Math.sin(a)*(30-r2*9)*SC,
+        (on?4:2.4)*SC,5,i*3+1+r2*7,"numb",on?.9:.28);}}
+  if(st.bo>0){const g=st.bo/.5;
+    for(const f of st.F){const x=cx+f.ox+f.kx,y=cy+f.oy+f.ky;
+      celHoop(c,x,y,Math.max(2*SC,f.r*(1+2.4*(1-g))),1,0,(7*g+1)*SC,"numb",g*.9);
+      celSplash(c,x,y,(9+13*g)*SC,8,3,"numb",g);}
+    c.save();c.globalCompositeOperation="lighter";
+    c.fillStyle=A(TONE.numb[1],.13*g);c.fillRect(0,0,W,H);c.restore();}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);}
+
+const BBdetonateP={
+  A:{PER:[4.4,4.9,5.4,5.9,6.4]},
+  B:{PER:[4.6,5.3,6.0,6.7,7.4]},
+  C:{PER:[5.0,5.9,6.8,7.7,8.6]},
+  D:{PER:[4.6,4.6,4.2,3.4,2.6]}};
+const BBdetonate=P=>((c,t,dt,W,H,st)=>BBdetonateDraw(c,t,dt,W,H,st,P));
+
+// ═══ 4. 분열 — 분열할수록 넓어진다 · 쿨타임은 레벨이 오를수록 준다 ════════
+//
+// 사용자 판정: 「분열해서 터질 때 분열할수록 범위가 넓어지도록 변경. 쿨타임도
+// 레벨이 올라갈수록 줄도록 변경 (현재도 넓긴 한데 좀 더 넓힘)」
+//
+// ── 지금 어떻게 되어 있나 ─────────────────────────────────────────────────
+// **차수별로 안 다르다.** 원본의 마디 반경은 `6+(피해면 26 아니면 13)*e` 라
+// 1차든 3차든 **똑같은 크기**다. 「분열할수록 넓어진다」는 아직 그림에 없다.
+// 갈라지는 차수 g 는 0…GEN−2 라 L1(GEN 2)은 g=0 하나, L4·L5(GEN 4)는 0·1·2.
+//
+//   차수별 마디 **그리는 반경** (e=1, ×SC · 식은 4 + NR·e, NR = NR0 + NRS·g)
+//   안        1차(g0)  2차(g1)  3차(g2)     비고
+//   원본        19       19       19       ← 무피해 19 · 피해(L3+)는 셋 다 32
+//   A 완만      14       25       36       ← 천장이 현재(32)보다 +13%
+//   B 중간      17       30       43       ← +34%
+//   C 넓게      19     34.5       50       ← +56%. **1차는 현재와 같다**
+//
+// L1 은 g=0 하나뿐이라 14~19 — 전부 **현재 19 이하**다. 「L1 이 초라해야
+// 한다」가 여기서 지켜진다. 넓어지는 것은 **차수를 밟은 뒤**다.
+// 피해 반경도 같이 판다: `f.r + (10 + NR×0.55)` — 1차는 지금(22)보다 좁고
+// 3차는 넓다. 그림과 판정이 같이 자란다.
+//
+// ⚠️ 탄 자체는 차수가 갈수록 **작아진다**(원본 `1−0.14g`, 안 건드렸다).
+// 알갱이는 작아지는데 터지는 자리는 넓어지는 것이 이 마법의 새 읽을거리다 —
+// 「잘게 갈라질수록 불안정해진다」. 반대로 읽히면 0.14 를 낮춰야 한다.
+//
+// ── 쿨타임 ────────────────────────────────────────────────────────────────
+// 원본 주기는 `STEP×GEN + 0.42` 인데, 앞의 `STEP×GEN` 이 **딜레이**(시전
+// 시작→막내 소멸)이고 뒤의 0.42 가 **쿨타임**이다. 쿨타임이 전 레벨 고정이라
+// 레벨이 안 판다. BB 는 여기를 판다:
+//   쿨타임  0.62 → 0.54 → 0.46 → 0.38 → 0.30   (−0.08/lv)
+//   한 주기 1.42 → 1.74 → 1.74 → 1.98 → 1.90s  (딜레이 0.80·1.20·1.60 포함)
+// L1 은 현재 1.22s 보다 **느려지고**(초라), L5 는 2.02→1.90s 로 빨라진다.
+// 쿨타임을 0.30 아래로 더 내리면 마디 자국(1.0s)이 다음 주기와 겹쳐
+// 「몇 번 쪼개졌나」가 안 세어진다 — 그게 바닥이다.
+function BBsplitDraw(c,t,dt,W,H,st,P){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  st.F=st.F||mkFoes([[58,-46,11],[-62,-28,10],[16,64,10],[-26,-60,9],[66,26,9]]
+    .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+  stepFoes(st.F,dt);
+  const GEN=[2,3,3,4,4][LV-1],WAY=atL(5)?3:2,SPLITFX=atL(3),STEP=.40;
+  const COOL=P.COOL[LV-1],NR=g=>P.NR0+P.NRS*g;
+  const REACH=88*SC,SP0=REACH/(STEP*((Math.pow(1.05,GEN)-1)/.05));
+  st.b=st.b||[];st.fx=st.fx||[];st.ac=(st.ac||0)+dt;
+  if(st.ac>STEP*GEN+COOL){st.ac=0;st.b.length=0;st.seq=(st.seq||0)+1;
+    st.b.push({x:0,y:0,a:hash(st.seq*5.7)*TAU,sp:SP0,g:0,ttl:STEP});}
+  for(let i=st.b.length-1;i>=0;i--){const q=st.b[i];
+    q.x+=Math.cos(q.a)*q.sp*dt;q.y+=Math.sin(q.a)*q.sp*dt;q.ttl-=dt;
+    for(const f of st.F)if(!q.hit&&Math.hypot(q.x-f.ox-f.kx,q.y-f.oy-f.ky)<f.r+8*SC){
+      q.hit=1;hitFoe(st,f,cx,cy,Math.cos(q.a),Math.sin(q.a),17*SC,"blast");f.pv=1;}
+    if(q.ttl<=0){st.b.splice(i,1);
+      const last=!(q.g+1<GEN&&st.b.length<40);
+      // 마디에 **자기 차수를 들려 보낸다** — 반경이 차수에서 나오므로.
+      if(!last)st.fx.push({x:q.x,y:q.y,l:0,g:q.g,dmg:SPLITFX?1:0});
+      if(!last)for(let s=0;s<WAY;s++)
+        st.b.push({x:q.x,y:q.y,a:q.a+(s-(WAY-1)/2)*.46,
+          sp:q.sp*1.05,g:q.g+1,ttl:STEP});
+      else emit(st,cx+q.x,cy+q.y,7,{k:"blast",sp:130*SC,r:2.8*SC,life:.45,spikeP:.6});}}
+  for(let i=st.fx.length-1;i>=0;i--){const q=st.fx[i];q.l+=dt;
+    if(q.l>1.0){st.fx.splice(i,1);continue;}
+    // 피해 반경도 **차수를 따라 넓어진다.** 그림만 넓히면 판정이 거짓말을 한다.
+    if(q.dmg&&q.l<dt*1.5){const dr=(10+NR(q.g)*.55)*SC;
+      for(const f of st.F)
+        if(Math.hypot(q.x-f.ox-f.kx,q.y-f.oy-f.ky)<f.r+dr){
+          hitFoe(st,f,cx,cy,0,0,9*SC,"blast");f.pv=1;}}}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.55;
+  stepP(st,dt);
+  const mark=(L)=>{for(const f of st.F)if(f.pv>0)
+    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"decomp",f.pv,t,"blast",SC,L);};
+  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
+  for(const q of st.fx){const u=1-q.l/1.0,e=Math.min(1,q.l/.3);
+    celHoop(c,cx+q.x,cy+q.y,(4+NR(q.g)*e)*SC,1,0,
+      ((q.dmg?6:3)*u+1)*SC,"blast",u*(q.dmg?.9:.6));}
+  for(const q of st.b){
+    const sc=(1-q.g*.14)*SC;
+    celRound(c,cx+q.x,cy+q.y,q.a,32*sc,9*sc,"blast",.98,
+      Math.min(1,(STEP-q.ttl)*6));}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);}
+
+const BBsplitCOOL=[.62,.54,.46,.38,.30];
+const BBsplitP={
+  A:{COOL:BBsplitCOOL,NR0:10,NRS:11},    // 그리는 반경 14·25·36
+  B:{COOL:BBsplitCOOL,NR0:13,NRS:13},    // 17·30·43
+  C:{COOL:BBsplitCOOL,NR0:15,NRS:15.5}}; // 19·34.5·50 — 1차가 현재(19)와 같다
+const BBsplit=P=>((c,t,dt,W,H,st)=>BBsplitDraw(c,t,dt,W,H,st,P));
+
+// ── 붙이기 — **계열 덩어리**로 묶는다 ─────────────────────────────────────
+//
+// 2026-08-13 사용자 판정: 「광주 · 감염 · 기폭 · 분열은 레벨 단위로 떨어뜨려
+// 놔서 보기가 힘드네. **세트끼리 묶어 줘.**」
+//
+// ── 왜 낱칸이 안 되나 ─────────────────────────────────────────────────────
+// `tile()` 은 칸을 `.grid` 에 흘려 놓는다. 격자는 **화면 폭대로 접기** 때문에
+// 계열 경계가 사라진다. 2026-08-13 에 1500px 로 재 보니 6열이 되어 이렇게 접혔다:
+//   1줄  광주 원본L1 · 원본L5 · A L1 · **B L1** · C L1 · 듀티1 L1
+//   2줄  원본위상 L1 · 듀티1 L5 · **B L2 · B L3 · B L4 · B L5**
+// 「B 의 L1→L5」가 **두 줄로 잘리고** 사이에 딴 갈래 둘이 끼어 있다. 폭이 바뀌면
+// 잘리는 자리도 바뀐다 — 어디서 잘릴지 못 정하는 것이 이 배치의 성질이다.
+// 덩어리(`.lvblock`)는 **절대 안 쪼개진다**(`.lvset` 이 덩어리째 배치한다).
+//
+// ── 계열마다 같은 세 줄 모양 ──────────────────────────────────────────────
+//   ① 대조   원본 L1 · A L1 · C L1 · 원본 L5   — 바닥 셋과 천장을 한 줄에
+//   ② 성장   중간안 B 의 L1 → L5              — **사용자가 못 보던 줄이 이것이다**
+//   ③ 갈래   계열마다 따로 있는 축 (광주=위상·듀티 / 기폭=D / 분열=L5 천장)
+// 감염만 ③ 이 없다(축이 반경·지속 둘뿐이라 갈래를 안 뽑았다).
+//
+// ── ⚠️ 칸 수 — 43 그대로다 ────────────────────────────────────────────────
+//   광주 4+5+3=12 · 감염 4+5=9 · 기폭 4+5+2=11 · 분열 4+5+2=11 → **43**
+// 줄만 43 → 11 로 준다. 그림·수치는 물론이고 **칸 설명도 낱칸 때 캡션을 그대로
+// 옮겨 적었다** — 새로 지어낸 수치가 하나도 없다. 새로 쓴 글은 줄 머리(제목·부제)
+// 뿐이고, 그건 낱칸 때 없던 것이라 옮겨 올 것이 없었다.
+//
+// ⚠️ **그림이 안 바뀐 것을 눈이 아니라 수로 확인했다.** 43칸을 120프레임 돌려
+// 캔버스 호출 열(메서드·인자·색·굵기·합성모드)을 통째로 해시해 옛 배치와 비교했고
+// **43개 해시가 전부 같다**(입자가 `Math.random` 을 쓰므로 칸마다 씨앗을 되돌리고,
+// `vfx.js:414` 의 `performance.now()` 는 얼려서 잰다).
+//
+// ── ⚠️ 못 지킨 것 — 「L1 이 셋 나란히」가 반쪽이 됐다 ──────────────────────
+// 낱칸 때의 요점은 「A·B·C 의 L1 이 나란히 서는 것」이었는데, **B 의 L1 은
+// 이제 ② 줄의 첫 칸에만 있다.** ① 에 다시 넣으면 같은 그림을 두 번 그리게 되고
+// 칸이 43 → 47 이 된다(계열마다 하나씩 넷). 이번 일은 **배치만** 바꾸는 것이라
+// 안 늘렸다. 대신 ① 바로 아래에 ② 가 붙어 세 바닥이 같은 화면에 남는다 —
+// 정말 한 줄에 넷을 세워야 하면 칸 넷을 더 그리는 수밖에 없다.
+const BBMP="mPillar";
+
+// ═══ 광주 — 12칸 · 3줄 ═══════════════════════════════════════════════════
+BBrow("광주 · 원본과 L1 바닥","원본(L1·L5) 과 A·C 의 바닥 — B 는 아래 성장 줄 L1","안",BBMP,[
+ [FX.pillar,1,"<b>원본 L1</b> — 기둥 6 · 반경 70 · 굵기 12. **8칸 중 6칸만 써서 3/8 바퀴가 빈다**"],
+ [BBpillar(BBpillarP.A),1,"<b>A · L1</b> — 기둥 3 · 반경 52 · 굵기 4. 가장 깊게 판 바닥"],
+ [BBpillar(BBpillarP.C),1,"<b>C · L1</b> — 기둥 3 · 반경 66 · 굵기 6.5. 얕게"],
+ [FX.pillar,5,"<b>원본 L5</b> — 기둥 8 · 반경 94 · 굵기 12. 지금의 천장"]]);
+BBrow("광주 B · L1 → L5","중간안 — 기둥 3→7 · 반경 58→94 · 굵기 5→12","L",BBMP,[
+ [BBpillar(BBpillarP.B),1,"기둥 3 · 반경 58 · 굵기 5 — 중간안의 바닥"],
+ [BBpillar(BBpillarP.B),2,"기둥 4 · 반경 67 · 굵기 6.75"],
+ [BBpillar(BBpillarP.B),3,"기둥 5 · 반경 76 · 굵기 8.5 (+경직 고리)"],
+ [BBpillar(BBpillarP.B),4,"기둥 6 · 반경 85 · 굵기 10.25"],
+ [BBpillar(BBpillarP.B),5,"기둥 7 · 반경 94 · 굵기 12 (+2차 분출) — **반경·굵기는 현재 L5 그대로**"]]);
+BBrow("광주 · 위상·듀티 갈래","굵기·반경은 B 고정 — 「셋」이 화면에서 몇으로 보이나만 가른다","안",BBMP,[
+ [BBpillar(BBpillarB1),1,"<b>듀티 1 · L1</b> — **늘 셋이 서 있다**. 높이만 서로 다르다"],
+ [BBpillar(BBpillarBo),1,"<b>원본 위상 · L1</b> — 셋이 **같이 솟고 같이 꺼진다**(원본 i*.13)"],
+ [BBpillar(BBpillarB1),5,"<b>듀티 1 · L5</b> — 일곱이 늘 서 있다. 듀티 1 의 천장이 어떤가"]]);
+
+// ═══ 감염 — 9칸 · 2줄 ════════════════════════════════════════════════════
+BBrow("감염 · 원본과 L1 바닥","원본(L1·L5) 과 A·C 의 바닥 — B 는 아래 성장 줄 L1","안",null,[
+ [MGFX.mgPoisonSpread,1,"<b>원본 L1</b> — 반경 78 · 지속 **무한**(판 씻길 때까지 안 낫는다)"],
+ [BBspread(BBspreadP.A),1,"<b>A · L1</b> — 반경 60 · 지속 1.8s. 한 홉 1.19s, 여유 1.51배"],
+ [BBspread(BBspreadP.C),1,"<b>C · L1</b> — 반경 72 · 지속 2.6s. 여유 2.63배"],
+ [MGFX.mgPoisonSpread,5,"<b>원본 L5</b> — 반경 96 · 지속 무한"]]);
+BBrow("감염 B · L1 → L5","중간안 — 반경 66→96 · 지속 2.2→5.8s","L",null,[
+ [BBspread(BBspreadP.B),1,"반경 66 · 지속 2.2s — 여유 2.04배"],
+ [BBspread(BBspreadP.B),2,"반경 73 · 지속 3.0s"],
+ [BBspread(BBspreadP.B),3,"반경 81 · 지속 3.8s (+파문 두 겹)"],
+ [BBspread(BBspreadP.B),4,"반경 88 · 지속 4.8s (+발원지 잔류)"],
+ [BBspread(BBspreadP.B),5,"반경 96 · 지속 5.8s (+동시폭발) — **반경은 현재 L5 그대로**"]]);
+
+// ═══ 기폭 — 11칸 · 3줄 ═══════════════════════════════════════════════════
+BBrow("기폭 · 원본과 L1 바닥","원본(L1·L5) 과 A·C 의 바닥 — B·D 는 아래 줄","안",null,[
+ [MGFX.mgNovaDetonate,1,"<b>원본 L1</b> — 겹 상한 3 · 딜레이 4.0s · 0.72s 마다 쌓임"],
+ [BBdetonate(BBdetonateP.A),1,"<b>A · L1</b> — 상한 3 · 딜레이 4.4s · 1.10s 마다"],
+ [BBdetonate(BBdetonateP.C),1,"<b>C · L1</b> — 상한 3 · 딜레이 5.0s · 1.25s 마다"],
+ [MGFX.mgNovaDetonate,5,"<b>원본 L5</b> — 겹 상한 4 · 딜레이 2.6s"]]);
+BBrow("기폭 B · L1 → L5","중간안 — 상한 3→11 · 딜레이 4.6→7.4s (+0.7/lv)","L",null,[
+ [BBdetonate(BBdetonateP.B),1,"상한 3 · 딜레이 4.6s · 1.15s 마다 — 중간안의 바닥"],
+ [BBdetonate(BBdetonateP.B),2,"상한 5 · 딜레이 5.3s · 0.80s 마다"],
+ [BBdetonate(BBdetonateP.B),3,"상한 7 · 딜레이 6.0s · 0.64s 마다 (+예민)"],
+ [BBdetonate(BBdetonateP.B),4,"상한 9 · 딜레이 6.7s · 0.56s 마다 (+심지 두 줄)"],
+ [BBdetonate(BBdetonateP.B),5,"상한 11 · 딜레이 7.4s · 0.50s 마다 (+한 겹 유지)"]]);
+BBrow("기폭 D · 딜레이가 거꾸로 <b>준다</b>","A·B·C 와 방향이 반대 — 기존 L4 사건 보존","안",null,[
+ [BBdetonate(BBdetonateP.D),1,"<b>D · L1</b> — 상한 3 · 딜레이 4.6s. 바닥만 4.0→4.6 으로 늘린다"],
+ [BBdetonate(BBdetonateP.D),5,"<b>D · L5</b> — 상한 11 · 딜레이 2.6s · **0.18s 마다**. 겹이 세어지나?"]]);
+
+// ═══ 분열 — 11칸 · 3줄 ═══════════════════════════════════════════════════
+BBrow("분열 · 원본과 L1 바닥","원본(L1·L5) 과 A·C 의 바닥 — B 는 아래 성장 줄 L1","안",null,[
+ [MGFX.mgNovaSplit,1,"<b>원본 L1</b> — 마디 19 (차수 무관) · 쿨타임 0.42s"],
+ [BBsplit(BBsplitP.A),1,"<b>A · L1</b> — 마디 1차 14 · 쿨타임 0.62s. 완만"],
+ [BBsplit(BBsplitP.C),1,"<b>C · L1</b> — 마디 1차 19 · 쿨타임 0.62s. 현재와 같은 1차"],
+ [MGFX.mgNovaSplit,5,"<b>원본 L5</b> — 마디 32 (1·2·3차 전부 같다) · 쿨타임 0.42s"]]);
+BBrow("분열 B · L1 → L5","중간안 — 마디 17/30/43 · 쿨타임 0.62→0.30s","L",null,[
+ [BBsplit(BBsplitP.B),1,"마디 1차 17 · 쿨타임 0.62s — 중간안의 바닥"],
+ [BBsplit(BBsplitP.B),2,"1차 17 · 2차 30 · 쿨타임 0.54s"],
+ [BBsplit(BBsplitP.B),3,"1차 17 · 2차 30 · 쿨 0.46s (+마디 피해)"],
+ [BBsplit(BBsplitP.B),4,"1차 17 · 2차 30 · 3차 43 · 쿨 0.38s"],
+ [BBsplit(BBsplitP.B),5,"1차 17 · 2차 30 · 3차 43 · 쿨 0.30s (+세 갈래)"]]);
+BBrow("분열 · L5 천장 갈래","가운데(B)는 위 성장 줄 L5","안",null,[
+ [BBsplit(BBsplitP.A),5,"<b>A · L5</b> — 1차 14 · 2차 25 · 3차 36. 가장 좁은 천장"],
+ [BBsplit(BBsplitP.C),5,"<b>C · L5</b> — 1차 19 · 2차 34.5 · 3차 50. 가장 넓은 천장"]]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RE — 「기생 寄生」과 「오행 五行」의 **그림을 통째로 다시**   (2026-08-13)
+//
+// **순수 추가다.** 기존 줄은 한 줄도 안 고친다. 원본(`MGFX.mgPoisonLatch` ·
+// `MGFX.mgNovaCycle`)은 그대로 두고 옆에 나란히 놓아 고르게 한다 —
+// 각 무리의 첫 칸이 **지금 것(대조군, LV=5 로 고정)**이다.
+//
+// **레벨은 안 만든다.** 안들은 `LV` 를 한 번도 안 읽는다 — 그림 판정이 먼저다.
+// 대조군만 전역 `LV` 를 잠깐 5 로 놓고 부른다(`REat5`). 원본을 **제일 화려한
+// 상태**로 세워야 「그래도 안 된다」가 정직한 비교가 된다.
+//
+// ───────────────────────────────────────────────────────────────────────────
+// ① 왜 「오행」이 반려됐나 — 코드 근거
+//
+// (a) **면이 그림의 전부다.** `celSpike`/`celSplash` 는 파일 정의상 stroke 가
+//     한 줄도 없는 **순수 채우기**다(각각 `tri()`×3, `fillPoly(jagPoly)`×3).
+//     염 차례 한 프레임을 세면 — `sig("ember")` 의 celSpike 8개 = **채우기 24**,
+//     지나온 칸 표시 celSplash 5개 = **채우기 20**(폴리곤 15 + 방사 그라디언트
+//     원 5), 그리고 `celHoop(74)` 하나 = **긋기 4**.
+//     → **채우기 44 : 긋기 4.** 다섯 칸 평균으로도 채우기 ≈26 : 긋기 4 다.
+//     (실측: 원본 LV5 한 칸이 프레임당 채우기 97.3 · 긋기 25.4, 같은 적·캐릭터·
+//      입자만 그리는 바탕값이 16.0 / 4.0 — 2026-08-13 계수 하네스)
+// (b) **다섯이 같은 문법으로 안 그려진다.** `sig()` 를 읽으면
+//       염 = celSpike(면) · 빙 = celStroke(선) · 뇌 = celStroke(선) ·
+//       풍 = celHoop(고리) · 독 = celSpike(면)
+//     이라 「같은 빛이 색만 바뀐다」가 아니라 **그리는 법이 매 칸 바뀐다.**
+//     그래서 「돈다」가 아니라 「딴것으로 바뀐다」로 읽힌다.
+// (c) 반경이 62~88 로 고정이라 도형이 **자리를 안 옮긴다.** 색만 갈리는
+//     한 덩어리가 된다(앞 손의 판정과 같은 결론).
+//
+// ② 이 레포에서 **가산 없이 「빛」을 만드는 법** — 코드가 답을 갖고 있다
+//
+//   `celStroke` 는 **같은 경로를 세 번** 긋는다:
+//       T[0] 굵기 w (.92) → T[1] 굵기 w*.60 (.96) → T[2] 굵기 w*.24 (1.0)
+//   즉 **어두운 집 안에 밝은 심**이 박힌 선이다. 밝은 층이 폭의 **24%**뿐이라
+//   #0C0C12 바탕에서 「가늘고 밝은 심 + 그 둘레의 어두운 번짐」으로 보인다 —
+//   이것이 사람 눈에 글로우다. 파일 정의를 실측하면
+//       celStroke lighter=0 · celSpike lighter=0 · celRound lighter=0 ·
+//       celPuff lighter=0 · fillPoly lighter=0
+//       celSplash lighter=1 · celHoop lighter=1 · celBeam lighter=1 ·
+//       celRibbon lighter=1 (단 `glow=false` 로 끌 수 있다)
+//   ⇒ **가산이 0인 밝은 문법은 `celStroke` 하나뿐**이고, 고리가 필요하면
+//     `arcPts`(점 생성) + `celStroke` 로 만들면 `celHoop` 의 가산을 안 탄다.
+//
+//   그래서 「면 ↔ 빛」을 가르는 것은 색이 아니라 **잉크의 모양**이다:
+//     면 = T[0]/T[1] 이 넓은 폴리곤을 덮는다(`fillPoly`) → 실루엣
+//     빛 = T[2] 가 얇게 길게 남는다(`celStroke`)          → 광선
+//   같은 팔레트로 같은 밝기를 쓰는데 **면적만 다르면** 하나는 덩어리고
+//   하나는 빛이다. 레포가 적 실루엣을 살리는 수법(몸 #16101C · 림 밝게)과
+//   정확히 같은 장치다.
+//
+//   ⇒ **오행 세 안은 `globalCompositeOperation` 을 한 번도 안 부른다.**
+//      celHoop·celSplash·celBeam·celRibbon(glow) 도 안 쓴다.
+//      (남는 가산은 내 코드 밖 — `hero()` 후광 · `drawFoes` 피격섬광 · `drawP`
+//       입자뿐이고, 그건 모든 칸이 똑같이 진다. 실측 가산 호출 = 원본 8.6/f →
+//       세 안 **1.8/f**, 79% 감소.)
+//
+//   실측(같은 시뮬 · **빈 페인트** 를 빼서 「페인트가 그린 것」만 남긴 값):
+//       REcyc1  채우기 0    · 긋기 92.0     ← 면 0조각
+//       REcyc2  채우기 3.3  · 긋기 105.5    ← 가리개 다섯(열린 것 하나는 빠진다)
+//       REcyc3  채우기 0    · 긋기 37.2     ← 면 0조각
+//   같은 자로 잰 화소 실측(238칸, 4컷 합):
+//       원본 잉크 24.9% · 밝은층 8.2%   |  REcyc1 14.4/5.7 · REcyc2 18.1/7.7 ·
+//       REcyc3 14.3/**11.4**  → 잉크는 42% 줄고 밝은층 비율은 39% 늘었다.
+//   ⚠️ **476px(실기 배율 근사)에서 더 벌어진다** — REcyc3 밝은층 24.8% ·
+//      평균밝기 .363 vs 원본 8.4% · .214. 가는 획의 밝은 심(폭의 24%)이
+//      238칸에서는 1px 아래로 내려가 안티에일리어싱에 먹히기 때문이다.
+//
+// ③ 왜 「기생」이 반려됐나 — 코드 근거
+//
+// (a) **나는 데 0.31초**를 쓴다(`q.fly+=dt*3.2`). 발사 간격이 1.05초이므로
+//     30%가 「날아가는 창」이고, 그 그림은 축(붙는다)과 아무 상관이 없다.
+// (b) **박힌 뒤 그림의 대부분이 `celSpike` 한 자루**다. `celSpike` 는 파일에
+//     **135곳**에서 쓰는 범용 도형이라(관통·산탄·파편이 다 이것), 색만 독으로
+//     바꾼 창은 「기생」이 아니라 「맞았다」로 읽힌다.
+// (c) **적이 안 움직인다.** `stepFoes` 는 넉백 감쇠(`f.kx*=d`)만 하고 `ox/oy`
+//     는 상수다. 축이 「적과 같이 움직인다」인데 화면에 움직이는 것이 없다.
+// (d) **적에게서 나오는 것이 하나도 없다.** 판정은 `hitFoe` 넉백뿐이고,
+//     「빨아먹는다」의 그림이 0회다.
+// (e) 성장 폭이 안 보인다 — `mat=min(1,age/3)`, `BL=(r*1.3+9)*(1+.28*mat)`
+//     이라 3초 동안 길이가 **28%**만 는다. 정지 화면에서 갓 박힌 것과 다
+//     익은 것이 안 갈린다.
+// (f) 그 위에 `pvMark("poison")` 를 건다 — 만연·극독·감염이 **전부 거는 같은
+//     표식**이다. 정지 화면에서 넷을 가르는 것은 몸에 붙은 도형뿐인데 그게
+//     범용 창이라, 결국 넷이 같은 칸으로 보인다.
+//
+// ④ **기생이 감염과 갈리는 한 문장**
+//
+//   > 감염은 **수가 는다**(하나가 둘, 둘이 넷 — 같은 것이 여럿 생긴다),
+//   > 기생은 **수가 안 늘고 하나가 자란다** — 적에게서 빠져나온 만큼.
+//
+//   그림의 규칙으로 옮기면 둘은 **방향이 정반대**다:
+//     감염 = 적 몸에서 **밖으로 퍼지는 고리**(`celHoop` 파문) · 보존 없음
+//     기생 = 적 몸에서 **한 점으로 모이는 흐름** · **보존 있다**(적이 준
+//            만큼만 기생체가 커진다 — 코드에서 `f.dr` 하나가 둘을 동시에 민다)
+//
+//   ⇒ 그래서 기생 세 안에는 **퍼지는 고리가 한 개도 없다.** 그 어휘는
+//     감염의 것이다. 대신 셋 다 `f.dr`(빨아낸 양)을 그림으로 판다.
+//
+// ───────────────────────────────────────────────────────────────────────────
+// ⑤ 비용 (238칸 · 300프레임 벽시계 · headless Chrome 151 · 2026-08-13)
+//
+//     기생 대조군 0.719 |  RE기생1 0.594  RE기생2 0.682  RE기생3 0.781
+//     오행 대조군 0.729 |  RE오행1 0.459  RE오행2 0.584  RE오행3 0.471   (ms/f)
+//
+//   RE기생3 만 대조군보다 비싸다(+8.6%) — `clip()` 을 프레임당 1.7회 부른다.
+//   오행 셋은 전부 대조군보다 **21~37% 싸다**(면적을 줄이고 선으로 정보를 넣었다).
+//
+// ⑥ **못 지킨 것 — 숨기지 않는다**
+//
+//   (1) RE기생1「빨대」가 **셋 중 제일 면이 많다** — 페인트가 그린 것만 세어
+//       채우기 51.7 : 긋기 25.6 으로, 원본(67.2 : 29.8)과 비율이 거의 같다.
+//       주머니(`REblob` 3겹)와 흐르는 알갱이(`celSpike` 9개 = 27 채우기)가
+//       전부 면이기 때문이다. 「빛」은 오행에만 걸린 요구라 그대로 뒀다.
+//   (2) RE기생2「말라간다」의 **「빈 껍질이 남았다」가 238칸에서 안 읽힌다.**
+//       반경은 코드상 −42% 로 확실히 줄지만(`f.r0*(1−.42*f.dr)`), 실렌더에서는
+//       「가시가 돋았다」로 먼저 보인다. **확인 못 한 것이 아니라 확인해서
+//       안 되는 것**이다 — 476px 에서 다시 볼 필요가 있다.
+//   (3) 화소 실측의 1× 값은 **4컷 합**이고 2× 값은 **t=2.4s 한 컷**이다.
+//       같은 시각이 아니므로 1×↔2× 절대 비교는 못 한다. 안끼리의 비교만 쓴다.
+//   (4) **가산 0** 은 「내 블록 본문이 `globalCompositeOperation` 을 안 부른다」
+//       는 뜻이다. `hero()`·`drawFoes`·`drawP`·`pvMark` 가 쓰는 가산(1.8~6.5/f)
+//       은 공용이라 못 없앤다.
+//   (5) 실기기(Flutter/실제 SC≈4.5)에서는 **확인 못 했다.** 전부 목업 캔버스다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const RE_S=238;
+
+/// 대조군용 — 전역 LV 를 5 로 고정해 부른다. **원본 함수는 안 건드린다.**
+function REat5(fn,nm){
+  const g=function(c,t,dt,W,H,st){const s=LV;LV=5;
+    try{fn(c,t,dt,W,H,st);}finally{LV=s;}};
+  try{Object.defineProperty(g,"name",{value:"REref_"+nm});}catch(e){}
+  return g;}
+
+/// 적 실루엣 폴리곤 — `drawFoes` 안의 식을 **그대로** 옮긴 것이다(새 원시가
+/// 아니라 같은 도형을 다시 세우는 것). 「속에서 자란다」안이 이걸로 클립한다.
+function REfoePoly(t,x,y,r){const p=[];
+  for(let i=0;i<9;i++){const a0=i/9*TAU,a1=(i+.5)/9*TAU;
+    p.push([x+Math.cos(a0)*r*1.06,y+Math.sin(a0)*r*1.06]);
+    p.push([x+Math.cos(a1)*r*(.78+.1*Math.sin(t*2+i)),y+Math.sin(a1)*r*.82]);}
+  return p;}
+
+/// 가산 없는 각진 덩이 — `celSplash` 와 같은 3단 계조인데 **방사 그라디언트
+/// 가산 패스만 뺐다.** 새 원시가 아니라 `jagPoly`+`fillPoly` 조합이다.
+function REblob(c,x,y,r,n,seed,k,a=1,spike=1.25,sq=1){
+  const T=toneOf(k);
+  fillPoly(c,jagPoly(x,y,r,n,seed,spike,sq),A(T[0],.95*a));
+  fillPoly(c,jagPoly(x,y,r*.68,n,seed+1.3,spike*.92,sq),A(T[1],.97*a));
+  fillPoly(c,jagPoly(x,y,r*.32,Math.max(4,n-1),seed+2.9,spike*.85,sq),A(T[2],a));}
+
+/// 축이 있는 덩이 — 위 것을 [ang] 방향으로 눕힌 것뿐이다(회전+눌림).
+function REsac(c,x,y,ang,len,wid,n,seed,k,a=1,spike=1.2){
+  c.save();c.translate(x,y);c.rotate(ang);
+  REblob(c,0,0,len,n,seed,k,a,spike,Math.max(.12,wid/Math.max(1e-3,len)));
+  c.restore();}
+
+// ══ ① 기생 — 공통 시뮬 ═══════════════════════════════════════════════════
+//
+// 셋이 **같은 상황**을 공유한다. 화면에서 다른 것은 **그리는 법뿐**이다.
+//   · 나는 구간 0.08초 (원본 0.31초의 1/3.9) — 획 하나로 끝낸다
+//   · 적이 **돈다** — 「같이 움직인다」가 축이므로 움직이는 것이 있어야 한다
+//   · `f.dr` = 그 적에게서 **빠져나간 양**(0~1). 기생체 크기가 이 값에서 나온다.
+//     한 값이 「적이 잃은 것」과 「기생체가 얻은 것」을 **동시에** 민다 —
+//     그것이 감염(보존 없음)과 갈리는 자리다.
+function RElatchRun(c,t,dt,W,H,st,paint,shrink){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  if(!st.F){st.F=mkFoes([[70,-40,11],[-66,-24,10],[26,62,10],[-42,50,9]]
+      .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+    for(const f of st.F){f.bx=f.ox;f.by=f.oy;f.r0=f.r;f.dr=0;
+      f.sd=hash(f.ox*.031+f.oy*.017);}}
+  for(const f of st.F){const s=f.sd;
+    f.ox=f.bx+Math.sin(t*(.55+s*.50)+s*9)*22*SC;
+    f.oy=f.by+Math.cos(t*(.47+s*.40)+s*5)*16*SC;
+    f.on=0;}
+  stepFoes(st.F,dt);
+  const NB=3,FLY=.08,LIFE=5.0;
+  st.b=st.b||[];st.fa=(st.fa||0)+dt;
+  if(st.fa>1.05&&st.b.length<NB){st.fa=0;st.n=(st.n||0)+1;
+    const f=st.F[st.n%st.F.length];
+    st.b.push({f,fly:0,a:hash(st.n*7.7)*TAU,rr:.60+hash(st.n*3.1)*.24,
+      age:0,tk:0,hit:0,sd:hash(st.n*5.9)});}
+  for(let i=st.b.length-1;i>=0;i--){const q=st.b[i];
+    if(q.fly<1){q.fly=Math.min(1,q.fly+dt/FLY);
+      if(q.fly>=1){q.hit=1;q.f.pv=1;
+        const d=Math.hypot(q.f.ox,q.f.oy)||1;
+        hitFoe(st,q.f,cx,cy,q.f.ox/d,q.f.oy/d,12*SC,"toxin");}
+      continue;}
+    q.age+=dt;q.tk+=dt;q.f.pv=1;q.f.on=1;
+    q.hit=Math.max(0,q.hit-dt*3.2);
+    // **빨아낸 만큼 자란다.** 이 한 줄이 감염과 갈리는 규칙 전부다.
+    q.f.dr=Math.min(1,q.f.dr+dt*.28);
+    if(q.tk>.5){q.tk=0;q.hit=1;
+      // 오래 붙을수록 아프다 — 지속형의 계약(원본과 같은 식).
+      hitFoe(st,q.f,cx,cy,0,0,(3+Math.min(10,q.age*1.7))*SC,"toxin");}
+    if(q.age>LIFE)st.b.splice(i,1);}
+  for(const f of st.F){if(!f.on)f.dr=Math.max(0,f.dr-dt*.50);
+    if(f.pv>0)f.pv-=dt*.55;}
+  stepP(st,dt);
+  // 「말라간다」안만 몸을 줄인다 — 적이 준 만큼 줄어드는 것이 그 안의 축이다.
+  for(const f of st.F)f.r=f.r0*(1-(shrink||0)*f.dr);
+  const mark=(L)=>{for(const f of st.F)if(f.pv>0)
+    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"poison",f.pv,t,"toxin",SC,L);};
+  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
+  for(const q of st.b){const f=q.f,fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;
+    const tx=fx+Math.cos(q.a)*f.r*q.rr,ty=fy+Math.sin(q.a)*f.r*q.rr;
+    if(q.fly<1){
+      // 나는 구간 — **가는 획 하나.** 0.08초라 이것으로 충분하고, 이것이 전부여야 한다.
+      const u=q.fly,ux=cx+(tx-cx)*u,uy=cy+(ty-cy)*u,
+            v=Math.max(0,u-.62),bx=cx+(tx-cx)*v,by=cy+(ty-cy)*v;
+      celStroke(c,[[bx,by],[ux,uy]],3.0*SC,"toxin",.90);
+      continue;}
+    paint(c,t,q,f,fx,fy,tx,ty,Math.min(1,q.age/3),SC,st);}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);}
+
+// ── 안 ① 「빨대」 ────────────────────────────────────────────────────────
+// **유일한 것: 흐름에 방향이 있는 안.** 감염의 고리는 적 몸에서 **밖으로**
+// 퍼지는데, 이것은 적 몸 깊은 곳에서 붙은 자리로 **안으로 모인다.** 알갱이가
+// 오는 쪽과 가는 쪽이 화면에 있으므로, 정지 화면에서도 「누가 누구를 먹는지」가
+// 읽힌다. 몸은 흘러들어온 만큼만 부푼다.
+function RElatchDrain(c,t,q,f,fx,fy,tx,ty,mat,SC,st){
+  // 관은 **적 몸을 가로지른다** — 반대편 살 속에서 시작해 붙은 자리를 지나
+  // 몸 **밖**의 주머니까지 간다. 길이가 f.r 의 2.5배라 방향이 화면에서 읽힌다.
+  const cs=Math.cos(q.a),sn=Math.sin(q.a);
+  const dpx=fx-cs*f.r*.88,dpy=fy-sn*f.r*.88;                 // 빨리는 쪽(적 속)
+  const gx=fx+cs*f.r*1.62,gy=fy+sn*f.r*1.62;                 // 모이는 쪽(몸 밖)
+  const vx=gx-dpx,vy=gy-dpy,nx=-sn,ny=cs,an=q.a;
+  for(let k=0;k<3;k++){const bend=(k-1)*f.r*.30,P=[];
+    for(let j=0;j<=6;j++){const u=j/6,w=Math.sin(u*Math.PI)*bend;
+      P.push([dpx+vx*u+nx*w,dpy+vy*u+ny*w]);}
+    celStroke(c,P,(1.6+1.6*mat)*SC,"toxin",.30+.50*mat);}
+  // 살을 짚는 갈고리 — 붙은 자리에만 있다. 「박혔다」는 여기서 끝난다.
+  for(const s of[-1,1])
+    celStroke(c,[[tx,ty],[tx+Math.cos(q.a+Math.PI+s*.72)*f.r*.85,
+                          ty+Math.sin(q.a+Math.PI+s*.72)*f.r*.85]],2.0*SC,"toxin",.70);
+  // 주머니 — 축을 따라 **누운** 자루다. 둥근 혹이 아니라야 「빨대 끝」이 된다.
+  const LN=(4.0+10.0*mat)*SC*(1+q.hit*.30),WD=(2.4+4.6*mat)*SC;
+  REsac(c,gx+cs*LN*.35,gy+sn*LN*.35,q.a,LN,WD,7,q.sd*9+1,"toxin",1,1.15);
+  // 알갱이 — **적 → 주머니** 한 방향으로만 흐른다. 닿을수록 밝고 커진다.
+  // 감염의 고리는 밖으로 퍼진다. 이 안에서 퍼지는 것은 하나도 없다.
+  for(let k=0;k<3;k++){const bend=(k-1)*f.r*.30;
+    for(let m=0;m<3;m++){const u=((t*.70+m/3+k*.21+q.sd)%1),w=Math.sin(u*Math.PI)*bend;
+      celSpike(c,dpx+vx*u+nx*w,dpy+vy*u+ny*w,an,
+        (5.0+3.0*mat)*SC*(.55+.6*u),(2.0+1.2*mat)*SC*(.55+.6*u),
+        "toxin",(.30+.62*u)*(.45+.55*mat));}}}
+
+// ── 안 ② 「말라간다」 ────────────────────────────────────────────────────
+// **유일한 것: 적의 몸이 변하는 안.** 셋 중 이것만 이펙트가 아니라 **적**이
+// 달라진다 — 빨린 만큼 몸이 쪼그라들고(반지름 −30%), 마른 껍질이 둘레에서
+// 떨어져 나간다. 감염은 적이 하나도 안 변하고 표식만 붙으므로, 이 안은 감염과
+// 정지 화면에서 절대 안 겹친다.
+function RElatchWither(c,t,q,f,fx,fy,tx,ty,mat,SC,st){
+  const dr=f.dr;
+  // ① **원래 크기의 자국.** 셋 중 이것만 정지 화면 한 장으로 「얼마나 줄었나」를
+  //    말한다 — 빈 껍질 윤곽이 남고 몸은 그 안에서 쪼그라들어 있다.
+  if(dr>.04){const P=REfoePoly(t,fx,fy,f.r0*1.06);
+    for(let i=0;i<P.length;i+=3)                        // 끊어 그린다 — 빈 껍질이다
+      celStroke(c,[P[i],P[(i+1)%P.length],P[(i+2)%P.length]],2.0*SC,"toxin",dr*.88);
+    // 껍질과 몸을 잇는 짧은 획 — **줄어든 만큼이 눈금으로 보인다.**
+    for(let k=0;k<7;k++){const aa=k/7*TAU+t*.10;
+      celStroke(c,[[fx+Math.cos(aa)*f.r0*1.04,fy+Math.sin(aa)*f.r0*1.04],
+                   [fx+Math.cos(aa)*f.r*1.02,fy+Math.sin(aa)*f.r*1.02]],
+        1.5*SC,"toxin",dr*.62);}}
+  // ⚠️ **갈비(몸을 감는 획 다섯)를 뺐다.** 238칸 실렌더에서 껍질 윤곽·조각·
+  //    주머니와 뒤엉켜 「초록 덩어리」가 됐다(2026-08-13 판정). 이 안이 팔 것은
+  //    「줄었다」 하나뿐이므로, 그것과 무관한 획은 전부 방해다.
+  // ② 마른 껍질 — **빠진 양이 곧 조각 수다**(1 → 7). 몸에서 떨어져 나간다.
+  const NF=1+Math.round(dr*6);
+  for(let k=0;k<NF;k++){const u=((t*.52+k*.31+q.sd)%1),aa=q.sd*9+k*.97+t*.18;
+    const rr=f.r*1.02+u*f.r0*1.5,sz=1-u*.45;
+    celSpike(c,fx+Math.cos(aa)*rr,fy+Math.sin(aa)*rr,aa,
+      (6.4+4.0*dr)*SC*sz,2.6*SC*sz,"toxin",(1-u)*.62);}
+  // ③ 주머니 — 적이 잃은 것이 여기 모인다. **적은 −42%, 주머니는 +**.
+  //    한 값(`f.dr`)이 둘을 동시에 미는 것이 이 안의 전부다.
+  REblob(c,tx,ty,(2.2+7.2*dr)*SC*(1+q.hit*.30),7,q.sd*9+1,"toxin",1,1.22);}
+
+// ── 안 ③ 「속에서 자란다」 ───────────────────────────────────────────────
+// **유일한 것: 그림이 적 실루엣 안쪽에 있는 안.** 적 폴리곤으로 클립해서
+// 몸 **안에만** 그리므로, 기생체가 밖에 거의 없다 — 「박힌 물건」이 아니라
+// 「든 것」이 된다. 다 자라야 등 쪽으로 뚫고 나온다(클립 밖으로 나가는
+// 유일한 순간). 寄生 의 사전적 정의에 제일 가까운 안이기도 하다.
+function RElatchBrood(c,t,q,f,fx,fy,tx,ty,mat,SC,st){
+  const P=REfoePoly(t,fx,fy,f.r);
+  c.save();
+  c.beginPath();P.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));
+  c.closePath();c.clip();
+  const gx=fx-Math.cos(q.a)*f.r*.20,gy=fy-Math.sin(q.a)*f.r*.20;
+  // 실핏줄 — 몸 구석까지 뻗고 **몸에서 잘린다**(클립). 밖으로 새는 획이 없다.
+  for(let k=0;k<9;k++){const a0=q.sd*7+k*.698+Math.sin(t*.8+k)*.16,Q=[];
+    for(let j=0;j<=4;j++){const u=j/4,aa=a0+Math.sin(u*3.1+k)*.52;
+      Q.push([gx+Math.cos(aa)*f.r*1.45*u,gy+Math.sin(aa)*f.r*1.45*u]);}
+    celStroke(c,Q,1.7*SC,"toxin",.28+.52*mat);}
+  // 알집 — 다 자라면 몸을 거의 채운다(반경의 96%). 밖에는 아무것도 없다.
+  REblob(c,gx,gy,f.r*(.28+.68*mat)*(1+q.hit*.16),8,q.sd*9+1,"toxin",1,1.06);
+  c.restore();
+  // 다 자라면 **뚫고 나온다.** 클립 밖으로 나가는 유일한 순간이라 사건이 된다.
+  if(mat>.72){const br=(mat-.72)/.28;
+    for(let k=0;k<3;k++){const aa=q.a+(k-1)*.74;
+      celSpike(c,fx+Math.cos(aa)*f.r*.78,fy+Math.sin(aa)*f.r*.78,aa,
+        f.r*(.42+1.15*br),(2.2+1.7*br)*SC,"toxin",.92);}}
+  // 들어간 구멍 — 살갗을 가로지르는 짧은 획 하나. 이것만 몸 위에 있다.
+  const px=-Math.sin(q.a),py=Math.cos(q.a),hw=(2.6+2.2*mat)*SC;
+  celStroke(c,[[tx-px*hw,ty-py*hw],[tx+px*hw,ty+py*hw]],(2.0+1.4*mat)*SC,"toxin",.92);}
+
+function RElatch1(c,t,dt,W,H,st){RElatchRun(c,t,dt,W,H,st,RElatchDrain,0);}
+function RElatch2(c,t,dt,W,H,st){RElatchRun(c,t,dt,W,H,st,RElatchWither,.42);}
+function RElatch3(c,t,dt,W,H,st){RElatchRun(c,t,dt,W,H,st,RElatchBrood,0);}
+
+// ══ ② 오행 — 공통 시뮬 ═══════════════════════════════════════════════════
+//
+// 규칙은 원본 그대로다(속성이 바뀔 때마다 그 속성으로 물고, 한 바퀴를 다
+// 돌아야 백광이 터진다). 다른 것은 **그리는 법뿐**이다.
+// ⚠️ 세 안 다 `globalCompositeOperation` 을 한 번도 안 부른다.
+//    고리가 필요하면 `celHoop`(가산 있음) 대신 `arcPts`+`celStroke` 로 만든다.
+const RECYL=["ember","frost","volt","gale","toxin"];
+function REcycRun(c,t,dt,W,H,st,paint){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  st.F=st.F||mkFoes([[66,-54,11],[-68,-36,10],[14,70,10],[-28,-68,9]]
+    .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+  stepFoes(st.F,dt);
+  const N=5,PH=.52,SPAN=N*PH,NOVA=.90,TOT=SPAN+NOVA;
+  st.u=((st.u||0)+dt)%TOT;
+  const inCyc=st.u<SPAN,idx=inCyc?Math.min(N-1,Math.floor(st.u/PH)):N-1,
+        seg=inCyc?(st.u%PH)/PH:1,nv=inCyc?0:(st.u-SPAN)/NOVA,white=!inCyc;
+  if(inCyc&&st.pi!==idx){st.pi=idx;st.sw=1;
+    for(const f of st.F)if(Math.hypot(f.ox,f.oy)<104*SC)
+      hitFoe(st,f,cx,cy,0,0,9*SC,RECYL[idx]);}
+  if(white&&st.pi!==-1){st.pi=-1;
+    for(const f of st.F){const d=Math.hypot(f.ox,f.oy)||1;
+      hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,58*SC,"white");}
+    emit(st,cx,cy,20,{k:"white",sp:300*SC,r:3.2*SC,life:.6,spikeP:.7});}
+  st.sw=Math.max(0,(st.sw||0)-dt*3.2);
+  stepP(st,dt);drawFoes(c,t,cx,cy,st.F);
+  paint(c,t,cx,cy,SC,idx,seg,st.sw||0,nv,white,st);
+  drawP(c,st);hero(c,t,cx,cy,white?"white":"gold",SC*(1+nv*.25));}
+
+// ── 안 ① 「다섯 갈래 빛」 ────────────────────────────────────────────────
+// **유일한 것: 차례가 「길이」로 읽히는 안.** 다섯 갈래가 처음부터 끝까지 다
+// 걸려 있고, 지금 차례인 것만 **자란다**(30 → 96). 무엇이 남았고 몇 개나
+// 지났는지가 정지 화면 한 장에 다 있다. 면이 한 조각도 없다 — 전부 `celStroke`.
+// ⚠️ **위상 파생값 금지 — 그려지는 값을 전부 하나의 스케줄에서 뽑는다.**
+//    `idx / seg / white` 로 갈라 쓰면 칸 경계와 주기 이음매에서 값이 **덜컥**
+//    한다(길이가 96 → 50 으로 한 프레임에 떨어졌다 — 첫 판의 실측). 그래서
+//    갈래 k 의 모든 값은 **자기 위상** `p = u/PH − k` 하나에서만 나온다:
+//      p ≤ 0        아직 안 옴          g=0
+//      0 < p < 1    자기 차례            g=ease(p)   (0 → 1)
+//      p ≥ 1        지나감, 천천히 접힌다  g=max(0,1−(p−1)/1.6)
+//    한 바퀴(TOT=3.50s)의 끝에서 다섯 다 g=0 이 되므로 이음매 도약이 0 이다.
+//    「몇 개나 지났나」는 갈래가 아니라 **눈금**이 진다.
+const REray_g=p=>p<=0?0:(p<1?ease(p):Math.max(0,1-(p-1)/1.6));
+const REray_h=p=>p<=0?0:Math.min(1,p*3);
+function REcycRay(c,t,cx,cy,SC,idx,seg,sw,nv,white,st){
+  const N=5,R0=13*SC,TICK=60*SC,PH=.52,U=st.u||0;
+  for(let k=0;k<N;k++){
+    const a=k/N*TAU-Math.PI/2,p=U/PH-k,g=REray_g(p),cur=p>0&&p<1;
+    const L=(30+66*g)*SC,al=.26+.70*g;
+    for(let j=0;j<4;j++){const sp=(j-1.5)*.056;
+      celStroke(c,[[cx+Math.cos(a+sp*.5)*R0,cy+Math.sin(a+sp*.5)*R0],
+                   [cx+Math.cos(a+sp*2.1)*L,cy+Math.sin(a+sp*2.1)*L]],
+        (1.7+1.0*g)*SC,RECYL[k],al*(Math.abs(j-1.5)<1?1:.60));}
+    // 끝의 잔가지 — 빛은 끝에서 갈라진다. 획이 뭉툭하게 끝나면 막대가 된다.
+    if(g>.12)for(const s of[-1,1])
+      celStroke(c,[[cx+Math.cos(a)*L*.80,cy+Math.sin(a)*L*.80],
+                   [cx+Math.cos(a+s*.22)*L*1.08,cy+Math.sin(a+s*.22)*L*1.08]],
+        1.6*SC,RECYL[k],al*.72*g);
+    // 눈금 — **다섯이 항상 세어진다.** 고정 반경의 짧은 가로획이고, 지나온 것은
+    // 밝게 남는다. 백광이 끝나며 다섯이 같이 꺼져(×(1−nv)) 이음매가 0 이 된다.
+    // ⚠️ 눈금의 굵기도 **p=0 과 p=1 에서 둘 다 0 인 스케줄 하나**로 뽑는다.
+    //    `cur?g:0` 로 두었더니 p=1 에서 반너비가 8.8 → 4.4 로 **한 프레임에**
+    //    반토막 났다(2026-08-13 1ms 검산에서 도약 4.40 으로 잡혔다).
+    const bump=(p>0&&p<1)?Math.sin(Math.PI*p):0;
+    const on=REray_h(p)*(1-nv),
+          mx=cx+Math.cos(a)*TICK,my=cy+Math.sin(a)*TICK,
+          px=-Math.sin(a),py=Math.cos(a),
+          hw=(8.0+6.0*bump)*SC;
+    celStroke(c,[[mx-px*hw,my-py*hw],[mx+px*hw,my+py*hw]],
+      (2.0+1.2*on)*SC,RECYL[k],.30+.66*on);}
+  // 백광 — 다섯이 다 뻗은 **중심이 희다.** 가산으로 더하는 대신 겹치는 자리에
+  // 흰 가닥을 얹는다(백광 = 다섯을 다 거친 것, `TONE.white` 그대로).
+  // ⚠️ 알파가 nv=0 에서 **0 에서 출발**해야 한다(`1−nv` 로 두면 백광이 .88 로
+  //    번쩍 켜졌다). 빠른 어택 + 느린 감쇠 하나로 뽑아 양 끝이 다 0 이다.
+  if(nv>0){const q=Math.min(1,nv*5)*(1-nv);
+    for(let k=0;k<12;k++){const a=k/12*TAU+nv*.42;
+      celStroke(c,[[cx,cy],[cx+Math.cos(a)*(16+98*nv)*SC,cy+Math.sin(a)*(16+98*nv)*SC]],
+        (2.6*q+.8)*SC,"white",q*1.05);}}}
+
+// ── 안 ② 「빛이 새는 틈」 ────────────────────────────────────────────────
+// **유일한 것: 어두운 것이 주인공인 안.** 각진 날 다섯이 중심을 **가리고**
+// 있고, 빛은 그 사이 틈에서만 샌다 — 열리는 것이 사건이라 「넘어감」이 제일
+// 크게 보인다. 면을 쓰되 그 면이 **가리개**라, 「색만 바뀌는 덩어리」와 정반대로
+// 읽힌다(속은 어둡고 테만 밝다 — 이 레포가 어둠을 보이게 하는 장치 그대로).
+function REcycIris(c,t,cx,cy,SC,idx,seg,sw,nv,white,st){
+  const N=5,RI=35*SC,RO=46*SC,PH=.52,U=st.u||0;
+  const seam=k=>k/N*TAU-Math.PI/2;
+  // ⚠️ 여기도 값은 **자기 위상 하나**에서만 나온다(`p = u/PH − k`).
+  //    차례 안에서 열렸다 .15 로 잦아들고, 그 뒤 천천히 0 으로 닫힌다 —
+  //    p=1 의 좌우가 둘 다 .15 이고 주기 끝에서 다섯 다 0 이라 이음매가 없다.
+  const op=p=>p<=0?0
+    :(p<1?Math.min(1,p*2.6)*(1-.85*Math.max(0,(p-.86)/.14))
+         :Math.max(0,.15*(1-(p-1)/1.4)));
+  const opAt=k=>op(U/PH-k);
+  // ① 날 다섯 — 어두운 면인데 **날마다 자기 속성 색**이다. 그래서 색이 통째로
+  //    갈아입혀지는 순간이 없고, 움직이는 것은 빛뿐이다.
+  // ⚠️ 띠를 **11 로 얇게** 둔다(35→45 → 30→45 였던 첫 판은 실렌더에서
+  //    「색 도넛」이라 다시 면 이펙트로 읽혔다 — 2026-08-13 렌더 판정).
+  for(let k=0;k<N;k++){
+    const T=toneOf(RECYL[k]);
+    const a0=seam(k)+.10+opAt(k)*.36,a1=seam(k+1)-.10-opAt((k+1)%N)*.36;
+    if(a1-a0<.04)continue;
+    const OUT=arcPts(cx,cy,RO,a0,a1,13),IN=arcPts(cx,cy,RI,a1,a0,13);
+    fillPoly(c,OUT.concat(IN),A(T[0],.88));
+    celStroke(c,OUT,1.7*SC,RECYL[k],.50);        // 테만 밝다
+    celStroke(c,IN,1.4*SC,RECYL[k],.32);
+    // 눈금 — 날 바깥의 짧은 지름획. **다섯이 세어진다**(지난 것은 밝게 남는다).
+    const on=REray_h(U/PH-k)*(1-nv),am=(seam(k)+seam(k+1))/2;
+    celStroke(c,[[cx+Math.cos(am)*(RO+4*SC),cy+Math.sin(am)*(RO+4*SC)],
+                 [cx+Math.cos(am)*(RO+13*SC),cy+Math.sin(am)*(RO+13*SC)]],
+      (1.8+1.0*on)*SC,RECYL[k],.22+.70*on);}
+  // ② 틈으로 새는 빛 — **이 안에서 밝은 것은 전부 여기서만 나온다.**
+  for(let k=0;k<N;k++){const o=opAt(k);if(o<=.02)continue;
+    const a=seam(k);
+    for(let g=0;g<7;g++){const sp=(g/6-.5)*.66*o;
+      const L=RO*(1+2.15*o)*(.76+.42*hash(k*3.1+g*1.7));
+      celStroke(c,[[cx+Math.cos(a+sp*.22)*RI*.84,cy+Math.sin(a+sp*.22)*RI*.84],
+                   [cx+Math.cos(a+sp)*L,cy+Math.sin(a+sp)*L]],
+        (1.3+1.9*o)*SC,RECYL[k],o*(.48+.52*hash(k*7.7+g*2.3)));}}
+  // ③ 심 — 구멍 너머로 보이는 것. 백광 때 다섯 틈이 다 열려 흰빛이 샌다.
+  for(let k=0;k<4;k++){const a=t*.75+k/4*TAU;
+    celStroke(c,[[cx+Math.cos(a)*RI*.26,cy+Math.sin(a)*RI*.26],
+                 [cx+Math.cos(a+.95)*RI*.58,cy+Math.sin(a+.95)*RI*.58]],
+      1.9*SC,"gold",.30+.34*Math.sin(Math.PI*nv));}   // nv 양 끝에서 둘 다 .30
+  if(nv>0){const g=Math.sin(Math.PI*nv);
+    for(let k=0;k<N;k++){const a=seam(k);
+      for(let j=0;j<5;j++){const sp=(j/4-.5)*.62*g;
+        celStroke(c,[[cx+Math.cos(a+sp*.22)*RI*.84,cy+Math.sin(a+sp*.22)*RI*.84],
+                     [cx+Math.cos(a+sp)*RO*(1+2.4*g),cy+Math.sin(a+sp)*RO*(1+2.4*g)]],
+          (1.3+2.0*g)*SC,"white",g*.80);}}}}
+
+// ── 안 ③ 「겹쳐서 희어진다」 ─────────────────────────────────────────────
+// **유일한 것: 백광이 어디서 오는지 보이는 안.** 기운 고리 다섯이 차례로
+// **안으로 조여** 잠기고, 잠긴 고리마다 흰 매듭이 하나씩 생긴다 — 다섯이 다
+// 잠기면 매듭이 이어져 흰 고리 하나가 되고 그것이 터져 나간다. 「백광 = 다섯을
+// 다 거친 것」이라는 정의가 그림의 규칙 그대로다.
+// ⚠️ `celHoop` 을 안 쓴다(가산이 들었다) — `arcPts` 대신 점을 직접 세워
+//    기울인 뒤 `celStroke` 로 긋는다.
+function REcycWeave(c,t,cx,cy,SC,idx,seg,sw,nv,white,st){
+  const N=5,R0=62*SC,R1=34*SC;
+  const lock=k=>white?(1-nv):(k<idx?1:(k===idx?ease(seg):0));
+  const ring=(rr,sq,rot,n)=>{const P=[];
+    for(let i=0;i<=n;i++){const a=i/n*TAU,px=Math.cos(a)*rr,py=Math.sin(a)*rr*sq;
+      P.push([cx+px*Math.cos(rot)-py*Math.sin(rot),cy+px*Math.sin(rot)+py*Math.cos(rot)]);}
+    return P;};
+  const K=[];
+  for(let k=0;k<N;k++){
+    const s=lock(k),rr=R0-(R0-R1)*s,sq=.34+k*.13,rot=k*.63+t*(.20+.55*s);
+    celStroke(c,ring(rr,sq,rot,30),(1.8+1.8*s)*SC,RECYL[k],.22+.70*s);
+    // 매듭 자리 — 고리 위의 고정 각. 잠긴 만큼 밝다.
+    const a=k/N*TAU-Math.PI/2,px=Math.cos(a)*rr,py=Math.sin(a)*rr*sq;
+    K.push([cx+px*Math.cos(rot)-py*Math.sin(rot),cy+px*Math.sin(rot)+py*Math.cos(rot),s]);}
+  // 매듭 — **흰 십자 획.** 몇 개가 희어졌나가 곧 몇 바퀴를 왔나다.
+  for(const [x,y,s] of K){if(s<=.03)continue;
+    const r=(2.6+4.4*s)*SC;
+    celStroke(c,[[x-r,y-r*.5],[x+r,y+r*.5]],(1.2+1.4*s)*SC,"white",s*.95);
+    celStroke(c,[[x-r*.5,y+r],[x+r*.5,y-r]],(1.2+1.4*s)*SC,"white",s*.95);}
+  // 다 잠기면 매듭이 **이어진다** — 흰 다섯모 고리. 백광의 몸이 여기서 나온다.
+  const full=K.reduce((a,b)=>Math.min(a,b[2]),1);
+  if(full>.02){const P=K.map(p=>[p[0],p[1]]);P.push(P[0]);
+    celStroke(c,P,(1.2+2.6*full)*SC,"white",full*.85);}
+  // 터짐 — 그 흰 고리가 넓어지며 사라진다. nv=0 과 nv=1 에서 둘 다 0 이다.
+  if(nv>0){const g=Math.sin(Math.PI*nv),rr=R1+nv*74*SC;
+    const P=[];for(let i=0;i<=N;i++){const a=i/N*TAU-Math.PI/2;
+      P.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);}
+    celStroke(c,P,(1.4+3.4*g)*SC,"white",g*.90);
+    for(let k=0;k<N;k++){const a=k/N*TAU-Math.PI/2;
+      celStroke(c,[[cx+Math.cos(a)*rr,cy+Math.sin(a)*rr],
+                   [cx+Math.cos(a)*(rr+26*SC*g),cy+Math.sin(a)*(rr+26*SC*g)]],
+        (1.2+1.8*g)*SC,"white",g*.80);}}}
+
+function REcyc1(c,t,dt,W,H,st){REcycRun(c,t,dt,W,H,st,REcycRay);}
+function REcyc2(c,t,dt,W,H,st){REcycRun(c,t,dt,W,H,st,REcycIris);}
+function REcyc3(c,t,dt,W,H,st){REcycRun(c,t,dt,W,H,st,REcycWeave);}
+
+// ══ 배치 — 무리마다 **첫 칸이 지금 것(대조군)** ═══════════════════════════
+// `mapTile` 은 호스트를 **id 문자열**로 받는데 여기는 요소로 받아야 하므로
+// 같은 조립을 요소판으로 한 번 더 쓴다(그리기 원시가 아니라 페이지 조립이다).
+function REtile(host,fn,nm,ds){
+  asRow(host,RE_S);
+  const d=document.createElement("div");d.className="tile";asCell(d,RE_S);
+  const cv=document.createElement("canvas");
+  box(cv,{width:"100%",height:"auto",display:"block",
+    aspectRatio:"1",background:"#0C0C12"});
+  d.appendChild(cv);
+  d.insertAdjacentHTML("beforeend",
+    `<div class="cap" style="padding:7px 9px 8px;border-top:1px solid #26262F">`+
+    `<div class="nm" style="font-size:12.5px;font-weight:600;color:#EDEDF2">${nm}</div>`+
+    `<div class="ds" style="font-size:10px;color:#9494A2;line-height:1.4;margin-top:2px">${ds}</div></div>`);
+  host.appendChild(d);mk(cv,[RE_S,RE_S],fn);}
+
+// ⚠️ 고르기 마운트를 뺐다 — **[RElatch2]「말라간다」 채택**(2026-08-13).
+// 오행 셋은 스킬이 삭제돼 같이 내린다. 함수는 전부 남는다.
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WB — 「풍벽 風壁」 각성 페널티 4안 (2026-08-13)
+//
+// 사용자 판정: 「각성 시 아무도 캐릭터한테 접근이 불가능하여 못 죽일 정도로
+// 너무 강력한 방어. 페널티를 줄 필요가 있음」.
+//
+// ⚠️ **이건 그림 문제가 아니라 기획 문제다.** 지금 `FX.mgGaleWall` 의 벽은
+// **시간 제한도 · 내구도 · 예외도 없다** — 한 번 서면 영원히 서 있고, 모든
+// 적을 100% 되민다. L5 는 그 벽을 **네 장으로 닫아** 우리를 만든다. 즉
+// L5 풍벽 = **접촉 피해 100% 무효**다.
+//
+// `docs/design/HP-방어-체계.md` 가 금지한 것이 정확히 그것이다:
+//
+//   > 정액이라 방어를 충분히 쌓으면 **모든 피해가 0** 이 될 수 있다.
+//   > 그 순간부터 게임이 끝나므로 바닥을 남긴다 — `피해 × 0.2` 가 그것이다.
+//
+// 그 문서는 **피해 공식**에 바닥을 깔았는데, 풍벽은 공식을 안 거치고 **위치로**
+// 무효를 만든다. 맞을 일이 없으면 상한 80% 도 무적 프레임 0.5초도 아무 일도
+// 안 한다 — 규칙을 우회한 것이지 지킨 것이 아니다.
+//
+// ── 이 레포에 이미 있는 「한계 문법」 (이 넷은 전부 그 재활용이다) ─────────
+//   결계 ward      맞은 **셀**이 깨진다 · 2.2초 뒤 그 자리에 재생
+//                  → 남은 것 = **구멍**(어디가 뚫렸는지가 보인다)
+//   빙벽 mgIceWall 판마다 hp · 접촉으로 닳고 0 이면 부서짐 · 1.0초 재생
+//                  → 남은 것 = **금**(hp<.7 한 줄, <.36 두 줄) + 밑동의 파편
+//   낙인 mgBoltBrand 눈금 칸이 차면 터진다
+//                  → 남은 것 = **각진 칩 눈금.** 빈 칸도 그린다
+//   순포 과열      8초 발사 → 3초 경고 → 4초 정지
+//                  → 남은 것 = **한쪽부터 차는 열 게이지** + 가속하는 깜빡임
+//   정지 mgBoltHalt 굳음 시간
+//                  → 남은 것 = **조각난 고리.** 틈이 벌어져 조각이 짧아진다
+//
+// 넷은 이 다섯 중 하나씩을 빌려 쓴다. **새 원시함수는 하나도 안 만든다.**
+//
+// ── 넷이 서로 못 이기는 이유 (뱀파이어 서바이버즈 유틸 규율) ──────────────
+//   ① 유지 시간 → **타이밍**   언제 세우나.  못 세운 시간이 통째로 빈다
+//   ② 내구도    → **자원**     몇 대나 버티나. 머릿수에 녹는다
+//   ③ 선별 방어 → **적 종류**  누구를 막나.   큰 놈·탄이 그냥 들어온다
+//   ④ 방향      → **위치**     어디를 막나.   등 뒤가 통째로 열린다
+// 한 축을 다섯으로 나눈 것이 아니라 **서로 다른 축 넷**이다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 벽 배치는 **현행 `mgGaleWall` 그대로 가져온다** — 페널티만 갈리고 실루엣은
+// 같아야 「같은 마법의 다른 규칙」으로 읽힌다. 여기서 형태까지 바꾸면 넷이
+// 서로 다른 마법으로 보여 비교가 안 된다.
+const WBWSET=[
+  [[0,-58,0,42]],
+  [[0,-62,0,62]],
+  [[0,-62,0,62],[-66,-4,Math.PI/2,50]],
+  [[0,-66,0,58],[-68,4,Math.PI/2,52],[68,4,Math.PI/2,52]],
+  [[0,-66,0,58],[-68,4,Math.PI/2,52],[68,4,Math.PI/2,52],[0,74,0,58]]];
+const WBGAP=[13,9,9,8,7];        // 깃 간격 — 촘촘해지는 것이 레벨 그림
+const WBTHK=8;                   // 벽 반두께(238 기준)
+const WBS=238, WBLVD=220;        // 타일 · 성장표 칸 (자기 상수로 둔다)
+
+function WBwalls(cx,cy,U){
+  return WBWSET[LV-1].map(w=>({x:cx+w[0]*U,y:cy+w[1]*U,a:w[2],h:w[3]*U,
+    d:[Math.cos(w[2]),Math.sin(w[2])],n:[-Math.sin(w[2]),Math.cos(w[2])]}));}
+/// 깃 개수(경계 포함이라 +1 개가 선다)
+const WBpickN=(w,U)=>Math.max(2,Math.round(w.h*2/(WBGAP[LV-1]*U)));
+/// 적을 몸 쪽으로 걷게 한다 — **막히는 것이 보이려면 오는 것이 있어야 한다.**
+function WBwalk(f,dt,U,spd){const d=Math.hypot(f.ox,f.oy)||1;
+  f.ox-=f.ox/d*spd*U*dt; f.oy-=f.oy/d*spd*U*dt;}
+/// 벽 한 장에 대한 상대 좌표. 밖이면 null.
+function WBhitTest(f,w,cx,cy,thk,hEff){
+  const rx=cx+f.ox-w.x, ry=cy+f.oy-w.y;
+  const s=rx*w.d[0]+ry*w.d[1], q=rx*w.n[0]+ry*w.n[1];
+  if(Math.abs(s)>hEff+f.r||Math.abs(q)>thk+f.r)return null;
+  return{s,q,sg:q>=0?1:-1,push:thk+f.r-Math.abs(q)};}
+/// 되밀기 + 벽면 미끄러짐. 현행 mgGaleWall 의 두 줄 그대로다.
+function WBshove(f,w,h,U,dt){
+  f.ox+=w.n[0]*h.sg*h.push; f.oy+=w.n[1]*h.sg*h.push;
+  f.ox+=w.d[0]*22*U*dt*(h.s>=0?1:-1);
+  f.oy+=w.d[1]*22*U*dt*(h.s>=0?1:-1);}
+/// 깃 하나 — **가로질러 선 초승달 획.** rot 은 벽 **방향**이라야 현이 벽을
+/// 가로질러 서서 울타리 살이 된다(mgGaleWall 이 첫 렌더에서 배운 것).
+function WBfeather(c,t,x,y,ang,r,w,k,a){
+  windStroke(c,t,x,y,r,.92,ang,1.7,w,k,a);}
+/// 부러진 밑동 — **빈 칸도 그린다**(낙인 눈금의 규율). 「여기 깃이 있었다」가
+/// 안 남으면 남은 개수가 「몇 개 남았나」가 아니라 「원래 몇 개였나」가 된다.
+///
+/// ⚠️ 처음엔 창 두 개로 그렸는데 첫 렌더에서 **개수를 못 셌다**(2026-08-13).
+/// 밑동은 **깃과 같은 문법(초승달 획)의 짧은 판**이라야 한다 — 모양이 다르면
+/// 「부러진 깃」이 아니라 「다른 물건」으로 보여 한 줄로 안 읽힌다.
+/// 길게 선 것 = 살아 있음 · 짧은 그루터기 = 부러짐. 대조가 길이 하나다.
+function WBstub(c,t,x,y,ang,thk,U,k,a){
+  // .60 은 산 깃(0.72~1.0)과 너무 가까워 **개수를 셀 때 눈이 헷갈렸다** — 길이
+  // 대조는 절반 밑으로 벌려야 한 줄에서 갈린다.
+  windStroke(c,t,x,y,thk*.34,.92,ang,1.7,2.0*U,k,a);
+  shards(c,x,y,thk*.42,3,x*.31+y*.17,a*.7,k);}
+/// **몸에 닿았다** — 넷 다 「못 막는 구멍」이 정체라, 뚫린 것이 화면에 안 남으면
+/// 페널티가 존재하지 않는 것과 같다. 색은 **몸의 색(gold)** 이다 — 벽 색으로
+/// 그리면 「벽이 뭔가 했다」로 읽힌다.
+function WBleak(c,st,cx,cy,U,dt){
+  st.lk=Math.max(0,(st.lk||0)-dt*2.4);
+  if(st.lk>.02){const b=st.lk;
+    celHoop(c,cx,cy,(1-b)*30*U+10*U,1,0,2.2*U+1,"gold",b*.9);
+    for(let i=0;i<5;i++){const a=i/5*TAU+st.lk*3;
+      celSpike(c,cx+Math.cos(a)*22*U,cy+Math.sin(a)*22*U,a,12*U*b,3*U,"gold",b*.8);}}}
+/// 몸에 닿은 적을 제자리로 — 닿았다는 사실만 st.lk 로 남긴다.
+function WBrecycle(st,f,U){
+  if(Math.hypot(f.ox,f.oy)<26*U){f.ox=f.hx;f.oy=f.hy;f.kx=0;f.ky=0;st.lk=1;}}
+
+const WBFOES=[[-96,-72,11],[-34,-100,10],[44,-94,9],[98,-44,9],
+              [-104,-8,10],[74,-78,9]];
+function WBinit(st,U,list){
+  st.p=st.p||[];
+  if(!st.F){st.F=bgFoes(U,list||WBFOES);
+    st.F.forEach(f=>{f.hx=f.ox;f.hy=f.oy;f.cd=0;});
+    st.hitfx=[];st.lk=0;}
+  return st.F;}
+/// 부딪힌 자리 — **벽 루프 밖에서 한 번만.** 안에 두면 벽 수만큼 겹쳐 그려져
+/// L4·L5 에서만 터짐이 세 배로 밝아진다(mgGaleWall 주석 그대로).
+function WBhitfx(c,st,dt,cx,cy,U,big){
+  for(let i=st.hitfx.length-1;i>=0;i--){st.hitfx[i].l+=dt*3.2;
+    if(st.hitfx[i].l>=1)st.hitfx.splice(i,1);}
+  for(const h of st.hitfx)dep(c,h.y,cy,(c,dz)=>{const b=1-h.l;
+    celSplash(c,h.x,h.y,(big?26:15)*U*b,9,3,"gale",b*.95*dz);
+    if(big)celHoop(c,h.x,h.y,(1-b)*30*U+6*U,1,0,2.6*U+1,"gale",b*.8*dz);});}
+
+// ── ① 유지 시간 — 「초시계」 ────────────────────────────────────────────
+// 벽이 몇 초 서 있다가 **사라지고**, 얼마 뒤 다시 선다. 페널티의 값은 **없는
+// 시간**이고, 그 시간에 오는 것은 전부 들어온다. 가동률이 곧 세기다:
+//   L1 44% · L2 54% · L3 62% · L4 70% · L5 78%   (100% 는 어느 레벨에도 없다)
+//   벽이 서 있는 동안에도 짧아지므로 **실효 차단률**은 29.7 → 52.7% 다.
+//
+// **남은 시간을 무엇으로 보여 주나 — 벽 길이 그 자체.**
+// 막대를 옆에 세우면 벽과 무관한 물건이 하나 더 생긴다. 대신 **깃이 양 끝에서
+// 부터 꺼져** 벽이 가운데로 오그라든다 — 짧아진 만큼이 지나간 시간이다.
+// 마지막 20% 는 깜빡이고, **뒤로 갈수록 빨라진다**(순포 경고의 문법 그대로).
+//
+// ⚠️ **없는 동안에도 자취를 그린다.** 벽이 통째로 사라지면 성장표 한 칸이
+// 「아무 일도 안 일어남」으로 찍혀 레벨 비교가 죽는다 — 빙벽이 실제로 밟은
+// 함정이다(2026-08-11, pn=0/3). 빈 깃 자리를 늘 그리고, 재생 동안 **가운데
+// 부터 차오르게** 두면 정지 화면이 배치(=레벨)와 잔량을 동시에 말한다.
+FX.WBtime=function(c,t,dt,W,H,st){
+  const U=W/238,cx=W/2,cy=H/2,THK=WBTHK*U;
+  WBinit(st,U);
+  stepFoes(st.F,dt);
+  // ⚠️ **주기는 다섯 레벨이 같아야 한다**(2026-08-13 렌더 판정).
+  // 처음엔 UP/DOWN 을 둘 다 흔들어 주기가 레벨마다 4.4~6.2초로 달랐다. 그러면
+  // 성장표 다섯 칸의 **위상이 서로 어긋나** 한 시각에 L1~L4 가 전부 꺼져 있고
+  // L5 만 서 있는 칸이 나온다 — 표가 「L5 만 벽이 있다」는 거짓말을 한다.
+  //
+  // 주기를 5초로 못 박고 **서 있는 시간만** 늘리면 위상이 잠긴다. 그러면 어느
+  // 시각을 찍어도 「서 있는 레벨」이 **L5 부터 내려오는 앞토막**이 되어, 정지
+  // 화면 한 장이 「높을수록 오래 서 있다」를 그대로 말한다.
+  const CYC=5.0, UP=[2.2,2.7,3.1,3.5,3.9][LV-1], DOWN=CYC-UP;
+  const BURST=atL(5);
+  st.cyc=(st.cyc||0)+dt; if(st.cyc>=CYC)st.cyc-=CYC;
+  const on=st.cyc<UP, u=on?st.cyc/UP:(st.cyc-UP)/DOWN;
+  const WL=WBwalls(cx,cy,U);
+  // ⚠️ **처음 35% 는 온전한 길이로 서 있는다.** 첫 프레임부터 깎으면 「서 있다」가
+  // 화면에 한 번도 안 남아 「사라지는 중」만 보인다. 서고 → 닳고 → 꺼진다.
+  const wear=Math.max(0,(u-.35)/.65), hK=on?1-wear:0;
+  // L5 각성 — **꺼지는 것이 사건이 된다.** 벽이 사라지는 그 순간 자리에서
+  // 돌풍이 터져 붙어 있던 것을 밀어낸다. 각성은 페널티를 지우는 것이 아니라
+  // 페널티를 **쓸모로 뒤집는 것**이다(순포 L4 경고가 보상이 된 그 수법).
+  const wasOn=(st.wasOn===undefined)?on:st.wasOn; st.wasOn=on;
+  if(wasOn&&!on&&BURST){
+    for(const w of WL){st.hitfx.push({x:w.x,y:w.y,l:0});
+      for(const f of st.F){
+        const rx=cx+f.ox-w.x, ry=cy+f.oy-w.y;
+        const s=rx*w.d[0]+ry*w.d[1], q=rx*w.n[0]+ry*w.n[1];
+        if(Math.abs(s)>w.h+f.r*2||Math.abs(q)>THK*4+f.r)continue;
+        const sg=q>=0?1:-1;
+        hitFoe(st,f,cx,cy,w.n[0]*sg,w.n[1]*sg,70,"gale"); f.pv=1.0;}
+      emit(st,w.x,w.y,10,{k:"gale",sp:190*U,r:3*U,life:.45,spikeP:.7});}}
+  for(const f of st.F){
+    WBwalk(f,dt,U,30);
+    if(on)for(const w of WL){
+      const h=WBhitTest(f,w,cx,cy,THK,w.h*hK);
+      if(!h)continue;
+      WBshove(f,w,h,U,dt);
+      if(R()<dt*6){hitFoe(st,f,cx,cy,w.n[0]*h.sg,w.n[1]*h.sg,26,"gale"); f.pv=1.0;
+        st.hitfx.push({x:w.x+w.d[0]*h.s,y:w.y+w.d[1]*h.s,l:0});
+        emit(st,cx+f.ox,cy+f.oy,4,{k:"gale",sp:150*U,r:2.6*U,life:.4,spikeP:.6});}}
+    WBrecycle(st,f,U);}
+  const mark=bgMarker(c,t,dt,cx,cy,st,"gale",U);
+  stepP(st,dt); mark(0); drawFoes(c,t,cx,cy,st.F); mark(1);
+  // 경고 깜빡임 — 뒤로 갈수록 빨라져 **남은 시간을 스스로 말한다.**
+  const warn=on&&u>.8, bl=warn?(.42+.58*(Math.sin(t*(9+26*(u-.8)/.2))>0?1:.18)):1;
+  for(let wi=0;wi<WL.length;wi++){const w=WL[wi], NF=WBpickN(w,U);
+    for(let i=0;i<=NF;i++){const s=-w.h+2*w.h*i/NF;
+      const x=w.x+w.d[0]*s, y=w.y+w.d[1]*s, dc=Math.abs(s)/(w.h||1);
+      const p=((t*.9+i/NF*1.6+wi*.3)%1), bob=.72+.28*Math.sin(p*TAU);
+      const alive=on&&dc<=hK+1e-3;
+      dep(c,y,cy,(c,dz)=>{
+        if(alive)WBfeather(c,t,x,y,w.a,THK*2.0*bob,4.8*U*bob,"gale",(.55+.35*bob)*bl*dz);
+        else{
+          // 자취 — 재생 동안 **가운데부터** 차오른다. 다 차면 벽이 선다.
+          //
+          // ⚠️ 알파 .22 로 깔았다가 첫 렌더에서 **아예 안 보였다**(2026-08-13).
+          // 자취가 안 보이면 「벽이 짧아졌다」가 아니라 「벽이 원래 저만큼이다」로
+          // 읽혀 시계가 통째로 사라진다 — 정지 시안이 시간을 말하는 유일한
+          // 장치라 「있는 듯 없는 듯」이 미덕이 아니다(정지 잔상이 배운 것과 같다).
+          const soon=(!on&&dc<=u);
+          bgChip(c,x,y,3.2*U+(soon?1.0*U:0),i*3.7+wi*2.1,"gale",
+            (soon?.88:.42)*dz,0);}});}}
+  WBhitfx(c,st,dt,cx,cy,U,BURST);
+  WBleak(c,st,cx,cy,U,dt);
+  drawP(c,st); hero(c,t,cx,cy,"gold",U);};
+
+// ── ② 내구도 — 「몇 대 남았나」 ─────────────────────────────────────────
+// **깃 하나 = 한 대.** 막힌 적이 한 번 때릴 때마다 그 자리의 깃이 부러져
+// 날아가고 **구멍이 남는다.** 뒤에 오는 놈은 그 구멍으로 들어온다 — 벽이
+// 통째로 사라지는 것이 아니라 **압력이 센 자리부터 뚫린다**.
+// 깃이 전부 나가면 벽은 무너지고 재장전 뒤 통째로 다시 선다.
+//
+// ⚠️ **결계와 안 겹치게 못을 박는다.** 결계는 셀이 **하나씩 따로** 2.2초 뒤
+// 제자리에 돋는다. 여기는 **한 장이 통째로 무너지고 통째로 선다**(재장전) —
+// 몸에 붙은 껍질과 필드에 세운 물건의 차이가 재생 단위에서도 갈려야 한다.
+//
+// **남은 것을 무엇으로 보여 주나 — 서 있는 깃의 개수.**
+// 부러진 자리에는 **밑동**이 남아 「원래 몇 개였나」가 같이 보인다. 그래야
+// 「7 중 3 남았다」가 읽힌다(낙인 눈금이 빈 칸을 그리는 그 이유).
+FX.WBhits=function(c,t,dt,W,H,st){
+  const U=W/238,cx=W/2,cy=H/2,THK=WBTHK*U;
+  WBinit(st,U);
+  stepFoes(st.F,dt);
+  const RELOAD=[2.2,2.0,1.8,1.6,1.2][LV-1], SHRAP=atL(5);
+  const WL=WBwalls(cx,cy,U);
+  // 판 배치는 레벨이 바뀌면 다시 깐다 — 성장표는 칸마다 LV 가 다르므로 한 번
+  // 만든 배열을 재활용하면 L1 의 깃이 L5 칸에 남는다(빙벽 주석 그대로).
+  if(!st.pk||st.pkLV!==LV||st.pk.length!==WL.length){st.pkLV=LV;
+    st.pk=WL.map(w=>{const n=WBpickN(w,U),a=[];
+      for(let i=0;i<=n;i++)a.push({dead:0,brk:0});return a;});
+    st.rl=WL.map(()=>0);}
+  for(let wi=0;wi<WL.length;wi++){
+    if(st.rl[wi]>0){st.rl[wi]-=dt;
+      if(st.rl[wi]<=0)st.pk[wi].forEach(p=>{p.dead=0;p.brk=0;});}
+    for(const p of st.pk[wi])if(p.brk>0)p.brk-=dt;}
+  for(const f of st.F){
+    WBwalk(f,dt,U,30);
+    f.cd=Math.max(0,(f.cd||0)-dt);
+    for(let wi=0;wi<WL.length;wi++){
+      if(st.rl[wi]>0)continue;
+      const w=WL[wi], h=WBhitTest(f,w,cx,cy,THK,w.h);
+      if(!h)continue;
+      const NF=st.pk[wi].length-1;
+      const idx=Math.max(0,Math.min(NF,Math.round((h.s+w.h)/(2*w.h)*NF)));
+      if(st.pk[wi][idx].dead)continue;          // **구멍 — 그냥 지나간다**
+      WBshove(f,w,h,U,dt);
+      if(f.cd<=0){                              // 한 대 = 깃 하나
+        f.cd=.55;
+        const p=st.pk[wi][idx]; p.dead=1; p.brk=.45;
+        const px=w.x+w.d[0]*(-w.h+2*w.h*idx/NF), py=w.y+w.d[1]*(-w.h+2*w.h*idx/NF);
+        hitFoe(st,f,cx,cy,w.n[0]*h.sg,w.n[1]*h.sg,26,"gale"); f.pv=1.0;
+        st.hitfx.push({x:px,y:py,l:0});
+        emit(st,px,py,7,{k:"gale",sp:170*U,r:2.6*U,life:.42,spikeP:.8});
+        // L5 각성 — **부러진 깃이 파편이 되어 벤다.** 각성이 「안 부서진다」면
+        // 그건 페널티를 지운 것이고, 「부서짐이 반격이 된다」면 페널티를 쓸모로
+        // 뒤집은 것이다. 벽은 여전히 유한하다.
+        if(SHRAP){for(const g of st.F){
+            if(Math.hypot(cx+g.ox-px,cy+g.oy-py)>34*U)continue;
+            const a=Math.atan2(cy+g.oy-py,cx+g.ox-px);
+            hitFoe(st,g,cx,cy,Math.cos(a),Math.sin(a),34,"gale"); g.pv=1.0;}
+          emit(st,px,py,9,{k:"gale",sp:230*U,r:3*U,life:.4,spikeP:.9});}
+        if(st.pk[wi].every(q=>q.dead))st.rl[wi]=RELOAD;}}
+    WBrecycle(st,f,U);}
+  const mark=bgMarker(c,t,dt,cx,cy,st,"gale",U);
+  stepP(st,dt); mark(0); drawFoes(c,t,cx,cy,st.F); mark(1);
+  for(let wi=0;wi<WL.length;wi++){const w=WL[wi], NF=st.pk[wi].length-1;
+    for(let i=0;i<=NF;i++){const s=-w.h+2*w.h*i/NF;
+      const x=w.x+w.d[0]*s, y=w.y+w.d[1]*s, p=st.pk[wi][i];
+      const ph=((t*.9+i/NF*1.6+wi*.3)%1), bob=.72+.28*Math.sin(ph*TAU);
+      dep(c,y,cy,(c,dz)=>{
+        if(!p.dead)WBfeather(c,t,x,y,w.a,THK*2.0*bob,4.8*U*bob,"gale",(.55+.35*bob)*dz);
+        else{
+          if(p.brk>0){const b=p.brk/.45;        // 부러지는 그 순간
+            celSplash(c,x,y,Math.max(1,THK*2.2*b),9,i*3.1,"gale",b*dz);
+            shards(c,x,y,THK*2.4,5,i*2.7,b*.9*dz,"gale");}
+          // ⚠️ .42 는 첫 렌더에서 못 셌다(2026-08-13). 밑동이 안 보이면
+          // 「3 남았다」가 아니라 「원래 3개였다」가 된다.
+          WBstub(c,t,x,y,w.a,THK*2.0,U,"gale",.62*dz);}});}}
+  WBhitfx(c,st,dt,cx,cy,U,SHRAP);
+  WBleak(c,st,cx,cy,U,dt);
+  drawP(c,st); hero(c,t,cx,cy,"gold",U);};
+
+// ── ③ 선별 방어 — 「이건 안 막힌다」 ────────────────────────────────────
+// 벽은 **안 사라지고 안 부서진다.** 대신 **잔몹만** 막는다 — 큰 놈은 깃을
+// 눕히며 그냥 지나가고, 원거리 탄은 깃 사이로 빠져 나간다. 페널티의 값은
+// 「제일 위험한 것이 정확히 안 막히는 것」이다.
+//
+// **「안 막힌다」를 무엇으로 보여 주나 — 셋을 겹친다.**
+//   ① **벽이 낮다.** 깃 길이가 ①②의 58% 다. 낮은 울타리는 정지 화면 한 장으로
+//      「저건 큰 놈을 못 세우겠다」를 말한다. 규칙을 실루엣이 먼저 알린다.
+//   ② **통과할 때 깃이 눕는다.** 큰 놈이 지나간 자리의 깃이 벽 법선 쪽으로
+//      쓰러졌다가 뒤에서 다시 선다 + 파편이 튄다 — 「부딪히긴 했는데 못 세웠다」.
+//   ③ **막힌 놈은 벽 밖, 안 막힌 놈은 벽 안.** 정지 화면에서 위치가 곧 분류다.
+//
+// ⚠️ L4 는 수치가 아니라 **누가 막히나**가 바뀐다(중형까지 막는다). L5 각성은
+// **탄이 휜다** — 그래도 큰 놈은 여전히 통과한다. 무적이 되는 레벨은 없다.
+FX.WBsort=function(c,t,dt,W,H,st){
+  const U=W/238,cx=W/2,cy=H/2,THK=WBTHK*U;
+  // 잔몹 3(r 9~10) · **중형 1**(r 15 — L4 부터 막힌다) · 대형 1(r 23 · 항상 통과) ·
+  // 사수 1(원거리 · 안 다가온다). **분류가 화면에 다 있어야 규칙이 읽힌다** —
+  // 잔몹만 세워 두면 「전부 막힌다」로 보이고, 대형만 두면 「아무것도 못 막는다」다.
+  // 몸집은 도감(`FOEDEF`) 값에서 가져왔다: 잔몹 5~15 · 보스 36.
+  WBinit(st,U,[[-96,-64,10],[96,-52,9],[-70,-96,10],
+               [18,-96,15],[-40,-104,23],[56,-102,11]]);
+  const BIG=st.F[4], GUN=st.F[5];
+  stepFoes(st.F,dt);
+  const RMAX=[12,12,12,18,18][LV-1]*U, DEFL=atL(5);
+  const WL=WBwalls(cx,cy,U);
+  st.b=st.b||[]; st.lean=st.lean||{};
+  for(const k in st.lean){st.lean[k]-=dt*2.2; if(st.lean[k]<=0)delete st.lean[k];}
+  for(const f of st.F){
+    if(f===GUN){f.ox=f.hx;f.oy=f.hy;continue;}   // 사수는 안 다가온다
+    WBwalk(f,dt,U,f===BIG?24:30);
+    const blocks=f.r<=RMAX;
+    let touch=0;
+    for(let wi=0;wi<WL.length;wi++){
+      const w=WL[wi], h=WBhitTest(f,w,cx,cy,THK,w.h);
+      if(!h)continue;
+      touch=1;
+      if(blocks){
+        WBshove(f,w,h,U,dt);
+        if(R()<dt*6){hitFoe(st,f,cx,cy,w.n[0]*h.sg,w.n[1]*h.sg,26,"gale"); f.pv=1.0;
+          st.hitfx.push({x:w.x+w.d[0]*h.s,y:w.y+w.d[1]*h.s,l:0});
+          emit(st,cx+f.ox,cy+f.oy,4,{k:"gale",sp:150*U,r:2.6*U,life:.4,spikeP:.6});}}
+      else{
+        // **통과.** 지나간 자리의 깃을 눕히고, 들어설 때 한 번만 파편을 낸다.
+        const NF=WBpickN(w,U);
+        for(let i=0;i<=NF;i++){const s=-w.h+2*w.h*i/NF;
+          if(Math.abs(s-h.s)<f.r*1.1)st.lean[wi+"_"+i]=1;}
+        if(!f.cross)
+          emit(st,cx+f.ox,cy+f.oy,8,{k:"gale",sp:120*U,r:2.4*U,life:.4,spikeP:.85});}}
+    f.cross=touch;                 // 벽을 벗어나면 다음 통과에 또 파편이 튄다
+    WBrecycle(st,f,U);}
+  // 원거리 탄 — 벽을 그냥 지나간다(L5 만 휜다).
+  st.gt=(st.gt||0)+dt;
+  if(st.gt>.85){st.gt=0;
+    const a=Math.atan2(-GUN.oy,-GUN.ox);
+    st.b.push({x:cx+GUN.ox,y:cy+GUN.oy,vx:Math.cos(a)*104*U,vy:Math.sin(a)*104*U,df:0});}
+  for(let i=st.b.length-1;i>=0;i--){const b=st.b[i];
+    const px=b.x,py=b.y;
+    b.x+=b.vx*dt; b.y+=b.vy*dt;
+    if(DEFL&&!b.df)for(const w of WL){
+      const s0=(px-w.x)*w.d[0]+(py-w.y)*w.d[1], q0=(px-w.x)*w.n[0]+(py-w.y)*w.n[1];
+      const s1=(b.x-w.x)*w.d[0]+(b.y-w.y)*w.d[1], q1=(b.x-w.x)*w.n[0]+(b.y-w.y)*w.n[1];
+      if(Math.abs(s1)>w.h||q0*q1>0)continue;
+      // L5 각성 — 벽면에서 튕긴다. 법선 성분만 뒤집으면 「휘었다」가 된다.
+      const vn=b.vx*w.n[0]+b.vy*w.n[1];
+      b.vx-=2*vn*w.n[0]; b.vy-=2*vn*w.n[1]; b.df=1;
+      st.hitfx.push({x:w.x+w.d[0]*s1,y:w.y+w.d[1]*s1,l:0});
+      emit(st,b.x,b.y,5,{k:"gale",sp:140*U,r:2.2*U,life:.3,spikeP:.9});}
+    if(Math.hypot(b.x-cx,b.y-cy)<20*U){st.lk=1;st.b.splice(i,1);continue;}
+    if(Math.abs(b.x-cx)>W*.62||Math.abs(b.y-cy)>H*.62)st.b.splice(i,1);}
+  const mark=bgMarker(c,t,dt,cx,cy,st,"gale",U);
+  stepP(st,dt); mark(0); drawFoes(c,t,cx,cy,st.F); mark(1);
+  // **낮은 울타리.** 깃 길이 계수 1.15 (①②는 2.0) — 실루엣이 규칙을 먼저 말한다.
+  for(let wi=0;wi<WL.length;wi++){const w=WL[wi], NF=WBpickN(w,U);
+    for(let i=0;i<=NF;i++){const s=-w.h+2*w.h*i/NF;
+      const x=w.x+w.d[0]*s, y=w.y+w.d[1]*s;
+      const ph=((t*.9+i/NF*1.6+wi*.3)%1), bob=.72+.28*Math.sin(ph*TAU);
+      const ln=st.lean[wi+"_"+i]||0;             // 눕은 정도
+      dep(c,y,cy,(c,dz)=>{
+        WBfeather(c,t,x,y,w.a+ln*1.15,THK*1.15*bob*(1-ln*.45),
+          4.4*U*bob,"gale",(.55+.35*bob)*(1-ln*.35)*dz);
+        if(ln>.5)shards(c,x,y,THK*1.6,4,i*3.1,(ln-.5)*1.6*dz,"gale");});}}
+  // ⚠️ 탄을 `shade`(어둠 · base 가 거의 검정)로 그렸더니 **배경에 묻혀 안 보였다**
+  // (2026-08-13 첫 렌더). 「탄이 통과한다」가 이 안의 정체인데 탄이 안 보이면
+  // 규칙이 화면에 없다. 적의 것은 적의 색이라야 한다 — `drawFoes` 의 테두리·눈이
+  // 진홍이므로 같은 계열인 `gKarma`(350°)로 간다. 휜 탄만 `gale` 로 넘어가
+  // **색이 바뀌는 것 자체가 「내 벽이 가로챘다」**가 된다(L5 각성의 표식).
+  for(const b of st.b)dep(c,b.y,cy,(c,dz)=>{
+    const a=Math.atan2(b.vy,b.vx);
+    celRound(c,b.x,b.y,a,8.6*U,3.8*U,b.df?"gale":"gKarma",.95*dz,.9);});
+  WBhitfx(c,st,dt,cx,cy,U,false);
+  WBleak(c,st,cx,cy,U,dt);
+  drawP(c,st); hero(c,t,cx,cy,"gold",U);};
+
+// ── ④ 방향 — 「등 뒤는 못 막는다」 (내가 더한 안) ───────────────────────
+// 사용자 후보 셋은 전부 **벽이 언젠가 없어지는** 쪽이다(시간·내구·예외).
+// 넷째 축을 하나 더 둔다: **벽은 영원하고 전부 막는데, 한 쪽만 막는다.**
+//
+// 벽이 몸을 따라 도는 **호**가 되고 나머지 각은 통째로 열려 있다. 그래서
+// 이 안만 **움직이면서 쓸 수 있다**(①②③ 은 벽이 제자리라 내가 떠나면 끝난다).
+// 대신 포위에 완전히 진다 — 다른 셋이 다 이기는 그 상황에서 혼자 죽는다.
+//
+// **남은 것을 무엇으로 보여 주나 — 열린 각.**
+// 막는 쪽에는 깃이 서고, **열린 쪽에는 빈 눈금이 줄지어 있다**(낙인이 빈 칸을
+// 그리는 그 이유 — 안 그리면 「원래 저기까지였나」와 구분이 안 된다).
+// 그리고 열린 쪽으로 들어온 적이 실제로 몸에 닿는다. 그게 제일 센 표시다.
+//
+// ⚠️ 성장은 각도 하나를 다섯으로 나누지 않는다. 칸마다 **사건이 하나씩** 붙는다:
+//   L2 각이 는다 · L3 **겹이 둘** · L4 **양 끝에 갈퀴** · L5 **열린 쪽에 역풍**
+FX.WBarc=function(c,t,dt,W,H,st){
+  const U=W/238,cx=W/2,cy=H/2,THK=WBTHK*U;
+  WBinit(st,U,[[-96,-58,10],[-30,-102,9],[52,-88,10],[102,-22,9],
+               [40,86,10],[-84,52,9]]);
+  stepFoes(st.F,dt);
+  const ARC=[1.60,2.30,3.00,3.70,4.40][LV-1];   // 라디안 (92°→252°)
+  const LAY=atL(3)?2:1, BARB=atL(4), BACK=atL(5);
+  const RAD=48*U, fa=t*.5;                       // 바라보는 방향
+  for(const f of st.F){
+    const ad=Math.atan2(f.oy,f.ox);
+    const da=((ad-fa+Math.PI)%TAU+TAU)%TAU-Math.PI;
+    const cov=Math.abs(da)<=ARC/2;
+    // L5 각성 — **역풍.** 열린 쪽에서 오는 것을 막지는 못하고 **느리게** 한다.
+    // 완전 무효 금지 규약 그대로: 뚫리는 쪽은 끝까지 뚫린다.
+    WBwalk(f,dt,U,(!cov&&BACK)?13:30);
+    if(!cov&&BACK)f.pv=1.0;
+    const d=Math.hypot(f.ox,f.oy)||1;
+    if(cov&&d<RAD+f.r){
+      const nx=f.ox/d, ny=f.oy/d;
+      f.ox=nx*(RAD+f.r); f.oy=ny*(RAD+f.r);
+      f.ox+=-ny*20*U*dt*(da>=0?1:-1); f.oy+=nx*20*U*dt*(da>=0?1:-1);
+      if(R()<dt*6){hitFoe(st,f,cx,cy,nx,ny,26,"gale"); f.pv=1.0;
+        st.hitfx.push({x:cx+nx*RAD,y:cy+ny*RAD,l:0});
+        emit(st,cx+f.ox,cy+f.oy,4,{k:"gale",sp:150*U,r:2.6*U,life:.4,spikeP:.6});}}
+    // L4 갈퀴 — 호의 두 끝에서 스치는 놈을 벤다. 끝단에 값이 붙으면 「어디까지
+    // 막히나」를 플레이어가 재게 된다.
+    if(BARB&&Math.abs(Math.abs(da)-ARC/2)<.20&&Math.abs(d-RAD)<14*U&&R()<dt*4){
+      hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,30,"gale"); f.pv=1.0;}
+    WBrecycle(st,f,U);}
+  const mark=bgMarker(c,t,dt,cx,cy,st,"gale",U);
+  stepP(st,dt); mark(0); drawFoes(c,t,cx,cy,st.F); mark(1);
+  const N=Math.max(4,Math.round(TAU*RAD/(WBGAP[LV-1]*U)));  // 한 바퀴 깃 수
+  for(let L=0;L<LAY;L++){
+    const rr=RAD*(L?.80:1), off=L?Math.PI/N:0;
+    for(let i=0;i<N;i++){
+      const a=fa-Math.PI+ (i+.5)/N*TAU + off;
+      const da=((a-fa+Math.PI)%TAU+TAU)%TAU-Math.PI;
+      const cov=Math.abs(da)<=ARC/2;
+      const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;
+      const ph=((t*.9+i/N*1.6+L*.35)%1), bob=.72+.28*Math.sin(ph*TAU);
+      dep(c,y,cy,(c,dz)=>{
+        if(cov)WBfeather(c,t,x,y,a+Math.PI/2,THK*2.0*bob*(L?.78:1),
+          4.8*U*bob*(L?.8:1),"gale",(.55+.35*bob)*(L?.7:1)*dz);
+        else if(!L)
+          // **빈 눈금이 열린 각을 잰다.** 안 그리면 「원래 여기까지였나」와
+          // 「여기가 뚫렸나」가 구분이 안 된다. (.20 은 첫 렌더에서 안 보였다)
+          bgChip(c,x,y,3.0*U,i*3.7,"gale",.40*dz,0);});}}
+  if(BARB)for(const sg of[-1,1]){const a=fa+sg*ARC/2;
+    const x=cx+Math.cos(a)*RAD, y=cy+Math.sin(a)*RAD;
+    dep(c,y,cy,(c,dz)=>{
+      celSpike(c,x,y,a+sg*.5,15*U,3.4*U,"gale",.9*dz);
+      celSpike(c,x,y,a,11*U,2.8*U,"gale",.75*dz);});}
+  if(BACK)for(let i=0;i<3;i++){
+    // 역풍 — 열린 쪽에서 **바깥으로** 흐르는 획 셋. 막는 것이 아니라 미는 것이라
+    // 깃(서 있는 것)이 아니라 획(흐르는 것)으로 그린다.
+    const p=((t*.8+i/3)%1), a=fa+Math.PI+Math.sin(t*.7+i*2.1)*(TAU-ARC)*.22;
+    const rr=RAD*(.55+p*.95);
+    const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;
+    dep(c,y,cy,(c,dz)=>{
+      windStroke(c,t,x,y,9*U,.55,a+Math.PI/2,2.3,3.2*U,"gale",(1-p)*.55*dz);});}
+  WBhitfx(c,st,dt,cx,cy,U,false);
+  WBleak(c,st,cx,cy,U,dt);
+  drawP(c,st); hero(c,t,cx,cy,"gold",U);};
+
+// ── 마운트 ───────────────────────────────────────────────────────────────
+// 호스트 한 곳에만 붙는다. 기존 표(MAGIC/LVW/MGW)는 한 줄도 안 건드린다.
+const WBHOST=MOUNT("wb");
+const WBLIST=[
+["WBtime","풍벽 ① 유지 시간","벽이 몇 초 서 있다 사라진다 — 깃이 양 끝부터 꺼져 남은 시간을 잰다. 가동률 44→78%"],
+["WBhits","풍벽 ② 내구도","깃 하나 = 한 대. 맞은 자리가 뚫리고 뒤에 오는 놈이 그 구멍으로 들어온다 (7→68대)"],
+["WBsort","풍벽 ③ 선별 방어","잔몹만 막는다. 큰 놈은 깃을 눕히며 지나가고 원거리 탄은 사이로 빠진다"],
+["WBarc","풍벽 ④ 방향","우리가 아니라 호 — 앞은 전부 막고 등 뒤는 통째로 열려 있다"]];
+const WBLVT={
+WBtime:["서 있는 시간 2.2 → 2.7초 (가동률 44 → 54%)",
+ "벽 2장 — ㄱ자. 가동률 62%",
+ "벽 3장 — 삼각 우리. 가동률 70%",
+ "각성 — 우리가 닫히고, 꺼지는 순간 그 자리에서 돌풍이 터진다 (가동률 78%)"],
+WBhits:["깃이 촘촘해진다 — 같은 벽이 더 많이 맞는다",
+ "벽 2장 — ㄱ자. 뚫린 구멍이 둘로 갈린다",
+ "벽 3장 — 삼각 우리. 재장전 1.6초",
+ "각성 — 우리가 닫히고, **부러진 깃이 파편이 되어 벤다**(재장전 1.2초)"],
+WBsort:["벽이 길어지고 깃이 촘촘해진다 — 막히는 몸집은 그대로",
+ "벽 2장 — ㄱ자",
+ "**중형까지 막힌다** — 막히는 몸집 상한이 오른다(큰 놈은 여전히 통과)",
+ "각성 — 우리가 닫히고 **원거리 탄이 벽면에서 휜다**. 큰 놈은 끝까지 통과"],
+WBarc:["호가 넓어진다 (92° → 132°)",
+ "**겹이 둘** — 안쪽 호가 반 칸 어긋나 촘촘해진다",
+ "**양 끝에 갈퀴** — 호의 가장자리를 스치는 놈이 베인다",
+ "각성 — 호 252°, **열린 쪽에 역풍**이 분다(막지는 못하고 느리게만 한다)"]};
+WBLIST.forEach(w=>{WTONE[w[0]]="gale";});
+// ⚠️ 고르기 타일을 뺐다 — 「방향」 안 채택(2026-08-13).
+// ⚠️ L1 은 표에 없고 고정 문구다 — [WBLVT] 는 L2 부터라 앞에 한 칸을 끼워
+// [lvTable] 이 기대하는 「칸마다 한 줄」 모양으로 맞춘다.
+// ⚠️ 고르기 성장표를 뺐다 — 채택본은 JD 블록이 방어 페이지에 세운다.
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IL — 얼음 다섯의 **레벨 성장표** (접두 `IL`)                   (2026-08-13)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 새 최상위 이름은 전부
+// `IL` 로 시작하고 등록은 `FX.IL*` 에 **대입만** 한다. `FLROWS` 는 안 건드린다 —
+// 마운트는 따로 만들고 호스트는 `MOUNT("levelsm")` 다.
+//
+// ── 채우는 것 ─────────────────────────────────────────────────────────────
+// 불 셋은 레벨이 생겼는데 얼음 다섯은 없다. 다섯은 전부 **채택본**이고
+// 그 그림이 곧 L5 다 — 한 픽셀도 안 바꾼다:
+//     서릿발 IBspine2b · 결빙 A FZtomb1 · 결빙 B FZtomb2 ·
+//     결빙 C FZtomb3   · 빙벽 IBwall3
+//
+// ⚠️ **한 축을 다섯 단계로 써는 것은 성장이 아니다.** 칸마다 **사건이 하나씩
+// 붙어야** 한다. 그리고 **다섯이 서로 다른 축**이라야 계열이 계열로 읽힌다 —
+// 「개수가 는다」를 다섯이 다 쓰면 그건 같은 스킬 다섯 벌이다.
+//
+// ── 다섯의 축을 무엇으로 갈랐나 ───────────────────────────────────────────
+//   서릿발  **거리**  — 열이 얼마나 멀리 뻗나 (54SC → 124SC). 한 송이의 크기는
+//                      RAD=15SC 로 **고정**이다. 자라는 것은 오직 선의 길이다.
+//   기둥    **키**    — 얼마나 높이 솟나 (1.5r → 4.6r). 바닥 마법진(RN)은
+//                      **고정**이라 「자리는 그대로인데 점점 높이 솟는다」가 된다.
+//   포탈    **무게**  — 닿았을 때 무슨 일이 나나. 낙하 높이(GAP)·원통 굵기·
+//                      포탈 지름은 **다섯 칸이 다 같다.** 갈리는 것은 찍힘뿐이다.
+//   왕관    **방향**  — 둘레의 몇 곳에서 무나 (2 → 9). 반지름 RR=2.15r 은
+//                      **절대 안 자란다** — 그래서 기둥(키)과 안 겹친다.
+//   빙벽    **버팀**  — 얼마나 넓게·오래 막나 (1.2초 → 6.1초). 유일하게 시간이
+//                      축인 자리다. 방어 스킬이라 「버틴다」가 곧 세기다.
+//
+// 겹침 검사: 세로로 자라는 것은 기둥 하나, 각도로 닫히는 것은 왕관 하나,
+// 시간으로 버티는 것은 벽 하나, 선이 길어지는 것은 서릿발 하나, 충격이
+// 커지는 것은 포탈 하나다. 「개수」는 다섯 다 **부축으로만** 쓴다.
+//
+// ── 지킨 것 ───────────────────────────────────────────────────────────────
+// · 면으로 그린다(전부 `IB*` 호출부) · 이미지 0개 · `globalCompositeOperation`
+//   **직접** 호출 0회 · 색은 전부 `"frost"` 키 하나(하드코딩 0)
+// · 성장은 `LV` 전역을 읽어 `[..][LV-1]` 로 갈라진다(FL/LVW 관례 그대로)
+// · **L5 는 채택본과 수치까지 같다.** 표의 5번째 칸이 전부 원본 상수다 —
+//   아래 각 표 끝의 `// ←원본` 주석이 대조점이다.
+// · 새 원시함수는 안 만들었다. 다섯 다 원본을 **레벨로 연 호출부**이고,
+//   쓰는 것은 IBneedle/IBcrys/IBpane/IBflake/IBline/IBroot/IBrune/IBspark/
+//   IBshard/IBmist/IBpushFrag/IBstepFrag/IBdrawFrag/IBburst/IBstepWall/
+//   FZpop/FZpopV/FZring/FZcrack/shards/dep/mgInit/mgMarks/hitFoe/emit 뿐이다.
+//
+// ── 못 지킨 것 ───────────────────────────────────────────────────────────
+// ⚠️ **① 빙벽은 방어 스킬이라 이 호스트가 제 자리가 아니다.** 지시대로 마법
+//    성장표(`#levelsm`)에 같이 붙였지만 **빙벽 줄은 방어 페이지로 가야 한다.**
+//    옮길 때 고칠 것은 마운트 한 줄(`ILROWS` 에서 `ILwall` 행을 떼어 `#levelsg`
+//    호스트로)뿐이고 함수는 그대로다.
+// ⚠️ **② 빙벽의 「막는 수」가 시간이 지나면 다섯 칸 다 같아진다.** `IBstepWall`
+//    이 안 막힌 적을 원점으로 당기므로(공용 함수라 안 고쳤다) 폭이 좁아도
+//    적이 결국 가운데로 모여 걸린다. 그래서 폭 차이는 **처음 1~2초**에만
+//    보인다. 그 대신 깎이는 속도표(`ILW_RT`)로 버팀을 맞췄다 — 측정한 파괴
+//    주기는 L1 1.2초 · L5 6.1초다(아래 표 주석).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── ① 서릿발 — 레벨 표 ───────────────────────────────────────────────────
+// 축 = **거리**. 칸마다 사건 하나:
+//   L1 발 앞 셋 · L2 더 뻗는다 · L3 꽃받침이 선다 ·
+//   L4 적이 언다 · L5 끝까지 뻗고 부스러진다
+//
+// ⚠️ 한 송이의 크기(RAD=15SC)·주기(1.5초)·시차(.052)·시듦(.32)은 **다섯 칸이
+// 다 같다.** 여기서 크기까지 키우면 축이 「거리」가 아니라 「크기」가 되어
+// 기둥과 겹친다.
+const ILS_N  =[3,5,6,7,8];        // 마디 수 — 뻗는 거리 26+(N-1)*14 SC  ←원본 8
+const ILS_NE =[3,3,5,5,5];        // 한 송이의 바늘 수                    ←원본 5
+const ILS_RT =[.30,.34,.40,.55,.55]; // 밑동 발광 알파                    ←원본 .55
+const ILS_KB =[6,7,9,16,16];      // 넉백(SC)                            ←원본 16
+const ILS_FZ =[0,0,0,1,1];        // 적이 어나(pv 표식)                   ←원본 있음
+const ILS_SH =[0,0,0,0,1];        // 부스러기(shards)                    ←원본 있음
+const ILS_EM =[3,4,5,6,8];        // 솟을 때 입자 수                      ←원본 8
+
+// ── ② 결빙 A · 유리 기둥 — 레벨 표 ───────────────────────────────────────
+// 축 = **키**. 칸마다 사건 하나:
+//   L1 그루터기 · L2 나선이 감긴다 · L3 뚜껑이 덮인다 ·
+//   L4 밑동이 갈라진다 · L5 끝까지 솟는다
+//
+// ⚠️ 바닥 마법진 반지름 `RN` 은 **고정**(T.r*1.62*1.85)이다. RR 을 따라 줄이면
+// 「작은 주문이 작게 솟는다」가 되어 성장이 아니라 **축소판**이 된다. 자리는
+// 처음부터 다 잡혀 있고 **거기서 자라는 것**이라야 레벨업이 보상이 된다.
+const ILP_H  =[1.5,2.4,3.3,4.0,4.6]; // 기둥 높이 ÷ T.r                  ←원본 4.6
+const ILP_RR =[.95,1.15,1.35,1.52,1.62]; // 기둥 굵기 ÷ T.r              ←원본 1.62
+const ILP_PN =[3,4,5,6,6];        // 솟는 유리판 수                       ←원본 6
+const ILP_HX =[0,1,1,2,2];        // 감기는 나선 줄 수                    ←원본 2
+const ILP_CAP=[0,0,1,1,1];        // 뚜껑(IBroot+IBflake)                 ←원본 있음
+const ILP_CRK=[0,0,0,1,1];        // 밑동 금(FZcrack)                     ←원본 있음
+const ILP_SHD=[0,0,0,1,1];        // 튈 때 떨어져 나가는 조각             ←원본 있음
+const ILP_RIM=[2,3,4,6,6];        // 마법진 테두리 바늘                   ←원본 6
+const ILP_MST=[3,4,5,6,6];        // 튄 자리 냉기                         ←원본 6
+const ILP_SPK=[2,3,4,6,7];        // 반짝이                               ←원본 7
+
+// ── ③ 결빙 B · 포탈 낙하 — 레벨 표 ───────────────────────────────────────
+// 축 = **무게**(닿았을 때 무슨 일이 나나). 칸마다 사건 하나:
+//   L1 툭 놓인다 · L2 금이 간다 · L3 깨진다 ·
+//   L4 무겁게 떨어진다 · L5 땅이 흔들리고 서리가 퍼진다
+//
+// ⚠️ 1차 렌더(sheet_a.png, 220px) 판정: **L4 와 L5 가 안 갈렸다.** 흔들림을
+// L4 에 두었더니 정지 화면에서 L5 의 사건(서리 고리)만 남아 한 칸 차이가
+// 고리 하나였다. 흔들림을 L5 로 올리고 L4 는 **낙하 잔상·속도선**만 갖는다 —
+// 이러면 L4 는 「떨어지는 동안」이, L5 는 「닿은 뒤」가 사건이라 안 겹친다.
+//
+// ⚠️ **낙하 높이·원통 굵기·포탈 지름은 다섯 칸이 글자 그대로 같다**
+// (GAP=1.95r · RR=1.70r · RN=RR*1.74). 여기서 크기를 건드리면 축이 기둥과
+// 겹친다. 갈리는 것은 **찍힌 뒤 0.5초에 무엇이 일어나는가** 하나뿐이다.
+const ILB_KB =[4,6,9,11,13];      // 찍는 넉백(SC)                        ←원본 13
+const ILB_EM =[6,8,12,14,18];     // 찍힐 때 입자(양쪽 각각)              ←원본 18
+const ILB_FR =[0,0,6,6,6];        // 찍힐 때 튀는 조각                    ←원본 6
+const ILB_CRK=[0,1,1,1,1];        // 바닥 금(FZcrack)                     ←원본 있음
+const ILB_AIM=[0,1,1,1,1];        // 조준 고리(예고)                      ←원본 있음
+const ILB_PRT=[0,1,1,1,1];        // 포탈 열릴 때 새는 냉기               ←원본 있음
+const ILB_THR=[0,0,1,1,1];        // 문턱을 뚫을 때 파편                  ←원본 있음
+const ILB_BRK=[0,0,1,1,1];        // 끝에 기둥이 부서진다                 ←원본 있음
+const ILB_STR=[0,0,0,1,1];        // 낙하 잔상·속도선                     ←원본 있음
+const ILB_SHK=[0,0,0,0,1];        // 화면 흔들림                          ←원본 있음
+const ILB_MSTR=[0,0,0,0,8];       // 찍힌 자리에서 밖으로 퍼지는 서리     ←원본 8
+// ⚠️ 2차 렌더 판정: 찍힌 순간만 보면 **L3 과 L4 가 안 갈렸다** — L4 의 사건인
+// 속도선은 낙하 0.055주기 동안만 있고 찍힘 뒤엔 없다. 떠다니는 조각을 L4 로
+// 미뤄 「찍힌 뒤에도 남는 표」를 하나 준다.
+const ILB_SHD=[0,0,0,3,5];        // 떠다니는 조각                        ←원본 5
+const ILB_SPK=[3,4,5,6,8];        // 반짝이                               ←원본 8
+
+// ── ④ 결빙 C · 얼음 왕관 — 레벨 표 ───────────────────────────────────────
+// 축 = **무는 방향**. 칸마다 사건 하나:
+//   L1 앞에서 둘 · L2 양옆이 선다 · L3 뒤에서도 선다 ·
+//   L4 원이 닫히고 안에 갇힌다 · L5 다 물고 서리가 핀다
+//
+// ⚠️ **반지름 RR=2.15r 은 다섯 칸이 다 같다.** 왕관이 커지면 축이 「크기」가
+// 되어 기둥과 겹친다. 자라는 것은 **몇 방향에서 무나**와 **얼마나 안으로
+// 무나**(기울기)뿐이다.
+//
+// 가시가 서는 순서는 **앞부터**다. 슬롯 i 의 각은 `i/9*TAU-π/2` 라
+// sin 이 큰 쪽(화면 아래=가까운 쪽)이 앞이다:
+//   i=4,5(0.94) → 3,6(0.50) → 2,7(-0.17) → 1,8(-0.77) → 0(-1.00)
+// 그래서 **좌우 대칭으로 짝지어** 커지고, 뒤쪽(sin<0)은 L3 에서 처음 선다.
+const ILC_RANK=[8,6,4,2,0,1,3,5,7]; // 슬롯 i 가 몇 번째로 서나
+const ILC_K  =[2,4,6,8,9];        // 서는 가시 수                         ←원본 9
+const ILC_LN =[.04,.10,.17,.22,.26]; // 안쪽으로 무는 정도                ←원본 .26
+const ILC_CRK=[0,0,1,1,1];        // 밑동 금                              ←원본 있음
+const ILC_CR =[0,0,0,3,3];        // 안에 갇혀 뜨는 결정                  ←원본 3
+const ILC_FL =[0,0,0,0,3];        // 눈송이                               ←원본 3
+const ILC_SPK=[0,2,4,6,8];        // 반짝이                               ←원본 8
+
+// ── ⑤ 빙벽 — 레벨 표 ─────────────────────────────────────────────────────
+// 축 = **버팀**. 칸마다 사건 하나:
+//   L1 겨우 붙들고 있다 · L2 실이 꿴다 · L3 셋이 걸린다 ·
+//   L4 틈이 메워진다 · L5 깨져도 곧 다시 짜인다
+//
+// ⚠️ `IBstepWall` 은 **막힌 적 하나마다** hp 를 `rate*dt` 씩 깎는다. 그래서
+// 폭이 좁으면 걸리는 적이 적어 **되레 오래 버틴다** — 폭만 키우면 성장이
+// 거꾸로 읽힌다. 아래 `ILW_RT` 는 그것까지 넣고 **실측한 파괴 주기**로 맞췄다
+// (node 계측, 아래 주석). L5 만은 원본 .055 그대로다.
+// ⚠️ 실측(node, 900프레임 = 15초) — **첫 파괴까지 걸린 시간**:
+//   L1 1.95초 · L2 2.77초 · L3 3.82초 · L4 4.90초 · L5 5.97초 (한 칸 ≈ +1초)
+// 바닥이 0 이 아닌 이유는 적이 벽까지 **걸어오는 데만 약 1.8초** 걸리기
+// 때문이다(SPD=31SC/s, 공용 함수라 안 고쳤다). 그래서 L1 은 사실상
+// 「닿자마자 깨진다」(0.15초)이고 L5 는 닿고도 **4.2초**를 더 버틴다.
+const ILW_PW =[20,32,46,56,64];   // 벽 폭(SC)                            ←원본 64
+const ILW_RT =[2.2,.22,.105,.072,.055]; // 깎이는 속도                    ←원본 .055
+const ILW_DD =[2.30,1.95,1.60,1.35,1.15]; // 다시 짜이기까지(초)          ←원본 1.15
+const ILW_TH =[0,1,2,2,2];        // 꿰는 실 가닥                         ←원본 2
+const ILW_FL =[1,1,3,3,3];        // 큰 눈송이                            ←원본 3
+const ILW_SM =[0,0,0,2,4];        // 사이 작은 눈송이                     ←원본 4
+// ⚠️ 1차 렌더 판정: **L4 와 L5 가 정지 화면에서 안 갈렸다**(둘 다 촘촘한
+// 격자에 폭만 58/64). 반짝이를 나눠 주던 것을 **L5 로 몰아** 마지막 칸에
+// 「마디가 빛난다」를 붙였다. 시간(4.55초 vs 5.97초)만으로는 한 장에서 안 보인다.
+const ILW_SP =[0,0,0,0,6];        // 마디 반짝이                          ←원본 6
+const ILW_SPR=[4,2,0,1,3,5];      // 반짝이 슬롯이 몇 번째로 켜지나(가운데부터)
+const ILW_BS =[3,4,6,7,9];        // 깨질 때 흩어지는 조각                ←원본 9
+const ILW_EM =[6,9,13,16,20];     // 깨질 때 입자                         ←원본 20
+const ILW_SHD=[0,0,0,0,5];        // 끊긴 자리에 남는 조각                ←원본 5
+
+Object.assign(FX,{
+
+// ══════════════════════════════════════════════════════════════════════════
+// 서릿발 — 다섯 칸 (`IBspine2b` 를 거리로 연 것)
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️ `LV===5` 는 `IBspine2b` 와 **수치까지 같은 그림**이다: N=8 · PER 1.5 ·
+// STEP .052 · RISE .13 · WILT .32 · R0 26 · GAP 14 · RAD 15 · 넉백 16SC ·
+// pv +1 · 입자 8 · 바늘 다섯(가운데 1.55배 mos 2) · 밑동 .55 · 부스러기 5.
+ILspine(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-20,-58,10],[26,-84,11],[-48,-96,10],[8,-116,9],[54,-70,9]]);
+  stepFoes(st.F,dt);
+  const N=ILS_N[LV-1],PER=1.5,STEP=.052,RISE=.13,WILT=.32;
+  const R0=26*SC,GAP=14*SC,RAD=15*SC;
+  const NE=ILS_NE[LV-1],HF=(NE-1)/2;
+  const u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const ang=-Math.PI/2;
+  for(let j=0;j<N;j++){const at=j*STEP;
+    if(!(pu<at&&u>=at))continue;
+    const d=R0+j*GAP,x=Math.cos(ang)*d,y=Math.sin(ang)*d;
+    for(const f of st.F)if(Math.hypot(f.ox-x,f.oy-y)<RAD*1.15+f.r){
+      hitFoe(st,f,cx,cy,0,-1,ILS_KB[LV-1]*SC,"frost");
+      // ⚠️ 어는 것은 L4 부터다. L1~L3 은 밀기만 한다 — 「찌른다」와 「얼린다」는
+      // 다른 사건이고, 표식(mgMarks)이 붙는 순간이 그 칸의 보상이다.
+      if(ILS_FZ[LV-1])f.pv=Math.min(2,(f.pv||0)+1);}
+    emit(st,cx+x,cy+y,ILS_EM[LV-1],
+      {k:"frost",sp:105*SC,r:2.4*SC,life:.5,g:60*SC,spikeP:.9});}
+  for(const f of st.F)if(f.pv>0)f.pv-=dt*.3;
+  stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let j=0;j<N;j++){
+    const life=u-j*STEP;if(life<0||life>.52)continue;
+    const d=R0+j*GAP,x=cx+Math.cos(ang)*d,y=cy+Math.sin(ang)*d;
+    const gg=life<RISE?life/RISE:1;
+    const w=life<WILT?1:Math.max(0,1-(life-WILT)/.20);
+    if(w<=.03)continue;
+    dep(c,y,cy,(c,dz)=>{
+      IBroot(c,x,y+RAD*.10,RAD*1.25*gg,"frost",ILS_RT[LV-1]*dz*w,.30);
+      // 한 송이 = 바늘 NE. 가운데(i=2)가 크고 둘레가 꽃받침처럼 선다.
+      // NE=3 이면 가운데 하나 + 곁 둘뿐 — **꽃받침이 없다**(L3 의 사건).
+      for(let i=2-HF;i<=2+HF;i++){const a0=-Math.PI/2+(i-2)*.42;
+        const L=RAD*gg*(i===2?1.55:1.0-Math.abs(i-2)*.16)*(.55+.45*w);
+        IBneedle(c,x,y+RAD*.06,a0,L,RAD*(i===2?.24:.17),j*3.7+i*2.1,"frost",dz,
+          {mos:i===2?2:1,tip:.20,slant:.6});}
+      if(ILS_SH[LV-1])shards(c,x,y,Math.max(1,9*SC),5,j*2.3,dz*.4,"frost");});}
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ══════════════════════════════════════════════════════════════════════════
+// 결빙 A · 유리 기둥 — 다섯 칸 (`FZtomb1` 을 키로 연 것)
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️ `LV===5` 는 `FZtomb1` 과 **수치까지 같은 그림**이다: RR=1.62r · HH=4.6r ·
+// RN=RR*1.85 · 판 6(TAU/6) · 나선 2 · 뚜껑 g>.55 · 금 el<.85 · 조각 4 ·
+// 테두리 바늘 6 · 냉기 6 · 반짝이 7 · FZDUR.t1(R0 .045 · RD .060 · PER 3.0).
+ILpillar(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-72,11],[-56,-46,9],[52,-58,9],[16,-116,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=FZDUR.t1.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const R0=FZDUR.t1.R0,RD=FZDUR.t1.RD;
+  const p=Math.min(1,Math.max(0,(u-R0)/RD)),g=FZpop(p,2.3);
+  const gv=FZpopV(p,2.3);
+  const lock=u>=.30&&u<.80, brk=u>=.80?(u-.80)/.20:0;
+  const el=(u-R0)*PER;
+  T.ox=T.hx;T.oy=T.hy;
+  T.pv=lock?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=t*.55+i*2.1,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-30*SC;}
+  if(pu<R0&&u>=R0){
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
+      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:0,spread:1.5});
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.2,16,
+      {k:"frost",sp:150*SC,r:2.4*SC,life:.42,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});}
+  if(pu<.80&&u>=.80){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,20,{k:"frost",sp:170*SC,r:2.8*SC,life:.55,g:120*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.9,SC,6);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.20;
+  const RR=T.r*ILP_RR[LV-1],HH=T.r*ILP_H[LV-1];
+  // ⚠️ **마법진은 안 자란다.** 원본 RN=RR*1.85 를 그대로 쓰면 낮은 칸에서 원이
+  // 같이 작아져 「작은 주문」이 된다. T.r 기준으로 못 박아 다섯 칸이 같은 자리다.
+  const RN=T.r*1.62*1.85;
+  const PN=ILP_PN[LV-1],RIM=ILP_RIM[LV-1],MST=ILP_MST[LV-1];
+  const rg=Math.min(1,u/.042);
+  IBrune(c,x,gy,RN*(.55+.45*rg),t,"frost",rg*(1-brk*.8),1.7,.34);
+  for(let i=0;i<RIM;i++){const a0=i*TAU/RIM+t*.10;
+    const d0=RN*.99,px=x+Math.cos(a0)*d0,py=gy+Math.sin(a0)*d0*.34;
+    IBneedle(c,px,py,a0,RN*.40*g,RN*.085,i*4.3,"frost",.85*g*(1-brk),{mos:1,tip:.22});}
+  IBroot(c,x,gy,RN*1.05,"frost",.55*g,.30);
+  if(ILP_CRK[LV-1]&&el>0&&el<.85){const cf=Math.max(0,1-el/.85);
+    FZcrack(c,x,gy,RN*1.22,.34,"frost",Math.min(1,el*8+.3),cf*.90,SC,6);}
+  if(el>0&&el<.30){const fl=1-el/.30;
+    IBroot(c,x,gy,RN*(1.0+.7*(1-fl)),"frost",fl*.85,.30);
+    FZring(c,x,gy,RN*(.45+1.05*(1-fl)),.34,1.6*SC*fl,"frost",fl*.9);
+    for(let i=0;i<MST;i++){const a0=i*TAU/MST+.7;
+      IBmist(c,x+Math.cos(a0)*RN*(.35+.75*(1-fl)),
+             gy+Math.sin(a0)*RN*(.35+.75*(1-fl))*.34,
+             T.r*(.45+.55*(1-fl)),i*3.1,fl*.70,.72);}}
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  // 솟는 유리판 — 개수가 아니라 **키**가 이 표의 축이다. 판을 각도로 나눠
+  // 깔아야(TAU/PN) 낮은 칸에서도 기둥이 반쪽이 안 된다.
+  for(let i=0;i<PN;i++){const a0=i*TAU/PN+t*.07;
+    const pi=Math.min(1,Math.max(0,(u-R0-i*RD*.078)/RD));
+    const gi=FZpop(pi,2.3),vi=FZpopV(pi,2.3);
+    const nar=1-Math.max(-.10,Math.min(.30,vi*.075));
+    const hh2=HH*gi;
+    const rx=Math.cos(a0)*RR*.86,rz=Math.sin(a0)*RR*.34;
+    const ww=RR*.46*(.72+.30*hash(i*3.1))*nar;
+    const top=gy+rz-hh2*(.80+.22*hash(i*7.7));
+    const P=[[rx-ww,gy+rz],[rx-ww*.86,top+hh2*.16],[rx-ww*.30,top],
+             [rx+ww*.72,top+hh2*.10],[rx+ww,gy+rz-hh2*.10],[rx+ww*.86,gy+rz]]
+      .map(v=>[x+v[0],v[1]]);
+    IBpane(c,P,"frost",(.88-brk*.85)*(i%2?1:.86),i*5.7);}
+  const hh=HH*g;
+  if(g>.2)for(let s=0;s<ILP_HX[LV-1];s++){const pts=[];
+    for(let i=0;i<=16;i++){const v=i/16,a0=v*4.4+s*Math.PI+t*.7;
+      pts.push([x+Math.cos(a0)*RR*(.92-v*.30),gy-hh*v+Math.sin(a0)*RR*.30]);}
+    IBline(c,pts,1.5*SC,"frost",(g-.2)/.8*(1-brk));}
+  if(ILP_CAP[LV-1]&&g>.55){
+    IBroot(c,x,gy-hh,RR*1.0,"frost",Math.min(1,(g-.55)/.45)*(1-brk),.40);
+    IBflake(c,x,gy-hh,RR*.60,t*.08,"frost",Math.min(1,(g-.55)/.45)*(1-brk),1.3*SC,.42);}
+  if(ILP_SHD[LV-1]&&gv>.9&&p<1)for(let i=0;i<4;i++)
+    IBshard(c,x+(hash(i*2.3+p)-.5)*RR*1.9,gy-hh-(4+9*hash(i*5.1))*SC,
+      (2.2+2.0*hash(i*5.1))*SC,i*1.7+t,"frost",Math.min(1,(gv-.9)*.9));
+  for(let i=0;i<ILP_SPK[LV-1];i++){const ph=(t*.5+i*.29)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.4,gy-hh*(.15+.85*hash(i*8.1))-4*SC,
+      (2.4+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.5+i);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ══════════════════════════════════════════════════════════════════════════
+// 결빙 B · 포탈 낙하 — 다섯 칸 (`FZtomb2` 를 무게로 연 것)
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️ `LV===5` 는 `FZtomb2` 와 **수치까지 같은 그림**이다: RR=1.70r · RN=RR*1.74 ·
+// HH0=2.65r · GAP=1.95r · SQU .26 / SQD .44 · 원통 9쪽 · 넉백 13SC · 파편 6 ·
+// 입자 18×2 · 흔들림 exp(-el*10) · 서리 고리 8 · 조각 5 · 반짝이 8 · FZDUR.t2.
+ILportal(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-52,11],[-58,-26,9],[54,-38,9],[18,-96,10]]);
+  stepFoes(st.F,dt);
+  const Q=FZDUR.t2;
+  const T=st.F[0],PER=Q.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const cl=(a,b)=>Math.min(1,Math.max(0,(u-a)/(b-a)));
+  const rg=cl(0,Q.RUNE), op=cl(Q.PORT0,Q.PORT1);
+  const ex=cl(Q.EXT0,Q.EXT1), fq=cl(Q.FALL0,Q.IMP);
+  const el=(u-Q.IMP)*PER;
+  const brk=u>=.82?(u-.82)/.18:0;
+  T.ox=T.hx;T.oy=T.hy;T.pv=(u>=Q.IMP&&u<.82)?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=-t*.5+i*2.4,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-28*SC;}
+  // ⚠️ **크기는 다섯 칸이 같다.** 이 표의 축은 「무엇이 떨어지나」가 아니라
+  // 「닿았을 때 무슨 일이 나나」다.
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.34,RR=T.r*1.70,RN=RR*1.74;
+  const by0=gy-T.r*.86, HH0=T.r*2.65, GAP=T.r*1.95;
+  const py=by0-HH0-GAP;
+  const SQU=.26,SQD=.44;
+  const sqAt=yy=>SQU+(SQD-SQU)*Math.min(1,Math.max(0,(yy-py)/(gy-py)));
+  const EM=ILB_EM[LV-1],FR=ILB_FR[LV-1];
+  if(pu<Q.IMP&&u>=Q.IMP){
+    hitFoe(st,T,cx,cy,0,1,ILB_KB[LV-1]*SC,"frost");
+    if(FR)IBpushFrag(st,x,gy,T.r*.95,SC,FR);
+    emit(st,x,gy,EM,{k:"frost",sp:210*SC,r:2.7*SC,life:.48,g:230*SC,spikeP:.6,
+      a:0,spread:.85});
+    emit(st,x,gy,EM,{k:"frost",sp:210*SC,r:2.7*SC,life:.48,g:230*SC,spikeP:.6,
+      a:Math.PI,spread:.85});}
+  if(ILB_PRT[LV-1]&&pu<Q.PORT0&&u>=Q.PORT0)
+    emit(st,x,py,10,{k:"frost",sp:70*SC,r:2.2*SC,life:.40,g:60*SC,spikeP:.5,
+      a:-Math.PI/2,spread:1.9});
+  if(ILB_THR[LV-1]&&pu<Q.EXT0&&u>=Q.EXT0)IBpushFrag(st,x,py,RR*.9,SC,4);
+  if(ILB_BRK[LV-1]&&pu<.82&&u>=.82){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,x,cy+T.oy,22,{k:"frost",sp:180*SC,r:2.8*SC,life:.55,g:130*SC,spikeP:.9});
+    IBpushFrag(st,x,cy+T.oy,T.r,SC,7);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  st.sk=(st.sk||0)+dt;
+  const shk=(ILB_SHK[LV-1]&&el>=0&&el<.30)?Math.exp(-el*10)*(1-el/.30):0;
+  c.save();
+  if(shk>.002)c.translate(Math.sin(st.sk*57)*6.4*SC*shk,Math.cos(st.sk*44)*4.4*SC*shk);
+  IBrune(c,x,gy,RN*(.42+.58*rg),t,"frost",rg*(1-brk*.8),2.3,SQD);
+  IBflake(c,x,gy,RN*.94*rg,-t*.05,"frost",rg*(1-brk*.8),2.0*SC,SQD);
+  IBroot(c,x,gy,RN*.80,"frost",.26*rg*(1-brk),.28);
+  if(ILB_AIM[LV-1]){const aq=cl(Q.PORT0,Q.IMP);
+   if(aq>0&&aq<1)FZring(c,x,gy,RN*(.42+1.05*(1-aq)),SQD,(1.2+1.6*aq)*SC,
+     "frost",.35+.6*aq);}
+  if(ILB_CRK[LV-1])FZcrack(c,x,gy,RN*1.28,SQD,"frost",Math.min(1,Math.max(0,el)*7+.3),
+    (el>=0&&el<1.0)?(1-el/1.0)*.95:0,SC,7);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const PR=RN*FZpop(op,1.9);
+  const pa=op*Math.min(1,Math.max(0,(Q.IMP+.045-u)/.045));
+  if(pa>.02){
+    IBroot(c,x,py,PR*.88,"frost",pa*(.30+.55*(1-op)+.30*ex*(1-ex)*4),SQU);
+    IBrune(c,x,py,PR,t,"frost",pa,2.3,SQU);
+    IBflake(c,x,py,PR*.94,-t*.05,"frost",pa*.92,2.0*SC,SQU);
+    if(op<1)FZring(c,x,py,PR*(1.04+.42*(1-op)),SQU,(.9+1.9*op)*SC,"frost",
+      pa*(.30+.55*op));
+    if(op<1||ex>0&&ex<1)for(let i=0;i<4;i++){const a0=i*TAU/4+t*.5;
+      IBspark(c,x+Math.cos(a0)*PR*.99,py+Math.sin(a0)*PR*.99*SQU,
+        (2.0+1.6*hash(i*6.3))*SC,"frost",pa*(.35+.45*Math.sin(t*3+i)),t*1.4+i);}
+  }
+  if(ex>0){
+    const bo=(el>=0&&el<.42)?Math.exp(-el*11)*Math.cos(el*23):0;
+    const hq=1-.20*Math.max(0,bo), wq=1+.13*Math.max(0,bo);
+    const HH=HH0*hq, RRw=RR*wq;
+    const ez=ex*(.30+.70*ex);
+    const fall=fq*(.42+.58*fq), spd=.42+1.16*fq;
+    const byF=(fq>0)?(py+HH0)+(by0-py-HH0)*fall:(py+HH0*ez);
+    const tyRaw=byF-HH, tyF=Math.max(py,tyRaw);
+    const thru=tyRaw<py-.5;
+    const sqB=sqAt(byF), sqT=thru?0:sqAt(tyF);
+    // 잔상 · 속도선 — **무게**의 예고다. 낮은 칸은 같은 높이에서 같은 속도로
+    // 떨어지는데도 **가벼워 보인다**(끄는 것이 없다).
+    if(ILB_STR[LV-1]&&fq>0&&fq<1){
+      for(let s=1;s<=2;s++){
+        const gb=Math.max(py+HH,byF+GAP*.55*spd*s), gt=Math.max(py,gb-HH);
+        IBpane(c,[[x-RRw,gt],[x+RRw,gt],[x+RRw,gb],[x-RRw,gb]],"frost",
+          .22/s*(1-fq*.45),s*7.1,1.0*SC);}
+      for(let i=0;i<7;i++){const px=x+(hash(i*3.7)-.5)*RR*2.0;
+        const ln=Math.min(GAP*.95*spd*(.55+.45*hash(i*8.3)),tyF-py);
+        if(ln>1)IBline(c,[[px,tyF-ln],[px,tyF+RR*.30]],(.9+.8*fq)*SC,"frost",
+          .34+.50*fq,0);}}
+    const NC=9;
+    for(let i=0;i<NC;i++){const a0=i/NC*TAU-Math.PI/2+t*.05;
+      const a1=(i+1)/NC*TAU-Math.PI/2+t*.05;
+      const c0=Math.cos(a0),c1=Math.cos(a1),s0=Math.sin(a0),s1=Math.sin(a1);
+      const fr=(s0+s1)*.5>0;
+      const ic=T.r*(.55+.62*hash(i*3.1))*(thru?.30:1);
+      const P=[[c0*RRw,tyF+s0*RRw*sqT],[c1*RRw,tyF+s1*RRw*sqT],
+               [c1*RRw,byF+s1*RRw*sqB],
+               [(c0+c1)*.5*RRw,byF+(s0+s1)*.5*RRw*sqB+ic],
+               [c0*RRw,byF+s0*RRw*sqB]]
+        .map(v=>[x+v[0],v[1]]);
+      IBcrys(c,P,"frost",(fr?.95:.62)*(1-brk*.9),i*4.7,
+        {thru:fr?.26:.16,mos:2,w:1.3*SC,grain:-Math.PI/2});}
+    if(!thru){
+      IBrune(c,x,tyF,RRw*1.06,t*1.6,"frost",(1-brk*.7),5.1,sqT);
+      IBroot(c,x,tyF,RRw*.90,"frost",.62*(1-brk),sqT);
+      gAdd(c,cc=>{cc.beginPath();cc.ellipse(x,tyF,RRw,RRw*sqT,0,0,TAU);
+        cc.lineWidth=2.0*SC;cc.strokeStyle=A("#FFFFFF",.85*(1-brk));cc.stroke();});}
+    else{
+      IBroot(c,x,py,RRw*1.15,"frost",.80,SQU);
+      for(let i=0;i<5;i++){const a0=i*TAU/5+t*.9;
+        IBmist(c,x+Math.cos(a0)*RRw*(.9+.5*ez),py+Math.sin(a0)*RRw*(.9+.5*ez)*SQU,
+          T.r*(.34+.30*ez),i*3.1,.62*(1-ez*.4),.62);}}
+    // 찍힌 자리에서 **밖으로 퍼지는 서리** — 마지막 칸의 사건. 넷째 칸까지는
+    // 땅이 흔들려도 자국이 제자리에 머문다.
+    const MR=ILB_MSTR[LV-1];
+    if(MR&&el>=0&&el<.55){const d=el/.55;
+      for(let i=0;i<MR;i++){const a0=i*TAU/MR+.35;
+        IBmist(c,x+Math.cos(a0)*RN*(.30+.95*d),gy+Math.sin(a0)*RN*(.30+.95*d)*.36,
+          T.r*(.50+.85*d),i*3.1,(1-d)*.90,.68);}
+      IBroot(c,x,gy,RN*(.9+.8*d),"frost",(1-d)*.75,.30);}
+    for(let i=0;i<ILB_SPK[LV-1];i++){const ph=(t*.55+i*.31)%1;
+      IBspark(c,x+(hash(i*3.7)-.5)*RRw*2.6,tyF+(hash(i*8.1))*(byF-tyF),
+        (2.4+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.5+i);}
+    if(!thru)for(let i=0;i<ILB_SHD[LV-1];i++){const ph=t*.5+i*1.6;
+      IBshard(c,x+(hash(i*2.3)-.5)*RRw*2.8,tyF-6*SC-Math.abs(Math.sin(ph))*12*SC,
+        (2.0+2.0*hash(i*5.1))*SC,ph*.4+i,"frost",.8*(1-brk));}
+    if(pa>.02)FZring(c,x,py,PR,SQU,1.9*SC,"frost",pa*.95,0,Math.PI);
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);
+  c.restore();},
+
+// ══════════════════════════════════════════════════════════════════════════
+// 결빙 C · 얼음 왕관 — 다섯 칸 (`FZtomb3` 을 무는 방향으로 연 것)
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️ `LV===5` 는 `FZtomb3` 과 **수치까지 같은 그림**이다: N=9 · RR=2.15r ·
+// 눌림 .42 · 기울기 .26 · 계단 RD*.077 · 뒤 알파 .72 · 결정 3(RR*.20) ·
+// 눈송이 3 · 반짝이 8 · 금 el<.80 · FZDUR.t3(R0 .040 · RD .064 · PER 2.8).
+ILcrown(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-6,-70,11],[-56,-44,9],[54,-58,9],[16,-116,10]]);
+  stepFoes(st.F,dt);
+  const T=st.F[0],PER=FZDUR.t3.PER,u=saw(t,PER),pu=(st.pu===undefined?u:st.pu);st.pu=u;
+  const R0=FZDUR.t3.R0,RD=FZDUR.t3.RD;
+  const p=Math.min(1,Math.max(0,(u-R0)/RD)),g=FZpop(p,2.4);
+  const brk=u>=.84?(u-.84)/.16:0;
+  const el=(u-R0)*PER;
+  T.ox=T.hx;T.oy=T.hy;T.pv=(u>.32&&u<.84)?2:Math.max(0,(T.pv||0)-dt);
+  for(let i=1;i<st.F.length;i++){const f=st.F[i];
+    const a0=t*.6+i*1.9,d=Math.hypot(f.hx,f.hy);
+    f.ox=Math.cos(a0)*d;f.oy=Math.sin(a0)*d*.55-30*SC;}
+  if(pu<R0&&u>=R0){
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.15,14,
+      {k:"frost",sp:145*SC,r:2.3*SC,life:.40,g:190*SC,spikeP:.7,a:0,spread:1.5});
+    emit(st,cx+T.ox,cy+T.oy+T.r*1.15,14,
+      {k:"frost",sp:145*SC,r:2.3*SC,life:.40,g:190*SC,spikeP:.7,a:Math.PI,spread:1.5});}
+  if(pu<.84&&u>=.84){hitFoe(st,T,cx,cy,0,-1,10*SC,"frost");
+    emit(st,cx+T.ox,cy+T.oy,18,{k:"frost",sp:165*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.9});
+    IBpushFrag(st,cx+T.ox,cy+T.oy,T.r*.8,SC,6);}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  // ⚠️ RR 은 **다섯 칸이 같다.** 왕관이 커지면 축이 기둥(키)과 겹친다.
+  const x=cx+T.ox,gy=cy+T.oy+T.r*1.15,RR=T.r*2.15;
+  const rg=Math.min(1,u/.038);
+  IBrune(c,x,gy,RR*1.25*(.60+.40*rg),t,"frost",.85*rg*(1-brk*.8),3.3,.42);
+  IBroot(c,x,gy,RR*1.2,"frost",.60*g*(1-brk*.6),.32);
+  if(ILC_CRK[LV-1]&&el>0&&el<.80){const cf=Math.max(0,1-el/.80);
+    FZcrack(c,x,gy,RR*1.45,.42,"frost",Math.min(1,el*8+.3),cf*.88,SC,6);}
+  if(el>0&&el<.28){const fl=1-el/.28;
+    IBroot(c,x,gy,RR*(1.1+.7*(1-fl)),"frost",fl*.85,.32);
+    FZring(c,x,gy,RR*(.50+1.10*(1-fl)),.42,1.6*SC*fl,"frost",fl*.9);
+    for(let i=0;i<6;i++){const a0=i*TAU/6+.55;
+      IBmist(c,x+Math.cos(a0)*RR*(.40+.80*(1-fl)),
+             gy+Math.sin(a0)*RR*(.40+.80*(1-fl))*.42,
+             T.r*(.45+.55*(1-fl)),i*3.1,fl*.70,.72);}}
+  const N=9,K=ILC_K[LV-1],LN=ILC_LN[LV-1];
+  // 슬롯은 아홉 그대로 두고 **앞에서부터** K 개만 세운다. 각을 N 으로 다시
+  // 나누면 낮은 칸에서 가시 사이가 벌어져 「덜 자란 왕관」이 아니라
+  // **다른 물건**(삼발이·오각별)이 된다.
+  const spike=(i,back)=>{
+    if(ILC_RANK[i]>=K)return;
+    const a0=i/N*TAU-Math.PI/2;
+    const ca=Math.cos(a0),sa=Math.sin(a0);
+    if((sa<0)!==back)return;
+    const pi=Math.min(1,Math.max(0,(u-R0-i*RD*.077)/RD)),gi=FZpop(pi,2.4);
+    const vi=FZpopV(pi,2.4);
+    const px=x+ca*RR,py=gy+sa*RR*.42;
+    const L=RR*(.95+.55*hash(i*3.7))*gi;
+    const lean=Math.atan2(-1,0)+(-ca)*(gi*LN);
+    const nar=1-Math.max(-.08,Math.min(.26,vi*.070));
+    IBneedle(c,px,py,lean,L,RR*(.095+.05*hash(i*8.1))*nar,i*2.9,"frost",
+      (back?.72:1)*(1-brk*.85),{mos:2,tip:.18,slant:.6});};
+  for(let i=0;i<N;i++)spike(i,true);
+  // 갇힌 결정 — 원이 닫힌 뒤에야 뜬다. 「무는 것」이 있으면 **물린 것**이 있다.
+  for(let i=0;i<ILC_CR[LV-1];i++){const a0=t*.4+i*TAU/3;
+    const bx=x+Math.cos(a0)*RR*.42,by=gy-RR*(.30+.18*i)*g+Math.sin(a0)*RR*.14;
+    const P=[];for(let j=0;j<8;j++){const aa=j/8*TAU;
+      P.push([bx+Math.cos(aa)*RR*.20,by+Math.sin(aa)*RR*.20]);}
+    IBcrys(c,P,"frost",.9*g*(1-brk),i*6.1,{mos:1,thru:.55,w:1.1*SC});}
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  for(let i=0;i<N;i++)spike(i,false);
+  IBroot(c,x,gy,RR*.62,"frost",.30*g*(1-brk),.28);
+  for(let i=0;i<ILC_FL[LV-1];i++){const ph=t*.45+i*2.1;
+    IBflake(c,x+Math.cos(ph)*RR*1.5,gy-RR*(1.05+.35*i)*g+Math.sin(ph*1.3)*4*SC,
+      RR*(.24+.07*i),t*.07+i,"frost",.8*g*(1-brk),1.0*SC);}
+  for(let i=0;i<ILC_SPK[LV-1];i++){const ph=(t*.6+i*.27)%1;
+    IBspark(c,x+(hash(i*3.7)-.5)*RR*2.8,gy-RR*1.5*hash(i*8.1)*g,
+      (2.2+1.8*hash(i*6.3))*SC,"frost",(.3+.7*Math.sin(ph*Math.PI))*(1-brk),t*1.6+i);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ══════════════════════════════════════════════════════════════════════════
+// 빙벽 — 다섯 칸 (`IBwall3` 을 버팀으로 연 것)      ⚠️ **방어 페이지로 가야 한다**
+// ══════════════════════════════════════════════════════════════════════════
+// ⚠️ `LV===5` 는 `IBwall3` 과 **수치까지 같은 그림**이다: WY=-46 · PW=64 ·
+// PH=26 · rate .055 · 재생 1.15초 · 실 2가닥(12세그, sin(u*7+t*.6)*2.2SC) ·
+// 눈송이 3(가운데 1.26배, t*.06+i*.7, 1.9SC) · 작은 눈송이 4 · 반짝이 6 ·
+// 끊긴 조각 5 · 깨질 때 IBburst 9 + 입자 20.
+ILwall(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-46*SC,PW=ILW_PW[LV-1]*SC,PH=26*SC;
+  const brk=IBstepWall(st,dt,SC,WY,PW,PH,ILW_RT[LV-1]);
+  if(brk){
+    // ⚠️ `IBstepWall` 이 `st.dead=1.15` 를 박는다(공용이라 안 고쳤다). 되짜이는
+    // 시간을 여기서 **덮어쓴다** — 낮은 칸은 깨진 자리가 오래 비어 있다.
+    // ⚠️ `-dt` 를 빼야 한다. `IBstepWall` 은 박은 **그 프레임에 한 번 깎고**
+    // 나온다(`st.dead-=dt`). 그냥 대입하면 L5 가 원본보다 **한 프레임 더**
+    // 죽어 있어 주기가 밀린다 — 호출 대조에서 4,072,118번째에서 갈렸다.
+    st.dead=ILW_DD[LV-1]-dt;
+    IBburst(st,cx,cy+WY,PW,PH,SC,ILW_BS[LV-1]);
+    emit(st,cx,cy+WY,ILW_EM[LV-1],
+      {k:"frost",sp:200*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.95});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    const al=1-sh*.45;
+    const TH=ILW_TH[LV-1],FL=ILW_FL[LV-1];
+    // 잇는 실 — 위부터 한 가닥씩. 실이 없는 L1 은 눈송이가 **홀로 걸려** 있다.
+    const YY=[-PH*.72,PH*.72];
+    for(let s=0;s<TH;s++){const yy=YY[s];
+      const pts=[];for(let i=0;i<=12;i++){const u=i/12;
+        pts.push([cx+(u-.5)*PW*2.1,cy+WY+yy+Math.sin(u*7+t*.6)*2.2*SC]);}
+      IBline(c,pts,1.9*SC,"frost",al*.9);}
+    // 눈송이 — 하나면 **가운데 큰 것**만 남는다(슬롯 1). 셋이면 원본이다.
+    for(let i=0;i<3;i++){
+      if(FL===1&&i!==1)continue;
+      const fx=cx+(i-1)*PW*.76;
+      IBflake(c,fx,cy+WY,PH*(i===1?1.26:.98),t*.06+i*.7,"frost",al*.85,1.9*SC);}
+    for(let i=0;i<ILW_SM[LV-1];i++)IBflake(c,cx+(i-1.5)*PW*.52,
+      cy+WY+(i%2?PH*.44:-PH*.44),PH*.36,-t*.09+i*1.3,"frost",al*.70,1.3*SC);
+    // 마디 반짝이 — **가운데 짝부터** 켜진다(좌우 대칭이 안 깨진다)
+    for(let i=0;i<6;i++){
+      if(ILW_SPR[i]>=ILW_SP[LV-1])continue;
+      const sx=cx+(i-2.5)*PW*.38;
+      IBspark(c,sx,cy+WY+(i%2?-PH*.72:PH*.72),3.2*SC,"frost",
+        .45+.55*Math.abs(Math.sin(t*1.6+i)),t*.9+i);}
+    if(ILW_SHD[LV-1]&&sh>.15)for(let i=0;i<ILW_SHD[LV-1];i++){
+      const a0=hash(i*3.1)*TAU,d=PH*(.5+.6*hash(i*7.7));
+      IBshard(c,cx+Math.cos(a0)*d*1.7,cy+WY+Math.sin(a0)*d,
+        2.6*SC*sh,a0,"frost",Math.min(1,sh*1.6));}
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ── 마운트 — **`FLROWS` 도 기존 표도 안 건드린다** ────────────────────────
+// 이 레포의 성장표 관례 그대로다: 칸이 전역 `LV` 를 갈아 끼우고 **같은 함수**를
+// 부른다. 레벨판을 따로 그리면 표가 거짓말을 한다.
+// ⚠️ **빙벽만 방어 페이지로 간다**(손이 스스로 적어 둔 것). 빙벽은 마법이
+// 아니라 방어 스킬이라 마법 성장표에 서면 계열이 어긋난다. 줄마다 제 호스트를
+// 고르게 해서 한 표가 두 페이지로 갈린다.
+{const HM=MOUNT("levelsm");
+ const HG=(document.getElementById("levelsg")||HM);
+ const HOST=HM;
+ const ILROWS=[
+ ["ILspine","서릿발","거리 — 열이 뻗는다",[
+  "발 앞에 셋 — 짧고, 바늘이 셋뿐이고, 부스러기도 안 난다",
+  "<b>더 뻗는다</b> — 마디 다섯. 닿는 거리가 54 → 82SC",
+  "<b>꽃받침이 선다</b> — 한 송이가 바늘 다섯으로 벌어진다 (3 → 5)",
+  "<b>적이 언다</b> — 찌른 자리에 서리 표식이 남고 넉백이 제 값이 된다",
+  "<b>끝까지 뻗고 부스러진다</b> — 마디 여덟(124SC) + 밑동에서 얼음 조각이 인다"]],
+ ["ILpillar","결빙 A · 유리 기둥","키 — 위로 자란다",[
+  "그루터기 — 판 셋이 1.5r 까지만 튄다. 마법진만 어른 크기다",
+  "<b>나선이 감긴다</b> — 2.4r. 기둥을 도는 서리 한 줄이 생긴다",
+  "<b>뚜껑이 덮인다</b> — 3.3r. 꼭대기에 눈송이가 앉아 기둥이 <b>닫힌다</b>",
+  "<b>밑동이 갈라진다</b> — 4.0r. 땅에 금이 가고 꼭대기에서 조각이 떨어진다",
+  "<b>끝까지 솟는다</b> — 4.6r · 판 여섯 · 나선 둘 · 반짝이 일곱"]],
+ ["ILportal","결빙 B · 포탈 낙하","무게 — 닿았을 때 나는 일",[
+  "툭 놓인다 — 같은 높이에서 떨어지는데 <b>아무 일도 안 난다</b>",
+  "<b>금이 간다</b> — 바닥이 갈라지고, 떨어지기 전에 조준 고리가 오므라든다",
+  "<b>깨진다</b> — 찍힐 때 파편이 튀고 마지막에 기둥이 부서진다",
+  "<b>무겁게 떨어진다</b> — 낙하에 잔상·속도선이 붙고 얼음 조각이 떠다닌다",
+  "<b>땅이 흔들리고 서리가 퍼진다</b> — 화면이 흔들리고 냉기 고리 여덟이 <b>밖으로</b> 번진다"]],
+ ["ILcrown","결빙 C · 얼음 왕관","무는 방향 — 둘레가 닫힌다",[
+  "앞에서 둘 — 가시 둘이 앞을 물 뿐, 둘레가 <b>거의 다 열려 있다</b>",
+  "<b>양옆이 선다</b> — 넷. 앞이 아가리처럼 벌어진다",
+  "<b>뒤에서도 선다</b> — 여섯. 처음으로 <b>뒤쪽</b> 가시가 돋아 감싼다",
+  "<b>원이 닫힌다</b> — 여덟. 안쪽에 갇힌 결정 셋이 뜬다",
+  "<b>다 물고 서리가 핀다</b> — 아홉이 안으로 <b>0.26</b> 만큼 문다 + 눈송이·반짝이"]],
+ ["ILwall","빙벽 ⚠️ 방어","버팀 — 얼마나 넓게·오래",[
+  "겨우 붙들고 있다 — 눈송이 하나. 폭 20SC, <b>닿자마자</b> 깨진다(1.95초)",
+  "<b>실이 꿴다</b> — 서리 실 한 가닥이 걸리며 폭 32SC · 2.8초",
+  "<b>셋이 걸린다</b> — 눈송이 셋 + 실 두 가닥. 폭 46SC · 3.8초",
+  "<b>틈이 메워진다</b> — 사이 눈송이가 끼어든다. 폭 56SC · 4.9초",
+  "<b>마디가 빛나고 곧 다시 짜인다</b> — 폭 64SC · <b>6.0초</b> · 되짜임 1.15초"]]];
+ // ⚠️ **`.lvset` 은 제 호스트에만 붙인다.** `#levelsm` 은 이미 `lvset` 이라
+ // 여기서는 덧붙여도 무해하다(classList.add 는 멱등). `tile()` 이 `.grid` 를
+ // 붙인 호스트에 겹쳐 붙이면 격자 규칙 둘이 싸워 낱칸이 무너진다.
+ lvTable({host:HM,rows:ILROWS,name:"ILcell",color:"#7FD8FF",
+   // ⚠️ 빙벽만 방어 페이지로 보낸다 — 빙벽은 마법이 아니라 방어 스킬이라
+   // 마법 성장표에 서면 계열이 어긋난다.
+   hostOf:k=>(k==="ILwall"?(document.getElementById("levelsg")||HM):null)});}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HG — 회복 신규 넷의 **레벨 성장표** (접두 `HG`)                (2026-08-13)
+//      맥박 HLbeat0 · 저금 HLvow2 · 되감기 HLecho1/2 · 되울림 HLecho3
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. `FX.HLbeat0` ·
+// `FX.HLvow2` · `FX.HLecho1` · `FX.HLecho2` · `FX.HLecho3` 은 한 글자도
+// 안 건드렸고, 아래 것들은 전부 새 이름(`HG…`)이다.
+//
+// **L5(되감기는 L1·L2)는 원본 함수를 그대로 부른다** — 「한 픽셀도 안 바꾼다」를
+// 값을 베껴 적어 지키면 언젠가 어긋난다. 분기 한 줄로 원본에 넘기면 어긋날 수가
+// 없다. 내가 쓰는 표는 **그 아래 칸들뿐**이다.
+//
+// ── 수치의 바닥 (docs/design/HP-방어-체계.md) ────────────────────────────
+//   hpMax = 100 + 10×vitality · 받는 피해 = max(피해×0.2, 피해−defense)
+//   무적 프레임 0.5초 → **초당 최대 2회 피격** · 회복량은 전부 hpMax 비례(%)
+//
+// 무대(`HLstage`)가 정하는 실제 피격률은 **실측했다** — 900프레임(15.0초)에
+// **11입**(0.733 입/초). 무적 0.5초 기준 상한(2입/초)의 37%다.
+//   방어 0   : 받은 피해 합 1.248 → 드레인 **8.32%/s**  (맥박·되감기·되울림)
+//   방어 .058: 받은 피해 합 0.610 → 드레인 **4.07%/s**,
+//              막은 몫 0.638 = 정확히 5.8%/입 = **4.25%/s**  (저금)
+//   ⚠️ 막은 몫이 다섯 마리 모두 정확히 DEF 와 같은 이유: 가장 약한 적(dm .65)
+//      조차 raw 7.475% > DEF/0.8 = 7.25% 라 상한 80% 에 안 걸린다. **한 마리만
+//      더 약해도 이 표가 깨진다** — 저금의 회복량은 그 경계 위에 서 있다.
+//      (실측 0.638 = 11 × 0.058 로 소수점까지 맞았다.)
+//
+// ── 넷이 무엇으로 갈리는가 (먼저 정하고 그렸다) ──────────────────────────
+//
+//   안        성장 축(이것만 움직인다)          고정한 것
+//   ────────  ────────────────────────────────  ──────────────────────────
+//   맥박      **주기**   3.4초 → 1.4초            회복량 8.5%/박 · 조건(없음)
+//   저금      **회복량** 환급률 18% → 62%         터지는 간격 ≈7.3초 · 조건
+//   되감기    **되돌아오는 수** 1 → 5 조각        총량 70% · 주기(피격이 정함)
+//   되울림    **지연 시간** 왕복 4.4초 → 1.4초    총량 70% · 조각 수 1
+//
+// 브리프가 준 다섯 축 중 **「조건」만 안 썼다** — 회복 넷의 조건(주기 없음 ·
+// 방어 있음 · 피격 있음)은 그 스킬의 **정체**라서 레벨로 풀면 스킬이 바뀐다.
+// 「저금이 L5 에서 방어 없이도 찬다」는 성장이 아니라 다른 스킬이다.
+//
+// ── 회복량 표 — **브라우저 실캔버스 900프레임 실측** (hpMax 비례 %/s) ────
+//
+//            L1     L2     L3     L4     L5      드레인 대비(L1→L5)
+//   맥박    2.27   2.83   3.40   4.53   5.67     27% → 68%   (드레인 8.32)
+//   저금    0.42   0.70   0.97   1.21   1.44     10% → 35%   (드레인 4.07)
+//   되감기  4.75   4.75   4.75   4.92   4.91     57% (전 레벨 같다)
+//   되울림  4.21   4.75   4.75   4.75   4.75     57% (L1 만 조각 하나가 미귀환)
+//
+// 15초 뒤 남은 hp — **성장이 막대에 얼마나 보이는가**의 실측이다:
+//   맥박    .092  .177  .262  .432  .602    ← 넷 중 가장 뚜렷하다
+//   저금    .453  .495  .536  .571  .606    ← 갈리긴 하나 좁다
+//   되감기  .465  .465  .465  .490  .489    ← 거의 안 갈린다(설계대로)
+//   되울림  .384  .465  .465  .465  .465    ← L1 만 갈린다
+//
+// 첫 회복이 오기까지(초) — **잔향 둘의 성장은 여기에만 있다**:
+//   맥박    3.53  2.97  2.50  2.02  1.63
+//   저금    6.50  6.53  6.55  6.57  6.58    (리듬 고정이 설계다 — 6입째)
+//   되감기  3.62  2.13  1.90  1.70  1.55
+//   되울림  4.98  3.73  3.00  2.57  2.25
+//
+// ⚠️ **잔향 둘은 %/s 가 안 는다 — 일부러 그랬다.** 잔향의 정체가 「받은 피해의
+// 70%」라 그 비율을 레벨로 올리면 정체가 흐려진다. 대신 **언제 오는가**가
+// 자란다(위 표). 드레인 8.32%/s 인 무대에서 5초 늦게 오는 회복은 **이미 죽은
+// 뒤에 오는 회복**이라 이 축은 양보다 세다 — 실제로 되울림 L1 은 최저 hp 가
+// .304 까지 떨어져 형제들(.453)보다 명확히 위태롭다. 다만 「숫자가 안 는다」는
+// 사실 자체는 숨기지 않는다 — **판정은 사용자 몫이다.**
+
+// ── 비용 (실측 · 220×220 칸 · dpr 1 · 900프레임 평균, ms/frame) ──────────
+//
+//            L1     L2     L3     L4     L5     행합
+//   맥박    0.130  0.141  0.138  0.147  0.152   0.709
+//   저금    0.136  0.137  0.154  0.148  0.151   0.727
+//   되감기  0.155  0.514  0.550  0.689  0.579   2.487   ← 넷 중 4배 비싸다
+//   되울림  0.124  0.191  0.200  0.198  0.199   0.912
+//   20칸 합계 **4.83 ms/frame**
+//
+// ⚠️ 되감기가 비싼 이유는 **조각 수**다 — 한 대가 5조각이면 `HLshard`(jagPoly
+// 3겹)가 프레임마다 5배로 돈다. L5(0.579)가 L4(0.689)보다 싼 것은 지연이
+// 짧아 **동시에 살아 있는 조각이 적기** 때문이다. 실기기(dpr 2)에서는 칠하는
+// 면적이 4배라 이 값이 그대로 안 간다 — **실기기 판정은 못 했다.**
+
+// ── 맥박 脈搏 — 축은 **주기** ────────────────────────────────────────────
+//
+// 한 박에 차는 양(8.5%)은 다섯 레벨 내내 **같다.** 자라는 것은 오직 박자다 —
+// 조건이 없는 유일한 회복이므로, 조건도 양도 안 건드리면 남는 축은 주기뿐이고
+// 그게 이 스킬의 정체와 정확히 겹친다.
+//
+// 새로 붙는 사건: L1 은 파문이 겨우 몸 밖으로 나가고 알갱이가 둘뿐이다 →
+// 레벨마다 알갱이가 하나씩 늘고(2·3·4·5·5) 파문이 멀리·굵게 퍼지며 게이지
+// 고리가 커진다(30 → 50 SC). L5 는 원본 그대로다.
+//
+// ⚠️ 표의 값은 **원본 `HLbeat0` 의 상수(BP 1.4 · GAIN .085 · 알갱이 5 ·
+// GR 50 · 파문 74 · 굵기 5 · 게이지 2.6)를 L5 칸에 적어 둔 것**이지만, 실제
+// L5 는 이 표를 안 쓰고 원본 함수로 넘어간다. 표의 마지막 줄은 **읽는 사람을
+// 위한 것**이지 그려지는 값이 아니다.
+const HGB=[
+ {BP:3.4,GAIN:.085,N:2,GR:30,HR:30,HW:2.4,GW:1.6},
+ {BP:2.8,GAIN:.085,N:3,GR:36,HR:44,HW:3.2,GW:1.9},
+ {BP:2.3,GAIN:.085,N:4,GR:42,HR:56,HW:3.9,GW:2.2},
+ {BP:1.8,GAIN:.085,N:5,GR:46,HR:66,HW:4.5,GW:2.4},
+ {BP:1.4,GAIN:.085,N:5,GR:50,HR:74,HW:5.0,GW:2.6}];   // ← 원본 값(참고용)
+
+function HGbeatDraw(c,t,dt,W,H,st,P){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HL1beat",GR=P.GR*SC;
+  HLstage(st,SC,dt,0);
+  st.ph=(st.ph||0)+dt;
+  st.rg=st.rg||[];
+  if(st.ph>=P.BP){st.ph-=P.BP;st.rg.push({u:0});
+    for(let i=0;i<P.N;i++){const a=-Math.PI/2+i/P.N*TAU;
+      inflow(st,cx+Math.cos(a)*GR,cy+Math.sin(a)*GR,K);}
+    st.pend=(st.pend||0)+P.GAIN;}
+  for(let i=st.rg.length-1;i>=0;i--){const g=st.rg[i];g.u+=dt/.55;
+    if(g.u>=1)st.rg.splice(i,1);}
+  const MO=stepInflow(st,cx,cy,dt,210*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  for(const g of st.rg){const rr=Math.max(1,(14+P.HR*g.u)*SC);
+    celHoop(c,cx,cy,rr,1,0,Math.max(1,Math.min(P.HW*SC*(1-.4*g.u),rr*.6)),K,
+      g.u<.8?.9:Math.max(.12,.9*(1-(g.u-.8)*2.2)));}
+  celGauge(c,cx,cy,GR,Math.min(1,st.ph/P.BP),P.GW*SC,K,.85);
+  HLtail(c,t,dt,cx,cy,SC,st,K,null,MO);
+}
+/// L5 = `FX.HLbeat0` **원본 호출**. 한 픽셀도 안 바뀐다.
+FX.HGbeat=function HGbeat(c,t,dt,W,H,st){
+  if(LV>=5)return FX.HLbeat0(c,t,dt,W,H,st);
+  HGbeatDraw(c,t,dt,W,H,st,HGB[Math.max(0,Math.min(3,LV-1))]);};
+
+
+// ── 호명 · 저금 護命 — 축은 **회복량** ───────────────────────────────────
+//
+// 자라는 것은 **환급률**이다 — 막은 몫 중 몇 %가 금고로 들어가는가(18 → 62%).
+// 문턱(FULL)을 **표에 안 적고 환급률에서 파생**시킨 것이 이 표의 핵심이다:
+//   FULL = .18 × BACK / .62      (L5 원본의 .18 을 그대로 비례로 편다)
+// 금고에 한 입마다 `막은 몫(.058) × BACK` 이 들어가므로, 터지는 데 필요한
+// 피격 수는 `.18 / (.62 × .058) = 5.005 입` 으로 **BACK 이 무엇이든 같다.**
+// 리듬이 다섯 레벨 모두 똑같이 고정되고 **쏟아지는 덩어리만 커진다** —
+// 저금의 정체가 「피격과 어긋난 시각에 온다」이므로 그 시각(리듬)은 레벨이
+// 건드리면 안 되는 것이다.
+//   ⚠️ 문턱을 .18 로 **고정**했다면 L1 은 금고 채우는 데 피격 17입(≈23초)이
+//      걸린다 — 15초짜리 시안에서 한 번도 안 터져 화면에 아무 일도 안
+//      일어난다. 「초라함」은 아무 일도 안 일어나는 것과 다르다.
+//   ⚠️ 문턱을 **손으로 적었다가** 실측에서 깨졌다(2026-08-13 렌더 판정):
+//      L3 의 .122 가 5입치(.1218)보다 0.0002 높아 15초 안에 두 번째 폭발이
+//      **간발로 안 왔고**, L1·L2 만 두 번 터져 %/s 가 0.70 · 1.16 · 0.97 로
+//      **뒤집혔다.** 파생식으로 바꾸니 0.42 · 0.70 · 0.97 · 1.21 · 1.44 로
+//      단조가 됐다. 성장표의 값은 손으로 적으면 이런 식으로 조용히 깨진다.
+//
+// 새로 붙는 사건: L1 은 금고가 작고(32SC) 알갱이 셋이 조용히 들어갈 뿐 터짐
+// 연출이 없다 → L2 에서 **파편이 튄다**(celSplash) → L3 에서 **확산 고리**가
+// 붙는다 → L4·L5 는 금고와 알갱이가 커진다(6 → 7). L5 는 원본 그대로다.
+//
+// ⚠️ 못 지킨 것 ①: 저금의 %/s(실측 0.42 → 1.44)는 **넷 중 압도적으로 낮다.**
+// L5 원본의 환급률 .62 를 못 건드리니 상한이 거기서 막힌다. 방어가 먹어 준
+// 4.25%/s 를 더해야 실제 생존값인데, 그건 이 스킬이 아니라 방어의 몫이다.
+// ⚠️ 못 지킨 것 ②: 그래서 **막대에서 L1 과 L5 가 잘 안 갈린다** — 15초 실측
+// 최종 hp 가 .453 → .495 → .536 → .571 → .606 이다(맥박은 .092 → .602).
+// 저금 줄은 **금고 고리의 크기·밝기**로 읽히지 막대로는 거의 안 읽힌다.
+// 단조이긴 하나 폭이 좁다 — 확인한 사실이고, 버릴지는 사용자 판정이다.
+const HGV=[
+ {BACK:.18,N:3,GR:32,GW:1.9,HW:1.7,SPK:.55,ring:0,splash:0},
+ {BACK:.30,N:4,GR:36,GW:2.2,HW:1.9,SPK:.65,ring:0,splash:1},
+ {BACK:.42,N:5,GR:40,GW:2.5,HW:2.1,SPK:.75,ring:1,splash:1},
+ {BACK:.52,N:6,GR:43,GW:2.8,HW:2.2,SPK:.83,ring:1,splash:1},
+ {BACK:.62,N:7,GR:46,GW:3.0,HW:2.4,SPK:.90,ring:1,splash:1}];  // 원본 값(참고용)
+/// 금고 문턱 — **적지 않고 파생시킨다.** L5 원본의 `.18/.62` 비를 그대로 편다.
+const HGVfull=BACK=>.18*BACK/.62;
+
+function HGvowDraw(c,t,dt,W,H,st,P){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HLvw",GR=P.GR*SC,FULL=HGVfull(P.BACK);
+  HLstage(st,SC,dt,HLDEF);
+  st.bank=st.bank||0; st.pop=Math.max(0,(st.pop||0)-dt*2.6);
+  st.blkF=Math.max(0,(st.blkF||0)-dt*1.15);
+  if(st.blk>0){st.bank+=st.blk*P.BACK;st.blkS=st.blk;st.blkF=1;}
+  if(st.bank>=FULL){
+    for(let i=0;i<P.N;i++){const a=-Math.PI/2+i/P.N*TAU;
+      inflow(st,cx+Math.cos(a)*GR,cy+Math.sin(a)*GR,K);}
+    st.pend=(st.pend||0)+st.bank; st.bank=0; st.pop=1;}
+  const MO=stepInflow(st,cx,cy,dt,200*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  celHoop(c,cx,cy,GR,1,0,P.HW*SC,"shade",.70);
+  celGauge(c,cx,cy,GR,Math.min(1,st.bank/FULL),P.GW*SC,K,.9);
+  celSpike(c,cx,cy-GR,-Math.PI/2,11*SC*P.SPK,3.4*SC*P.SPK,K,.9);
+  if(st.pop>0){
+    if(P.ring)celHoop(c,cx,cy,Math.max(1,GR*(1+.5*(1-st.pop))),1,0,
+      Math.max(1,6*SC*st.pop),K,st.pop);
+    if(P.splash)celSplash(c,cx,cy,Math.max(1,20*SC*st.pop*(P.ring?1:.62)),
+      9,11,K,st.pop*.9);}
+  HLtail(c,t,dt,cx,cy,SC,st,K,{blk:st.blkS,blkF:st.blkF},MO);
+}
+/// L5 = `FX.HLvow2` **원본 호출**.
+FX.HGvow=function HGvow(c,t,dt,W,H,st){
+  if(LV>=5)return FX.HLvow2(c,t,dt,W,H,st);
+  HGvowDraw(c,t,dt,W,H,st,HGV[Math.max(0,Math.min(3,LV-1))]);};
+
+
+// ── 잔향 · 되감기 殘響 — 축은 **되돌아오는 수** ──────────────────────────
+//
+// ⚠️ **이 줄만 특수하다.** 사용자가 「되감기 L1 → 메아리는 레벨업」이라고
+// 못 박았다. 그래서 이 줄의 **고정점은 L5 가 아니라 L1·L2** 다:
+//   L1 = `FX.HLecho1` 원본 호출 (조각 1 · 궤도 1 · 2.4초)
+//   L2 = `FX.HLecho2` 원본 호출 (조각 3 · 궤도 3 · 1.0/1.9/2.9 · 5:3:2)
+// L3·L4·L5 만 내가 쓴다. **L2 는 한 픽셀도 안 바꾼다** — 값을 베껴 적는 대신
+// 원본 함수로 넘겨 그 약속을 구조로 지킨다.
+//
+// 사용자가 정한 L1→L2 가 이미 축을 정해 놨다: 총량(70%)은 그대로인데 **한 대가
+// 몇 조각으로 쪼개지는가**(1 → 3)와 **첫 조각이 언제 오는가**(2.4 → 1.0초)가
+// 바뀌었다. L3 이후는 그 축을 그대로 이어 간다 — 4 → 5 조각, 첫 조각 0.8 →
+// 0.6 → 0.45초. **총량은 다섯 레벨 내내 정확히 70%다.**
+//
+// 몫(SH)은 항상 **합이 1** 이고 앞이 무겁다 — 「먼저 오는 것이 크다」가
+// 되감기의 리듬이다. 뒤로 갈수록 잘게 나뉘어 **회복이 끊기지 않고 이어진다**:
+//   L1 한 번에 70%   → L5 다섯 번에 21/17/13/10.5/9%
+// 이것이 이 축의 실제 값이다 — 같은 양이 **덩어리에서 흐름으로** 바뀐다.
+//
+// 새로 붙는 사건: L3 에서 궤도가 넷이 되고, L4 에서 다섯이 되며, L5 에서
+// **돌아온 조각이 12시에서 터진다**(`celSplash`) — L1(되감기)에 있었다가
+// L2(메아리)에서 빠졌던 그 파편이 다섯 겹을 다 갖춘 뒤에 돌아온다.
+const HGE=[null,null,
+ {DL:[.80,1.50,2.20,2.90],     SH:[.40,.26,.20,.14],     ORB:[40,52,64,76],   pop:0},
+ {DL:[.60,1.10,1.60,2.10,2.60],SH:[.32,.24,.18,.14,.12], ORB:[36,46,56,66,76],pop:0},
+ {DL:[.45,.85,1.25,1.65,2.05], SH:[.30,.24,.18,.15,.13], ORB:[36,46,56,66,76],pop:1}];
+
+function HGechoDraw(c,t,dt,W,H,st,P){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HLec",a0=-Math.PI/2;
+  const RET=.70,N=P.DL.length;
+  HLstage(st,SC,dt,0);
+  st.ec=st.ec||[];
+  st.pop=Math.max(0,(st.pop||0)-dt*3);
+  if(st.took>0)for(let j=0;j<N;j++)
+    st.ec.push({v:st.took*RET*P.SH[j],l:0,j,sd:R()*17});
+  let resv=0;
+  for(let i=st.ec.length-1;i>=0;i--){const e=st.ec[i];e.l+=dt;
+    if(e.l>=P.DL[e.j]){inflow(st,cx,cy-P.ORB[e.j]*SC,K);
+      st.pend=(st.pend||0)+e.v;st.pop=1;st.popR=P.ORB[e.j]*SC;
+      st.ec.splice(i,1);continue;}
+    resv+=e.v;}
+  const MO=stepInflow(st,cx,cy,dt,190*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  // 궤도 — **빈 궤도도 그린다.** 「몇 겹으로 돌아오는가」는 조각이 없는
+  // 순간에도 읽혀야 한다(메아리와 같은 근거).
+  for(let j=0;j<N;j++){
+    celHoop(c,cx,cy,P.ORB[j]*SC,1,0,1.6*SC,"shade",.40-j*.06);
+    celSpike(c,cx,cy-P.ORB[j]*SC,-Math.PI/2,(9-j*1.15)*SC,3*SC,K,.75-j*.11);}
+  for(const e of st.ec){const u=e.l/P.DL[e.j],a=a0+TAU*u,rr=P.ORB[e.j]*SC;
+    const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;
+    celStroke(c,arcPts(cx,cy,rr,a-TAU*.14,a,7),1.9*SC,K,.26);
+    HLshard(c,x,y,HLecSZ(e.v)*SC,K,.5+.5*u,e.sd);}
+  if(P.pop&&st.pop>0)celSplash(c,cx,cy-(st.popR||P.ORB[0]*SC),
+    Math.max(1,12*SC*st.pop),7,3,K,st.pop);
+  HLtail(c,t,dt,cx,cy,SC,st,K,{resv},MO);
+}
+/// L1 = `FX.HLecho1` · L2 = `FX.HLecho2` **원본 호출**.
+FX.HGecho=function HGecho(c,t,dt,W,H,st){
+  if(LV<=1)return FX.HLecho1(c,t,dt,W,H,st);
+  if(LV===2)return FX.HLecho2(c,t,dt,W,H,st);
+  HGechoDraw(c,t,dt,W,H,st,HGE[Math.max(2,Math.min(4,LV-1))]);};
+
+
+// ── 잔향 · 되울림 殘響 — 축은 **지연 시간** ──────────────────────────────
+//
+// 되울림의 정체는 「거리가 곧 시간」이다 — 조각 **하나**가 벽까지 갔다 튕겨
+// 온다. 그러니 조각 수를 늘리면 되감기가 되고, 환급률을 올리면 정체가
+// 흐려진다. 남는 축은 **왕복이 얼마나 걸리는가** 하나뿐이고, 그게 이 스킬을
+// 다른 셋과 완전히 갈라 놓는다.
+//
+// 자라는 것은 조각의 **속도**다(30 → 96 SC/s). 벽까지의 거리 공식
+// `(46 + 430×v)` 은 안 건드린다 — 그게 「크게 맞을수록 멀리 간다」라서
+// 되울림의 정체 그 자체다. 평균 한 입(v = .083 → 벽 81.7SC) 기준 왕복:
+//   L1 4.45초 · L2 3.03 · L3 2.22 · L4 1.76 · L5 1.39
+// 드레인이 8.08%/s 인 무대에서 **L1 은 회복이 오기 전에 36% 가 더 빠진다.**
+// 「초라함」이 굵기가 아니라 **기다림**으로 온다 — 이 줄에서만 그렇다.
+//
+// 새로 붙는 사건: L1 은 벽이 겨우 보이는 실금이고 조각이 맨몸으로 기어간다 →
+// L2 에서 **방향 꼬리**가 붙어 「가는 중 / 오는 중」이 갈린다 → L3 에서
+// **벽에 부딪는 파편**이 튄다 → L4·L5 는 벽이 넓고 굵어진다. L5 는 원본이다.
+//
+// ⚠️ 못 지킨 것 ①: 되울림은 **%/s 가 L2~L5 내내 4.75 로 같다**(실측). 「더
+// 많이」를 저금이 가져갔고 「더 자주」는 맥박 것이라 양을 건드릴 자리가 없었다.
+// L1 만 4.21 로 낮은데, 그건 설계가 아니라 **15초 안에 못 돌아온 조각이 하나
+// 있어서**다(8회 vs 9회). 「양이 안 느는 레벨업」을 성장으로 볼지는 사용자 판정이다.
+// ⚠️ 못 지킨 것 ②: 축이 시간이라 **정지 화면에서 다섯이 거의 안 갈린다.**
+// 갈리는 것은 벽의 굵기·폭·밝기와 붙은 사건(꼬리 L2 · 파편 L3)뿐이다.
+// 다만 값으로는 갈린다 — 첫 회복까지 실측 4.98 / 3.73 / 3.00 / 2.57 / 2.25초,
+// 15초 최종 hp .384(L1) vs .465(L5), 최저 hp .304 vs .453.
+const HGR=[
+ {SPD:30,WW:1.2,WA:.16,WAL:.30,TW:0,  fl:0},
+ {SPD:44,WW:1.7,WA:.24,WAL:.38,TW:1.9,fl:0},
+ {SPD:60,WW:2.2,WA:.32,WAL:.45,TW:2.1,fl:1},
+ {SPD:76,WW:2.7,WA:.38,WAL:.50,TW:2.3,fl:1},
+ {SPD:96,WW:3.0,WA:.42,WAL:.52,TW:2.4,fl:1}];   // 원본 값(참고용)
+
+function HGricoDraw(c,t,dt,W,H,st,P){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,K="HLec";
+  const RET=.70,SPD=P.SPD*SC;
+  HLstage(st,SC,dt,0);
+  st.ec=st.ec||[];
+  if(st.took>0){const v=st.took*RET;
+    st.ec.push({v,r:16*SC,d:1,a:R()*TAU,sd:R()*17,
+      rw:(46+430*v)*SC,fl:0});}
+  let resv=0;
+  for(let i=st.ec.length-1;i>=0;i--){const e=st.ec[i];
+    e.r+=SPD*dt*e.d; e.fl=Math.max(0,e.fl-dt*3.4);
+    if(e.d>0&&e.r>=e.rw){e.r=e.rw;e.d=-1;e.fl=1;}
+    if(e.d<0&&e.r<=15*SC){
+      inflow(st,cx+Math.cos(e.a)*15*SC,cy+Math.sin(e.a)*15*SC,K);
+      st.pend=(st.pend||0)+e.v;st.ec.splice(i,1);continue;}
+    resv+=e.v;}
+  const MO=stepInflow(st,cx,cy,dt,190*SC);
+  if(MO.length<(st.moN||0)&&(st.pend||0)>0){HLheal(st,st.pend);st.pend=0;}
+  st.moN=MO.length;
+  for(const e of st.ec){
+    const x=cx+Math.cos(e.a)*e.r,y=cy+Math.sin(e.a)*e.r;
+    // 벽 — L1 은 겨우 보이는 실금(폭 .16rad · 굵기 1.2 · 알파 .30)이고
+    // L5 는 원본의 두꺼운 호다. **정지 화면에서 갈리는 것이 이것뿐**이라
+    // (축이 시간이라 나머지는 움직여야 보인다) 대비를 최대로 벌렸다.
+    celStroke(c,arcPts(cx,cy,e.rw,e.a-P.WA,e.a+P.WA,11),
+      P.WW*SC,K,e.d>0?P.WAL:P.WAL*.46);
+    if(P.fl&&e.fl>0)celSplash(c,cx+Math.cos(e.a)*e.rw,cy+Math.sin(e.a)*e.rw,
+      Math.max(1,15*SC*e.fl),7,e.sd,K,e.fl);
+    if(P.TW>0){const tr=e.d>0?-1:1,r2=Math.max(2*SC,e.r+tr*17*SC);
+      celStroke(c,[[cx+Math.cos(e.a)*e.r,cy+Math.sin(e.a)*e.r],
+        [cx+Math.cos(e.a)*r2,cy+Math.sin(e.a)*r2]],P.TW*SC,K,.34);}
+    HLshard(c,x,y,HLecSZ(e.v)*SC,K,e.d>0?.62:1,e.sd);}
+  HLtail(c,t,dt,cx,cy,SC,st,K,{resv},MO);
+}
+/// L5 = `FX.HLecho3` **원본 호출**.
+FX.HGrico=function HGrico(c,t,dt,W,H,st){
+  if(LV>=5)return FX.HLecho3(c,t,dt,W,H,st);
+  HGricoDraw(c,t,dt,W,H,st,HGR[Math.max(0,Math.min(3,LV-1))]);};
+
+
+// ── 마운트 — `#levelsh` 에 **덩어리를 따로 만들어** 붙인다 ────────────────
+//
+// ⚠️ `FLROWS` 에는 한 줄도 안 더했다(앞 손 블록이라 병합 충돌이 난다). 회복
+// 페이지의 성장표 호스트는 `#levelsh` 이고, 이미 `LVW`(수확·정화·공물)와
+// `HL1beat` 가 거기 줄을 깔아 놨다 — `appendChild` 로 이어 붙이면 화면에서는
+// 같은 표로 이어진다.
+// ⚠️ `.lvset` / `--block` 은 위에서 이미 걸었어도 **같은 값이라 덮어써도
+// 무해**하다(호스트가 없어 `$("hg")` 로 떨어진 경우를 위해 여기서도 건다).
+// ⚠️ `.lvset` 을 [tile] 이 `.grid` 를 붙여 둔 `<div>` 에 겹쳐 걸면 격자 규칙
+// 둘이 싸워 그 페이지 낱칸이 전부 2열로 무너진다 — **제 호스트에만** 건다.
+{const HOST=MOUNT("levelsh");
+ const HGROWS=[
+ ["HGbeat","맥박 脈搏","주기 3.4초 → 1.4초 (한 박 8.5% 고정)",[
+  "3.4초에 한 번 — 파문이 몸을 겨우 벗어나고 알갱이가 둘뿐이다",
+  "<b>2.8초</b> — 알갱이가 셋. 파문이 처음으로 적 있는 데까지 나간다",
+  "<b>2.3초</b> — 알갱이 넷. 게이지 고리가 커져 다음 박이 언제인지 읽힌다",
+  "<b>1.8초</b> — 알갱이 다섯이 사방에서 온다. 파문이 굵어진다",
+  "<b>1.4초 — 숨 쉬듯 찬다.</b> 한 박 8.5%는 L1과 같다. 자란 건 박자뿐이다"]],
+ ["HGvow","호명 · 저금 護命","환급률 18% → 62% · 터지는 리듬은 6입마다로 다섯 다 같다",[
+  "막은 몫의 18%만 금고에 든다 — 작은 고리에 조용히 쌓였다 세 알로 돌아온다",
+  "<b>30%</b> — 터질 때 <b>파편이 튄다</b>. 네 알",
+  "<b>42%</b> — <b>확산 고리</b>가 붙는다. 다섯 알",
+  "<b>52%</b> — 금고가 커지고 여섯 알",
+  "<b>62% — 막은 것이 거의 다 돌아온다.</b> 터지는 간격은 L1과 같다. 덩어리만 커졌다"]],
+ ["HGecho","잔향 · 되감기 殘響","한 대가 1 → 5 조각 · 총량 70% 고정 (첫 회복 3.6 → 1.6초)",[
+  "한 조각이 궤도를 한 바퀴 — 2.4초 뒤 12시에서 <b>한꺼번에</b> 들어온다",
+  "<b>셋으로 쪼개진다</b> — 1.0 · 1.9 · 2.9초, 몫 5:3:2. 궤도가 셋 (= 메아리, 사용자 확정)",
+  "<b>넷</b> — 첫 조각이 0.8초로 당겨진다. 궤도 넷",
+  "<b>다섯</b> — 0.6초부터 0.5초 간격으로 쉬지 않고 들어온다",
+  "<b>0.45초부터 끊이지 않는다</b> — 돌아온 자리가 터진다. 총량 70%는 L1과 같다"]],
+ ["HGrico","잔향 · 되울림 殘響","왕복 4.4 → 1.4초 · 조각 1개 · 총량 70% 고정 (첫 회복 5.0 → 2.3초)",[
+  "벽까지 기어간다 — 왕복 <b>4.5초</b>. 회복이 오기 전에 이미 다 깎였다",
+  "<b>3.0초</b> — <b>꼬리</b>가 붙어 나가는 중인지 오는 중인지 갈린다",
+  "<b>2.2초</b> — 벽에 부딪는 <b>파편</b>이 튄다",
+  "<b>1.8초</b> — 벽이 넓고 굵어진다",
+  "<b>1.4초 — 맞자마자 돌아온다.</b> 돌려주는 양은 L1과 같다. 자란 건 기다림뿐이다"]]];
+ lvTable({host:HOST,rows:HGROWS,name:"HGcell"});}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GL — 방어 신규 시안의 **레벨 성장표** (접두 `GL`)              (2026-08-13)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 새 최상위 이름은 전부
+// `GL` 로 시작하고 등록은 `FX.GL*` 에 **대입만** 한다. `FLROWS`·`FVROWS` 에는
+// 한 줄도 안 더했다(앞 손 블록이라 병합 충돌이 난다) — 덩어리를 따로 만들어
+// `MOUNT("levelsg")` 에 붙인다.
+//
+// ── ⓪ 먼저 센 것 — **누가 이미 레벨을 읽나** ──────────────────────────────
+// 지시가 준 여덟 중 레벨이 **이미 있는 것이 하나** 있었다. 그건 안 건드린다:
+//
+//   일그러짐 방어막 [DMdome3] → **이미 읽는다.** `DMcore` 가
+//     `R=[64,70,76,82,88][LV-1]` · `BEND=[1.4,1.65,1.9,2.15,2.4][LV-1]` ·
+//     지지직 가닥 `[2,2,3,4,4][LV-1]` · `atL(3)`(파문 두 겹·피격 밀기) ·
+//     `atL(5)`(굴절장 마지막 항) 을 갈아 낀다. 성장표만 없지 성장은 있다.
+//
+// 나머지 일곱은 `LV`·`atL`·`lerpLV` 를 **한 번도** 안 읽는다(전수 확인):
+//   소염 GEfire2 · 접지 GEvolt3 · 역풍 GEwind1 · 항체 GEtox2 → `GEcore` 는
+//     주석에 「`LV` 는 안 쓴다(L3 고정)」라고 못박아 뒀다
+//   플라즈마 방패 GDground4 · 접지 코일 GDground3 → `GDcore` 도 같은 주석
+//   호 빙벽 AWwall1·2·4 → `AWG={R:50,TH:30,SPAN:2.30}` 고정
+//   빙벽 눈결정 IBwall3 → `WY,PW,PH` 고정
+// 공유 도우미(`hero`·`mgInit`·`mgMarks`·`IBstepWall`·`pvMark`·`drawFoes`·
+// `IB*`·`cel*`)도 전부 `LV` 를 안 읽는다 — 레벨이 뒷문으로 새는 자리는 없다.
+//
+// ⚠️ **여기서 다루는 것은 다섯이다**(우선순위 순): 소염 · 접지 · 역풍 · 항체 ·
+// 플라즈마 방패. 일그러짐은 위 이유로 건너뛰고, **호 빙벽 셋과 빙벽 눈결정은
+// 손도 안 댔다** — 못 한 것으로 아래 「못 지킨 것」에 적었다.
+//
+// ── ① 방어의 성장은 공격과 다르다 ────────────────────────────────────────
+// 공격은 「더 세진다」로 자란다. 방어에서 그걸 쓰면 **막는 그림이 공격 그림이
+// 된다** — 이 다섯이 제일 조심해야 할 오독이다(GE 머리말이 같은 함정을 적어
+// 뒀다: 「몸에서 번개를 쏜다」로 읽혀 되뿜음을 짧게 줄인 자리).
+// 그래서 다섯을 **서로 다른 축**에 하나씩 걸었다. 겹치면 계열이 안 읽힌다:
+//
+//   | 스킬          | 축        | 무엇이 자라나                                |
+//   |---------------|-----------|----------------------------------------------|
+//   | 소염 GEfire2  | 되받는 세기 | 삼킨 열이 **얼마나 많이** 판으로 돌아오나    |
+//   | 접지 GEvolt3  | 범위      | 받은 전하가 **몇 군데로** 흘러 나가나        |
+//   | 역풍 GEwind1  | 막는 횟수 | 한 번 밀릴 때 **몇 자락**이 되밀고, 몇 번 막았나가 남나 |
+//   | 항체 GEtox2   | 지속      | 막은 자리가 **얼마나 오래** 몸에 남나        |
+//   | 플라즈마 GDground4 | 재생 속도 | 뚫린 껍질이 **얼마나 빨리** 다시 닫히나 |
+//
+// ── ② L5 는 한 픽셀도 안 바꾼다 — 그래서 **빼기만** 한다 ──────────────────
+// 지시가 「L5 는 지금 그림 그대로」이므로 **레벨업은 덧셈이 될 수 없다.**
+// L5 에 없는 것을 L4 에 붙이면 「L4 에 생겼다가 L5 에서 사라지는 것」이 되고,
+// 성장표에서 그건 거짓말이다(FL 블록이 같은 자리에서 같은 결론을 냈다).
+//
+// 그래서 이 표는 **L5 를 위에 두고 아래로 하나씩 지운 것**이다:
+//   L5 = 지금 그림 · L4 = 거기서 사건 하나 뺀 것 · … · L1 = 넷 뺀 것.
+// 지운 것은 전부 **원본 그림의 부분집합**이라, 낮은 칸이 원본에 없는 형을
+// 새로 그리는 일이 없다. (`역풍`의 자락이 `s<3` 루프를 `s<ARC` 로 줄이는 것이
+// 이 규율의 전형이다 — 위상 `s/3` 을 **`s/ARC` 로 안 바꾼다.** 바꾸면 낮은
+// 칸의 자락이 원본에 없던 자리에 서서 부분집합이 깨진다.)
+//
+// ⚠️ **L5 동일성은 구조로 보장한다.** 다섯의 L5 노브가 원본 상수와 글자까지
+// 같고(아래 표의 마지막 줄), 노브를 태우는 자리 말고는 원본을 **그대로 옮겨
+// 적었다**. 그래서 L5 는 「비슷하다」가 아니라 **같은 식**이다.
+//
+// ── ③ 무대는 다섯 칸이 전부 같다 ─────────────────────────────────────────
+// 적 넷 · 발사 주기 · 탄속 · 몸 반지름을 레벨로 **안 건드렸다.** 방어가 늘면
+// 세상이 순해지는 그림은 거짓말이다 — 자라는 것은 내가 하는 일이지 적이
+// 하는 일이 아니다. 그래서 `GEstage`·`GDstage` 를 **그대로 부른다**(복사 안 함).
+//
+// 새 원시함수는 없다. 새로 쓴 것은 원시가 아니라 **호출부**다:
+// `GLret`(GEreturn 을 레벨로 연 것) · `GLcore`(GEcore 의 노브판) ·
+// `GLbridge`/`GLret4`(GDbridge/GDreturn 의 노브판) · `GLnear`(가까운 놈 고르기).
+//
+// ── ④ 잰 것 ──────────────────────────────────────────────────────────────
+// **L5 동일성** — 다섯을 LV=5 로 240프레임 돌려 원본과 **그리기 호출 흐름**을
+// 통째로 비교했다(메서드·인자·색·굵기까지. 입자가 `Math.random` 을 쓰므로
+// 씨앗을 고정하고 잰다). 다섯 다 **한 호출도 안 다르다**:
+//   소염 411,517 · 접지 294,315 · 역풍 539,490 · 항체 504,567 ·
+//   플라즈마 1,256,062  — 전부 완전 일치.
+//
+// **낮은 칸이 정말 초라한가** — 300프레임 그리기 호출 수(L1→L5):
+//   소염     363,693 → 380,973 → 406,893 → 406,893 → 411,517
+//   접지     194,403 → 202,803 → 227,277 → 250,821 → 294,315
+//   역풍     289,219 → 311,059 → 323,490 → 345,330 → 539,490
+//   항체     464,641 → 479,859 → 480,839 → 503,573 → 504,567
+//   플라즈마 788,952 → 840,369 → 1,073,645 → 1,186,484 → 1,256,062
+// 단조 증가한다 — 낮은 칸이 높은 칸에 없는 것을 그리는 자리가 없다는 뜻이다.
+//
+// **이웃 칸이 눈으로 갈리나** — 300프레임 중 두 칸의 그림이 **완전히 같은**
+// 프레임의 비율(낮을수록 잘 갈린다):
+//   소염     L1→2 0% · L2→3 0% · L3→4 36% · L4→5 36%
+//   접지     L1→2 0% · L2→3 28% · L3→4 0% · L4→5 0%
+//   역풍     L1→2 0% · L2→3 25% · L3→4 0% · L4→5 0%
+//   항체     L1→2 0% · L2→3 25% · L3→4 0% · L4→5 0%
+//   플라즈마 L1→2 0% · L2→3 0% · L3→4 0% · L4→5 0%
+// ⚠️ **소염 L3→L4·L4→L5 는 프레임의 36% 가 완전히 같다.** 둘 다 「맞았을 때만」
+//   일어나는 사건이라서다(밀어내기는 `st.pl` 이 살아 있는 동안만 · 밀어낸 고리는
+//   192/300 프레임=64%). 맞은 직후를 잡으면 다섯 칸이 다 갈리지만, **아무도 안
+//   맞은 순간에는 L3=L4=L5 다.** 정지 화면 한 장으로 판정하면 안 되는 자리다.
+//
+// **비용**(크롬 헤드리스 · 220px 칸 · dpr 2 · 300프레임 평균 ms/frame·칸):
+//   소염 .15 .14 .15 .15 .15 · 접지 .08 .08 .10 .09 .12 ·
+//   역풍 .12 .14 .12 .14 .20 · 항체 .21 .18 .18 .19 .19 ·
+//   플라즈마 .40 .32 .44 .42 .44          ← 스물다섯 칸 합쳐 약 5.4ms/frame
+// 낮은 칸이 **더 싸다** — 성장표가 비용에서도 정직하다(플라즈마 L1 이 L2 보다
+// 비싼 것은 다리가 없어 판이 통째로 보이기 때문이다. 0.08ms 차이).
+//
+// ── ⑤ 못 지킨 것 ─────────────────────────────────────────────────────────
+// ⚠️ **호 빙벽 셋(AWwall1·2·4)과 빙벽 눈결정(IBwall3)은 손도 안 댔다.**
+//   지시의 우선순위 맨 뒤였고 예산이 다섯에서 끝났다. 넷 다 `LV` 를 안 읽으니
+//   **여전히 레벨이 없다** — 다음 손이 할 몫으로 남는다.
+// ⚠️ **일그러짐 방어막(DMdome3)은 일부러 건너뛰었다** — 위 ⓪ 참조. 이미 다섯
+//   단계로 자라고 있어서 성장표만 붙이면 되는데, 그 표는 `DMcore` 를 읽어
+//   문구만 쓰면 되는 일이라 이 블록의 「레벨 만들기」와 성격이 다르다.
+// ⚠️ **다섯 축이 잎사귀에서는 조금 겹친다.** 항체 L4(알갱이가 적에게로 난다)와
+//   플라즈마 L5(릴레이)는 「멀리 간다」라 접지의 범위와 사촌이다. 줄기(무엇이
+//   자라는가)는 다섯이 다르지만 **가지 하나씩은 남의 축을 스친다** —
+//   안 겹치게 억지로 비틀면 원본에 없는 그림을 새로 그려야 해서 놔뒀다.
+// ⚠️ **「막는 횟수」는 진짜로는 안 는다.** 이 다섯은 규칙상 **늘 막는다**
+//   (맞되 상태이상이 안 붙는다). 그래서 역풍의 축은 정확히는 「한 번 막을 때
+//   되미는 자락 수 + 막은 횟수가 화면에 남나」이고, 「L1 은 가끔 못 막는다」로는
+//   안 갔다 — 패시브가 확률로 실패하는 그림은 규칙에 대한 거짓말이다.
+// ⚠️ **항체의 「지속」은 정지 화면에서 약하다.** 시간 축이라 한 장으로는
+//   L2→L3 이 색과 굵기로만 갈린다(위 표에서 같은 프레임 25%). 움직이는 화면
+//   에서는 갈리지만, **스크린샷 판정에는 안 맞는 축**이다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// 가까운 적 n 놈 — 접지의 「아무 데로나 흘린다」가 몇 군데인지 세는 자리.
+/// 원본이 `GEreturn` 안에서 하던 정렬을 그대로 꺼냈다(피해 판정과 그림이
+/// **같은 목록**을 봐야 「저 놈에게 갔다」가 거짓말이 안 된다).
+function GLnear(st,n){
+  if(!st.F||n<=0)return [];
+  return st.F.slice().sort((p,q)=>
+    (p.ox*p.ox+p.oy*p.oy)-(q.ox*q.ox+q.oy*q.oy)).slice(0,n);}
+
+// ── 소염 消炎 — 축: **되받는 세기** ───────────────────────────────────────
+// 삼킨 열이 판이 되는 스킬이다. 그러니 자라는 것은 **판의 양**이지 불의
+// 세기가 아니다 — 판이 굵어지기만 하면 그건 「더 센 방패」라는 슬라이더다.
+//   L1 판이 하나도 없다 — 고리가 색만 갈릴 뿐 아무것도 안 돌려준다
+//   L2 판 둘이 돋는다 (다섯 자리 중 마주 보는 둘)
+//   L3 다섯이 되어 고리를 다 두른다
+//   L4 맞으면 판이 **밀려 나간다**(st.pl → 반지름 +42%)
+//   L5 밀어낸 자리에 **고리가 튄다** — 오늘 그림 그대로
+// ⚠️ 판을 **개수로 줄일 때 슬롯을 다시 나누지 않는다.** `NP` 를 3 으로 줄여
+//   `i/NP*TAU` 로 돌리면 판 하나가 **더 커져서** 낮은 칸이 오히려 화려해진다.
+//   다섯 자리를 그대로 두고 **일부만 그린다** — 그래야 부분집합이다.
+const GLF=[
+ {PL:[],         PUSH:0,PHOOP:0},
+ {PL:[0,2],      PUSH:0,PHOOP:0},
+ {PL:[0,1,2,3,4],PUSH:0,PHOOP:0},
+ {PL:[0,1,2,3,4],PUSH:1,PHOOP:0},
+ {PL:[0,1,2,3,4],PUSH:1,PHOOP:1}];
+
+// ── 접지 接地 — 축: **범위** ──────────────────────────────────────────────
+// 「모으지 않고 아무 데로나 흘린다」가 정체다. 그러니 자라는 것은 **흘러
+// 나가는 곳의 수**다(세기가 아니다 — 세지면 응보가 된다).
+//   L1 땅으로만 샌다 — 발밑 고리뿐, 아무 놈에게도 안 간다
+//   L2 가까운 놈 **하나**에게 옮겨붙는다
+//   L3 옮겨붙은 놈이 **감전된다**(shock 표식이 남는다)
+//   L4 **둘**로 갈라진다
+//   L5 **셋** + 118px 안의 모든 놈이 감전된다 — 오늘 그림 그대로
+// `HIT` 0 안 붙는다 · 1 흘러간 놈에게만 · 2 원본 규칙(거리 118px 전원).
+const GLV=[
+ {CH:0,HIT:0},{CH:1,HIT:0},{CH:1,HIT:1},{CH:2,HIT:1},{CH:3,HIT:2}];
+
+// ── 역풍 逆風 — 축: **막는 횟수** ─────────────────────────────────────────
+// 이 안(va=0)의 주인공은 **몸에 붙으려다 튕기는 표식**이고, 그 옆의
+// [celGauge] 가 **몇 번 튕겼나**를 센다. 그러니 자라는 것은 「한 번에 몇
+// 자락으로 되미나」와 「막은 횟수가 화면에 남나」다.
+//   L1 자락 하나 — 밀리기만 하고 겨우 한 번 되민다. 셈도 안 남는다
+//   L2 자락 둘
+//   L3 **게이지가 선다** — 튕겨 낸 횟수가 몸 둘레에 쌓인다
+//   L4 자락 셋
+//   L5 **바람 문장이 뜬다** — 몸 자체가 바람이 된다. 오늘 그림 그대로
+// ⚠️ 몸이 밀려났다 돌아오는 **용수철은 레벨로 안 건드린다**(무대 규율).
+//   밀림을 줄이면 「덜 맞는다」가 되어 축이 질풍(안 맞는다)으로 새어 나간다.
+const GLW=[
+ {ARC:1,GAUGE:0,EMB:0},{ARC:2,GAUGE:0,EMB:0},{ARC:2,GAUGE:1,EMB:0},
+ {ARC:3,GAUGE:1,EMB:0},{ARC:3,GAUGE:1,EMB:1}];
+
+// ── 항체 抗體 — 축: **지속** ──────────────────────────────────────────────
+// 면역은 「지금 세다」가 아니라 **「아직 남아 있다」**가 정체다. 그러니 자라는
+// 것은 시간이다 — 맞은 토막이 빛나는 시간 · 되받음이 꺼지지 않는 시간.
+//   L1 고리만 · 맞은 토막이 **한 순간**만 진초록 · 되받음이 곧 꺼진다
+//   L2 **항체 알갱이가 돈다** — 몸이 만들어 두고 있는 것이 보인다
+//   L3 **맞은 토막이 오래 남는다**(.20 → .66초, 오늘 값)
+//   L4 **알갱이가 적에게로 난다**
+//   L5 **표식 있는 놈에게만 물보라가 두 배** — 오늘 그림 그대로
+// `CGD` 는 되받음 게이지(st.cg)가 빠지는 속도다. 원본은 .52 이고, 낮은 칸은
+// 더 빨리 빠져 **한 발 막고 곧 꺼진다**. 이것이 「지속」의 몸통이다 —
+// ⚠️ `GEstage` 를 복사하지 않고 **모자란 몫만 더 빼서** 같은 값을 만든다.
+const GLT=[
+ {ORB:0,STAIN:.20,DART:0,MKD:0,CGD:1.55},
+ {ORB:1,STAIN:.20,DART:0,MKD:0,CGD:1.10},
+ {ORB:1,STAIN:.66,DART:0,MKD:0,CGD:.80},
+ {ORB:1,STAIN:.66,DART:1,MKD:0,CGD:.62},
+ {ORB:1,STAIN:.66,DART:1,MKD:1,CGD:.52}];
+
+/// 되받은 것 — `GEreturn` 의 **노브판**. ei 0·2·3·4 만 든다(해빙 ei=1 은
+/// 사용자 판정에서 셋 다 반려돼 방어 페이지에 없다).
+/// 원본과 다른 곳은 **노브를 태우는 자리뿐**이고, 나머지는 식을 그대로 옮겼다.
+function GLret(c,t,dt,st,SC,cx,cy,ei,g,ot,rm,K){
+  const RR=GERB*SC*rm;
+  if(ei===0){
+    // 소염 — 삼킨 열이 판이 된다. `PUSH` 가 꺼지면 밀어내기 자체가 없다.
+    const push=K.PUSH?ease(Math.min(1,(st.pl||0)))*ot:0;
+    const rr=RR*(1+push*.42), NP=5;
+    for(let i=0;i<NP;i++){
+      if(K.PL.indexOf(i)<0)continue;          // 다섯 자리 중 이 칸이 가진 것만
+      const a0=i/NP*TAU+.26-t*.09, a1=(i+1)/NP*TAU-.26-t*.09;
+      celRibbonEven(c,arcPts(cx,cy,rr,a0,a1,3),(2.2+6.0*g)*SC*GEot(ot),GERET,
+        (.52+.46*g),false);}
+    if(K.PHOOP&&push>.02)celHoop(c,cx,cy,Math.max(1,rr*1.22),1,0,
+      Math.max(1,3.4*SC*push),GERET,push*.7);
+  }else if(ei===2){
+    // 접지 — **땅으로** 먼저 흘린다. 이 고리는 다섯 칸이 다 갖는다:
+    // 「절반은 땅으로 빠진다」가 이 스킬의 이름 그 자체라 L1 에서도 못 뺀다.
+    celHoop(c,cx,cy+7*SC*rm,Math.max(1,RR*(.78+.46*g)),.30,0,
+      Math.max(1,(2.4+2.6*g)*SC*GEot(ot)),GERET,.4+.5*g);
+    // 그다음 **가까운 놈**으로 흘러 붙는다 — 몇 놈까지 가나가 이 표의 축이다.
+    if(K.CH>0&&ot>.8&&st.F){
+      const lst=GLnear(st,K.CH);
+      for(let n=0;n<lst.length;n++){const f=lst[n];
+        const fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky,P=[];
+        for(let i=0;i<=6;i++){const u=i/6;
+          const jx=(hash(n*7.1+i*3.3+Math.floor(t*14))-.5)*13*SC*(u<1?1:0);
+          const jy=(hash(n*4.7+i*5.9+Math.floor(t*14))-.5)*13*SC;
+          P.push([cx+(fx-cx)*u+(i&&i<6?jx:0),cy+(fy-cy)*u+(i&&i<6?jy:0)]);}
+        celStroke(c,P,(2.0+1.8*g)*SC,GERET,(.30+.6*g)*ot);}}
+  }else if(ei===3){
+    // 역풍 — 밀린 몸이 되돌아온다. 자락 수와 문장이 이 표의 축이다.
+    // ⚠️ 위상은 `s/3` 그대로다 — `s/ARC` 로 바꾸면 낮은 칸의 자락이 원본에
+    //   없던 자리에 서서 「부분집합」이 깨진다.
+    if(K.EMB)windEmblem(c,t,cx,cy,GERET,SC*(.42+.30*g),(.30+.55*g)*(.5+.5*ot));
+    for(let s=0;s<K.ARC;s++){const P=[],ph=(t*(1.1+.9*g)+s/3)%1;
+      const rr=RR*(.80+(.55+1.05*ot)*ph);
+      for(let i=0;i<=8;i++){const a=s*2.1-t*1.3+(i/8-.5)*1.5;
+        P.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);}
+      celRibbon(c,P,(4.4+2.6*g)*SC*GEot(ot),GERET,(1-ph)*(.35+.55*g));}
+  }else{
+    // 항체 — 고리는 다섯 칸이 다 갖는다(이 안의 바탕이다).
+    celHoop(c,cx,cy,Math.max(1,RR*(.92+.10*Math.sin(t*2.2))),1,0,
+      Math.max(1,(2.2+3.2*g)*SC*GEot(ot)),GERET,.42+.5*g);
+    // 항체 알갱이가 몸 둘레를 돈다 — L2 에서 붙는다.
+    if(K.ORB){const NM=4+Math.round(4*g);
+      for(let i=0;i<NM;i++){const a=t*1.35+i/NM*TAU, rr=RR*(.72+.10*Math.sin(t*2+i));
+        fillPoly(c,jagPoly(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,(2.4+1.6*g)*SC*GEot(ot),5,i*3.1,1.5),
+          A(toneOf(GERET)[2],.55+.4*g));}}
+    if(K.DART&&ot>.55&&st.F)for(let n=0;n<st.F.length;n++){const f=st.F[n];
+      const fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;
+      // `MKD` 가 꺼지면 표식 있는 놈도 깨끗한 놈과 **똑같이** 취급된다 —
+      // 「중독된 놈에게 더 아프다」가 L5 에서만 켜지는 마지막 사건이다.
+      const mkd=!!K.MKD&&f.pv>0, ph=(t*1.25+n*.27)%1;
+      const x=cx+(fx-cx)*ph, y=cy+(fy-cy)*ph;
+      fillPoly(c,jagPoly(x,y,(2.6+1.8*g)*SC*(mkd?1.5:.8),5,n*3.7,1.4),
+        A(toneOf(GERET)[1],(1-ph)*.9*ot));
+      if(ph>.86&&g>.05)
+        celSplash(c,fx,fy,Math.max(1,(mkd?15:6)*SC*g*ot),9,n*2.3+1,GERET,
+          (mkd?.95:.5)*ot);}
+  }
+}
+
+/// 한 칸의 몸통 — `GEcore` 의 **노브판**. 무대(`GEstage`)·막는 순간
+/// (`GEbreak`)·표식(`GEwear`)·탄(`GEbolt`)은 **원본을 그대로 부른다**:
+/// 레벨로 갈리는 것이 아니라 다섯 칸이 공유해야 하는 것들이라서다.
+function GLcore(c,t,dt,W,H,st,ei,va,K){
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,D=GEDEF[ei];
+  // ⚠️ 인자 차례는 `(t, st, dt, …)` 다 — `(t, dt, st, …)` 로 적으면 적이
+  //   안 움직이고 탄도 안 난다(예외가 안 나서 스모크로도 안 잡힌다).
+  GEstage(t,st,dt,SC,cx,cy,D.k);
+  // 되받음이 꺼지는 속도 — 원본(.52)보다 **모자란 몫만 더 뺀다.**
+  // L5 는 CGD 가 .52 라 빼는 값이 0 이고, 그래서 원본과 같은 값이 남는다.
+  if(K.CGD&&K.CGD>.52)st.cg=Math.max(0,st.cg-dt*(K.CGD-.52));
+  const g=st.cg;
+  st.pl=Math.max(0,(st.pl||0)-dt*1.9);
+  st.hvx=(st.hvx||0);st.hvy=(st.hvy||0);st.hx=(st.hx||0);st.hy=(st.hy||0);
+  for(const e of st.ev)if(!e.done&&e.l>=.16){e.done=1;
+    if(ei===0)st.pl=1;
+    if(ei===3){st.hvx+=Math.cos(e.a)*54*SC;st.hvy+=Math.sin(e.a)*54*SC;}
+    if(va===2&&st.F){
+      // 접지만 이 길을 탄다. `HIT` 2 = 원본 규칙(118px 전원) ·
+      // 1 = **흘러간 놈에게만** · 0 = 아무에게도 안 붙는다.
+      const only=K.HIT===1?GLnear(st,K.CH):null;
+      for(const f of st.F){const d=Math.hypot(f.ox,f.oy)||1;
+        if(ei===2&&K.HIT>0&&(K.HIT===2?d<118*SC:only.indexOf(f)>=0)){
+          hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,16*SC,GERET);f.pv=Math.max(f.pv||0,.7);}
+        if(ei===3)hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,26*SC,GERET);
+        if(ei===0&&d<96*SC)hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,14*SC,GERET);
+        if(ei===4&&f.pv>0)hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,22*SC,GERET);}}}
+  if(ei===3){
+    st.hvx+=(-st.hx)*dt*46;st.hvy+=(-st.hy)*dt*46;
+    const dmp=Math.pow(.90,dt*60);st.hvx*=dmp;st.hvy*=dmp;
+    st.hx+=st.hvx*dt;st.hy+=st.hvy*dt;
+  }else{st.hx=0;st.hy=0;st.hvx=0;st.hvy=0;}
+  const bx=cx+st.hx, by=cy+st.hy;
+
+  const lay=L=>pvLayer(c,cx,cy,st.F,D.pv,t,D.k,SC,L);
+  lay(0);drawFoes(c,t,cx,cy,st.F);lay(1);
+  for(const f of st.F)if(f.fl>.02)
+    celSplash(c,cx+f.ox,cy+f.oy,Math.max(1,13*SC*f.fl),8,f.bx,D.k,f.fl*.9);
+
+  if(va===0){
+    GLret(c,t,dt,st,SC,bx,by,ei,g,.35,1,K);
+    // 튕겨 낸 횟수 — 역풍의 「막는 횟수」가 화면에 남는 자리다.
+    if(K.GAUGE)celGauge(c,bx,by,GERB*SC*1.30,g,2.6*SC,GERET,.55);
+  }else if(va===1){
+    const NS=18,RR=GERB*SC, SL=K.STAIN||.66;
+    for(let i=0;i<NS;i++){
+      const a0=i/NS*TAU-t*.06,a1=(i+1)/NS*TAU-t*.06,am=(a0+a1)/2;
+      let stain=0;
+      for(const e of st.ev){
+        // ⚠️ 반각(.66)은 그대로 두고 **사는 시간(SL)만** 줄인다. 반각을
+        //   줄이면 「좁게 막았다」가 되어 축이 범위로 새어 나간다.
+        const hw=Math.max(0,.66*(1-e.l/SL));
+        const d=Math.abs(((am-e.ia+Math.PI*3)%TAU)-Math.PI);
+        if(d<hw){stain=1;break;}}
+      celRibbonEven(c,arcPts(bx,by,RR,a0+.028,a1-.028,4),
+        (stain?4.6:3.4)*SC,
+        stain?D.k:GERET,
+        stain?.98:.70,false);}
+    GLret(c,t,dt,st,SC,bx,by,ei,g,.65,.58,K);
+  }else{
+    for(const e of st.ev){const f=Math.max(0,1-e.l/.42);
+      if(f<=0)continue;
+      celRibbonEven(c,arcPts(bx,by,GEBR*SC*1.35,e.ia-.62,e.ia+.62,6),
+        (2.4+4.4*f)*SC,GERET,.55+.45*f,false);}
+    GLret(c,t,dt,st,SC,bx,by,ei,g,1,1,K);
+  }
+  for(const b of st.b)GEbolt(c,b,SC,D.k);
+  if(st.hurt>0)hurtFlash(c,bx,by,Math.max(1,17*SC*st.hurt),st.hurt*.85);
+  for(const e of st.ev)GEbreak(c,t,st,SC,bx,by,ei,e);
+  if(va===0)GEwear(c,t,st,SC,bx,by,ei);
+  drawP(c,st);
+  hero(c,t,bx,by);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 플라즈마 방패 — 축: **재생 속도**
+// ═══════════════════════════════════════════════════════════════════════════
+// 이 안의 주장은 「껍질을 닫는 것은 판이 아니라 **아크**다 · 매 순간 30%가
+// 꺼져 있어 구멍이 생겼다 닫힌다」다. 그러니 자라는 것은 **닫히는 속도**다.
+//   L1 판만 떠 있다 — 다리가 하나도 없다. 아직 껍질이 아니다
+//   L2 아크가 켜지기 시작한다 — 드문드문(38%), 그것도 **같은 위도 줄 안에서만**
+//      (목걸이가 두 개 쌓인 그림. 껍질이 아니다)
+//   L3 **위아래 줄까지 물린다** — 격자가 닫힌다. 점등 45%
+//   L4 **맞은 자리 둘레가 통째로 켜진다**(heat 지름길) — 뚫린 구멍이 즉시 닫힌다
+//   L5 점등 70% + 되뿜음이 **판에서 판으로 릴레이**한다 — 오늘 그림 그대로
+// `TH` 는 원본의 `hash(...)>.30` 문턱 그 자체다(클수록 덜 켜진다).
+//
+// ⚠️ **이웃 문턱을 하나로 두면 L2 가 L1 과 똑같이 나온다.** 원본 주석은
+// 「.46 이면 같은 줄 안에서만 선다」고 적어 뒀는데, 실제 격자를 재 보면
+// 줄 간격(ph)이 π/6=.5236 이고 **적도 줄 안의 간격(th)도 .5236** 이라
+// 한 문턱으로는 둘이 안 갈린다 — .46 은 **둘 다** 끊어 다리가 0 개가 된다
+// (2026-08-13 계측: L1 788,952 호출 = L2 788,952 호출, 완전히 같은 그림).
+// 그래서 문턱을 **둘로 쪼갠다**: `NEP` 줄 사이 · `NET` 줄 안.
+// L5 는 둘 다 .62 라 원본과 같은 식이다.
+const GLP=[
+ {BRG:0,TH:0,  NEP:.62,NET:.62,HEAT:0,RLY:0},
+ {BRG:1,TH:.62,NEP:.30,NET:.62,HEAT:0,RLY:0},
+ {BRG:1,TH:.55,NEP:.62,NET:.62,HEAT:0,RLY:0},
+ {BRG:1,TH:.40,NEP:.62,NET:.62,HEAT:1,RLY:0},
+ {BRG:1,TH:.30,NEP:.62,NET:.62,HEAT:1,RLY:1}];
+
+/// 다리 — `GDbridge` 의 노브판. 이웃 문턱 · 점등 문턱 · 피격 지름길만 열었다.
+function GLbridge(c,t,st,SC,cx,cy,RR,spin,front,K){
+  const cell=st.cell,qz=Math.floor(t*9);
+  for(let i=0;i<cell.length;i++){
+    const q=cell[i],Pa=GDproj(q,spin,cx,cy,RR);
+    if((Pa.dep>=0)!==front)continue;
+    for(let j=i+1;j<cell.length;j++){
+      const r2=cell[j];
+      if(Math.abs(r2.ph-q.ph)>K.NEP)continue;          // 줄 사이
+      if(Math.abs(((r2.th-q.th)%TAU+TAU+Math.PI)%TAU-Math.PI)>K.NET)continue;  // 줄 안
+      const Pb=GDproj(r2,spin,cx,cy,RR);
+      if((Pb.dep>=0)!==front)continue;
+      const heat=Math.max(q.fl,r2.fl);
+      const on=(K.HEAT&&heat>.18)?1:(hash(i*13.1+j*7.7+qz*2.9)>K.TH?1:0);
+      if(!on)continue;
+      const al=(front?.58+.36*Pa.dep:.16+.12*(1+Pa.dep))*(.5+.5*heat)+heat*.42;
+      if(al<.03)continue;
+      GDarc(c,Pa.x,Pa.y,Pb.x,Pb.y,(2.3+3.4*heat)*SC,Math.min(1,al),
+        i*3.1+j*1.7,t,Math.hypot(Pb.x-Pa.x,Pb.y-Pa.y)*.30,4);}}}
+
+/// 되뿜음 — `GDreturn` 의 va=3(다리) 가지만 옮긴 노브판.
+/// `RLY` 가 꺼지면 **중간 판을 안 거치고 곧장** 적에게 간다.
+function GLret4(c,t,st,SC,cx,cy,RR,spin,K){
+  const T=toneOf(GDK);
+  for(const e of st.ev){
+    const u=Math.min(1,e.l/GDDIS);
+    if(e.l>GDDIS*1.30)continue;
+    const O=GDorigin(st,e,spin,cx,cy,RR);
+    const f=e.src;
+    const tx=cx+f.ox+f.kx, ty=cy+f.oy+f.ky;
+    const g=ease(u), fade=Math.max(0,1-Math.max(0,e.l-GDDIS)/(GDDIS*.30));
+    const ex=O[0]+(tx-O[0])*g, ey=O[1]+(ty-O[1])*g;
+    celHoop(c,cx,cy+8*SC,Math.max(1,RR*(.42+.85*g)),.26,0,
+      Math.max(.6,(1.6+2.6*(1-u))*SC),GDK,(1-u)*.55*fade);
+    const q=st.cell[e.ci];
+    let mx=O[0],my=O[1];
+    if(K.RLY&&q){let bq=null,bd=9;
+      for(const r2 of st.cell){
+        if(r2===q)continue;
+        const dd=Math.abs(((r2.th-q.th)%TAU+TAU+Math.PI)%TAU-Math.PI);
+        const s2=dd+Math.abs(r2.ph-q.ph)*1.4;
+        const Pb=GDproj(r2,spin,cx,cy,RR);
+        if(Pb.dep<0)continue;
+        if(s2<bd&&s2>.05){bd=s2;bq=Pb;}}
+      if(bq){mx=bq.x;my=bq.y;
+        fillPoly(c,jagPoly(mx,my,5.4*SC*(1-u*.5),6,e.ia*3.1,1.3),
+          A(T[2],fade*.85));}}
+    const h=Math.min(1,g/.45);
+    GDarc(c,O[0],O[1],O[0]+(mx-O[0])*h,O[1]+(my-O[1])*h,3.0*SC,fade,
+      e.ia*5.3,t,10*SC,4);
+    if(g>.45)GDarc(c,mx,my,ex,ey,3.0*SC,fade,e.ia*8.9,t,14*SC,6);
+    if(!e.done&&g>=.98){e.done=1;
+      const d=Math.hypot(f.ox,f.oy)||1;
+      hitFoe(st,f,cx,cy,f.ox/d,f.oy/d,13*SC,GDK);
+      f.pv=Math.max(f.pv||0,.95);
+      celSplash(c,tx,ty,Math.max(1,13*SC),9,e.ia*3.7,GDK,.9);}
+    if(g>=.98)celSplash(c,tx,ty,Math.max(1,(6+7*fade)*SC),9,e.ia*3.7+1,GDK,fade*.8);}}
+
+/// 한 칸 — `GDcore(va=3)` 의 노브판. 무대·셀·탄·피격은 원본 그대로 부른다.
+function GLplasmaCore(c,t,dt,W,H,st,K){
+  GDK=GDKOF[3];
+  const SC=Math.min(W,H)/238,cx=W/2,cy=H/2,RR=GDRR*SC;
+  if(!st.cell)st.cell=GDcells(GDANG);
+  const spin=t*.42;
+  GDstage(t,dt,st,SC,cx,cy,GDRR,spin);
+  for(const q of st.cell)GDcell(c,t,st,SC,cx,cy,RR,spin,q,false,3);
+  if(K.BRG)GLbridge(c,t,st,SC,cx,cy,RR,spin,false,K);
+  drawFoes(c,t,cx,cy,st.F);
+  pvLayer(c,cx,cy,st.F,"shock",t,GDK,SC,1);
+  for(const f of st.F)if(f.fl>.02)
+    celSplash(c,cx+f.ox,cy+f.oy,Math.max(1,13*SC*f.fl),8,f.bx,GDK,f.fl*.9);
+  hero(c,t,cx,cy);
+  for(const q of st.cell)GDcell(c,t,st,SC,cx,cy,RR,spin,q,true,3);
+  if(K.BRG)GLbridge(c,t,st,SC,cx,cy,RR,spin,true,K);
+  for(const b of st.b)GDshot(c,b,SC);
+  if(st.hurt>0)hurtFlash(c,cx,cy,Math.max(1,17*SC*st.hurt),st.hurt*.85);
+  GLret4(c,t,st,SC,cx,cy,RR,spin,K);
+  drawP(c,st);}
+
+Object.assign(FX,{
+GLfire2  (c,t,dt,W,H,st){GLcore(c,t,dt,W,H,st,0,1,GLF[LV-1]);},
+GLvolt3  (c,t,dt,W,H,st){GLcore(c,t,dt,W,H,st,2,2,GLV[LV-1]);},
+GLwind1  (c,t,dt,W,H,st){GLcore(c,t,dt,W,H,st,3,0,GLW[LV-1]);},
+GLtox2   (c,t,dt,W,H,st){GLcore(c,t,dt,W,H,st,4,1,GLT[LV-1]);},
+GLplasma (c,t,dt,W,H,st){GLplasmaCore(c,t,dt,W,H,st,GLP[LV-1]);},
+});
+
+// ── 마운트 — `FL`·`FV` 와 **같은 모양**, 호스트만 다르다 ──────────────────
+// ⚠️ `FLROWS` 에는 한 줄도 안 더했다(병합 충돌). 덩어리를 따로 만들어 제
+// 호스트(`#levelsg`)에 붙인다. 호스트가 없으면 `$("gl")` 이 **떨어져 있는
+// 캔버스**를 돌려주므로 조립은 그대로 돌고 그리기 비용은 0 이다.
+// ⚠️ `.lvset` 은 **제 호스트에만** 붙인다 — [tile] 이 이미 `.grid` 를 붙여 둔
+// `<div>` 에 겹쳐 붙이면 격자 규칙 둘이 싸워 그 페이지의 낱칸이 전부 2열로
+// 무너진다(2026-08-12 궁극기·마법 두 번 냈다).
+{const HOST=MOUNT("levelsg");
+ const GLROWS=[
+ ["GLfire2","소염 消炎","되받는 세기 — 삼킨 열이 얼마나 많이 판으로 돌아오나",[
+  "<b>아무것도 안 돌려준다</b> — 고리 토막이 색만 갈린다. 막긴 막는데 되받음이 없다",
+  "<b>판 둘이 돋는다</b> — 다섯 자리 중 마주 보는 둘에만 각진 판이 선다",
+  "<b>다섯이 되어 다 두른다</b> — 판이 고리를 빙 둘러 닫는다",
+  "<b>맞으면 밀어낸다</b> — 삼킨 만큼 판이 바깥으로 밀려 나간다 (반지름 +42%)",
+  "<b>밀어낸 자리에 고리가 튄다</b> — 판보다 한 겹 밖에서 충격이 터진다"]],
+ ["GLvolt3","접지 接地","범위 — 받은 전하가 몇 군데로 흘러 나가나",[
+  "<b>땅으로만 샌다</b> — 발밑에 눕는 고리뿐. 아무 놈에게도 안 간다",
+  "<b>가까운 놈 하나로 옮겨붙는다</b> — 지그재그 한 줄이 뻗는다",
+  "<b>옮겨붙은 놈이 감전된다</b> — 되돌아간 것은 피해가 아니라 표식이다",
+  "<b>둘로 갈라진다</b> — 가까운 순서로 두 놈이 같이 물린다",
+  "<b>셋으로 갈라진다</b> — 가까이 선 놈은 줄이 안 닿아도 감전된다"]],
+ ["GLwind1","역풍 逆風","막는 횟수 — 한 번 밀릴 때 몇 자락이 되미나",[
+  "<b>한 자락뿐이다</b> — 밀리기만 하고 겨우 한 번 되민다. 셈도 안 남는다",
+  "<b>두 자락이 된다</b> — 되미는 것이 앞뒤로 겹친다",
+  "<b>몇 번 막았나가 남는다</b> — 튕겨 낸 횟수가 몸 둘레에 게이지로 쌓인다",
+  "<b>세 자락이 된다</b> — 사방에서 와도 자락이 모자라지 않는다",
+  "<b>몸이 바람이 된다</b> — 가운데에 바람 문장이 뜬다"]],
+ ["GLtox2","항체 抗體","지속 — 막은 자리가 얼마나 오래 몸에 남나",[
+  "<b>한 순간만 빛난다</b> — 맞은 토막이 0.2초 만에 식고 되받음도 곧 꺼진다",
+  "<b>알갱이가 돈다</b> — 몸이 항체를 만들어 두고 있는 것이 보인다",
+  "<b>맞은 토막이 오래 남는다</b> — 0.2초 → 0.66초. 어디를 막았나가 계속 보인다",
+  "<b>알갱이가 적에게로 난다</b> — 만들어 둔 것이 밖으로 나간다",
+  "<b>중독된 놈에게만 물보라가 두 배</b> — 표식 있는 놈에서 크게 터진다"]],
+ ["GLplasma","플라즈마 방패","재생 속도 — 뚫린 껍질이 얼마나 빨리 닫히나",[
+  "<b>판만 떠 있다</b> — 다리가 하나도 없다. 아직 껍질이 아니라 물방울 무늬다",
+  "<b>아크가 켜지기 시작한다</b> — 드문드문(38%), 그것도 같은 줄 안에서만 (목걸이)",
+  "<b>위아래 줄까지 물린다</b> — 격자가 닫힌다. 점등 45%",
+  "<b>맞은 자리가 즉시 닫힌다</b> — 뚫린 구멍 둘레가 통째로 켜진다",
+  "<b>되뿜음이 판을 타고 간다</b> — 점등 70% · 중간 판이 한 번 밝게 켜지는 릴레이"]]];
+ lvTable({host:HOST,rows:GLROWS,name:"GLcell"});}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WL — 빙벽 넷의 **레벨 성장표** (접두 `WL`)                       (2026-08-13)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// **덧붙이기 전용 블록이다.** 위의 어떤 줄도 안 고친다. 새 최상위 이름은 전부
+// `WL` 로 시작하고 등록은 `FX.WL*` 에 **대입만** 한다. `FLROWS`·`FVROWS`·
+// `GLROWS` 에는 한 줄도 안 더했다(앞 손 블록이라 병합 충돌이 난다) — 덩어리를
+// 따로 만들어 `MOUNT("levelsg")` 에 붙인다.
+//
+// ── ⓪ 무엇을 맡았나 ──────────────────────────────────────────────────────
+// `GL` 블록이 「못 지킨 것」에 남긴 넷이다. 넷 다 `LV`·`atL`·`lerpLV` 를
+// **한 번도** 안 읽는다(전수 확인):
+//   AWwall1·AWwall2·AWwall4 → `AWG={R:50,TH:30,SPAN:2.30}` 고정
+//   IBwall3                 → `WY=-46 · PW=64 · PH=26` 고정
+// 원본 넷은 **한 줄도 안 고쳤다.** `WLwall1/2/3/4` 는 원본을 그대로 옮겨 적고
+// **노브를 태우는 자리만** 다르다.
+//
+// ⚠️ `WLwall3` 은 `AWwall3`(호 C)이 아니라 **`IBwall3`**(평평한 눈결정 격자)의
+//    성장표다. 지시가 준 넷이 그쪽이다. 이름만 자리를 맞춰 3 으로 뒀다.
+//
+// ── ① 넷의 축을 무엇으로 갈랐나 ──────────────────────────────────────────
+// 방어의 성장은 「더 세진다」가 아니다. 벽에서 그걸 쓰면 **막는 그림이 공격
+// 그림이 된다.** 그래서 「더 오래 · 더 많이 · 더 넓게 막는다」 넷으로 갈랐다.
+// ⚠️ 넷이 **서로 다른 차원**을 쓴다 — 「크기가 는다」를 넷이 다 쓰면 계열이
+//    안 읽힌다. 각(角)·시간·반지름·선밀도, 물리적으로 다른 넷이다:
+//
+//   | 벽                | 축              | 자라는 것이 무엇인가              |
+//   |-------------------|-----------------|-----------------------------------|
+//   | AWwall1 유리판    | **덮는 각**     | 몇 놈을 막나 (호가 얼마나 감싸나) |
+//   | AWwall2 바늘 숲   | **버팀(시간)**  | 얼마나 오래 서 있나 (뿌리의 깊이) |
+//   | AWwall4 모자이크  | **겹(반지름)**  | 몇 겹을 뚫어야 하나               |
+//   | IBwall3 눈결정    | **선의 밀도**   | 선이 몇 가닥이나 (면이 없는 벽)   |
+//
+// 특히 유리판의 「덮는 각」은 **다른 셋이 절대 못 쓰는 축**이다: 호 넷 중
+// 하나만 각으로 자라야 「호(弧)라서 자랄 수 있는 것」이 한 자리에 모인다.
+//
+// ── ② L5 는 한 픽셀도 안 바꾼다 — 그래서 **빼기만** 한다 ──────────────────
+// 앞 손(`GL`)이 낸 결론을 그대로 따랐다:
+//   **레벨업은 덧셈이 아니라 「L5 에서 아래로 하나씩 지운 것」이다.**
+// L5 에 없는 것을 L4 에 붙이면 「L4 에 생겼다가 L5 에서 사라지는 것」이 되고,
+// 성장표에서 그건 거짓말이다.
+//
+// 그래서 이 표는 **L5 를 위에 두고 아래로 하나씩 지운 것**이다:
+//   L5 = 지금 그림 · L4 = 거기서 사건 하나 뺀 것 · … · L1 = 넷 뺀 것.
+// 지운 것은 전부 **원본 그림의 부분집합**이라, 낮은 칸이 원본에 없는 형을
+// 새로 그리는 일이 없다. 규율 셋:
+//   ⚠️ **자리를 다시 나누지 않는다.** 판을 셋으로 줄일 때 `i/3` 로 돌리면
+//      판 하나가 **더 커져서** 낮은 칸이 오히려 화려해진다. 아홉 자리를
+//      그대로 두고 **가운데부터 일부만 그린다**.
+//   ⚠️ **taper 의 `uu` 는 언제나 원본 SPAN 으로 잰다.** 좁힌 각으로 다시
+//      재면 낮은 칸의 판 높이가 원본과 달라져 부분집합이 깨진다.
+//   ⚠️ **멈추는 자리 = 걸리는 자리** 는 원본 규율 그대로다. `WLstepWall` 이
+//      `AWface` 한 줄에서 둘을 같이 뽑는다(28프레임 버그의 재발 방지).
+//
+// ── ③ 무대는 다섯 칸이 전부 같다 ─────────────────────────────────────────
+// 적 넷의 배치·탄속(31px/s)·몸 반지름을 레벨로 **안 건드렸다.** 방어가 늘면
+// 세상이 순해지는 그림은 거짓말이다 — 자라는 것은 내 벽이지 적이 아니다.
+//
+// 새 원시함수는 없다. 새로 쓴 것은 원시가 아니라 **호출부**다:
+// `WLstepWall`(AWstepWall 의 노브판 — 덮는 각·되서는 시간) · `WLbrick`(모자이크
+// 칸이 처음부터 있나).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// `AWstepWall` 의 **노브판**. 원본과 갈리는 곳은 두 자리뿐이다:
+///   `COV`  덮는 각의 비율 — 호의 **가운데부터** 얼마나 걸리나 (1 = 원본)
+///   `DEAD` 부서진 뒤 다시 설 때까지 (1.15 = 원본)
+/// ⚠️ `uu` 는 **원본 HALF 로** 잰다(`HALF*COV` 가 아니다). 그래야 걸리는
+///    반지름이 원본과 같은 값에서 나오고, 낮은 칸이 「같은 벽의 좁은 토막」이
+///    된다 — 좁힌 각으로 다시 재면 **다른 두께의 다른 벽**이 되어 버린다.
+function WLstepWall(st,dt,SC,RB,TH,SPAN,rate,COV,DEAD){
+  if(st.hp===undefined){st.hp=1;st.dead=0;st.fr=[];}
+  const up=st.dead<=0,SPD=31*SC,HALF=SPAN*.5;
+  for(const f of st.F){
+    const d=Math.hypot(f.ox,f.oy)||1, ang=Math.atan2(f.oy,f.ox);
+    const da=AWwrap(ang+Math.PI/2), uu=Math.min(1,Math.abs(da)/HALF);
+    // ⚠️ 멈추는 반지름 = 걸리는 반지름. **한 변수에서 한 번만** 만든다.
+    const stopR=AWface(RB,TH,uu)-f.r*.52, nd=d-SPD*dt;
+    if(up&&Math.abs(da)<HALF*COV&&nd<stopR){
+      f.ox=Math.cos(ang)*stopR;f.oy=Math.sin(ang)*stopR;
+      const s=(da<0?-1:1)*.5*SC;
+      f.kx+=-Math.sin(ang)*s;f.ky+=Math.cos(ang)*s;
+      st.hp-=dt*rate;f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+      f.nh=(f.nh||0)+1;                    // 계측 훅 — 「초당 몇 번 때리나」
+    }else{
+      f.ox=Math.cos(ang)*nd;f.oy=Math.sin(ang)*nd;
+      if(nd<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  let broke=0;
+  if(up&&st.hp<=0){broke=1;st.dead=DEAD;st.hp=1;}
+  if(st.dead>0)st.dead-=dt;
+  return broke;}
+
+// ── 호 A · 겹친 유리판 — 축: **덮는 각** ──────────────────────────────────
+// 호가 「몇 놈을 막나」로 자란다. 적 넷의 접근각은 벽 정면에서 3.9° · 20° ·
+// 25° · 38° 다(계측). 그래서 반각이 자라면 **막히는 놈이 하나씩 는다**:
+//   L1 반각 16.5° — 판 셋. **한 놈만** 막고 나머지 셋은 옆으로 그냥 들어온다
+//   L2 반각 31°   — 판 다섯. **셋을 막는다** + 밑동에 뿌리 발광이 켜진다
+//   L3 반각 46°   — 판 일곱. **넷을 다 막는다**
+//   L4 반각 46°   — 판 위로 **얼음이 떠오른다**(마름모·반짝이)
+//   L5 반각 66°   — 판 아홉. 132° 를 **끝까지 두른다** — 오늘 그림 그대로
+// ⚠️ 판 아홉 자리는 다섯 칸이 **전부 같다.** `COV` 는 그 아홉 중 가운데부터
+//    몇을 그리나만 정한다(`uu>COV` 면 건너뛴다). 자리를 다시 나누면 낮은 칸의
+//    판이 **더 커져서** 초라함이 깨진다.
+// ⚠️ 뿌리·금·떠 있는 얼음도 같은 `COV` 창으로 자른다 — 벽이 없는 각에서 얼음만
+//    빛나면 「벽이 저기까지 있다」는 거짓말이 된다.
+const WLA=[
+ {COV:.25,ROOT:0,ICE:0},
+ {COV:.47,ROOT:1,ICE:0},
+ {COV:.70,ROOT:1,ICE:0},
+ {COV:.70,ROOT:1,ICE:1},
+ {COV:1.00,ROOT:1,ICE:1}];
+
+// ── 호 B · 바늘 숲 — 축: **버팀(시간)** ───────────────────────────────────
+// 바늘은 **뿌리가 깊어질수록 오래 버틴다.** 그래서 자라는 것은 밑동이고,
+// 깎임률·되서는 시간이 그 밑동을 따라간다(그림과 수치가 같은 말을 한다).
+//   L1 깎임 .130 · 되서기 2.20초 — 바늘이 **허공에 꽂혀 있다**(뿌리가 없다).
+//      금방 부러지고, 부러지면 그루터기로 한참 있는다
+//   L2 깎임 .104 · 1.90초 — **뿌리 발광**이 켜진다. 밑동이 땅에 박힌다
+//   L3 깎임 .082 · 1.60초 — **부스러기 열둘**이 밑동에 깔린다
+//   L4 깎임 .066 · 1.35초 — **두 번째 뿌리**가 밑동을 묻는다
+//   L5 깎임 .055 · 1.15초 — **떠 있는 마름모 일곱** — 오늘 그림 그대로
+// ⚠️ 바늘 열넷의 길이·각·부러지는 순서는 **레벨로 안 건드린다.** 길이를 줄이면
+//    걸리는 반지름(AWface)과 그림이 어긋나 적이 **허공에서 멈춘다**.
+const WLB=[
+ {RATE:.130,DEAD:2.20,ROOT:0,GRIT:0,ROOT2:0,ICE:0},
+ {RATE:.104,DEAD:1.90,ROOT:1,GRIT:0,ROOT2:0,ICE:0},
+ {RATE:.082,DEAD:1.60,ROOT:1,GRIT:1,ROOT2:0,ICE:0},
+ {RATE:.066,DEAD:1.35,ROOT:1,GRIT:1,ROOT2:1,ICE:0},
+ {RATE:.055,DEAD:1.15,ROOT:1,GRIT:1,ROOT2:1,ICE:1}];
+
+// ── 호 D · 모자이크 석벽 — 축: **겹(반지름 방향)** ────────────────────────
+// 이 안만 **국소 파괴**다 — 맞은 칸만 떨어져 구멍이 뚫린다. 그러니 자라는
+// 것은 「뚫려도 뒤에 또 있나」다. 칸 열넷(7열×2줄)의 **자리는 다섯 칸이 전부
+// 같고**, 낮은 칸은 그 중 일부가 **처음부터 없다**.
+//   L1 안쪽 줄 일곱만 — **한 겹**. 칸도 물러서(.95/초) 금방 뚫리고, 뚫리면
+//      적이 벽 안쪽까지 들어온다
+//   L2 바깥 줄 **가운데 셋**이 붙는다(.82) + 벽 둘레에 얼음 기운(뿌리·마름모)
+//   L3 바깥 줄이 다 찬다 — **두 겹이 완성**(.70)
+//   L4 칸이 단단해지고(.58) 깎인 칸에 **금이 간다**
+//   L5 칸이 떨어질 때 **파편과 냉기가 터진다**(.52) — 오늘 그림 그대로
+// ⚠️ 칸을 **열(COL)로 줄이지 않았다** — 그건 유리판의 「덮는 각」축이라
+//    겹치면 두 벽이 같은 말을 한다. 줄(ROW)로만 줄인다.
+const WLD=[
+ {BR:0,BRD:.95,ROOT:0,FRAG:0,CRK:0},
+ {BR:1,BRD:.82,ROOT:1,FRAG:0,CRK:0},
+ {BR:2,BRD:.70,ROOT:1,FRAG:0,CRK:0},
+ {BR:2,BRD:.58,ROOT:1,FRAG:0,CRK:1},
+ {BR:2,BRD:.52,ROOT:1,FRAG:1,CRK:1}];
+/// 칸 `i` 가 처음부터 있나. 0=안쪽 줄만 · 1=+바깥 가운데 셋 · 2=전부(원본)
+function WLbrick(mode,i,COL){
+  const row=(i/COL|0), col=i%COL;
+  if(mode>=2)return 1;
+  if(row===0)return 1;
+  return (mode>=1&&col>=2&&col<=4)?1:0;}
+
+// ── 빙벽 · 눈결정 격자 — 축: **선의 밀도** ────────────────────────────────
+// ⚠️ **넷 중 제일 안 벌어지는 자리다.** 「면이 하나도 없다」가 이 안의 정체라
+// 자랄 축이 **선의 수**뿐이다. 크기를 키우면 다른 벽의 축과 겹치고, 두께를
+// 키우면 「면이 없다」가 깨진다. 그래서 **개수만** 늘렸다:
+//   L1 실 한 가닥 + 눈송이 **하나** — 선 하나가 가로지를 뿐이다
+//   L2 실 **두 가닥** — 격자가 되기 시작한다(위아래로 꿴다)
+//   L3 큰 눈송이 **셋** — 양옆이 붙는다
+//   L4 작은 눈송이 **넷** — 사이가 메워진다
+//   L5 마디 **반짝이 여섯** — 선이 만나는 자리가 빛난다 — 오늘 그림 그대로
+// ⚠️ 눈송이 하나하나의 **가지 차수는 못 벌렸다.** `IBflake` 가 육각·곁가지
+//    3단·끝 육각판을 **한 덩어리로** 그려서 차수를 노브로 뺄 자리가 없고,
+//    빼려면 새 원시함수를 만들어야 한다(문법 위반). 아래 「못 지킨 것」참조.
+// ⚠️ 실의 폭(PW)·벽 높이(PH)는 **안 건드렸다** — 폭은 「덮는 각」, 높이는
+//    「겹」이라 둘 다 남의 축이다.
+const WLS=[
+ {THR:1,BIG:1,SML:0,SPK:0},
+ {THR:2,BIG:1,SML:0,SPK:0},
+ {THR:2,BIG:3,SML:0,SPK:0},
+ {THR:2,BIG:3,SML:4,SPK:0},
+ {THR:2,BIG:3,SML:4,SPK:6}];
+
+Object.assign(FX,{
+
+// ═══ 호 A · 겹친 유리판 ════════════════════════════════════════════════════
+WLwall1(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const K=WLA[LV-1];
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const RB=AWG.R*SC,TH=AWG.TH*SC,SPAN=AWG.SPAN,N=9;
+  const brk=WLstepWall(st,dt,SC,RB,TH,SPAN,.055,K.COV,1.15);
+  if(brk){AWburst(st,cx,cy,RB,TH,SPAN,SC,7);
+    AWemit(st,cx,cy,RB,TH,SPAN,SC,6,{k:"frost",sp:180*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);   // ⚠️ 적을 **먼저** — 판이 위에 겹쳐야 비친다
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    // 뿌리 발광 — 호를 따라 다섯. L1 은 아직 밑동이 안 얼었다.
+    if(K.ROOT)for(let i=0;i<5;i++){const u=(i+.5)/5;
+      if(Math.abs(u-.5)*2>K.COV)continue;
+      AWroot(c,cx,cy,AWang(u,SPAN),RB,TH*.92,"frost",.40,.34);}
+    // 접선 간격 — R·SPAN 이 뭐든 **겹침의 수가 안 변하도록** 폭을 여기에 맞춘다.
+    const SP=(RB+TH*.40)*SPAN/N;
+    for(let i=0;i<N;i++){const u=(i+.5)/N,a=AWang(u,SPAN),uu=Math.abs(u-.5)*2;
+      if(uu>K.COV)continue;                    // 아홉 자리 중 이 칸이 가진 것만
+      const hh=(AWface(RB,TH,uu)-RB)*(.86+.86*hash(i*3.1));
+      const ww=SP*(.92+.44*hash(i*7.7)),ln=(hash(i*5.3)-.5)*.9;
+      const base=RB+TH*.10+Math.sin(t*1.1+i)*1.2*SC;
+      const P=AWpoly(cx,cy,a,base,
+        [[-ww,0],[-ww*.94,-hh*.34],[-ww*.46+ln*ww*.5,-hh*.88],
+         [ln*ww,-hh],[ww*.72+ln*ww,-hh*.60],[ww*.98,-hh*.10],[ww*.88,0]]);
+      IBpane(c,P,"frost",(.92-sh*.30)*(i%2?1:.84),i*4.1,1.3*SC);}
+    // 금 — 깎일수록 판을 **반지름 방향으로** 가로지른다.
+    if(sh>.12)for(let i=0;i<4;i++){const u=(i+.62)/4;
+      if(Math.abs(u-.5)*2>K.COV)continue;
+      const a=AWang(u,SPAN),pts=[];
+      for(let j=0;j<=4;j++)pts.push(AWpt(cx,cy,a,
+        RB+TH*1.12-TH*1.12*(j/4)*Math.min(1,sh*1.7),(hash(i*9+j)-.4)*TH*.42));
+      IBline(c,pts,1.5*SC*sh,"frost",Math.min(1,sh*1.5),0);}
+    // 위(=바깥)에 떠 있는 마름모 + 반짝이 — L4 에서 붙는다
+    if(K.ICE){
+      for(let i=0;i<6;i++){const u=hash(i*2.3);
+        if(Math.abs(u-.5)*2>K.COV)continue;
+        const ph=t*.5+i*1.7,a=AWang(u,SPAN);
+        const p=AWpt(cx,cy,a,RB+TH*1.32+Math.abs(Math.sin(ph))*13*SC,0);
+        IBshard(c,p[0],p[1],(2.4+2.2*hash(i*5.1))*SC,ph*.5+i,"frost",.85);}
+      for(let i=0;i<5;i++){const u=hash(i*3.7);
+        if(Math.abs(u-.5)*2>K.COV)continue;
+        const ph=(t*.7+i*.37)%1,a=AWang(u,SPAN);
+        const p=AWpt(cx,cy,a,RB+TH*(.1+.95*hash(i*8.1)),0);
+        IBspark(c,p[0],p[1],(2.6+1.6*hash(i*6.3))*SC,"frost",
+          .35+.65*Math.sin(ph*Math.PI),t*1.4+i);}}
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ═══ 호 B · 바늘 숲 ════════════════════════════════════════════════════════
+WLwall2(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const K=WLB[LV-1];
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const RB=AWG.R*SC,TH=AWG.TH*1.13*SC,SPAN=AWG.SPAN,N=14;
+  const brk=WLstepWall(st,dt,SC,RB,TH,SPAN,K.RATE,1,K.DEAD);
+  if(brk){AWburst(st,cx,cy,RB,TH,SPAN,SC,8);
+    AWemit(st,cx,cy,RB,TH,SPAN,SC,7,{k:"frost",sp:190*SC,r:3*SC,life:.55,g:150*SC,spikeP:.9});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    if(K.ROOT)for(let i=0;i<6;i++)AWroot(c,cx,cy,AWang((i+.5)/6,SPAN),RB,TH*1.00,"frost",.60,.28);
+    // 뿌리 부스러기 — 작은 결정이 호를 따라 잔뜩(H)
+    if(K.GRIT)for(let i=0;i<12;i++){const u=(i+.5)/12,a=AWang(u,SPAN)+(hash(i*4.7)-.5)*.09;
+      const p=AWpt(cx,cy,a,RB-1.5*SC,0);
+      IBneedle(c,p[0],p[1],a+(hash(i*3.3)-.5)*1.5,(4+5*hash(i*8.9))*SC,1.7*SC,i*2.1,
+        "frost",.85,{mos:1});}
+    // 큰 바늘 — **각도가 자기 자리의 반지름**이다. 레벨로 안 건드린다.
+    for(let i=0;i<N;i++){const u=(i+.5)/N,uu=Math.abs(u-.5)*2;
+      const rank=hash(i*6.1);                     // 0=짧다 1=길다
+      const cut=rank<sh*1.15?.30+.18*hash(i*2.9):1;
+      const L=(AWface(RB,TH,uu)-RB)*(.78+1.20*rank)*cut;
+      const a=AWang(u,SPAN)+(hash(i*5.5)-.5)*.05;
+      const ang=a+(u-.5)*.30+(hash(i*9.7)-.5)*.30;
+      const p=AWpt(cx,cy,a,RB,0);
+      IBneedle(c,p[0],p[1],ang,L,(3.2+2.4*hash(i*7.3))*SC,i*3.7,"frost",1,
+        {mos:2,tip:.20,slant:.55+.5*hash(i*1.9)});
+      if(cut<1)IBspark(c,p[0]+Math.cos(ang)*L,p[1]+Math.sin(ang)*L,4*SC,"frost",.7,t*2+i);}
+    // 뿌리를 한 번 더 — 밑동이 묻힌다
+    if(K.ROOT2)for(let i=0;i<4;i++)AWroot(c,cx,cy,AWang((i+.5)/4,SPAN),RB,TH*.60,"frost",.48,.24);
+    if(K.ICE)for(let i=0;i<7;i++){const ph=t*.6+i*1.3,a=AWang(hash(i*2.3),SPAN);
+      const p=AWpt(cx,cy,a,RB+TH*1.20+Math.abs(Math.sin(ph))*15*SC,0);
+      IBshard(c,p[0],p[1],(2.2+2.4*hash(i*5.1))*SC,ph*.4+i,"frost",.8);}
+  }else{
+    for(let i=0;i<9;i++){const u=(i+.5)/9,a=AWang(u,SPAN);   // 그루터기만 남는다
+      const p=AWpt(cx,cy,a,RB,0);
+      IBneedle(c,p[0],p[1],a,(5+4*hash(i*3.1))*SC,2.2*SC,i*3.7,"frost",.75,{mos:1});}
+    if(K.ROOT)for(let i=0;i<4;i++)AWroot(c,cx,cy,AWang((i+.5)/4,SPAN),RB,TH*.85,"frost",
+      .32*Math.max(0,st.dead),.26);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ═══ 빙벽 · 눈결정 격자 (원본 IBwall3) ═════════════════════════════════════
+WLwall3(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const K=WLS[LV-1];
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const WY=-46*SC,PW=64*SC,PH=26*SC;
+  // ⚠️ 시계·충돌은 **원본을 그대로 부른다.** 밀도 축은 걸리는 자리를 안
+  //    건드린다 — 건드리면 「덮는 각」·「겹」과 같은 말이 된다.
+  const brk=IBstepWall(st,dt,SC,WY,PW,PH,.055);
+  if(brk){IBburst(st,cx,cy+WY,PW,PH,SC,9);
+    emit(st,cx,cy+WY,20,{k:"frost",sp:200*SC,r:2.6*SC,life:.5,g:120*SC,spikeP:.95});}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  const up=st.dead<=0, sh=st.hp<1?(1-st.hp):0;
+  if(up){
+    const al=1-sh*.45;
+    // 잇는 실 — 위·아래 두 가닥이 눈송이를 꿴다. L1 은 **바깥 한 가닥**뿐.
+    for(const yy of[-PH*.72,PH*.72].slice(0,K.THR)){
+      const pts=[];for(let i=0;i<=12;i++){const u=i/12;
+        pts.push([cx+(u-.5)*PW*2.1,cy+WY+yy+Math.sin(u*7+t*.6)*2.2*SC]);}
+      IBline(c,pts,1.9*SC,"frost",al*.9);}
+    // 눈송이 셋 — 크기가 다르고 **아주 느리게** 돈다(얼음은 바쁘지 않다)
+    for(let i=0;i<3;i++){if(K.BIG<3&&i!==1)continue;   // 셋 자리는 그대로, 가운데부터
+      const x=cx+(i-1)*PW*.76;
+      IBflake(c,x,cy+WY,PH*(i===1?1.26:.98),t*.06+i*.7,"frost",al*.85,1.9*SC);}
+    // 사이를 메우는 작은 눈송이 넷 — 「막고 있다」를 **선의 밀도**로만 말한다
+    for(let i=0;i<K.SML;i++)IBflake(c,cx+(i-1.5)*PW*.52,cy+WY+(i%2?PH*.44:-PH*.44),
+      PH*.36,-t*.09+i*1.3,"frost",al*.70,1.3*SC);
+    // 격자 마디의 반짝이 — 선이 만나는 자리가 빛난다
+    for(let i=0;i<K.SPK;i++){const x=cx+(i-2.5)*PW*.38;
+      IBspark(c,x,cy+WY+(i%2?-PH*.72:PH*.72),3.2*SC,"frost",
+        .45+.55*Math.abs(Math.sin(t*1.6+i)),t*.9+i);}
+    if(sh>.15)for(let i=0;i<5;i++){        // 끊긴 자리 — 선이 도막난다
+      const a0=hash(i*3.1)*TAU,d=PH*(.5+.6*hash(i*7.7));
+      IBshard(c,cx+Math.cos(a0)*d*1.7,cy+WY+Math.sin(a0)*d,
+        2.6*SC*sh,a0,"frost",Math.min(1,sh*1.6));}
+  }
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+// ═══ 호 D · 모자이크 석벽 ══════════════════════════════════════════════════
+WLwall4(c,t,dt,W,H,st){const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  const K=WLD[LV-1];
+  mgInit(st,SC,[[-38,-104,10],[8,-118,11],[46,-98,10],[-72,-92,9]]);
+  stepFoes(st.F,dt);
+  const RB=AWG.R*SC,TH=AWG.TH*1.47*SC,SPAN=AWG.SPAN,COL=7,ROW=2,NB=COL*ROW;
+  // ⚠️ 없는 칸은 **처음부터 0** 이다(죽은 칸과 같은 값). 그리기도 판정도
+  //    `alive(i)` 한 줄만 보므로 「안 그렸는데 막는다」가 생길 수 없다.
+  if(!st.br){st.br=[];for(let i=0;i<NB;i++)st.br.push(WLbrick(K.BR,i,COL));
+    st.dead=0;st.fr=[];st.hp=1;}
+  const dq=SPAN/COL;                                   // 칸의 각폭
+  const bu=i=>((i%COL)+.5)/COL, ba=i=>AWang(bu(i),SPAN);
+  const buu=i=>Math.abs(bu(i)-.5)*2;
+  const bIn =i=>RB+(AWface(RB,TH,buu(i))-RB)*((i/COL|0)  )/ROW;
+  const bOut=i=>RB+(AWface(RB,TH,buu(i))-RB)*((i/COL|0)+1)/ROW;
+  const alive=i=>st.br[i]>0;
+  const up=st.dead<=0, SPD=31*SC;
+  for(const f of st.F){
+    const d=Math.hypot(f.ox,f.oy)||1, ang=Math.atan2(f.oy,f.ox);
+    const nd=d-SPD*dt;
+    let hitI=-1,hr=0;
+    if(up)for(let i=0;i<NB;i++){if(!alive(i))continue;
+      if(Math.abs(AWwrap(ang-ba(i)))>dq*.62)continue;
+      // **멈추는 자리 = 걸리는 자리.** 같은 변수 하나(`face`)를 둘 다 쓴다.
+      const face=bOut(i)-f.r*.55;
+      if(nd<face&&face>hr){hr=face;hitI=i;}}
+    if(hitI>=0){
+      f.ox=Math.cos(ang)*hr;f.oy=Math.sin(ang)*hr;
+      const s=(AWwrap(ang+Math.PI/2)<0?-1:1)*.4*SC;
+      f.kx+=-Math.sin(ang)*s;f.ky+=Math.cos(ang)*s;
+      st.br[hitI]-=dt*K.BRD;f.pv=Math.min(1.4,(f.pv||0)+dt*1.1);
+      f.nh=(f.nh||0)+1;                    // 계측 훅
+      if(st.br[hitI]<=0){st.br[hitI]=0;
+        // 파편과 냉기 — L5 에서만 터진다. 낮은 칸은 칸이 **소리 없이** 진다.
+        if(K.FRAG){const rm=(bIn(hitI)+bOut(hitI))*.5,am=ba(hitI);
+          IBpushFrag(st,cx+Math.cos(am)*rm,cy+Math.sin(am)*rm,
+            (bOut(hitI)-bIn(hitI))*.44,SC,1);
+          emit(st,cx+Math.cos(am)*rm,cy+Math.sin(am)*rm,7,
+            {k:"frost",a:am,spread:1.1,sp:150*SC,r:2.6*SC,life:.5,g:130*SC,spikeP:.9});}}
+    }else{
+      f.ox=Math.cos(ang)*nd;f.oy=Math.sin(ang)*nd;
+      if(nd<26*SC){f.ox=f.hx;f.oy=f.hy;}}
+    if(f.pv>0)f.pv-=dt*.3;}
+  let live=0;for(let i=0;i<NB;i++)if(alive(i))live++;
+  if(up&&live===0)st.dead=1.0;
+  if(st.dead>0){st.dead-=dt;
+    if(st.dead<=0){st.br=[];for(let i=0;i<NB;i++)st.br.push(WLbrick(K.BR,i,COL));}}
+  IBstepFrag(st,dt,SC);stepP(st,dt);
+  mgMarks(c,t,cx,cy,st.F,"frost","frost",SC);
+  if(K.ROOT)for(let i=0;i<5;i++)AWroot(c,cx,cy,AWang((i+.5)/5,SPAN),RB,TH*.95,"frost",.36,.30);
+  for(let i=0;i<NB;i++){const hpv=st.br[i];if(hpv<=0)continue;
+    const r0=bIn(i),r1=bOut(i),am=ba(i),sd=i*3.7;
+    const rm=(r0+r1)*.5, qh=rm*dq*.5;         // 접선 반폭 = 호 길이의 절반
+    const NP=5+((i*7+((i/COL|0)*3))%3), P=[];
+    const OV=1.16;                            // 이웃과 모서리를 맞대는 겹침
+    const jq=(hash(sd+1.3)-.5)*qh*.36, jr=(hash(sd+2.9)-.5)*(r1-r0)*.18;
+    for(let j=0;j<NP;j++){const a0=j/NP*TAU+.4+hash(sd+j*1.7)*.5;
+      const rr=(.52+.20*hash(sd+j*2.3))*(1+.14*Math.sin(a0*2));
+      P.push(AWarcPt(cx,cy,am,rm+jr-Math.sin(a0)*(r1-r0)*rr*OV,
+        jq+Math.cos(a0)*qh*rr*OV*OV));}
+    IBcrys(c,P,"frost",Math.min(1,.35+hpv*.75),sd,
+      {mos:2,w:1.4*SC*.9,thru:.62,grain:am});
+    if(K.CRK&&hpv<.75)IBline(c,[AWarcPt(cx,cy,am,rm+(r1-r0)*.34,-qh*.6),
+      AWarcPt(cx,cy,am,rm-(r1-r0)*.02,qh*.2),
+      AWarcPt(cx,cy,am,rm-(r1-r0)*.36,-qh*.1)],
+      1.1*SC*(1-hpv),"frost",1-hpv,0);}
+  if(K.ROOT)for(let i=0;i<5;i++){const ph=t*.55+i*1.5,a=AWang(hash(i*2.3),SPAN);
+    const p=AWpt(cx,cy,a,RB+TH*1.40+Math.abs(Math.sin(ph))*12*SC,0);
+    IBshard(c,p[0],p[1],(2.2+2.0*hash(i*5.1))*SC,ph*.5+i,"frost",.8);}
+  IBdrawFrag(c,st,SC);
+  drawP(c,st);hero(c,t,cx,cy);},
+
+});
+
+// ── 마운트 — `GL` 과 **같은 모양**, 호스트만 다르다 ───────────────────────
+// ⚠️ `GLROWS`·`FLROWS` 에는 한 줄도 안 더했다(병합 충돌). 덩어리를 따로 만들어
+// 제 호스트(`#levelsg`)에 붙인다. 호스트가 없으면 `$("wl")` 이 **떨어져 있는
+// 캔버스**를 돌려주므로 조립은 그대로 돌고 그리기 비용은 0 이다.
+// ⚠️ `.lvset` 은 **제 호스트에만** 붙인다 — [tile] 이 이미 `.grid` 를 붙여 둔
+// `<div>` 에 겹쳐 붙이면 격자 규칙 둘이 싸워 낱칸이 전부 2열로 무너진다.
+{const HOST=MOUNT("levelsg");
+ const WLROWS=[
+ ["WLwall1","빙벽 A · 겹친 유리판","덮는 각 — 호가 얼마나 감싸나 (몇 놈을 막나)",[
+  "<b>한 놈만 막는다</b> — 판 셋뿐. 반각 16.5° 라 나머지 셋은 옆으로 그냥 들어온다",
+  "<b>셋을 막는다</b> — 판 다섯으로 늘고, 밑동에 뿌리 발광이 켜진다 (반각 31°)",
+  "<b>넷을 다 막는다</b> — 판 일곱. 왼쪽 끝으로 새던 놈까지 걸린다 (반각 46°)",
+  "<b>판 위로 얼음이 떠오른다</b> — 마름모와 반짝이가 벽 바깥에 뜬다",
+  "<b>132° 를 끝까지 두른다</b> — 판 아홉이 호를 다 채운다 (반각 66°)"]],
+ ["WLwall2","빙벽 B · 바늘 숲","버팀 — 뿌리가 깊을수록 오래 서 있다",[
+  "<b>허공에 꽂혀 있다</b> — 뿌리가 없다. 두 배 넘게 빨리 깎이고(.130) 부서지면 2.2초를 그루터기로 있는다",
+  "<b>밑동이 땅에 박힌다</b> — 뿌리 발광이 켜지고 깎임이 .104 로 준다",
+  "<b>부스러기가 깔린다</b> — 작은 결정 열둘이 밑동을 덮는다 (.082)",
+  "<b>밑동이 묻힌다</b> — 뿌리가 한 겹 더 앉는다 (.066 · 1.35초)",
+  "<b>부러진 조각이 떠오른다</b> — 마름모 일곱이 바늘 위에 뜬다 (.055 · 1.15초)"]],
+ ["WLwall3","빙벽 · 눈결정 격자","선의 밀도 — 면이 하나도 없는 벽이 자라는 유일한 길",[
+  "<b>선 하나가 가로지를 뿐이다</b> — 실 한 가닥 + 눈송이 하나. 막는다기보다 그어 놓은 금이다",
+  "<b>격자가 되기 시작한다</b> — 실이 두 가닥이 되어 위아래로 꿴다",
+  "<b>눈송이가 셋이 된다</b> — 양옆이 붙어 폭을 다 덮는다",
+  "<b>사이가 메워진다</b> — 작은 눈송이 넷이 큰 것 사이로 끼어든다",
+  "<b>마디가 빛난다</b> — 실과 눈송이가 만나는 여섯 자리에 반짝이가 선다"]],
+ ["WLwall4","빙벽 D · 모자이크 석벽","겹 — 뚫려도 뒤에 또 있나",[
+  "<b>한 겹뿐이다</b> — 안쪽 줄 일곱만. 칸도 물러서(.95/초) 뚫리면 적이 벽 안쪽까지 들어온다",
+  "<b>가운데가 두 겹이 된다</b> — 바깥 줄 셋이 붙고 벽 둘레에 얼음 기운이 돈다",
+  "<b>두 겹이 다 찬다</b> — 바깥 줄 일곱이 채워져 열넷이 완성된다",
+  "<b>금이 간다</b> — 칸이 단단해지고(.58) 깎인 칸에 균열이 그어진다",
+  "<b>파편이 터진다</b> — 칸이 떨어질 때 얼음 조각과 냉기가 같이 튄다"]]];
+ lvTable({host:HOST,rows:WLROWS,name:"WLcell"});}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JD — 사용자 판정 셋을 페이지에 박는다 (접두 `JD`)               (2026-08-13)
+//
+//   기생 — RE기생2「말라간다」 채택 → 마법 공격 페이지로. **레벨 다섯 단을 만든다**
+//   오행 — 스킬 삭제 (마운트에서만 뺀다. 함수는 남는다)
+//   풍벽 — 「방향」안만 채택 → **마법에서 방어로 옮긴다**
+//
+// ── 이 블록이 서려면 표가 이미 이래야 한다(빠진 자리마다 ⚠️ 를 적어 뒀다) ──
+//   `MGDEF`  기생·오행 두 줄이 없다   → 격자 칸 둘 + 성장표 두 줄이 같이 빠진다
+//   `MGW`    풍벽 한 줄이 없다        → 격자·성장표·아이콘 세 자리에서 빠진다
+//   `RE`     고르기 여덟 칸이 없다     `WB` 고르기 넷 + 성장표 넷이 없다
+// 함수·문구 표(`MGFX`·`MGLVT`·`MGBGLVT`·`WBLIST`·`WBLVT`)는 **하나도 안 지웠다** —
+// 이 레포는 판정이 끝나면 마운트만 빼고 그림은 남긴다(`GDROW`·`EMDEF`·`ICFI`).
+// ⚠️ `WBLIST.forEach(w=>{WTONE[w[0]]="gale";})` 도 남는다 — 그 줄이 없으면
+//    `WBarc` 가 방어 페이지에서 **색을 잃는다**([tile] 이 `reg===FX` 일 때
+//    `WTONE[key]` 로 `RECOLOR` 를 건다).
+//
+// ═══ 왜 (가) 도 (나) 도 아니고 「제 이름으로 다시 세우기」인가 ═════════════
+//
+// 브리프의 두 갈래는 이렇다:
+//   (가) `MGDEF` 의 그리기 키를 `RElatch2` 로 갈아 끼운다
+//   (나) `MGFX.mgPoisonLatch` 본문을 `RElatch2` 의 그림으로 갈아엎는다
+//
+// (나)는 이 레포가 **한 번도 안 한 짓**이다. 판정이 끝날 때마다 한 문장이 같다:
+//   · `GDROW` 「안1 갈래 · 안2 균열은 반려. **함수는 남기고 마운트에서만 뺀다**」
+//   · `EMDEF` 「버린 것들은 마운트에서 뺀다. **함수는 남겨 둔다**」
+//   · `ICFI`  「옛 얼음 11안은 **마운트에서 뺐다** … 함수는 남는다」
+//   · `AW`    「원본 `IBwall*` 는 **안 건드렸다**」
+//   · `MGW`   — 여덟 중 셋만 섰는데 `FX.mgBoltBrand`·`mgBoltBlink`·
+//               `mgGaleStream` 본문은 **그대로 있다**
+// 그리고 (나)를 하면 **거짓말이 하나 생긴다** — `MGFX.mgPoisonLatch` 를
+// 대조군으로 읽는 마운트가 아직 있다(`mapTile("ms-latch",MSat3(MGFX.mgPoisonLatch…)`).
+// 본문을 갈아엎으면 그 고르기 페이지의 「지금 — 대조군」이 채택본과 같은 그림이
+// 되어 **「그래서 이걸 골랐다」가 화면에서 증발한다.**
+//
+// (가)는 (나)보다 훨씬 낫지만 **로드 순서에 걸린다.** `MGDEF.forEach` 가 도는
+// 자리는 파일 **16천 줄대**이고 [tile] 은 그 자리에서 `reg[key]` 를 집는데,
+// `RElatch2` 는 **40천 줄대**다 — 함수 선언 호이스팅에 기대야
+// `MGFX.RElatch2=RElatch2` 가 서고, 24,000줄 떨어진 정의에 기댄 등록은
+// 다음 손이 블록을 옮기는 순간 조용히 깨진다.
+//
+// 이 레포가 **채택본을 일하는 페이지로 올릴 때** 실제로 쓴 손은 셋째다 —
+// 새 이름 그대로, 캐논 이름표를 달고, **제 블록에서** 제 호스트에 붙인다:
+//   · 「결빙 셋과 회오리 하나가 채택됐다. 고르기에 두지 않고 일하는 페이지로
+//     올린다」 → `{const M=MOUNT("magic"); tile(M,FX,"FZtomb1","결빙 · 유리 기둥",…)}`
+//     같은 자리에서 `FCcone6` 가 「화염방사 火炎放射」, `FLtrailL5` 가 「불자취 火跡」
+//     이라는 **캐논 이름표**를 달고 섰다. 원본(`mgFireCone` 등)은 `MGFI` 에서 빠졌다.
+//   · 그 성장표는 `IL`/`WL`/`GL` 블록이 `lvTable` 로 따로 붙였다.
+// 이 블록은 그 손을 그대로 따른다.
+//
+// ═══ 레벨 — 원본의 다섯 단을 「말라간다」의 어휘로 옮긴다 ═════════════════
+//
+// `RElatch2` 는 `LV` 를 한 번도 안 읽는다(고르기용 단일 그림). 격자가 L5 로
+// 그리므로 그대로 두면 성장표 다섯 칸이 **전부 같은 그림**이 된다.
+//
+// 원본 `mgPoisonLatch` 의 축 넷을 하나씩 옮긴다 — 축은 그대로, 어휘만 바꾼다:
+//
+//   원본                                   → 「말라간다」
+//   ────────────────────────────────────────────────────────────────────────
+//   `NB=[2,3,3,3,3]`  가시 자루 수          → 붙는 것의 수. **그대로 쓴다**
+//   `KEEP=atL(3)`     안 빠진다             → **안 놓는다** — 떨어지지도 않고
+//                     (구멍 둘레가 아문다)     빨린 것이 **안 돌아온다**(`f.dr` 회복 0).
+//                                             정지 화면 표시는 **떨어져 나가던 마른
+//                                             껍질이 그 자리에 굳어 테가 되는 것**
+//                                             (L2 까지는 날아가 흩어진다)
+//   `VEIN=atL(4)`     실뿌리가 몸을 덮는다   → **마른 실뿌리.** 도형은 원본 그대로
+//                                             (5갈래 `celStroke`)인데 자라는 값이
+//                                             나이(`mat`)가 아니라 **빨아낸 양(`f.dr`)**
+//                                             이다 — 이 안의 축(한 값이 둘을 민다)을 지킨다
+//   `FORK=atL(5)`     곁가지 둘.            → **주머니에서 마른 실이 둘로 갈라져**
+//                     하나가 셋을 문다         곁의 적 둘까지 문다. 그 둘도 `dr` 이 올라
+//                                             **같이 쪼그라들고 껍질이 남는다** —
+//                                             「하나가 셋을 **말린다**」
+//
+// ⚠️ 마름 깊이(−42%)는 **레벨로 안 판다.** 채택된 그림이 그 값이고, 다섯 칸이
+//    전부 「조금 더 말랐다」로 갈리면 「수치만 오르는 레벨은 반려」에 걸린다.
+//    칸마다 **사건이 하나씩** 붙는 쪽으로 갔다.
+//
+// ⚠️ `RElatchRun`·`RElatchWither` 는 **한 줄도 안 고쳤다.** `WL` 블록의 규율
+//    그대로 「원본을 그대로 옮겨 적고 **노브를 태우는 자리만** 다르다」 —
+//    노브가 없는 `REblob`·`REfoePoly` 는 **베끼지 않고 그대로 부른다.**
+//    (`RElatch1`/`RElatch3` 이 되살아나도 이 블록은 그들을 안 건드린다.)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── ① 기생 寄生 — 「말라간다」 + 레벨 다섯 단 ─────────────────────────────
+
+/// 붙는 것의 수 — 원본 `mgPoisonLatch` 의 `NB` 를 그대로 옮겼다.
+const JDNB=[2,3,3,3,3];
+
+/// 곁의 적 n 마리(가까운 순). **각성의 「하나가 셋을 말린다」가 여기서 나온다.**
+/// ⚠️ 고른 결과는 화살에 **한 번만** 박는다 — 매 프레임 다시 고르면 적이 흔들릴
+///    때 실이 이 놈 저 놈으로 튀어 「무엇이 무엇을 물었나」가 안 읽힌다.
+function JDside(F,f,n){
+  return F.filter(g=>g!==f)
+    .sort((a,b)=>Math.hypot(a.ox-f.ox,a.oy-f.oy)-Math.hypot(b.ox-f.ox,b.oy-f.oy))
+    .slice(0,n);}
+
+/// 마른 껍질 윤곽 — 「원래 이만했다」. 굳은 것(`solid`)은 한 줄로 이어지고
+/// 안 굳은 것은 세 점씩 **끊어 그린다.** L3 의 곁들이 표시다 — 주된 표시는
+/// 아래 ②의 **굳은 조각 테**다(이 선만으로는 정지 화면에서 안 갈렸다).
+function JDshell(c,t,x,y,r0,r,SC,a,solid){
+  const P=REfoePoly(t,x,y,r0*1.06);
+  if(solid){const Q=P.slice();Q.push(P[0]);celStroke(c,Q,2.0*SC,"toxin",a);}
+  else for(let i=0;i<P.length;i+=3)
+    celStroke(c,[P[i],P[(i+1)%P.length],P[(i+2)%P.length]],2.0*SC,"toxin",a);
+  // 껍질과 몸을 잇는 짧은 획 — **줄어든 만큼이 눈금으로 보인다.**
+  for(let k=0;k<7;k++){const aa=k/7*TAU+t*.10;
+    celStroke(c,[[x+Math.cos(aa)*r0*1.04,y+Math.sin(aa)*r0*1.04],
+                 [x+Math.cos(aa)*r*1.02,y+Math.sin(aa)*r*1.02]],
+      1.5*SC,"toxin",a*.70);}}
+
+/// 그리기 — `RElatchWither` 를 그대로 옮기고 **L3·L4·L5 노브만** 태웠다.
+/// (`mat` 은 원본도 안 읽어서 뺐다. 대신 `cx,cy` 를 받는다 — 각성이 곁의 적
+///  좌표를 그려야 하기 때문이다.)
+function JDwither(c,t,q,f,fx,fy,tx,ty,SC,st,cx,cy){
+  const dr=f.dr, KEEP=atL(3), VEIN=atL(4), FORK=atL(5);
+  // ① **원래 크기의 자국.** 셋 중 이것만 정지 화면 한 장으로 「얼마나 줄었나」를
+  //    말한다 — 빈 껍질 윤곽이 남고 몸은 그 안에서 쪼그라들어 있다.
+  //    L3 부터 그 윤곽이 **굳는다**(끊긴 껍질 → 이어진 껍질).
+  if(dr>.04)JDshell(c,t,fx,fy,f.r0,f.r,SC,dr*.88,KEEP);
+  // ② 마른 껍질 — **빠진 양이 곧 조각 수다**(1 → 7).
+  //    L1·L2 는 떨어져 **날아가 흩어지고**, L3 부터는 **안 떨어진다** —
+  //    그 자리에 굳어 몸 밖에 **테**가 된다. 「빨린 것이 안 돌아온다」가
+  //    화면에서 이 테다.
+  //    ⚠️ 처음엔 L3 을 「껍질 윤곽선이 끊김 → 이어짐」으로만 갈랐는데
+  //       620px 렌더에서 **L2·L3·L4 가 한 덩어리로 똑같았다**(2026-08-13 눈 판정).
+  //       조각 구름이 윤곽을 통째로 덮기 때문이다 — 선의 굵기·이음새로는 못 이긴다.
+  //       레벨은 **덩어리의 실루엣**을 바꿔야 정지 화면에서 읽힌다.
+  const NF=1+Math.round(dr*6);
+  for(let k=0;k<NF;k++){
+    const u=KEEP?.52:((t*.52+k*.31+q.sd)%1);
+    const aa=q.sd*9+k*.97+(KEEP?Math.sin(t*.5+k)*.06:t*.18);
+    const rr=f.r*1.02+u*f.r0*1.5,sz=1-u*.45;
+    celSpike(c,fx+Math.cos(aa)*rr,fy+Math.sin(aa)*rr,aa,
+      (6.4+4.0*dr)*SC*sz,2.6*SC*sz,"toxin",(KEEP?.80:(1-u))*.62);}
+  // ③ L4 **마른 실뿌리** — 붙은 자리에서 돋아 **굳은 테를 뚫고 밖으로** 뻗는다.
+  //    도형은 원본 `mgPoisonLatch` 의 실뿌리 그대로고, 자라는 값만 나이가 아니라
+  //    **빨아낸 양**이다. 길이 기준을 `f.r0`(원래 몸)으로 잡아야 몸이 줄어도
+  //    뿌리가 같이 짧아지지 않는다 — 「몸은 마르는데 뿌리는 뻗는다」가 이 안의 말이다.
+  //    ⚠️ 원본처럼 `f.r0*(.55+1.05*dr)`(몸 안쪽)로 두면 조각 테 **안**에 들어가
+  //       안 보인다(같은 렌더에서 확인). 조각 테가 1.5·r0 이므로 뿌리는 그 밖이라야
+  //       한다 — 굽은 획(뿌리)과 곧은 창(조각)이 모양으로도 갈린다.
+  if(VEIN)for(let k=0;k<5;k++){
+    const sp=q.a+(k-2)*.46,len=f.r0*(1.35+1.15*dr),P=[];
+    for(let s2=0;s2<=6;s2++){const w=s2/6,aa=sp+Math.sin(w*3.1+k)*.6;
+      P.push([fx+Math.cos(aa)*len*w,fy+Math.sin(aa)*len*w]);}
+    celStroke(c,P,3.2*SC,"toxin",.72*dr);}
+  // ④ 주머니 — 적이 잃은 것이 여기 모인다. **적은 −42%, 주머니는 +**.
+  //    한 값(`f.dr`)이 둘을 동시에 미는 것이 이 안의 전부다.
+  REblob(c,tx,ty,(2.2+7.2*dr)*SC*(1+q.hit*.30),7,q.sd*9+1,"toxin",1,1.22);
+  // ⑤ L5 각성 — **마른 실이 둘로 갈라져** 곁의 적을 문다. 셋이 같이 마른다.
+  //    ⚠️ 알갱이를 안 태운다 — 흐르는 알갱이는 「빨대」안의 어휘다. 여기서 파는
+  //       것은 「같이 말라간다」 하나뿐이라, 그것과 무관한 그림은 전부 방해다.
+  if(FORK&&q.sk)for(const g of q.sk){
+    const gx=cx+g.ox+g.kx, gy=cy+g.oy+g.ky;
+    const ga=Math.atan2(fy-gy,fx-gx);
+    const P=[];
+    for(let j=0;j<=5;j++){const u=j/5,w=Math.sin(u*Math.PI)*9*SC*(1-dr*.45);
+      P.push([tx+(gx-tx)*u-Math.sin(q.a)*w, ty+(gy-ty)*u+Math.cos(q.a)*w]);}
+    celStroke(c,P,(1.4+1.4*dr)*SC,"toxin",.24+.54*dr);
+    // 곁의 적에도 껍질이 남는다 — **개수가 곧 각성**이다(하나 → 셋).
+    if(g.dr>.04)JDshell(c,t,gx,gy,g.r0,g.r,SC,g.dr*.66,1);
+    REblob(c,gx+Math.cos(ga)*g.r*.85,gy+Math.sin(ga)*g.r*.85,
+      (1.6+3.4*g.dr)*SC,6,g.sd*9+3,"toxin",.92,1.18);}}
+
+/// 시뮬 — `RElatchRun` 을 그대로 옮기고 **`NB`·수명·회복·각성 노브만** 태웠다.
+/// 마름 깊이는 채택값 `.42` 고정이다(레벨로 안 판다).
+function JDlatchRun(c,t,dt,W,H,st){
+  const cx=W/2,cy=H/2,SC=Math.min(W,H)/238;
+  if(!st.F){st.F=mkFoes([[70,-40,11],[-66,-24,10],[26,62,10],[-42,50,9]]
+      .map(v=>[v[0]*SC,v[1]*SC,v[2]*SC]));
+    for(const f of st.F){f.bx=f.ox;f.by=f.oy;f.r0=f.r;f.dr=0;
+      f.sd=hash(f.ox*.031+f.oy*.017);}}
+  for(const f of st.F){const s=f.sd;
+    f.ox=f.bx+Math.sin(t*(.55+s*.50)+s*9)*22*SC;
+    f.oy=f.by+Math.cos(t*(.47+s*.40)+s*5)*16*SC;
+    f.on=0;}
+  stepFoes(st.F,dt);
+  // ⚠️ `KEEP` 은 **둘**을 동시에 켠다 — 안 떨어지는 것(수명)과 안 돌아오는 것
+  //    (마름 회복 0). 원본의 「안 빠진다」를 「말라간다」로 옮기면 그 둘이 한 말이다.
+  const NB=JDNB[LV-1],FLY=.08,KEEP=atL(3),FORK=atL(5),LIFE=KEEP?999:5.0;
+  st.b=st.b||[];st.fa=(st.fa||0)+dt;
+  if(st.fa>1.05&&st.b.length<NB){st.fa=0;st.n=(st.n||0)+1;
+    const f=st.F[st.n%st.F.length];
+    st.b.push({f,fly:0,a:hash(st.n*7.7)*TAU,rr:.60+hash(st.n*3.1)*.24,
+      age:0,tk:0,hit:0,sd:hash(st.n*5.9),sk:null});}
+  for(let i=st.b.length-1;i>=0;i--){const q=st.b[i];
+    if(q.fly<1){q.fly=Math.min(1,q.fly+dt/FLY);
+      if(q.fly>=1){q.hit=1;q.f.pv=1;
+        const d=Math.hypot(q.f.ox,q.f.oy)||1;
+        hitFoe(st,q.f,cx,cy,q.f.ox/d,q.f.oy/d,12*SC,"toxin");}
+      continue;}
+    q.age+=dt;q.tk+=dt;q.f.pv=1;q.f.on=1;
+    q.hit=Math.max(0,q.hit-dt*3.2);
+    // **빨아낸 만큼 자란다.** 이 한 줄이 감염과 갈리는 규칙 전부다.
+    q.f.dr=Math.min(1,q.f.dr+dt*.28);
+    // L5 각성 — 갈래. 고른 곁 적은 **한 번만** 박는다(위 [JDside] 주석).
+    if(FORK){if(!q.sk)q.sk=JDside(st.F,q.f,2);
+      for(const g of q.sk){g.on=1;g.pv=1;
+        g.dr=Math.min(1,g.dr+dt*.28*.55);}}      // 곁은 절반 속도로 마른다
+    if(q.tk>.5){q.tk=0;q.hit=1;
+      // 오래 붙을수록 아프다 — 지속형의 계약(원본과 같은 식).
+      hitFoe(st,q.f,cx,cy,0,0,(3+Math.min(10,q.age*1.7))*SC,"toxin");
+      if(FORK&&q.sk)for(const g of q.sk)
+        hitFoe(st,g,cx,cy,0,0,(1.5+Math.min(5,q.age*.85))*SC,"toxin");}
+    if(q.age>LIFE)st.b.splice(i,1);}
+  for(const f of st.F){if(!f.on&&!KEEP)f.dr=Math.max(0,f.dr-dt*.50);
+    if(f.pv>0)f.pv-=dt*.55;}
+  stepP(st,dt);
+  // 빨린 만큼 몸이 줄어든다 — 적이 준 만큼 줄어드는 것이 이 안의 축이다.
+  for(const f of st.F)f.r=f.r0*(1-.42*f.dr);
+  const mark=(L)=>{for(const f of st.F)if(f.pv>0)
+    pvMark(c,cx+f.ox+f.kx,cy+f.oy+f.ky,f.r,"poison",f.pv,t,"toxin",SC,L);};
+  mark(0);drawFoes(c,t,cx,cy,st.F);mark(1);
+  for(const q of st.b){const f=q.f,fx=cx+f.ox+f.kx,fy=cy+f.oy+f.ky;
+    const tx=fx+Math.cos(q.a)*f.r*q.rr,ty=fy+Math.sin(q.a)*f.r*q.rr;
+    if(q.fly<1){
+      // 나는 구간 — **가는 획 하나.** 0.08초라 이것으로 충분하고, 이것이 전부여야 한다.
+      const u=q.fly,ux=cx+(tx-cx)*u,uy=cy+(ty-cy)*u,
+            v=Math.max(0,u-.62),bx=cx+(tx-cx)*v,by=cy+(ty-cy)*v;
+      celStroke(c,[[bx,by],[ux,uy]],3.0*SC,"toxin",.90);
+      continue;}
+    JDwither(c,t,q,f,fx,fy,tx,ty,SC,st,cx,cy);}
+  drawP(c,st);hero(c,t,cx,cy,"gold",SC);}
+
+/// 레지스트리 — `MGFX`(창작 마법)와 같은 결이다. `FX` 에 안 넣는 이유는
+/// `tile` 이 `reg===FX` 일 때만 `WTONE` 으로 물들이기 때문 — 원본 `MGFX.mgPoisonLatch`
+/// 도 안 물들었으므로 같은 자리에 서려면 레지스트리도 `FX` 밖이라야 한다.
+const JDFX={
+JDlatch(c,t,dt,W,H,st){JDlatchRun(c,t,dt,W,H,st);},
+};
+
+// ── ③ 풍벽 風壁 — 「방향」안이 방어로 간다 ────────────────────────────────
+//
+// ⚠️ `GUARD` 표의 동사와 안 겹치나 — **겹치는 것은 경면 하나뿐이고, 판정 대상이
+//    정반대다.** 한 문장으로:
+//
+//    > 경면은 **정면으로 날아온 「탄」을 되돌려 보내고**, 풍벽 「방향」은
+//    > **호가 도는 쪽의 「몸」을 밀어 못 들어오게 한다** — 앞만 본다는 자세는
+//    > 같은데 하나는 원거리를 되쏘고 하나는 접촉을 민다.
+//
+//    코드가 그대로 그렇다: `FX.WBarc` 에는 **탄이 한 발도 없다**(적을
+//    `RAD+f.r` 밖으로 밀어내는 접촉 처리뿐). 반대로 `FX.mirror` 의 레벨은
+//    전부 반사(「반사 원호 ±60→±90」·「반사탄이 유도로」·「반사 +1회」)다.
+//    결계는 **전방위 + 내구도**(맞은 셀이 깨졌다 재생), 거암은 **몸집**으로
+//    가른다(거구만 받아 낸다) — 둘 다 각도를 안 판다.
+//
+//    ⓘ 곁다리로 알아 둘 것: 사용자가 **안 고른** 셋은 하필 `GUARD` 와 겹치는
+//      것들이었다 — ②내구도 = 결계, ③선별 = 거암/사슬. 남은 「방향」이
+//      방어 일곱 중 **아무도 안 판 축**인 것은 우연이 아니다.
+//
+// 그림·레벨은 `FX.WBarc` 그대로다(한 줄도 안 고쳤다). 옮기는 것은 **호스트**뿐이다.
+
+// ── 마운트 ────────────────────────────────────────────────────────────────
+// 호스트가 없으면 아무것도 안 붙는다(`if(H)`) — [$] 로 떨어진 캔버스를 받아
+// 유령 타일을 만드는 함정을 피한다. `lvTable` 은 `host` 가 null 이면 스스로 0 을
+// 돌려주므로 조건이 필요 없다(`GL`·`WL` 과 같은 모양).
+
+// 기생 — 마법 공격 격자. **격자는 L5(완성형)** 다(2026-08-13 확정, `tile` 의 `lv`).
+{const M=MOUNT("magic");
+ if(M)tile(M,JDFX,"JDlatch","기생 寄生 · 독 毒","LATCH",
+   "가시가 아니라 <b>적이 마른다</b> — 빨린 만큼 몸이 42% 쪼그라들고 원래 크기의 "+
+   "빈 껍질 윤곽이 남는다 · 지속형(역 疫)",238,undefined,undefined,5);}
+
+// 기생 — 레벨 성장표. 칸은 전역 `LV` 만 바꿔놓고 **같은 함수**를 부른다.
+{const HOST=MOUNT("levelsm");
+ lvTable({host:HOST,reg:JDFX,name:"JDcell",rows:[
+ ["JDlatch","기생 寄生 · 독 毒","마법",[
+  "기준 — 붙는 것 <b>둘</b>. 5초면 떨어지고, 떨어지면 빨린 것이 <b>돌아와 다시 부푼다</b>",
+  "<b>붙는 것 셋</b> — 한 마리에 둘도 붙는다",
+  "<b>안 놓는다</b> — 떨어지지도 않고 빨린 것도 안 돌아온다. 떨어져 나가던 마른 껍질이 <b>그 자리에 굳어 테</b>가 된다",
+  "<b>마른 실뿌리</b> — 붙은 자리에서 돋아 <b>굳은 테를 뚫고 밖으로</b> 뻗는다. 나이가 아니라 <b>빨아낸 양</b>만큼 자란다",
+  "각성 — 주머니에서 마른 실이 <b>둘로 갈라져</b> 곁의 적을 문다. 하나가 <b>셋을 말린다</b>"]]]});}
+
+// 풍벽 — 방어 격자. `GUARD.forEach` 와 같은 모양(238 · L5).
+{const H=MOUNT("guard");
+ if(H)tile(H,FX,"WBarc","풍벽 風壁","WALL",
+   "깃이 선 바람의 <b>호</b>. 도는 쪽은 몸이 통째로 막히고 <b>등 뒤는 열려 있다</b> — "+
+   "빈 눈금이 열린 각을 잰다",238,undefined,undefined,5);}
+
+// 풍벽 — 방어 성장표. 문구는 `WBLVT.WBarc`(L2~L5)에 L1 한 칸을 앞에 끼운 것이다.
+// ⚠️ `tone:"gale"` 은 **빼면 안 된다.** 격자 칸은 [tile] 이 `WTONE["WBarc"]` 로
+//    `RECOLOR="gale"` 을 걸고 그리는데, 성장표가 그걸 안 걸면 같은 함수가 **다른
+//    색으로** 나온다(`TK` 가 `"gold"` 만 바꾸므로 `WBleak`·`hero` 가 갈린다).
+//    원래 고르기 마운트도 `tone:"gale"` 이었다 — 사용자가 고른 그림이 그 색이다.
+{const HOST=MOUNT("levelsg");
+ lvTable({host:HOST,name:"JDgcell",tone:"gale",rows:[
+ ["WBarc","풍벽 風壁","막는 각 — 어디를 막나 (등 뒤는 끝까지 열려 있다)",[
+  "<b>앞의 한 뼘뿐이다</b> — 호 92°. 나머지 268° 는 통째로 열려 있어 곧장 몸에 닿는다",
+  "<b>호가 넓어진다</b> (92° → 132°)",
+  "<b>겹이 둘</b> — 안쪽 호가 반 칸 어긋나 촘촘해진다",
+  "<b>양 끝에 갈퀴</b> — 호의 가장자리를 스치는 놈이 베인다",
+  "각성 — 호 252°, <b>열린 쪽에 역풍</b>이 분다(막지는 못하고 느리게만 한다)"]]]});}

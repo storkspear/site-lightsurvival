@@ -315,6 +315,15 @@ table.st.tiers td:nth-child(3){width:auto}
     minmax(min(var(--cell,150px),100%),calc(var(--cell,150px)*1.25)))}
 .grid>.tile,.voc>.v{width:auto;min-width:0}
 .grid>.tile.wide,.grid.wide>.tile{grid-column:1/-1}
+/* ⚠️ **`flex:1 1 100%` 는 격자 안에서 아무 일도 안 한다.** `.grid` 는 CSS grid 라
+   자식이 전폭을 먹으려면 `grid-column:1/-1` 이어야 하는데, 손들이 「flex 호스트에서
+   전폭」이라 믿고 flex 속성만 걸어 **덩어리가 격자 한 칸(≈186px)에 구겨졌다**
+   (2026-08-13 마법 페이지가 그렇게 깨졌다).
+
+   ⭐ 그래서 **칸(`.tile`)이 아닌 것은 무조건 한 줄**로 못박는다 — 덩어리(`lvset`),
+   줄(`lvblock`), 이름 없는 묶음 `div` 까지 전부. 손이 어떤 껍데기를 만들어 넣든
+   격자가 안 깨진다. 같은 사고를 이번 회차에만 **세 번** 냈다. */
+.grid>*:not(.tile):not(.v){grid-column:1/-1;width:100%}
 .grid.wide{grid-template-columns:1fr}
 
 /* ── 고정폭을 담는 줄 (`.row`) ─────────────────────────────────────────
