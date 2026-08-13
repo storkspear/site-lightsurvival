@@ -46333,36 +46333,12 @@ function W3core(c,t,dt,W,H,st,i){
   //     아무것도 아니었다(그게 「레이저가 안 보인다」의 정체다) — 아래에서
   //     **밝은 심을 가진 획**으로 새로 세운다.
   WDreact(c,t,st,SC,cx,cy,RR,spin,shade?W3sd(D):D);
-  // ⭐ 암 — **찢긴 틈.** 곧은 획은 백광의 것이라 쓰면 안 된다(2026-08-13 사용자:
-  //   「백광처럼 1자 에너지가 아니고 암흑만의 스타일을 하고 싶은데」).
-  //   어둠이 하는 일은 **쏘는 것이 아니라 삼키는 것**이다 — 껍질이 적 쪽으로
-  //   **찢어지고**, 그 틈이 벌어지며 안에 든 것을 지운다.
-  //   ⚠️ 속은 거의 검정이라 검은 배경에서 아무것도 아니다. 그래서 **가장자리만**
-  //     밝은 자주로 긋는다(#C0A8E8). 「어둠이 보이는 이유는 밝은 림」 그대로다.
-  //   ⚠️ 가장자리를 **톱니로** 만드는 것이 백광과 갈리는 전부다 — 곧으면 레이저,
-  //     들쭉날쭉하면 찢긴 자리다.
-  if(shade)for(const e of st.ev){
-    const u=Math.min(1,e.l/WDEVL),fade=1-u,g=ease(u);
-    const O=GDorigin(st,e,spin,cx,cy,RR);
-    const fo=e.src,tx=cx+fo.ox+fo.kx,ty=cy+fo.oy+fo.ky;
-    const na=Math.atan2(ty-O[1],tx-O[0]);
-    const L=(Math.hypot(tx-O[0],ty-O[1])+RR*.55)*g;
-    const nx=-Math.sin(na),ny=Math.cos(na);
-    const K=9, sd=e.ia*7.3, hi=[], lo=[];
-    for(let i=0;i<=K;i++){
-      const p=i/K, ax=O[0]+Math.cos(na)*L*p, ay=O[1]+Math.sin(na)*L*p;
-      // 폭 — 입구는 좁고 중간이 제일 벌어졌다 끝에서 다시 닫힌다(틈의 모양)
-      const w=RR*(.06+.46*Math.sin(Math.PI*Math.pow(p,.78)))*(.55+.45*fade);
-      const j1=w*(.62+.38*Math.abs(Math.sin(sd+i*2.7)));
-      const j2=w*(.62+.38*Math.abs(Math.sin(sd*1.7+i*3.1)));
-      hi.push([ax+nx*j1,ay+ny*j1*.94]); lo.push([ax-nx*j2,ay-ny*j2*.94]);}
-    const poly=hi.concat(lo.reverse());
-    fillPoly(c,poly,A(W3INK,W3c(Math.min(1,fade*1.30))));   // 삼킨다 — 안을 지운다
-    const lw=Math.max(.5,(1.5+2.6*fade)*SC);
-    celStroke(c,hi,lw,"W3ray",Math.min(1,fade*1.25));       // 톱니 가장자리 — 밝은 자주
-    celStroke(c,lo,lw,"W3ray",Math.min(1,fade*1.25));
-    // 입 — 껍질이 찢어진 자리. 여기가 제일 밝아야 「어디서 열렸나」가 남는다
-    celStroke(c,[hi[0],lo[0]],lw*1.35,"W3ray",Math.min(1,fade*1.45));}
+  // ⭐ 암 — **⑥안 채택**(2026-08-14). 찢긴 틈은 폐기됐다(「배경 때문에 하나도
+  //   안 보여」). 채택안은 **④ 빨아들인다 + ⑤ 껍질 번쩍임** — 티끌이 빨려 들며
+  //   자리를 가리키고, 맞은 자리에서 껍질이 번쩍이며 퍼진다.
+  //   ⚠️ 그늘 부채(W3fan)는 **그대로 산다.** 그건 평상시 껍질이 하는 일이고
+  //     ⑥이 바꾼 것은 **맞았을 때**뿐이다.
+  if(shade)W3SHADEHIT(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H);
   W3react(c,t,st,SC,cx,cy,RR,spin,D,shade);
   drawP(c,st);}
 
@@ -46388,6 +46364,10 @@ Object.assign(WDDEF[5],{face:.66,
 /// 이름을 바꾸면 같은 칸인데 로그에서 남이 된다. (최상위 이름은 규약대로 전부
 /// `W3`; 아래 둘은 최상위 바인딩이 아니라 `W3FN` 의 속성이다.)
 const W3FN={};
+// ⭐ 암의 **맞았을 때**를 ⑥(빨아들인다 + 껍질 번쩍임)으로 못박는다. 고른 것과
+//   쓰는 것이 다르면 시안이 거짓말을 한다 — 방어 페이지·결계 격자가 다 이걸 쓴다.
+function W3SHADEHIT(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H){
+  if(typeof SHdrainRing==="function")SHdrainRing(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H);}
 [4,5].forEach(i=>{const key=WDDEF[i].key;
   W3FN[key]={[key]:function(c,t,dt,W,H,st){W3core(c,t,dt,W,H,st,i);}}[key];
   WDFX[key]=W3FN[key];WDMAP[key]=W3FN[key];});
@@ -47348,26 +47328,12 @@ function SHwardFlare(c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHflare);}
 function SHwardDrainRing(c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHdrainRing);}
 const SHFX={SHwardBite,SHwardRim,SHwardWarp,SHwardDrain,SHwardFlare,SHwardDrainRing};
 
-const SHLIST=[
- ["SHwardBite","암 影 — ① 베어 문다 · 지운다",
-  "**그늘을 한 획도 안 그린다.** 그늘이 덮은 자리를 통째로 지워, 거기 있던 적의 밝은 "+
-  "테·붉은 눈·실명 표식·막은 번쩍임이 **사라지는 것**으로 어둠의 형이 읽힌다"],
- ["SHwardRim","암 影 — ② 반그늘 · 대비만",
-  "속은 배경보다 **어둡고** 둘레만 배경보다 **한 단 밝다**(#40305A — 여전히 어둡다). "+
-  "그림자에 반그늘이 있는 이치 — 밝기를 안 올리고 **경계**만 만든다"],
- ["SHwardWarp","암 影 — ③ 어긋난다 · 굴절",
-  "지우지도 칠하지도 않는다. 그늘에 든 화면을 **떠서 밀어 붙인다** — 띠마다 미는 "+
-  "양이 달라 껍질 획도 적 실루엣도 **꺾인다.** 배경 밝기와 무관하게 보인다"],
- ["SHwardDrain","암 影 — ④ 빨아들인다 · 입자 역상",
-  "어둠은 안 그리고, 늘 떠 있던 **티끌이 그쪽으로 빨려 들어가 사라진다.** 꼬리들이 "+
-  "한 점을 가리키는 것으로 자리가 읽힌다 — 화면에서 제일 밝은 것이 어둠이 아니다"],
- ["SHwardDrainRing","암 影 — ⑥ 빨아들인다 + 껍질 번쩍임  ⭐④+⑤",
-  "**④를 뼈대로 두고 ⑤의 파면만 얹었다.** 티끌이 빨려 들며 자리를 가리키고, "+
-  "맞은 자리에서 **껍질이 번쩍이며 퍼진다.** ⑤의 「지나간 자리가 꺼진다」는 "+
-  "**안 가져왔다** — 그걸 얹으면 꺼짐이 제일 크게 변해 ④의 정체를 덮는다"],
- ["SHwardFlare","암 影 — ⑤ 밀려난 빛 · 음영 반전",
-  "파면이 닿는 셀만 **잠깐 번쩍**하고 그 **뒤는 검게 꺼진다.** 빛이 밀려나 간 자국으로 "+
-  "위치가 읽힌다 — 번쩍임은 짧고(.30RR) 남는 어둠은 길다(1.05RR)"]];
+// ⭐ **⑥안 채택**(2026-08-14 사용자: 「6번 가자」). 목록을 비운다 — 판정이 끝난
+//   안을 남겨 두면 「지금 쓰는 것이 무엇인가」가 흐려진다.
+//   ⚠️ 함수들(SHcore·SHaim·SHdrain·SHwaveRing·SHdrainRing)은 **남긴다** —
+//     채택안이 그것들로 그려지고, `W3shade` 의 반응이 그리로 간다(아래).
+//     떨어진 넷(SHbite·SHrim·SHwarp·SHflare)은 이제 아무도 안 부른다.
+const SHLIST=[];
 
 {const SHH=MOUNT("shadepick");
  if(SHH)SHLIST.forEach(([k,nm,ds])=>tile(SHH,SHFX,k,nm,"",ds,238));}
