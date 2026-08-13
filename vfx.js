@@ -47305,6 +47305,33 @@ function SHflare(c,t,dt,st,SC,cx,cy,RR,spin,D){
         celStroke(c,Sx.concat([Sx[0]]),Math.max(.5,(.9+2.6*fr)*SC),
                   "W3ray",W3c(fr*fr*.90*(.30+.70*S.fade)));}}}
 
+/// ⑥ **④ + ⑤의 껍질 번쩍임** (2026-08-14 사용자: 「4를 기반으로 5처럼 부딪히면
+/// 외벽이 반짝거리는 효과 추가」).
+///
+/// ⚠️ ⑤에서 **파면만** 떼어 온다. 「지나간 자리가 검게 꺼진다」는 안 가져온다 —
+///   그걸 얹으면 화면에서 제일 크게 변하는 것이 **꺼짐**이 되어 ④의 정체
+///   (「티끌이 빨려 든다」)를 덮는다. 둘을 합치는 것은 **더하기가 아니라 고르기**다.
+/// ⚠️ 번쩍임은 맞은 자리에서 **퍼져 나가는 띠**라 어둠의 위치도 같이 말한다 —
+///   ④의 약점(정지 화면에서 형이 흐리다)을 정확히 메운다.
+function SHwaveRing(c,t,dt,st,SC,cx,cy,RR,spin,D){
+  for(const e of st.ev){
+    const S=SHaim(st,e,spin,cx,cy,RR);if(!S)continue;
+    const wr=RR*(.08+1.75*S.g), band=RR*.30;
+    for(const q of st.cell){
+      const P=GDproj(q,spin,cx,cy,RR);
+      if(P.dep<0)continue;                            // 앞면만 — 뒤는 적 뒤라 안 읽힌다
+      const d=Math.hypot(P.x-S.ox,(P.y-S.oy)/.94);
+      const r=RR*WDANG*.5*D.fill*(.62+.38*Math.abs(P.dep));
+      if(r<.4)continue;
+      const fr=1-Math.min(1,Math.abs(d-wr)/band);     // 파면에 닿았는가
+      if(fr<=.02)continue;
+      const Sx=W3hexP(P,P.th*.25,r,1);
+      celStroke(c,Sx.concat([Sx[0]]),Math.max(.5,(.9+2.6*fr)*SC),
+                "W3ray",W3c(fr*fr*.90*(.30+.70*S.fade)));}}}
+function SHdrainRing(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H){
+  SHdrain(c,t,dt,st,SC,cx,cy,RR,spin,D,W,H);          // 먼저 빨아들이고
+  SHwaveRing(c,t,dt,st,SC,cx,cy,RR,spin,D);}          // 그 위에 껍질이 번쩍인다
+
 // ── 다섯 칸 ───────────────────────────────────────────────────────────────
 /// ⚠️ **이름 있는 함수**로 싼다 — [mk] 가 `fn.name` 을 label 로 쓰고 그 label 이
 ///   스모크의 예외 표시가 보는 유일한 이름이다. 화살표로 두면 전부 `anon` 이 된다.
@@ -47313,7 +47340,8 @@ function SHwardRim  (c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHrim);}
 function SHwardWarp (c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHwarp);}
 function SHwardDrain(c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHdrain);}
 function SHwardFlare(c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHflare);}
-const SHFX={SHwardBite,SHwardRim,SHwardWarp,SHwardDrain,SHwardFlare};
+function SHwardDrainRing(c,t,dt,W,H,st){SHcore(c,t,dt,W,H,st,SHdrainRing);}
+const SHFX={SHwardBite,SHwardRim,SHwardWarp,SHwardDrain,SHwardFlare,SHwardDrainRing};
 
 const SHLIST=[
  ["SHwardBite","암 影 — ① 베어 문다 · 지운다",
@@ -47328,6 +47356,10 @@ const SHLIST=[
  ["SHwardDrain","암 影 — ④ 빨아들인다 · 입자 역상",
   "어둠은 안 그리고, 늘 떠 있던 **티끌이 그쪽으로 빨려 들어가 사라진다.** 꼬리들이 "+
   "한 점을 가리키는 것으로 자리가 읽힌다 — 화면에서 제일 밝은 것이 어둠이 아니다"],
+ ["SHwardDrainRing","암 影 — ⑥ 빨아들인다 + 껍질 번쩍임  ⭐④+⑤",
+  "**④를 뼈대로 두고 ⑤의 파면만 얹었다.** 티끌이 빨려 들며 자리를 가리키고, "+
+  "맞은 자리에서 **껍질이 번쩍이며 퍼진다.** ⑤의 「지나간 자리가 꺼진다」는 "+
+  "**안 가져왔다** — 그걸 얹으면 꺼짐이 제일 크게 변해 ④의 정체를 덮는다"],
  ["SHwardFlare","암 影 — ⑤ 밀려난 빛 · 음영 반전",
   "파면이 닿는 셀만 **잠깐 번쩍**하고 그 **뒤는 검게 꺼진다.** 빛이 밀려나 간 자국으로 "+
   "위치가 읽힌다 — 번쩍임은 짧고(.30RR) 남는 어둠은 길다(1.05RR)"]];
