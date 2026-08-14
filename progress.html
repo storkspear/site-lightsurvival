@@ -1,0 +1,156 @@
+<meta charset="utf-8">
+<!-- ⚠️ 이게 없으면 폰이 980px 로 렌더한 뒤 축소한다 — `max-width` 질의가
+     한 번도 안 걸려 반응형이 통째로 죽는다. -->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Light Survival — 진행판</title>
+<link rel="stylesheet" href="vfx.css">
+<style>
+/* 이 페이지 전용. `vfx.css` 는 17장이 함께 쓰므로 안 건드린다. */
+.sum{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 22px}
+.sum b{font-weight:600}
+.pill{border:1px solid var(--edge);border-radius:99px;padding:6px 14px;font-size:13px;
+  background:var(--panel);color:var(--dim);cursor:pointer;white-space:nowrap}
+.pill:hover{border-color:var(--faint)}
+.pill.on{border-color:var(--gold);color:var(--ink)}
+.pill.bad{border-color:#F87171;color:#F87171}
+
+.grp{border:1px solid var(--edge);border-radius:5px;background:var(--panel);margin:0 0 12px}
+.grp>summary{padding:13px 16px;cursor:pointer;list-style:none;display:flex;
+  align-items:center;gap:12px;font-size:15px;font-weight:600}
+.grp>summary::-webkit-details-marker{display:none}
+.grp>summary::before{content:"▸";color:var(--faint);font-size:12px}
+.grp[open]>summary::before{content:"▾"}
+.grp>summary .n{margin-left:auto;font-size:12px;font-weight:400;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.grp .body{padding:2px 16px 14px;border-top:1px solid var(--edge)}
+
+.sub{color:var(--gold);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  margin:16px 0 7px;font-weight:600}
+.row{display:flex;align-items:flex-start;gap:9px;padding:3px 0;font-size:13.5px;line-height:1.55}
+.row .m{flex:none;width:15px;text-align:center;font-size:12px}
+.row.done .t{color:var(--ink)}
+.row.todo .t{color:var(--dim)}
+.row.hold .t{color:#FCD34D}
+.row .ref{color:var(--faint);font-size:11px;margin-left:6px;white-space:nowrap;
+  font-family:ui-monospace,Menlo,monospace}
+/* 검산 못 한 줄 — 「통과」가 아니라 「모른다」다. 눈으로 갈리게 눕힌다. */
+.row.nover .t{opacity:.72}
+.row .warn{color:#F87171;font-size:11.5px;margin-left:6px}
+.row.d1{padding-left:22px}
+.row.d2{padding-left:44px}
+.empty{color:var(--faint);font-size:13px;padding:10px 0}
+
+.logs{font-size:12px;color:var(--dim);line-height:1.9;font-family:ui-monospace,Menlo,monospace}
+.logs .h{color:var(--gold)}
+@media(max-width:640px){.row .ref{display:none}}
+</style>
+
+<div class="wrap">
+<nav class="toc">
+  <!-- ⚠️ 비어 있는 채로 둔다. 다른 17장은 `vfx.js` 가 여기를 채우지만 이 판은
+       그 파일을 **안 부른다** — 2.2MB 를 파싱하고 애니메이션 루프를 돌리는데
+       여기엔 그릴 칸이 하나도 없다(헤드리스 렌더가 실제로 안 끝났다).
+       검사 ⑮는 「nav1 이 있고 링크가 0개」를 요구하므로 이대로 통과한다. -->
+  <div class="nav1"></div>
+  <div class="nav2"><span class="lbl">이 페이지</span><a href="#s-board">진행판</a><a href="#s-log">최근 커밋</a><a href="mockup.html">시안 →</a></div>
+</nav>
+<header>
+  <p class="kicker">Light Survival · 진행판</p>
+  <h1>지금 어디까지</h1>
+  <p class="def"><b>정본은 <code>docs/progress.md</code></b> 다. 이 판은 그걸 읽어 그리고,
+  <b>저장소와 대조해 검산</b>한다 — 「완료」라고 적혀 있는데 코드에 없으면
+  <b style="color:#F87171">빨갛게</b> 띄운다. 반대로 「있는데 체크를 잊은 것」도 잡는다.
+  굽는 법: <code>node tools/progress_scan.js</code></p>
+</header>
+
+<h2 id="s-board">진행판</h2>
+<div class="sum" id="sum"></div>
+<div id="board"></div>
+
+<h2 id="s-log">최근 커밋</h2>
+<p class="def">표에 적은 것이 아니라 <b>커밋된 것</b>이 끝난 것이다.</p>
+<div class="logs" id="log"></div>
+
+</div>
+
+<!-- ⚠️ file:// 에서 브라우저가 세게 캐시한다. 쿼리를 갈아 항상 새로 읽게 한다.
+     `vfx.js` 는 **일부러 안 부른다**(위 nav1 주석 참고). -->
+<script>document.write(unescape("%3Cscript src=\"progress-data.js?t=")+Date.now()+unescape("\"%3E%3C/script%3E"));</script>
+<script>
+(function(){
+  var P = window.PROGRESS;
+  var board = document.getElementById("board");
+  if(!P){ board.innerHTML =
+    '<p class="empty">progress-data.js 가 없다 — <code>node tools/progress_scan.js</code> 를 먼저 돌려라.</p>';
+    return; }
+
+  var MARK = {done:"✅", todo:"⬜", hold:"⏸"};
+  var filter = "all";
+
+  // 요약 + 필터. 사용자 판정으로 **진척률(%)은 안 쓴다** — 셋 중 무엇인지만 본다.
+  // 개수는 목록을 훑는 데 필요해서 남긴다.
+  var s = P.summary;
+  var chips = [
+    ["all",  "전체 " + (s.done+s.todo+s.hold), ""],
+    ["done", "✅ 완료 " + s.done, ""],
+    ["todo", "⬜ 개발예정 " + s.todo, ""],
+    ["hold", "⏸ 보류 " + s.hold, ""]
+  ];
+  if(s.mismatched) chips.push(["bad", "⚠️ 어긋남 " + s.mismatched, "bad"]);
+  document.getElementById("sum").innerHTML =
+    chips.map(function(c){
+      return '<span class="pill '+c[2]+(c[0]==="all"?" on":"")+'" data-f="'+c[0]+'">'+c[1]+'</span>';
+    }).join("") +
+    '<span class="pill" style="cursor:default;border-color:transparent">검산 통과 '+
+      s.verified+' · 못 함 '+s.unchecked+'</span>' +
+    '<span class="pill" style="cursor:default;border-color:transparent">'+P.scannedAt+'</span>';
+
+  function keep(it){
+    if(filter==="all") return true;
+    if(filter==="bad") return it.v==="missing" || it.v==="already";
+    return it.s===filter;
+  }
+
+  function draw(){
+    var html = "";
+    P.groups.forEach(function(g){
+      var items = g.items.filter(keep);
+      if(!items.length) return;
+      // 「예정만」으로 걸러 보는 것이 제일 잦다 — 그때는 다 펴 둔다.
+      var open = (filter!=="all") ? " open" : "";
+      html += '<details class="grp"'+open+'><summary>'+g.title+
+        '<span class="n">✅'+g.done+' ⬜'+g.todo+' ⏸'+g.hold+'</span></summary><div class="body">';
+      var lastSub = null;
+      items.forEach(function(it){
+        if(it.sub && it.sub!==lastSub){ html += '<div class="sub">'+it.sub+'</div>'; lastSub = it.sub; }
+        var warn = "";
+        if(it.v==="missing") warn = '<span class="warn">❌ 완료라는데 '+it.ref+' 가 없다</span>';
+        else if(it.v==="already") warn = '<span class="warn">❌ 이미 있다 — '+it.ref+'</span>';
+        var ref = (it.v==="ok") ? '<span class="ref">✓ '+it.ref+'</span>' : "";
+        html += '<div class="row '+it.s+(it.v==="unchecked"?" nover":"")+' d'+Math.min(it.d,2)+'">'+
+          '<span class="m">'+MARK[it.s]+'</span>'+
+          '<span class="t">'+it.t+ref+warn+'</span></div>';
+      });
+      html += '</div></details>';
+    });
+    board.innerHTML = html || '<p class="empty">해당하는 줄이 없다.</p>';
+  }
+
+  document.getElementById("sum").addEventListener("click", function(e){
+    var p = e.target.closest("[data-f]");
+    if(!p) return;
+    filter = p.dataset.f;
+    [].forEach.call(document.querySelectorAll("#sum .pill"), function(x){
+      x.classList.toggle("on", x===p);
+    });
+    draw();
+  });
+
+  draw();
+  document.getElementById("log").innerHTML =
+    P.log.map(function(l){
+      return '<div><span class="h">'+l.hash+'</span>  '+
+        l.subject.replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</div>';
+    }).join("");
+})();
+</script>
