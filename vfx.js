@@ -20916,12 +20916,14 @@ function LB2hoop(c,x,y,r,squash,rot,w,k,a){
 // 프레임·노치·scrim·엄지 존·홈 인디케이터가 전부 여기서 나온다. 세 안이 한
 // 문법인 것은 취향이 아니라 **여기 한 곳에서만 만들기 때문**이다.
 function LB2phone(host,o){
-  const col=LB2el("div",{width:"392px",flex:"0 0 392px"});
-  const ph=LB2el("div",{width:"392px",padding:"14px",boxSizing:"border-box",
-    background:"#0E0E13",border:"1px solid #23232C",borderRadius:"44px",
-    boxShadow:"0 30px 80px -40px #000"});
-  const sc=LB2el("div",{position:"relative",width:"364px",height:"788px",
-    borderRadius:"31px",overflow:"hidden",background:"#08080C",isolation:"isolate"});
+  // ⚠️ **폭을 인라인으로 박지 않는다** — 인라인은 스타일시트를 이겨서
+  //   미디어 질의가 원천적으로 안 닿는다. 392px 를 인라인으로 두는 바람에
+  //   폰에서 화면을 28px 넘겨 페이지가 가로로 흔들렸고, `vfx.css` 를 아무리
+  //   고쳐도 여기만 안 고쳐졌다(2026-08-14). 같은 값이 `.col`·`.phone`·
+  //   `.screen` 에 이미 있으므로 **클래스만 단다** — 사본도 하나 준다.
+  const col=LB2el("div");col.className="col";
+  const ph=LB2el("div");ph.className="phone";
+  const sc=LB2el("div");sc.className="screen";
   const bg=LB2el("canvas",{position:"absolute",inset:"0",width:"100%",height:"100%",
     display:"block",zIndex:"0"});
   sc.appendChild(bg);
